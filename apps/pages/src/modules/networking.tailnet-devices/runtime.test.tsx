@@ -29,9 +29,15 @@ describe("networking.tailnet-devices runtime", () => {
   it("registers only its walkthrough in the shell; its panels go in the Devices slot", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "networking.tailnet-devices",
-      kinds: ["tutorial-goal", "tutorial-target"],
-      count: runtime.TUTORIAL.targets.length + runtime.TUTORIAL.goals.length,
+      kinds: ["tutorial-goal", "tutorial-route", "tutorial-target"],
+      count:
+        runtime.TUTORIAL.targets.length +
+        runtime.TUTORIAL.goals.length +
+        runtime.TUTORIAL.routes.length,
     });
+    expect(runtime.TUTORIAL.routes.map((route) => route.id)).toEqual([
+      "/identity/devices/tailnet",
+    ]);
   });
 
   it("fills the slot on activation, reaches no network, and empties it on dispose", async () => {

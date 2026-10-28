@@ -52,6 +52,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
+import { emulateFilePickers } from "./lib/file-pickers.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { openVaultList, toTheList } from "./lib/phone-vault.mjs";
@@ -122,12 +123,23 @@ async function answerPrompt(page, setting) {
   const session = await page.context().newCDPSession(page);
   const { targetInfo } = await session.send("Target.getTargetInfo");
   await session.detach();
-  await browserSession.send("Browser.setPermission", {
-    permission: { name: "local-network-access" },
-    setting,
-    origin,
-    browserContextId: targetInfo.browserContextId,
-  });
+  const target = { origin, browserContextId: targetInfo.browserContextId };
+  const apply = async (names) => {
+    await browserSession.send("Browser.resetPermissions", target);
+    for (const name of names)
+      await browserSession.send("Browser.setPermission", {
+        permission: { name },
+        setting,
+        ...target,
+      });
+  };
+  try {
+    await apply(["local-network", "loopback-network"]);
+  } catch (error) {
+    const known = /Unknown permission type: (local-network|loopback-network)/;
+    if (!known.test(String(error))) throw error;
+    await apply(["local-network-access"]);
+  }
 }
 
 /** Whether the browser itself lets the page reach the drive. */
@@ -155,6 +167,7 @@ async function device(
     ...options,
     device: { ...options.device, ignoreHTTPSErrors: true },
   });
+  await emulateFilePickers(context);
   await context.route(`${serve.url}/**`, (route) => route.continue());
   await answerPrompt(page, answer);
   pages.push(page);

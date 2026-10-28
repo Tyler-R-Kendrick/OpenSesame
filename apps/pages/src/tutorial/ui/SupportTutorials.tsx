@@ -9,6 +9,7 @@
  */
 
 import {
+  goalOffered,
   type TutorialGroup,
   tutorialLibrary,
 } from "@opensesame/app-core/tutorial/registry/areas.js";
@@ -62,9 +63,10 @@ export function SupportTutorials({
                   type="button"
                   className="support__tutorial"
                   data-tutorial={goal.id}
-                  onClick={() =>
-                    void support.startGuide(goal.guide, "authored")
-                  }
+                  onClick={() => {
+                    if (goalOffered(goal, gate))
+                      void support.startGuide(goal.guide, "authored");
+                  }}
                 >
                   <span className="support__tutorial-title">{goal.title}</span>
                   <span className="support__tutorial-steps">

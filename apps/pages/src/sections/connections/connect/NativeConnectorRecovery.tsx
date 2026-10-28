@@ -26,7 +26,7 @@ function NativeRevocationConfirmation({
   const instructions = controller.revocationInstructions?.(entry.id);
   if (!instructions) return null;
   const url = nativePublicUrl(instructions.url);
-  if (!url) return null;
+  if (instructions.url && !url) return null;
   return (
     <fieldset className="cx-block cx-form" disabled={disabled}>
       <legend>Provider revocation</legend>
@@ -34,9 +34,11 @@ function NativeRevocationConfirmation({
         <summary>Provider revocation guide</summary>
         <p>{instructions.message}</p>
       </details>
-      <a href={url} target="_blank" rel="noopener noreferrer">
-        Open provider revocation instructions
-      </a>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          Open provider revocation instructions
+        </a>
+      ) : null}
       <label className="check">
         <input
           type="checkbox"

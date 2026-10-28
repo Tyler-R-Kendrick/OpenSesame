@@ -3,6 +3,9 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
+import { isNativeDeviceConnection } from "@opensesame/app-core/lib/device-connector-view.js";
+import { nativeLocalCatalogConfiguration } from "@opensesame/app-core/lib/native-catalog-status.js";
+import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import {
   STATUS_CHIP,
   belongsToConnectedList,
@@ -174,7 +177,22 @@ function AuthorizedConnection({
   connection: Connection;
   provider: Provider | null;
 }) {
-  const chip = STATUS_CHIP[connection.status];
+  const accountVerification =
+    connection.status === "active" &&
+    provider?.id === "google-drive" &&
+    isNativeDeviceConnection(connection)
+      ? { ...STATUS_CHIP.active, label: "Account verified" }
+      : null;
+  const configurationMethod = readNativeConnector(connection.connectionId)
+    ?.configuration.method;
+  const localConfiguration =
+    connection.status === "active" &&
+    provider &&
+    nativeLocalCatalogConfiguration(provider, configurationMethod)
+      ? { ...STATUS_CHIP.active, label: "Configured" }
+      : null;
+  const chip =
+    accountVerification ?? localConfiguration ?? STATUS_CHIP[connection.status];
   const { hash } = useLocation();
   return (
     <li
@@ -187,7 +205,7 @@ function AuthorizedConnection({
       />
       <div className="conn-service__copy">
         <h3>{connection.displayName}</h3>
-        <p>{statusSentence(connection, provider)}</p>
+        <p>{statusSentence(connection, provider, configurationMethod)}</p>
       </div>
       <div className="conn-service__actions">
         <StatusMark tone={statusTone(chip.tone)} label={chip.label} />

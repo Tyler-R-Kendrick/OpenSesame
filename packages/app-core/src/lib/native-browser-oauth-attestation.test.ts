@@ -14,6 +14,16 @@ import {
   readNativeConnector,
   updateNativeConnector,
 } from "./native-connector-store.js";
+import {
+  beginNativeOAuthClient,
+  configureNativeOAuthClient,
+  readNativeOAuthClientSecret,
+} from "./native-oauth-client-config.js";
+import { exchangeNativeOAuthClient } from "./native-oauth-client-exchange.js";
+import {
+  CLIENT_SECRET,
+  nativeOAuthClientFixture,
+} from "./native-oauth-client.test-support.js";
 import { nativeOAuthGuard } from "./native-oauth-session.js";
 import {
   gitlabAccount,
@@ -107,4 +117,47 @@ it("refuses explicitly deselected account verification permissions instead of ad
   await expect(configureNativeBrowserOAuthConnector(input)).rejects.toThrow(
     "permissions selected",
   );
+});
+it("recovers a registered OAuth application without a public profile or losing its sealed client secret", async () => {
+  const f = await nativeOAuthClientFixture("client_secret_post");
+  try {
+    const saved = await configureNativeOAuthClient(f.input, f.owner);
+    const authorization = new URL(
+      await beginNativeOAuthClient(saved.connectionId, f.owner),
+    );
+    f.state.challenge = authorization.searchParams.get("code_challenge") ?? "";
+    const search = new URLSearchParams({
+      native_state: authorization.searchParams.get("state") ?? "",
+      native_code: "one-use-code",
+    }).toString();
+    f.owner.transport.fetch = async () => {
+      throw new TypeError("Synthetic token exchange network failure");
+    };
+    f.owner.transport.settleCredentialMutation = f.owner.transport.fetch;
+    await expect(exchangeNativeOAuthClient(search, f.owner)).rejects.toThrow();
+    const recoveryId = readNativeConnector(saved.connectionId)?.recovery[0]?.id;
+    if (!recoveryId) throw new Error("Expected an exchange recovery");
+    expect(
+      nativeBrowserOAuthRevocationInstructions(saved.connectionId, recoveryId),
+    ).toMatchObject({ canConfirm: false });
+    await expect(
+      attestNativeBrowserOAuthRevocation(saved.connectionId, recoveryId),
+    ).rejects.toThrow("cleanup");
+    expect(readNativeConnector(saved.connectionId)?.status).toBe("cleanup");
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() + 61_000);
+    const view = await attestNativeBrowserOAuthRevocation(
+      saved.connectionId,
+      recoveryId,
+    );
+    expect(view.status).toBe("configuration");
+    expect(view.recovery).toEqual([]);
+    expect(view.verifiedAt).toBeNull();
+    expect(readNativeOAuthClientSecret(saved.connectionId, f.owner)).toBe(
+      CLIENT_SECRET,
+    );
+  } finally {
+    vi.useRealTimers();
+    await f.close();
+  }
 });

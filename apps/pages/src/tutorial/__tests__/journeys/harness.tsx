@@ -20,7 +20,7 @@
  */
 import { defaultPrefs } from "@opensesame/app-core/lib/vault/prefs.js";
 import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
-import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { navigationGuideRoutes } from "@opensesame/app-core/tutorial/registry/routes.js";
 import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
 import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
 
@@ -251,7 +251,7 @@ function buildEngine(
         {
           goals: guideGoalIds(),
           targets: guideTargetIds(),
-          routes: GUIDE_ROUTES.map((route) => route.id),
+          routes: navigationGuideRoutes().map((route) => route.id),
           predicates: guidePredicateIds(),
         },
         AUTHORED_GUIDE_LIMITS,

@@ -76,6 +76,7 @@ import {
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { curatedCatalogProviders } from "./connections/catalog-selection.js";
 import {
   connectorIntegration,
   installConnectorIntegration,
@@ -125,33 +126,33 @@ afterAll(() =>
 declareConnectionsTutorial();
 installConnectorIntegration();
 
+let prompt = standInPrompt();
+beforeEach(() => {
+  prompt = standInPrompt();
+  online.value = true;
+  session.current = { principalId: "prn_op" };
+  connectState.connecting = false;
+  connectState.error = null;
+  shouldAutoConnect.mockReturnValue(true);
+  bundledRef.current = catalog;
+  embeddedCatalogSeams.bundledProviders = catalog;
+  listConnections.mockResolvedValue([]);
+  vault.items = [];
+  setVercelConnectAuth({ token: "test_token" });
+  window.history.replaceState({}, "", "/connections");
+});
+
+afterEach(() => {
+  cleanup();
+  prompt.stop();
+  clearNotices();
+  setVercelConnectAuth(null);
+  vi.clearAllMocks();
+  embeddedCatalogSeams.bundledProviders =
+    originalEmbeddedCatalogSeams.bundledProviders;
+});
+
 describe("ConnectionsSection gallery", () => {
-  let prompt = standInPrompt();
-  beforeEach(() => {
-    prompt = standInPrompt();
-    online.value = true;
-    session.current = { principalId: "prn_op" };
-    connectState.connecting = false;
-    connectState.error = null;
-    shouldAutoConnect.mockReturnValue(true);
-    bundledRef.current = catalog;
-    embeddedCatalogSeams.bundledProviders = catalog;
-    listConnections.mockResolvedValue([]);
-    vault.items = [];
-    setVercelConnectAuth({ token: "test_token" });
-    window.history.replaceState({}, "", "/connections");
-  });
-
-  afterEach(() => {
-    cleanup();
-    prompt.stop();
-    clearNotices();
-    setVercelConnectAuth(null);
-    vi.clearAllMocks();
-    embeddedCatalogSeams.bundledProviders =
-      originalEmbeddedCatalogSeams.bundledProviders;
-  });
-
   it("renders the catalog as one auth-method-tagged list", async () => {
     renderAt("/connections");
     expect(
@@ -164,6 +165,7 @@ describe("ConnectionsSection gallery", () => {
     expect(
       document.querySelector("#catalog-github-tags")?.textContent,
     ).toContain("OAuth");
+    expect(screen.getAllByText("API key").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("Password managers")).toBeNull();
     expect(
       screen.queryByRole("switch", { name: /Enable Plain storage/i }),
@@ -188,6 +190,12 @@ describe("ConnectionsSection gallery", () => {
     // Featured rows and deduplicated API families also return after clearing.
     expect(Array.from(grid.children, (tile) => tile.id).join(" ")).toBe(
       "catalog-aws catalog-azure-sm catalog-cloudflare catalog-fal-ai catalog-gcp catalog-github catalog-google catalog-higgsfield catalog-linear catalog-microsoft catalog-obsidian catalog-polar catalog-vercel",
+    );
+    expect(container.querySelectorAll(".conn-tile").length).toBe(
+      curatedCatalogProviders(catalog, {
+        includeFeatured: true,
+        includeFamilies: true,
+      }).length,
     );
   });
   it("does not report an unreachable Host as a notification", async () => {
@@ -248,24 +256,7 @@ describe("ConnectionsSection gallery", () => {
 
 describe("ConnectionsSection connector page", () => {
   beforeEach(() => {
-    online.value = true;
-    session.current = { principalId: "prn_op" };
-    shouldAutoConnect.mockReturnValue(true);
-    bundledRef.current = catalog;
-    embeddedCatalogSeams.bundledProviders = catalog;
-    listConnections.mockResolvedValue([]);
-    vault.items = [];
-    setVercelConnectAuth({ token: "test_token" });
     window.history.replaceState({}, "", "/connections/github");
-  });
-
-  afterEach(() => {
-    cleanup();
-    clearNotices();
-    setVercelConnectAuth(null);
-    vi.clearAllMocks();
-    embeddedCatalogSeams.bundledProviders =
-      originalEmbeddedCatalogSeams.bundledProviders;
   });
 
   it("reports an unknown connector", async () => {
@@ -358,29 +349,6 @@ describe("ConnectionsSection connector page", () => {
 });
 
 describe("ConnectionsSection remaining branches", () => {
-  beforeEach(() => {
-    online.value = true;
-    session.current = { principalId: "prn_op" };
-    connectState.connecting = false;
-    connectState.error = null;
-    shouldAutoConnect.mockReturnValue(true);
-    bundledRef.current = catalog;
-    embeddedCatalogSeams.bundledProviders = catalog;
-    listConnections.mockResolvedValue([]);
-    vault.items = [];
-    setVercelConnectAuth({ token: "test_token" });
-    window.history.replaceState({}, "", "/connections");
-  });
-
-  afterEach(() => {
-    cleanup();
-    clearNotices();
-    setVercelConnectAuth(null);
-    vi.clearAllMocks();
-    embeddedCatalogSeams.bundledProviders =
-      originalEmbeddedCatalogSeams.bundledProviders;
-  });
-
   it("describes a broken connection with its status detail", async () => {
     listConnections.mockResolvedValue([
       makeConnection({

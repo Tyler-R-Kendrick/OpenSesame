@@ -207,7 +207,13 @@ describe("a vault key rotated on another device", () => {
     ]);
 
     // Removed from the phone and set up from the drive, it opens again.
-    await as(phone, () => phone.store.destroy());
+    await as(phone, async () => {
+      const { forgetOpenLeasesForTest } = await import(
+        "../vault/vault-shared-locks.js"
+      );
+      forgetOpenLeasesForTest();
+      await phone.store.destroy();
+    });
     await adopt(phone, drive, OLD);
     expect(phone.store.getSnapshot().items.map((item) => item.name)).toEqual([
       "bank",

@@ -5,6 +5,7 @@ import { connectPlan } from "./connect-plan.js";
 import type { NativeDriverInput } from "./native-connector-drivers.js";
 import {
   type NativeConfiguration,
+  type NativeRecovery,
   emptyNativePrivate,
   emptyNativeRuntime,
 } from "./native-connector-schema.js";
@@ -23,8 +24,9 @@ import {
 import { nativeOAuthGuard } from "./native-oauth-session.js";
 import {
   assertVaultCredentials,
-  discardVaultCredentials,
+  discardUnpublishedVaultCredentials,
   readVaultCredentials,
+  readVaultCredentialsForWithdrawal,
   stageVaultCredentials,
 } from "./vault-credential-custody.js";
 export const ConfiguredMcpTarget = z
@@ -146,6 +148,23 @@ export function configuredMcpCredentials(
     owner.tomb,
   );
 }
+export function configuredMcpCredentialsForWithdrawal(
+  configuration: NativeConfiguration,
+  credentials: Readonly<Record<string, string>>,
+  owner: ConfiguredMcpOwner,
+) {
+  assertConfiguredMcpOwner(owner);
+  if (credentials.mcp_configured_vault !== owner.tomb)
+    throw new NativeMcpError("disposed");
+  const reference = credentials.mcp_configured_reference;
+  if (!reference) return null;
+  return readVaultCredentialsForWithdrawal(
+    reference,
+    configuration.fingerprint,
+    ["mcpToken"],
+    owner.tomb,
+  );
+}
 export async function configuredMcpFingerprint(
   configuration: Pick<
     NativeConfiguration,
@@ -242,6 +261,30 @@ function retainConfiguredMcp(
     () => assertVaultCredentials(held, owner.tomb, () => admit(configuration)),
   );
 }
+function supersededMcpRecovery(
+  old: NonNullable<ReturnType<typeof loadNativeConnectorRecord>>,
+  previous: ReturnType<typeof configuredMcpCredentialsForWithdrawal>,
+  replacement: string,
+): NativeRecovery | null {
+  const reference = old.privateState.credentials.mcp_configured_reference;
+  if (!previous?.items.length || !reference || reference === replacement)
+    return null;
+  return {
+    id: `configured-mcp-cleanup:${old.revision}`,
+    kind: "revoke",
+    providerId: old.configuration.providerId,
+    actor: "user",
+    fingerprint: old.configuration.fingerprint,
+    targetId: old.configuration.providerId,
+    credentials: {
+      phase: "superseded",
+      mcp_configured_reference: reference,
+      mcp_configured_vault:
+        old.privateState.credentials.mcp_configured_vault ?? "",
+      mcp_configured_binding: old.configuration.fingerprint,
+    },
+  };
+}
 export async function configureMcpCredentials(
   input: NativeDriverInput,
   owner: ConfiguredMcpOwner,
@@ -272,6 +315,13 @@ export async function configureMcpCredentials(
       throw new NativeMcpError("authorization");
     return retainConfiguredMcp(old, configuration, owner, admit);
   }
+  const previous = old
+    ? configuredMcpCredentialsForWithdrawal(
+        old.configuration,
+        old.privateState.credentials,
+        owner,
+      )
+    : null;
   const captured = await stageVaultCredentials(
     {
       name: input.displayName,
@@ -288,13 +338,18 @@ export async function configureMcpCredentials(
     mcp_configured_reference: captured.reference,
     mcp_configured_vault: owner.tomb,
   };
+  const superseded = old
+    ? supersededMcpRecovery(old, previous, captured.reference)
+    : null;
+  if (superseded) state.recovery.push(superseded);
   const check = () =>
     assertVaultCredentials(captured, owner.tomb, () => admit(configuration));
+  const connectionId = old?.connectionId ?? `devconn_${crypto.randomUUID()}`;
   try {
     if (!old)
       return await saveNativeConnector(
         {
-          connectionId: `devconn_${crypto.randomUUID()}`,
+          connectionId,
           configuration,
           runtime: emptyNativeRuntime(),
           privateState: state,
@@ -316,8 +371,13 @@ export async function configureMcpCredentials(
       check,
     );
   } catch (error) {
-    await discardVaultCredentials(captured, owner.tomb, () =>
-      assertConfiguredMcpOwner(owner),
+    await discardUnpublishedVaultCredentials(
+      captured,
+      owner.tomb,
+      () =>
+        loadNativeConnectorRecord(connectionId)?.privateState.credentials
+          .mcp_configured_reference === captured.reference,
+      () => assertConfiguredMcpOwner(owner),
     );
     throw error;
   }

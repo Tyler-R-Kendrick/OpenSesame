@@ -210,6 +210,9 @@ function useLinkedPairing(onCode: (code: string) => void) {
 export function TailnetDevices({ admin }: { admin: TailnetAdmin }) {
   const model = useTailnetAdmin(admin);
   const guide = useGuideTarget<HTMLElement>("identity.tailnet-devices");
+  const commandsGuide = useGuideTarget<HTMLDivElement>(
+    "identity.tailnet-devices.commands",
+  );
   const [filter, setFilter] = useState<DeviceFilter>("all");
   const [editing, setEditing] = useState<TailnetDevice | null>(null);
   const [adding, setAdding] = useState(false);
@@ -223,7 +226,7 @@ export function TailnetDevices({ admin }: { admin: TailnetAdmin }) {
   return (
     <>
       <section ref={guide} className="panel" aria-label="Tailnet devices">
-        <div className="panel__head">
+        <div ref={commandsGuide} className="panel__head">
           <h2>Tailnet devices</h2>
           <HeadKeys
             model={model}

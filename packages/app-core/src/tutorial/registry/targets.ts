@@ -19,6 +19,7 @@ import type {
 import { mergedGuideTargets } from "./catalog.js";
 import { inDevelopment } from "./dev.js";
 import { type GuideRouteId, scopeApplies } from "./routes.js";
+import { announceGuideStateChange } from "./state.js";
 
 export type GuideTargetDescriptor = {
   readonly id: GuideTargetId;
@@ -103,6 +104,7 @@ function declared(): ReadonlyMap<GuideTargetId, GuideTargetDescriptor> {
  */
 const mounted = new Map<GuideTargetId, MountedTarget[]>();
 const mountListeners = new Set<() => void>();
+let mountVersion = 0;
 const activationListeners = new Map<GuideTargetId, Set<ActivationListener>>();
 // Session diagnostics, deduplicated: a control that keeps mounting with an
 // undeclared or duplicate id records the id once, not once per mount, so a
@@ -111,6 +113,8 @@ const duplicateMounts = new Set<string>();
 const undeclaredMounts = new Set<string>();
 
 function announce(): void {
+  mountVersion += 1;
+  announceGuideStateChange();
   for (const listener of [...mountListeners]) listener();
 }
 
@@ -290,6 +294,10 @@ export function duplicateGuideTargetMounts(): readonly string[] {
 /** Ids a control claimed that no capability had declared when it mounted. */
 export function undeclaredGuideTargetMounts(): readonly string[] {
   return [...undeclaredMounts];
+}
+
+export function guideTargetVersion(): number {
+  return mountVersion;
 }
 
 export function subscribeToGuideTargets(listener: () => void): () => void {

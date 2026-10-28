@@ -14,7 +14,11 @@ import { NativeConnectorActions } from "./NativeConnectorActions.js";
 import { NativeConnectorRecovery } from "./NativeConnectorRecovery.js";
 import { Facts } from "./fields.js";
 import type { NativeAuthorizationTicket } from "./native-connector-controller.js";
-import { nativeError, nativeVerified } from "./native-connector-ui-values.js";
+import {
+  nativeError,
+  nativeVerificationClaim,
+  nativeVerified,
+} from "./native-connector-ui-values.js";
 import type {
   NativeConnectorCallbacks,
   NativeConnectorController,
@@ -43,7 +47,7 @@ function verifiedLabel(view: NativeConnectorView, name: string) {
   if (view.configuration.method === "native-local")
     return `${name} configuration verified`;
   if (!view.identity || view.identity.assurance === "credential-valid")
-    return `${name} access verified`;
+    return nativeVerificationClaim(view.providerId, name);
   return `${name} connected`;
 }
 
@@ -221,9 +225,13 @@ function NativeIdentityFacts({
             [
               !verified
                 ? `Previously verified ${view.identity.kind}`
-                : view.identity.assurance === "credential-valid"
-                  ? "Verified access"
-                  : view.identity.kind,
+                : view.configuration.method === "native-local"
+                  ? "Verified configuration"
+                  : view.identity.assurance === "credential-valid"
+                    ? view.providerId === "google-drive"
+                      ? "Verified account"
+                      : "Verified access"
+                    : view.identity.kind,
               view.identity.label,
             ],
           ]}

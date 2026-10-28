@@ -6,6 +6,7 @@ import { registerContributionForTest } from "@opensesame/app-core/lib/contributi
 import { tailnetAdminSeams } from "@opensesame/app-core/lib/tailnet-admin/client.js";
 import { formatTailnetPairingCode } from "@opensesame/app-core/lib/tailnet-admin/pairing.js";
 import { TAILNET_DEVICES_TARGETS } from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 import {
   act,
   cleanup,
@@ -53,6 +54,14 @@ describe("Tailnet devices, the review's regressions", () => {
     ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Pair with the tailnet daemon" }),
+    ).toBeNull();
+    expect(
+      resolveGuideTargetElement("identity.tailnet-devices.commands")?.contains(
+        screen.getByRole("heading", { name: "Tailnet devices" }),
+      ),
+    ).toBe(true);
+    expect(
+      resolveGuideTargetElement("identity.tailnet-devices.add"),
     ).toBeNull();
   });
 

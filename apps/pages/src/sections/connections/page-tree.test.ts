@@ -28,7 +28,6 @@ describe("connections page tree", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual(
       expect.arrayContaining([
-        "byo-ai",
         "linear",
         "microsoft",
         "salesforce",
@@ -49,7 +48,8 @@ describe("connections page tree", () => {
         "vercel",
       ]),
     );
-    expect(ids[0]).toBe("byo-ai");
+    expect(ids[0]).toBe("alibaba");
+    expect(ids).not.toContain("byo-ai");
     expect(ids).not.toContain("cohere");
     expect(ids).not.toContain("deepgram");
     expect(ids).not.toContain("mistral");

@@ -241,7 +241,8 @@ it("offers a new application and binds the connector to it", async () => {
 it("asks for approval before an agent is bound to a connector", async () => {
   const fixture = await seeded();
   await fixture.change({ action: "create", kind: "agent", name: "Helper" });
-  await signInLocalIdentity(fixture.tomb, fixture.personId);
+  // The directory revision change ends the owner's local session.
+  fixture.session = await signInLocalIdentity(fixture.tomb, fixture.personId);
   mount(fixture.tomb);
   await userEvent.click(
     await screen.findByRole("button", { name: "Add connector access" }),

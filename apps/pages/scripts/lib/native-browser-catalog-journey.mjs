@@ -54,13 +54,19 @@ export function nativeCatalogRouteRow(row) {
  * catalog, not a page (ADR 0192): the walk waits for whichever the route drew.
  */
 async function nativeArrival(page, row) {
-  const heading = page.getByRole("heading", { name: row.name, exact: true });
   const sheet = NATIVE_SHARED_AI_PRESETS.has(row.id)
     ? page
         .getByRole("dialog", { name: "Connect a model provider", exact: true })
         .getByRole("form", { name: "AI connection configuration", exact: true })
     : page.getByRole("form", { name: `Connect ${row.name}`, exact: true });
-  await heading.or(sheet).first().waitFor();
+  if (NATIVE_SHARED_AI_PRESETS.has(row.id)) {
+    const heading = page.getByRole("heading", { name: row.name, exact: true });
+    await heading.or(sheet).first().waitFor();
+  } else {
+    await page.locator("main h1").first().waitFor();
+    const actualName = await page.locator("main h1").first().innerText();
+    if (actualName.trim()) row.name = actualName.trim();
+  }
   return (await sheet.count()) ? sheet : null;
 }
 

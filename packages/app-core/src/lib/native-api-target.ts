@@ -98,7 +98,11 @@ function publicInput(
   field: NativeApiProfile["templateParams"][number],
   supplied: Record<string, string>,
 ): string {
-  const value = supplied[field.name]?.trim() || field.choices?.[0]?.value || "";
+  const value =
+    supplied[field.name]?.trim() ||
+    field.defaultValue ||
+    field.choices?.[0]?.value ||
+    "";
   if (field.required && !value) throw new Error(`Enter ${field.label}`);
   if (
     value &&

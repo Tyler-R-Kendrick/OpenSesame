@@ -2,6 +2,9 @@
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { tailnetAdminSeams } from "@opensesame/app-core/lib/tailnet-admin/client.js";
 import { TAILNET_DEVICES_TARGETS } from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
+import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
+import { readGuidePredicate } from "@opensesame/app-core/tutorial/registry/state.js";
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 import {
   cleanup,
   render,
@@ -25,6 +28,7 @@ import {
 // The panel and its add key are tutorial targets the module declares on activation.
 let undeclare: Array<() => void> = [];
 beforeEach(() => {
+  registerGuidePredicates();
   undeclare = TAILNET_DEVICES_TARGETS.map((target) =>
     registerContributionForTest("tutorial-target", target),
   );
@@ -50,6 +54,18 @@ describe("Tailnet devices", () => {
       }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add a device" })).toBeNull();
+    expect(
+      resolveGuideTargetElement("identity.tailnet-devices.add"),
+    ).toBeNull();
+    expect(readGuidePredicate("tailnet.devices.add-available")).toBe(false);
+    const commands = resolveGuideTargetElement(
+      "identity.tailnet-devices.commands",
+    );
+    expect(
+      commands?.contains(
+        screen.getByRole("button", { name: "Pair with the tailnet daemon" }),
+      ),
+    ).toBe(true);
     await userEvent.click(
       screen.getByRole("button", { name: "Pair with the tailnet daemon" }),
     );
@@ -57,6 +73,27 @@ describe("Tailnet devices", () => {
       screen.getByRole("dialog", { name: "Pair with the tailnet daemon" }),
     ).toBeTruthy();
     expect(document.activeElement?.closest("[role=dialog]")).toBeTruthy();
+  });
+
+  it("withdraws the Add lesson when the daemon disconnects and restores it on reconnect", async () => {
+    const daemon = fakeDaemon([router()]);
+    render(<TailnetDevices admin={pairedClient(daemon)} />);
+    await screen.findByRole("button", { name: "Add a device" });
+    expect(readGuidePredicate("tailnet.devices.add-available")).toBe(true);
+    daemon.connected = false;
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reload tailnet devices" }),
+    );
+    await waitFor(() =>
+      expect(readGuidePredicate("tailnet.devices.add-available")).toBe(false),
+    );
+    daemon.connected = true;
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reload tailnet devices" }),
+    );
+    await waitFor(() =>
+      expect(readGuidePredicate("tailnet.devices.add-available")).toBe(true),
+    );
   });
 
   it("lists the tailnet's real devices, waiting ones first, with what needs someone", async () => {
@@ -150,7 +187,17 @@ describe("Tailnet devices", () => {
     const daemon = fakeDaemon([router()]);
     render(<TailnetDevices admin={pairedClient(daemon)} />);
     await screen.findByRole("heading", { name: "router" });
-    await userEvent.click(screen.getByRole("button", { name: "Add a device" }));
+    const add = screen.getByRole("button", { name: "Add a device" });
+    expect(readGuidePredicate("tailnet.devices.add-available")).toBe(true);
+    expect(
+      resolveGuideTargetElement("identity.tailnet-devices.commands")?.contains(
+        add,
+      ),
+    ).toBe(true);
+    expect(
+      resolveGuideTargetElement("identity.tailnet-devices.add")?.contains(add),
+    ).toBe(true);
+    await userEvent.click(add);
     const sheet = within(screen.getByRole("dialog", { name: "Add a device" }));
     await userEvent.type(sheet.getByLabelText("Description"), "sams phone");
     await userEvent.click(sheet.getByRole("button", { name: "7 days" }));
@@ -242,6 +289,15 @@ describe("Tailnet devices", () => {
     );
     await screen.findByRole("heading", { name: "sams-phone" });
     expect(screen.queryByRole("button", { name: "Add a device" })).toBeNull();
+    expect(readGuidePredicate("tailnet.devices.add-available")).toBe(false);
+    expect(
+      resolveGuideTargetElement("identity.tailnet-devices.add"),
+    ).toBeNull();
+    expect(
+      resolveGuideTargetElement("identity.tailnet-devices.commands")?.contains(
+        screen.getByRole("button", { name: "Reload tailnet devices" }),
+      ),
+    ).toBe(true);
     expect(
       screen.queryByRole("button", { name: "Approve sams-phone" }),
     ).toBeNull();

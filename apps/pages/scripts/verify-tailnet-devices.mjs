@@ -59,12 +59,14 @@ import {
   removeAndRevoke,
 } from "./lib/tailnet-devices-steps.mjs";
 import { API_TOKEN } from "./lib/tailscale-stub.mjs";
+import { listTutorials } from "./lib/tutorial-walk.mjs";
 
 const out =
   process.env.TAILNET_DEVICES_OUT ??
   fs.mkdtempSync(path.join(os.tmpdir(), "tailnet-devices-"));
 const stack = await startStack({
   out,
+  dist: process.env.TAILNET_DEVICES_DIST,
   port: Number(process.env.TAILNET_DEVICES_PORT ?? 18792),
 });
 const { base, state, stub, shot } = stack;
@@ -151,6 +153,12 @@ try {
   await expect(phoneRows.first()).toBeVisible({ timeout: 20_000 });
   for (const name of [/^Add a device$/, /^Approve /, /^Remove /, /^Revoke /])
     await expect(phone.page.getByRole("button", { name })).toHaveCount(0);
+  const readOnlyTutorials = await listTutorials(phone.page);
+  expect(
+    readOnlyTutorials.some(
+      (item) => item.id === "identity.tailnet.devices.add",
+    ),
+  ).toBe(false);
   await shot(phone.page, "390-read-only");
   stack.cli("unpair", "--all");
   await phone.page

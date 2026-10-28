@@ -13,6 +13,13 @@ import {
   type GuideGoalDescriptor,
   guideGoal,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
+import {
+  TAILNET_DEVICES_GOALS,
+  TAILNET_DEVICES_TARGETS,
+} from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
+import { mountGuideTarget } from "@opensesame/app-core/tutorial/registry/targets.js";
+import { act, fireEvent } from "@testing-library/react";
 import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -54,6 +61,42 @@ async function openLibrary(route = "/vault") {
 }
 
 describe("the Tutorials tab", () => {
+  it("offers the paired Add lesson only while its real target is mounted", async () => {
+    const revokes = [
+      ...TAILNET_DEVICES_GOALS.map((goal) =>
+        registerContributionForTest("tutorial-goal", goal),
+      ),
+      ...TAILNET_DEVICES_TARGETS.map((target) =>
+        registerContributionForTest("tutorial-target", target),
+      ),
+    ];
+    try {
+      const { library } = await openLibrary("/identity/devices/tailnet");
+      const row = () =>
+        library.querySelector<HTMLElement>(
+          '[data-tutorial="identity.tailnet.devices.add"]',
+        );
+      expect(row()).toBeNull();
+      const add = document.createElement("button");
+      document.body.appendChild(add);
+      let detach = () => {};
+      act(() => {
+        detach = mountGuideTarget("identity.tailnet-devices.add", add);
+      });
+      await waitFor(() => expect(row()).not.toBeNull());
+      const stale = only(row());
+      await act(async () => {
+        detach();
+        fireEvent.click(stale);
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(row()).toBeNull());
+      expect(screen.queryByRole("dialog", { name: /^Tutorial:/ })).toBeNull();
+      add.remove();
+    } finally {
+      for (const revoke of revokes) revoke();
+    }
+  });
   it("opens on Search when no AI capability is approved, and the tabs are a named, selectable pair", async () => {
     const user = userEvent.setup();
     mountSupport({

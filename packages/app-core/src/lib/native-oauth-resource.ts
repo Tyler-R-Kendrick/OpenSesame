@@ -1,7 +1,14 @@
 /** A configured OAuth resource is read before its grant is activated or returned. */
 import { canonicalize, isJsonObject, isString } from "@opensesame/os-domain";
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { NativeApiError, nativeApiHttp } from "./native-api-http.js";
+import { connectPlan } from "./connect-plan.js";
+import {
+  NativeApiError,
+  type NativeApiHttpRequest,
+  nativeApiHttp,
+} from "./native-api-http.js";
+import { providerTemplate } from "./native-api-target.js";
+import { verifyNativeApiResponse } from "./native-api-verify.js";
 import type { NativeGrant, NativeRuntime } from "./native-connector-schema.js";
 import {
   type NativeConnectorRecord,
@@ -9,6 +16,7 @@ import {
   updateNativeConnector,
 } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
+import { assertGoogleDriveAccountScopes } from "./native-google-drive-account.js";
 import {
   type NativeOAuthClientOwner,
   assertNativeOAuthClientOwner,
@@ -29,6 +37,7 @@ function actualResource(
   grant: NativeGrant,
 ): string {
   const target = nativeOAuthClientTarget(record.configuration);
+  assertGoogleDriveAccountScopes(record.configuration.providerId, grant.scopes);
   if (
     !target.resource ||
     grant.resource !== target.resource ||
@@ -66,6 +75,18 @@ function resourceTransport(
     },
   };
 }
+function matchesContractUrl(template: string, url: string): boolean {
+  const pattern = template
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\\{[a-z_]+\\}/g, "[^/?#]+");
+  return new RegExp(`^${pattern}$`).test(url);
+}
+function resourceContract(record: NativeConnectorRecord, url: string) {
+  const verify = connectPlan(record.configuration.providerId)?.methods.find(
+    (method) => method.kind === "oauth",
+  )?.preset?.verify;
+  return verify && matchesContractUrl(verify.url, url) ? verify : null;
+}
 function resourceFailed(body: BoundaryValue): boolean {
   if (!isJsonObject(body)) return false;
   if (isString(body.error) && body.error.trim().length > 0) return true;
@@ -84,6 +105,44 @@ function resourceFailed(body: BoundaryValue): boolean {
     body.status === "failed"
   );
 }
+function resourceHeaders(
+  record: NativeConnectorRecord,
+  grant: NativeGrant,
+  contract: ReturnType<typeof resourceContract>,
+): Headers {
+  const headers = new Headers(contract?.headers);
+  if (!headers.has("accept")) headers.set("accept", "application/json");
+  if (contract?.auth) {
+    if (contract.auth.kind !== "header") throw new NativeOAuthError("scope");
+    const value = contract.auth.valueTemplate
+      ? providerTemplate(
+          contract.auth.valueTemplate,
+          record.configuration.parameters,
+          { api_key: grant.accessToken },
+        )
+      : `${contract.auth.scheme ? `${contract.auth.scheme} ` : ""}${grant.accessToken}`;
+    headers.set(contract.auth.header, value);
+  } else headers.set("authorization", `Bearer ${grant.accessToken}`);
+  return headers;
+}
+
+function verifyResourceResponse(
+  record: NativeConnectorRecord,
+  grant: NativeGrant,
+  contract: ReturnType<typeof resourceContract>,
+  body: BoundaryValue,
+): void {
+  if (contract) {
+    const plan = connectPlan(record.configuration.providerId);
+    verifyNativeApiResponse(
+      plan?.name ?? record.configuration.displayName,
+      contract,
+      body,
+      { access_token: grant.accessToken },
+    );
+  } else if (resourceFailed(body)) throw new NativeApiError("response", 200);
+}
+
 async function readResource(
   record: NativeConnectorRecord,
   grant: NativeGrant,
@@ -92,20 +151,17 @@ async function readResource(
   const url = actualResource(record, grant);
   assertNativeOAuthClientPolicy(record.configuration, owner);
   const transport = resourceTransport(record, grant, owner);
+  const contract = resourceContract(record, url);
   try {
-    const body = await nativeApiHttp(
-      {
-        url,
-        method: "GET",
-        headers: new Headers({
-          accept: "application/json",
-          authorization: `Bearer ${grant.accessToken}`,
-        }),
-        signal: transport.signal,
-      },
-      transport,
-    );
-    if (resourceFailed(body)) throw new NativeApiError("response", 200);
+    const request: NativeApiHttpRequest = {
+      url,
+      method: contract?.method ?? "GET",
+      headers: resourceHeaders(record, grant, contract),
+      signal: transport.signal,
+    };
+    if (contract && contract.body !== null) request.body = contract.body;
+    const body = await nativeApiHttp(request, transport);
+    verifyResourceResponse(record, grant, contract, body);
     return body;
   } catch (error) {
     if (error instanceof NativeApiError && error.status === 401) {

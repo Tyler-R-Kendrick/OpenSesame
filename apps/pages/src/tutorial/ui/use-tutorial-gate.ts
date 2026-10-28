@@ -18,7 +18,11 @@ import {
   registerGuidePredicates,
 } from "@opensesame/app-core/tutorial/registry/predicates.js";
 import { readGuidePredicate } from "@opensesame/app-core/tutorial/registry/state.js";
-import { useMemo } from "react";
+import {
+  guideTargetVersion,
+  subscribeToGuideTargets,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
+import { useMemo, useSyncExternalStore } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
 import { installPanelDraws } from "../../lib/install-panel.js";
 import { installState } from "../../lib/install.js";
@@ -27,6 +31,11 @@ import { finePointerNow, narrowNow } from "../../lib/use-narrow.js";
 import { useIntegrationsDrawn } from "../../sections/settings/use-integrations-drawn.js";
 
 export function useTutorialGate(): LibraryOptions {
+  const targetVersion = useSyncExternalStore(
+    subscribeToGuideTargets,
+    guideTargetVersion,
+    () => 0,
+  );
   const { plan } = useComposition();
   const integrations = useIntegrationsDrawn();
   // Settings draws a section against the same facts, so a tutorial offered
@@ -58,5 +67,5 @@ export function useTutorialGate(): LibraryOptions {
       holds: readGuidePredicate,
       installed: (id: string) => plan?.capabilities[id]?.approved === true,
     };
-  }, [plan, integrations, identityApi]);
+  }, [plan, integrations, identityApi, targetVersion]);
 }

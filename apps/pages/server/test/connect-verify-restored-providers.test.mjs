@@ -72,9 +72,10 @@ describe("preserved relay verification contracts", () => {
     assert.equal(result.ok, false);
   });
 
-  it("keeps the local Obsidian endpoint unbound and refuses its token proof", async () => {
-    const target = VERIFY_TARGETS.obsidian.apiKey;
-    assert.equal(target.unbound, true);
+  it("omits the local Obsidian endpoint when its host and port cannot be recovered", async () => {
+    assert.equal(VERIFY_TARGETS.obsidian, undefined);
+    const target = verifyTargetFor({ service: "obsidian", type: "api-key" });
+    assert.equal(target, null);
     assert.equal(
       await verifyWithToken(target, TOKEN, () => assert.fail("must not fetch")),
       null,

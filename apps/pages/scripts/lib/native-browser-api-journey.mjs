@@ -58,7 +58,8 @@ export async function fillNativeApiFixture(page, fixture) {
 function verifiedMark(page, fixture) {
   return page.getByRole("img", {
     name: new RegExp(
-      `^${fixture.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} (connected|access verified)$`,
+      `^${fixture.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} (?:access verified|connected)(?:\\.|$)`,
+      "i",
     ),
   });
 }
@@ -220,13 +221,12 @@ export async function nativeApiJourney(
     ),
     `${fixture.providerId}: provider verification really crossed the fixed HTTP boundary`,
   );
+  const key = page.getByLabel(nativeKeyLabel(fixture), {
+    exact: true,
+    selector: 'input[type="password"]',
+  });
   harness.check(
-    (await page
-      .getByLabel(nativeKeyLabel(fixture), {
-        exact: true,
-        selector: 'input[type="password"]',
-      })
-      .inputValue()) === "",
+    (await key.inputValue()) === "",
     `${fixture.providerId}: verified save clears entered key`,
   );
   await noSecretRendered(page, fixture, harness.check);

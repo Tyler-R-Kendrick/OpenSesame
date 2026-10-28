@@ -78,6 +78,7 @@ function templateParams(row) {
     ...param,
     required: param.required !== false,
     secret: param.secret === true,
+    defaultValue: param.default_value,
   }));
 }
 

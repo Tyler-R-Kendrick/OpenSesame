@@ -130,7 +130,7 @@ it("a retained old revoker cannot borrow a newly registered provider cleanup", a
   expect(readNativeConnector(id)?.status).toBe("connected");
 });
 
-it("refuses completion when its provider runtime changes while prepare awaits", async () => {
+it("refuses removal completion when its provider runtime changes while prepare awaits", async () => {
   const id = await saveFixture();
   let started = () => {};
   const entered = new Promise<void>((resolve) => {
@@ -146,7 +146,7 @@ it("refuses completion when its provider runtime changes while prepare awaits", 
     await pendingPrepare;
   };
   const releaseOld = registerNativeProviderCleanup(providerId, old);
-  const pending = retryNativeConnectorCleanup(id);
+  const pending = removeNativeConnectorWithCleanup(id);
   await entered;
   releaseOld();
   const fresh = adapter();
@@ -154,5 +154,5 @@ it("refuses completion when its provider runtime changes while prepare awaits", 
   complete();
   await expect(pending).rejects.toThrow("Provider cleanup failed");
   expect(fresh.cleanup).not.toHaveBeenCalled();
-  expect(readNativeConnector(id)?.status).toBe("connected");
+  expect(readNativeConnector(id)?.status).toBe("cleanup");
 });

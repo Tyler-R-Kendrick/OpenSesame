@@ -11,6 +11,43 @@ import {
 
 afterEach(cleanup);
 
+it("labels an OIDC-only Google Drive proof without claiming Drive access", () => {
+  const view = nativeUiView();
+  view.providerId = "google-drive";
+  view.configuration.providerId = "google-drive";
+  view.configuration.method = "oauth";
+  view.configuration.parameters = { client_id: "registered-client" };
+  if (!view.identity) throw new Error("Missing identity fixture");
+  view.identity = { ...view.identity, label: "Google Drive" };
+  render(
+    <NativeConnectorSummary
+      descriptor={{
+        ...nativeUiDescriptor(),
+        providerId: "google-drive",
+        name: "Google Drive",
+      }}
+      view={view}
+      controller={nativeUiController(view)}
+      onChanged={vi.fn()}
+      onFlash={vi.fn()}
+      onRemoved={vi.fn()}
+    />,
+  );
+  expect(
+    screen.getByRole("img", {
+      name: "Google account verified; Drive access was not checked",
+    }),
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole("img", { name: "Google Drive access verified" }),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Verify Google account" }),
+  ).toBeTruthy();
+  expect(screen.getByText("Verified account")).toBeTruthy();
+  expect(screen.queryByText("Verified access")).toBeNull();
+});
+
 it("distinguishes validated access from returned account identity and provider-managed permissions", () => {
   const view = nativeUiView();
   render(

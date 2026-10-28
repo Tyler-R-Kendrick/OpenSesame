@@ -100,11 +100,12 @@ it("offers the Obsidian plugin's local endpoint from its compiled preset", () =>
   const descriptor = nativeSettingsDescriptor(provider("obsidian"));
   const apiKey = descriptor?.methods.find((method) => method.id === "api-key");
   expect(apiKey?.available).toBe(true);
-  expect(
-    apiKey?.fields.some(
-      (field) => field.id === "obsidian_endpoint" && !field.secret,
-    ),
-  ).toBe(true);
+  for (const id of ["host", "port"]) {
+    expect(
+      apiKey?.fields.some((field) => field.id === id && !field.secret),
+      id,
+    ).toBe(true);
+  }
   expect(catalogConnectorAction(provider("obsidian"), null).kind).toBe(
     "connect",
   );
@@ -143,6 +144,31 @@ it("offers the Azure family from the secret-store surface a browser can connect"
     descriptor?.methods.find((method) => method.id === "api-key")?.available,
   ).toBe(true);
   expect(catalogConnectorAction(azure, null).kind).toBe("connect");
+});
+
+it("offers every newly listed provider and family member a real configuration route", () => {
+  connectorIntegration();
+  for (const id of [
+    "obsidian",
+    "polar",
+    "higgsfield",
+    "fal-ai",
+    "google-drive",
+    "m365",
+    "azure-kms",
+    "azure-access-token",
+    "aws-kms",
+    "gcp-kms",
+    "linear",
+  ]) {
+    expect(catalogConnectorAction(provider(id), null).kind, id).not.toBe(
+      "unavailable",
+    );
+  }
+  expect(nativeSettingsDescriptor(provider("linear"))).not.toBeNull();
+  expect(
+    nativeSettingsDescriptor(provider("azure-kms"))?.methods[0]?.available,
+  ).toBe(true);
 });
 
 it("keeps a saved local git URL from claiming browser installation or authorization", () => {

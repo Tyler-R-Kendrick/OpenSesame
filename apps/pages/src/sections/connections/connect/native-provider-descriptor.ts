@@ -24,6 +24,7 @@ import {
   nativeOAuthResourceDescriptor,
   nativePublicApplicationDescriptor,
 } from "./native-oauth-resource-descriptor.js";
+import { nativeOriginMethodDescriptor } from "./native-origin-descriptor.js";
 import {
   providerApiKeyFields,
   providerParameterField,
@@ -164,7 +165,10 @@ function publicOAuthDescriptor(
   const preset =
     availability.oauth.preset ?? method.preset ?? configured?.preset;
   const profile = availability.oauth.profile;
-  const options: NativeOAuthResourceOptions = configured ?? {};
+  const options: NativeOAuthResourceOptions = {
+    ...configured,
+    accountOnly: plan.id === "google-drive",
+  };
   if (availability.oauth.available && profile) {
     const publicMethod = {
       ...nativeBrowserOAuthDescriptor(plan, profile, availability.callbackUrl),
@@ -221,6 +225,7 @@ function publicOAuthDescriptor(
         preset,
         availability.callbackUrl,
         availability.oauth.available,
+        options,
       ),
       preferredRank: 35,
     };
@@ -243,7 +248,10 @@ function additionalOAuthMethod(
         configured.preset,
         availability.callbackUrl,
         availability.oauth.registeredAvailable ?? availability.oauth.available,
-        configured,
+        {
+          ...configured,
+          accountOnly: plan.id === "google-drive",
+        },
       ),
       preferredRank: 35,
     };
@@ -261,10 +269,15 @@ function additionalOAuthMethod(
 function providerMethods(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
-  selectedMethod?: NativeMethod,
+  selectedMethod: NativeMethod | undefined,
+  saved: boolean,
 ): NativeMethodDescriptor[] {
+  if (plan.id === "origin")
+    return [nativeOriginMethodDescriptor(plan, availability)];
   const primaryMethod = plan.primaryMethod
-    ? (selectedMethod ?? plan.primaryMethod)
+    ? saved
+      ? selectedMethod
+      : plan.primaryMethod
     : undefined;
   const methods: NativeMethodDescriptor[] = [];
   for (const method of plan.methods) {
@@ -295,11 +308,20 @@ function providerMethods(
 export function nativeProviderDescriptor(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
-  selectedMethod?: NativeMethod,
+  saved: boolean | NativeMethod = false,
 ): NativeConnectorDescriptor {
-  const methods = providerMethods(plan, availability, selectedMethod).map(
-    (method) => nativePolicyMethod(plan.id, method),
-  );
+  const selectedMethod = saved === false || saved === true ? undefined : saved;
+  const methods = providerMethods(
+    plan,
+    availability,
+    selectedMethod,
+    saved !== false,
+  )
+    .filter(
+      ({ id }) =>
+        saved !== false || plan.primaryMethod !== "mcp" || id === "mcp",
+    )
+    .map((method) => nativePolicyMethod(plan.id, method));
   if (methods.length === 0)
     methods.push({
       id: selectedMethod ?? "oauth",

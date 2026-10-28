@@ -10,6 +10,7 @@ import {
   GOOGLE_WALLET_SAVE_PREFIX,
   GOOGLE_WALLET_TOKEN_URL,
 } from "./google-wallet-browser-protocol.mjs";
+import { googleWalletBrowserArguments } from "./google-wallet-browser-tls.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const closes = [];
@@ -209,4 +210,17 @@ it("validates the signed public Save URL only when an actual navigation requests
   expect(f.snapshot().saved).toEqual([
     `${GOOGLE_WALLET_ISSUER}.os_${"a".repeat(32)}`,
   ]);
+});
+
+it("represents public Google authorities without weakening browser security", () => {
+  const args = googleWalletBrowserArguments(43123, "public-spki");
+  expect(args).toContain("--no-proxy-server");
+  expect(args).toContain(
+    "--host-resolver-rules=MAP oauth2.googleapis.com 127.0.0.1:43123, MAP walletobjects.googleapis.com 127.0.0.1:43123, MAP pay.google.com 127.0.0.1:43123",
+  );
+  expect(args).toContain("--ignore-certificate-errors-spki-list=public-spki");
+  expect(args).toContain("--ip-address-space-overrides=127.0.0.1:43123=public");
+  expect(args.join(" ")).not.toMatch(
+    /disable-web-security|allow-insecure-localhost|LocalNetworkAccessChecks/,
+  );
 });

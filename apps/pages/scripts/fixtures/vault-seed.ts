@@ -1,4 +1,5 @@
 import "./install-browser-host.js";
+import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 
 /**
@@ -8,6 +9,7 @@ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
  * PIN never does. This entry is never part of the Pages build.
  */
 export async function seed(password: string): Promise<void> {
+  await atRestReady();
   await vaultStore.create(password);
   vaultStore.lock();
 }

@@ -6,6 +6,22 @@ import { CONNECT_PLAN_JSON } from "./connect-presets.generated.js";
 import { unpackGeneratedJson } from "./generated-json.js";
 import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
 
+it("does not silently replace duplicate provider contracts during generation", () => {
+  const presets = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../../../spec/connectors/connect-presets.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as { api_key: { service: string }[]; oauth: { service: string }[] };
+  for (const rows of [presets.api_key, presets.oauth]) {
+    const ids = rows.map((row) => row.service);
+    expect(new Set(ids).size).toBe(ids.length);
+  }
+});
+
 it("reconstructs every original connector plan byte for byte, including provider endpoints and instructions", () => {
   const originals = renderPlanJson();
   const packed = packJsonRows(originals);
@@ -14,7 +30,7 @@ it("reconstructs every original connector plan byte for byte, including provider
   );
   expect(decoded).toEqual(originals);
   expect(CONNECT_PLAN_JSON).toEqual(originals);
-  expect(originals).toHaveLength(256);
+  expect(originals).toHaveLength(259);
 });
 
 it("reconstructs the complete authored browser policy with every recorded probe unchanged", () => {

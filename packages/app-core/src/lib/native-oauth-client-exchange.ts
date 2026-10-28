@@ -6,6 +6,10 @@ import type { NativeGrant } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import {
+  assertGoogleDriveAccountScopes,
+  isGoogleDriveAccountScopeSet,
+} from "./native-google-drive-account.js";
+import {
   type NativeOAuthClientOwner,
   assertNativeOAuthClientOwner,
   assertNativeOAuthClientPolicy,
@@ -16,6 +20,7 @@ import {
 } from "./native-oauth-client-config.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import { nativeOAuthHttp } from "./native-oauth-http.js";
+import { nativeOAuthScopeIncludes } from "./native-oauth-scope-equivalence.js";
 import {
   claimNativeOAuthPending,
   journalNativeOAuthGrant,
@@ -86,6 +91,10 @@ function issued(
   const validScopes =
     scopes === null ||
     (scopes.length <= 256 && scopes.every((scope) => scope.length <= 512));
+  const accountScopes = isGoogleDriveAccountScopeSet(
+    pending.providerId,
+    scopes,
+  );
   const grant: NativeGrant = {
     kind: "oauth",
     providerId: pending.providerId,
@@ -101,11 +110,16 @@ function issued(
       details.success && details.data.expires_in !== undefined
         ? Date.now() + details.data.expires_in * 1000
         : null,
-    scopes: validScopes ? scopes : null,
+    scopes: validScopes && accountScopes ? scopes : null,
   };
   return {
     grant,
-    valid: status >= 200 && status < 300 && details.success && validScopes,
+    valid:
+      status >= 200 &&
+      status < 300 &&
+      details.success &&
+      validScopes &&
+      accountScopes,
   };
 }
 function exchangeForm(
@@ -194,6 +208,7 @@ export async function exchangeNativeOAuthClient(
   const id = claim.record.connectionId;
   const target = nativeOAuthClientTarget(claim.record.configuration);
   const pending = claim.pending;
+  assertGoogleDriveAccountScopes(pending.providerId, pending.scopes);
   if (
     pending.endpoint !== target.token_endpoint ||
     pending.issuer !== target.issuer ||
@@ -254,7 +269,14 @@ export async function exchangeNativeOAuthClient(
     if (!receipt.valid) throw new NativeOAuthError("provider");
     if (
       receipt.grant.scopes &&
-      pending.scopes.some((scope) => !receipt.grant.scopes?.includes(scope))
+      pending.scopes.some(
+        (scope) =>
+          !nativeOAuthScopeIncludes(
+            pending.providerId,
+            receipt.grant.scopes ?? [],
+            scope,
+          ),
+      )
     )
       throw new NativeOAuthError("scope");
     return { connectionId: id, intentId: claim.obligation.id };

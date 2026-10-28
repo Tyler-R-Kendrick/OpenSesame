@@ -68,11 +68,7 @@ export const TUTORIAL = {
     ...NAV_IDENTITY_GOALS,
     ...pickById(IDENTITY_GOALS, [
       "identity.applications.manage",
-      "identity.local.agent.keys.manage",
       "identity.local.application.authorize",
-      "identity.local.passkeys.manage",
-      "identity.local.directory.manage",
-      "identity.local.organizations.member",
     ]),
   ],
   routes: IDENTITY_ROUTES,

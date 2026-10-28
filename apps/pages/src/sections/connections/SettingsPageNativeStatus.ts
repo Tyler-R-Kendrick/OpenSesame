@@ -10,6 +10,7 @@ import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-s
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { tailscaleNodeAuthorization } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import type { ConnectorTitleStatus } from "./SettingsPageStatus.js";
+import { nativeVerificationClaim } from "./connect/native-connector-ui-values.js";
 
 export type NativeHeaderStatus = ConnectorTitleStatus & { sentence: string };
 function tailscaleHeader(
@@ -73,11 +74,12 @@ function verifiedHeader(
       sentence: "Browser configuration verified on this device.",
     };
   const identity = view.identity;
-  let sentence = `${provider.displayName} access verified.`;
-  let label = "Access verified";
+  let sentence = `${nativeVerificationClaim(provider.id, provider.displayName)}.`;
+  let label =
+    provider.id === "google-drive" ? "Account verified" : "Access verified";
   if (identity?.assurance === "account-verified") {
     sentence = `Account verified: ${identity.label}.`;
-    label = "Connected";
+    if (provider.id !== "google-drive") label = "Connected";
   } else if (identity?.assurance === "workspace-verified") {
     sentence = `Workspace verified: ${identity.label}.`;
     label = "Connected";

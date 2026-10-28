@@ -10,7 +10,11 @@
 
 import { sortItems } from "@opensesame/vault-core";
 import { vaultStore } from "../../lib/vault/store.js";
-import { type GuideRouteId, guideRouteForLocation } from "./routes.js";
+import {
+  type GuideRouteId,
+  TAILNET_DEVICES_ROUTE,
+  guideRouteForLocation,
+} from "./routes.js";
 
 export const VAULT_ITEM_ROUTE = "/vault/item";
 export const VAULT_TRASH_ROUTE = "/vault/trash";
@@ -24,6 +28,8 @@ export function guideNavigationPath(
   route: GuideRouteId,
   here: { readonly pathname: string; readonly search: string },
 ): string | null {
+  if (route === TAILNET_DEVICES_ROUTE)
+    return "/identity?view=devices#tailnet-devices";
   if (route !== VAULT_ITEM_ROUTE && route !== VAULT_TRASH_ROUTE) return route;
   if (guideRouteForLocation(here.pathname, here.search) === route) return null;
   if (route === VAULT_TRASH_ROUTE) return "/vault?f=trash";

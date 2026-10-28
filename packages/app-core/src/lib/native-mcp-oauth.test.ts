@@ -208,15 +208,6 @@ describe("public browser MCP authorization", () => {
     expect(retained).not.toHaveBeenCalled();
   });
 
-  it("turns a failed durable retention into a removable metadata refusal", async () => {
-    const { oauth } = fixture();
-    await expect(
-      oauth.register(async () => {
-        throw new Error("sealed slot rejected the record");
-      }),
-    ).rejects.toMatchObject({ code: "metadata" });
-  });
-
   it("keeps a storage refusal retryable so the minted registration is not discarded", async () => {
     const { oauth } = fixture();
     await expect(

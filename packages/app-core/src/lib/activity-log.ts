@@ -359,7 +359,6 @@ export function noteActivity(
 ): void {
   emitActivity({ category, type, summary, outcome, targetType, targetId });
 }
-
 export function emitActivity(input: RecordActivityInput): void {
   const tomb = activitySeams.activeTomb();
   if (!tomb) return;

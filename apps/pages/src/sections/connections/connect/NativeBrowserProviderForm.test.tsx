@@ -100,3 +100,47 @@ it.each(["google", "microsoft"])(
     expect(JSON.stringify(sent)).not.toContain("javascript_origin");
   },
 );
+
+it("does not describe an OIDC-only Google Drive proof as Drive access", async () => {
+  const plan = connectPlan("google-drive");
+  if (!plan) throw new Error("Google Drive contract required");
+  const descriptor = nativeProviderDescriptor(plan, {
+    callbackUrl: "https://app.example/auth/native-connector.html",
+    apiKey: { available: false },
+    oauth: { available: true },
+    mcp: { available: false, actor: "user" },
+  });
+  const view = nativeUiView();
+  view.providerId = "google-drive";
+  view.configuration.providerId = "google-drive";
+  view.configuration.method = "oauth";
+  view.configuration.parameters = { client_id: "registered-client" };
+  view.configuration.requestedScopes = { user: ["openid", "email"] };
+  const controller = nativeUiController(view);
+  const onFlash = vi.fn();
+  render(
+    <NativeConnectorForm
+      descriptor={descriptor}
+      controller={controller}
+      onChanged={vi.fn()}
+      onFlash={onFlash}
+    />,
+  );
+  await userEvent.type(
+    screen.getByLabelText("OAuth client ID"),
+    "registered-client",
+  );
+  await userEvent.type(
+    screen.getByLabelText("OAuth client secret"),
+    "synthetic-client-secret",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Sign in to Google Drive" }),
+  );
+  await waitFor(() =>
+    expect(onFlash).toHaveBeenCalledWith({
+      tone: "ok",
+      text: "Google account verified; Drive access was not checked. Configuration saved on this device.",
+    }),
+  );
+});

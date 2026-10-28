@@ -30,6 +30,7 @@ import {
   isKnownGuidePredicate,
 } from "./state.js";
 import type { GuidePredicateDescriptor } from "./state.js";
+import { isMountedGuideTarget } from "./targets.js";
 
 /**
  * Whether the Connections area is currently showing at least one live
@@ -122,6 +123,12 @@ function vaultUnlocked(): boolean {
 }
 
 export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
+  {
+    id: "tailnet.devices.add-available",
+    description:
+      "The paired and connected tailnet offers its Add a device control.",
+    read: () => isMountedGuideTarget("identity.tailnet-devices.add"),
+  },
   {
     id: "vault.unlocked",
     description: "The vault is open and its key is held in memory.",

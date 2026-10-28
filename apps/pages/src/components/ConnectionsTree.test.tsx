@@ -10,6 +10,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import { useEffect, useRef, useState } from "react";
@@ -19,6 +20,7 @@ import { createKeymapHandler } from "../lib/keymap.js";
 import { curatedCatalogProviders } from "../sections/connections/catalog-selection.js";
 import {
   ConnectionsNavigation,
+  resetConnectionsNavigation,
   usePublishConnections,
 } from "./ConnectionsNavigation.js";
 import { ConnectionsTreeEntries } from "./ConnectionsTree.js";
@@ -174,6 +176,7 @@ function catalogLeaves() {
 afterEach(() => {
   setRailCursor(null);
   cleanup();
+  resetConnectionsNavigation();
 });
 
 it("lists the flat catalog 12 at a time and resets pagination", () => {
@@ -242,8 +245,17 @@ it("toggles both subtrees and navigates to their page anchors", () => {
   expect(document.getElementById("catalog-tree")).toBeNull();
 });
 
-it("does not list automatically configured providers as addable connectors", () => {
-  setup([{ ...providers[0], autoConfigurable: true }]);
+it("does not list automatically configured providers as addable connectors", async () => {
+  const automatic = providers[0];
+  if (!automatic) throw new Error("Expected an automatic catalog fixture");
+  setup([{ ...automatic, autoConfigurable: true }]);
   openCatalog();
-  expect(catalogGroup().queryAllByRole("treeitem")).toHaveLength(0);
+  await waitFor(() => {
+    expect(
+      catalogGroup().queryByRole("treeitem", {
+        name: automatic.displayName,
+      }),
+    ).toBeNull();
+    expect(catalogLeaves().length).toBeGreaterThan(0);
+  });
 });

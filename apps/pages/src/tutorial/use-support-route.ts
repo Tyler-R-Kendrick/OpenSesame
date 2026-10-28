@@ -25,9 +25,14 @@ export function useSupportRouteSync(
 
   useEffect(() => {
     controller.setRoute(
-      override ?? guideRouteForLocation(location.pathname, location.search),
+      override ??
+        guideRouteForLocation(
+          location.pathname,
+          location.search,
+          location.hash,
+        ),
     );
-  }, [controller, location.pathname, location.search, override]);
+  }, [controller, location.pathname, location.search, location.hash, override]);
 
   useEffect(() => {
     controller.setNavigator((route) => {

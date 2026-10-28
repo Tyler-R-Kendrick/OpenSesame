@@ -89,6 +89,15 @@ describe("identity.local-iam runtime", () => {
       "identity.devices",
       "identity.service-accounts",
     ]);
+    const goalIds = t.entries("tutorial-goal").map((d) => d.id);
+    for (const id of [
+      "identity.local.agent.keys.manage",
+      "identity.local.directory.manage",
+      "identity.local.organizations.member",
+      "identity.local.passkeys.manage",
+    ]) {
+      expect(goalIds).not.toContain(id);
+    }
     // The whole identity partition of the route registry: the two Identity
     // screens plus `/federation`, whose return screen is core sign-in but
     // whose authored descriptor lives in `identity-catalog.ts`.

@@ -57,6 +57,7 @@ export type FakeDaemon = {
   /** Answer the next matching call with this refusal instead. */
   refuse: { path: string; status: number; body: JsonObject } | null;
   credential: "oauth" | "api_key";
+  connected: boolean;
 };
 
 function json(status: number, body: BoundaryValue): Response {
@@ -74,7 +75,7 @@ const field = (body: BoundaryValue, name: string) =>
 function readRoute(daemon: FakeDaemon, path: string): Response | null {
   if (path.endsWith("/status"))
     return json(200, {
-      connected: true,
+      connected: daemon.connected,
       tailnet: "example.com",
       credential: daemon.credential,
       connected_at: 1,
@@ -175,7 +176,14 @@ export function pairedClient(
 }
 
 export function fakeDaemon(devices: WireDevice[]): FakeDaemon {
-  return { devices, keys: [], calls: [], refuse: null, credential: "api_key" };
+  return {
+    devices,
+    keys: [],
+    calls: [],
+    refuse: null,
+    credential: "api_key",
+    connected: true,
+  };
 }
 
 export const originalSeams = { ...tailnetAdminSeams };

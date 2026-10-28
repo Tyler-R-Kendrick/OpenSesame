@@ -184,13 +184,7 @@
     },
     {
       "auth": {
-        "authorize_url": "https://cursor.com/codebase/apps/install",
-        "extra_authorize_params": [],
-        "kind": "oauth2_authorization_code",
-        "revoke_url": null,
-        "supports_refresh": false,
-        "token_auth": "client_secret_post",
-        "token_url": "https://api.cursor.com/v1/origin/app/installations/access_tokens"
+        "kind": "configuration"
       },
       "category": "backup_recovery",
       "display_name": "Cursor Origin",
@@ -5747,6 +5741,229 @@
         "path_prefixes": []
       },
       "operations": ["secret.configure"]
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Bearer "
+      },
+      "category": "storage",
+      "display_name": "Obsidian",
+      "docs_url": "https://github.com/coddingtonbear/obsidian-local-rest-api",
+      "egress": {
+        "authorities": ["127.0.0.1:27124", "localhost:27124"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "obsidian",
+      "operations": ["note.read", "note.write"],
+      "provenance_url": "https://github.com/coddingtonbear/obsidian-local-rest-api",
+      "scopes": [],
+      "connection_configuration_fields": [
+        {
+          "name": "host",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "port",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Bearer "
+      },
+      "category": "crm",
+      "display_name": "Polar",
+      "docs_url": "https://docs.polar.sh/api-reference/introduction",
+      "egress": {
+        "authorities": ["api.polar.sh", "sandbox-api.polar.sh"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "polar",
+      "operations": ["organization.read"],
+      "provenance_url": "https://docs.polar.sh/api-reference/introduction",
+      "scopes": [],
+      "connection_configuration_fields": [
+        {
+          "name": "api_host",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Key "
+      },
+      "category": "custom",
+      "display_name": "Higgsfield",
+      "docs_url": "https://docs.higgsfield.ai/docs/authentication.md",
+      "egress": {
+        "authorities": ["api.higgsfield.ai"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "higgsfield",
+      "operations": ["request.read"],
+      "provenance_url": "https://docs.higgsfield.ai/docs/authentication.md",
+      "scopes": [],
+      "connection_configuration_fields": [
+        {
+          "name": "request_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "key_secret",
+          "secret": true,
+          "required": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Key "
+      },
+      "category": "custom",
+      "display_name": "FAL.ai",
+      "docs_url": "https://fal.ai/docs/model-endpoints/queue",
+      "egress": {
+        "authorities": ["queue.fal.run", "fal.run"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "fal-ai",
+      "operations": ["request.read"],
+      "provenance_url": "https://fal.ai/docs/model-endpoints/queue",
+      "scopes": [],
+      "connection_configuration_fields": [
+        {
+          "name": "request_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "extra_authorize_params": [
+          ["access_type", "offline"],
+          ["prompt", "consent"]
+        ],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://oauth2.googleapis.com/revoke",
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://oauth2.googleapis.com/token"
+      },
+      "category": "storage",
+      "display_name": "Google Drive",
+      "docs_url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+      "egress": {
+        "authorities": ["www.googleapis.com", "oauth2.googleapis.com"],
+        "path_prefixes": ["/oauth2/v3/userinfo"],
+        "scheme": "https"
+      },
+      "id": "google-drive",
+      "operations": ["account.read"],
+      "provenance_url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Identify the signed-in Google user",
+          "name": "openid",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read the account email address",
+          "name": "email",
+          "sensitive": false
+        }
+      ],
+      "connection_configuration_fields": []
+    },
+    {
+      "auth": {
+        "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+      },
+      "category": "productivity",
+      "display_name": "M365",
+      "docs_url": "https://learn.microsoft.com/graph/use-the-api",
+      "egress": {
+        "authorities": ["graph.microsoft.com"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "m365",
+      "operations": ["user.read", "drive.file.read"],
+      "provenance_url": "https://learn.microsoft.com/graph/use-the-api",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Identify the signed-in Microsoft user",
+          "name": "openid",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Keep access when the user is not present",
+          "name": "offline_access",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read the signed-in user's profile",
+          "name": "User.Read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read files the signed-in user can access",
+          "name": "Files.Read.All",
+          "sensitive": true
+        }
+      ],
+      "connection_configuration_fields": []
     }
   ],
   "revision": "2026-10-27.1",

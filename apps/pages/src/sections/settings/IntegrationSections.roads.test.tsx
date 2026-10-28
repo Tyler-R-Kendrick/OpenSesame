@@ -208,7 +208,8 @@ describe("connector tiles once Connections routes its pages", () => {
   it("leaves out a section that still has nothing to configure", () => {
     installConnections();
     renderIntegrationsPanel();
-    expect(screen.queryByRole("heading", { name: "Encryption" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Encryption" })).toBeTruthy();
+    expect(tileNames("Encryption providers")).toEqual(["Azure Key Vault Keys"]);
     for (const title of ["Password managers", "Cloud secret storage"]) {
       expect(screen.getByRole("heading", { name: title }), title).toBeTruthy();
     }
@@ -228,6 +229,7 @@ describe("connector tiles once Connections routes its pages", () => {
     expect(tileNames("Encryption providers")).toEqual([
       "AWS KMS",
       "Google Cloud KMS",
+      "Azure Key Vault Keys",
     ]);
   });
 

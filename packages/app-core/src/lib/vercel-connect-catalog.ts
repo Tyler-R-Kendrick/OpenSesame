@@ -16,7 +16,10 @@ import {
   preferredMethod,
 } from "./connect-plan.js";
 import type { Connection, Provider } from "./connections.js";
+import { isNativeDeviceConnection } from "./device-connector-view.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
+import { nativeLocalCatalogConfiguration } from "./native-catalog-status.js";
+import type { NativeMethod } from "./native-connector-schema.js";
 
 /** Host-owned rows keep their own flow (GitHub's App, ADR 0126). */
 const HOST_OWNED = new Set(["github"]);
@@ -161,6 +164,7 @@ export type CatalogTileNote = { label: string; tone: string };
 export function catalogTileNote(
   provider: Provider,
   connection: Connection | null,
+  configurationMethod?: NativeMethod,
 ): CatalogTileNote | null {
   if (isRefusedPlan(provider.id)) {
     return { label: "Not connectable", tone: "chip--err" };
@@ -169,7 +173,11 @@ export function catalogTileNote(
     connection && connection.status !== "revoked" ? connection : null;
   if (live) {
     if (live.status === "active") {
-      return { label: "Connected", tone: "chip--ok" };
+      if (provider.id === "google-drive" && isNativeDeviceConnection(live))
+        return { label: "Account verified", tone: "chip--ok" };
+      return nativeLocalCatalogConfiguration(provider, configurationMethod)
+        ? { label: "Configured", tone: "chip--ok" }
+        : { label: "Connected", tone: "chip--ok" };
     }
     if (live.status === "error") {
       return { label: "Broken", tone: "chip--err" };

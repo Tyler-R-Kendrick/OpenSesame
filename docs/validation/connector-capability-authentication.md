@@ -256,7 +256,7 @@ Receipts: [public metadata/preflights](provider-authentication/mcp-public-prefli
 | `tailscale` | configuration | Application/OS/CLI or confidential-provider route; no executable browser driver | Computer |
 | `s3` | api-key | Actual selected-bucket SigV4 authorization and object reads; bucket CORS required | Browser plus: api-key |
 | `cloudflare-wallet` | configuration | Application/OS/CLI or confidential-provider route; no executable browser driver | Blocked: no admitted wallet route |
-| `google-wallet` | configuration | Application/OS/CLI or confidential-provider route; no executable browser driver | Blocked: no admitted wallet route |
+| `google-wallet` | api-key | Exact issuer/Generic class verification and a signed Save-to-Wallet link; no object insertion, pass installation or upstream revocation claim | Browser: api-key |
 | `apple-wallet` | configuration | Application/OS/CLI or confidential-provider route; no executable browser driver | Blocked: no admitted wallet route |
 | `samsung-wallet` | configuration | Application/OS/CLI or confidential-provider route; no executable browser driver | Blocked: no admitted wallet route |
 | `privacy` | api-key | Payment policy refusal | Blocked |

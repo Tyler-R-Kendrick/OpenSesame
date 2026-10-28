@@ -163,6 +163,7 @@ function SharedAiProviderSheet(
     >
       <div ref={fields}>
         <AiConnectionPanels
+          key={props.target.provider.id}
           providerId={props.target.provider.id}
           inSheet
           onFlash={props.onFlash}

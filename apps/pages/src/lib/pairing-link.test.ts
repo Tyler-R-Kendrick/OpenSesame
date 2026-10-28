@@ -89,4 +89,19 @@ describe("tailnet pairing link", () => {
     expect(takeLinkedTailnetPairing()).toBe("opensesame-tailnet:v1:xyz");
     expect(takeLinkedTailnetPairing()).toBe("");
   });
+
+  it("selects the Tailnet record after taking its code out of the link", async () => {
+    const { takeLinkedTailnetPairing } = await import("./pairing-link.js");
+    const { location, history, replaced } = address(
+      "#pair-tailnet=opensesame-tailnet%3Av1%3Axyz",
+    );
+    location.pathname = "/OpenSesame/identity";
+    location.search = "?view=devices";
+    captureLinkedPairing(location, history);
+    expect(replaced).toEqual([
+      "/OpenSesame/identity?view=devices#tailnet-devices",
+    ]);
+    expect(replaced[0]).not.toContain("opensesame-tailnet");
+    expect(takeLinkedTailnetPairing()).toBe("opensesame-tailnet:v1:xyz");
+  });
 });
