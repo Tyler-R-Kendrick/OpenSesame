@@ -16,15 +16,9 @@ it("requires every actual featured and family Add card in the native inventory",
     includeFamilies: true,
   }).map((provider) => provider.id);
   const rail = catalogPageItems(providers).map((row) => row.id);
-  expect(rendered.filter((id) => !rail.includes(id)).sort()).toEqual([
-    "aws",
-    "azure-kms",
-    "fal-ai",
-    "gcp",
-    "higgsfield",
-    "obsidian",
-    "polar",
-  ]);
+  // Family aliases resolve to their real canonical catalog rows in both views.
+  // Researched presets also have catalog rows: no browse tile is render-only.
+  expect(rendered.filter((id) => !rail.includes(id)).sort()).toEqual([]);
   expect(NATIVE_CANONICAL_CATALOG_IDS).toEqual(rendered);
   expect(new Set(NATIVE_CANONICAL_CATALOG_IDS).size).toBe(rendered.length);
   expect(rail.every((id) => NATIVE_CANONICAL_CATALOG_IDS.includes(id))).toBe(

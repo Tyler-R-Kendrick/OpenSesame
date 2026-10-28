@@ -163,6 +163,14 @@ export const CROSS_RULES = [
       "closed hosted model protocols and their test fixtures",
     ),
   ),
+  shared(
+    `${L}native-catalog-contract`,
+    "pure local configuration facts shared by the provider catalog and its optional runtime",
+  ),
+  shared(
+    `${L}native-catalog-status`,
+    "local configuration status facts supplied by the public native connection view",
+  ),
   optional(
     `${L}native-`,
     "connectors.external",

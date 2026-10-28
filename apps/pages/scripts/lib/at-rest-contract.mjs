@@ -63,10 +63,9 @@ function indexedDbValues(page) {
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
       });
-    const values = [];
-    let keyExtractable = null;
-    for (const { name } of await indexedDB.databases()) {
-      if (!name?.startsWith("opensesame-")) continue;
+    const readDatabase = async (name) => {
+      const values = [];
+      let keyExtractable = null;
       const db = await settle(indexedDB.open(name));
       for (const store of db.objectStoreNames) {
         const rows = await settle(
@@ -82,6 +81,24 @@ function indexedDbValues(page) {
         }
       }
       db.close();
+      return { values, keyExtractable };
+    };
+    const values = [];
+    let keyExtractable = null;
+    for (const { name } of await indexedDB.databases()) {
+      if (!name?.startsWith("opensesame-")) continue;
+      try {
+        const result = await readDatabase(name);
+        values.push(...result.values);
+        keyExtractable = result.keyExtractable ?? keyExtractable;
+      } catch (error) {
+        const names = await indexedDB.databases();
+        if (
+          error?.name !== "NotFoundError" ||
+          names.some((row) => row.name === name)
+        )
+          throw error;
+      }
     }
     return { values, keyExtractable };
   });

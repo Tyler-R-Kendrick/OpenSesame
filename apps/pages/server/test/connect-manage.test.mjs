@@ -240,6 +240,38 @@ describe("revoke", () => {
   });
 });
 
+it("does not send a stored token to a mutable unbound issuer host", async () => {
+  for (const host of ["attacker.example", "127.0.0.1"]) {
+    stub({
+      "GET https://api.vercel.com/v1/connect/connectors/scl_1": {
+        connector: {
+          id: "scl_1",
+          service: "auth0",
+          type: "oauth",
+          data: {
+            serverConfig: {
+              authorization_endpoint: `https://${host}/authorize`,
+              token_endpoint: `https://${host}/oauth/token`,
+            },
+          },
+        },
+      },
+      "POST https://api.vercel.com/v1/connect/token/scl_1": { token: TOKEN },
+    });
+    const outcome = await manage("/api/connect/token-check", {
+      connectorId: "scl_1",
+      subject: { type: "user", id: "prn_abc" },
+    });
+    assert.equal(outcome.status, 200);
+    assert.equal(outcome.body.includes(TOKEN), false);
+    assert.equal(JSON.parse(outcome.body).verified, null);
+    assert.equal(calls.length, 2);
+    assert.ok(
+      calls.every((call) => call.url.startsWith("https://api.vercel.com/")),
+    );
+  }
+});
+
 describe("token proof", () => {
   const [service, targets] = Object.entries(VERIFY_TARGETS).find(
     ([, row]) => row.mcp,

@@ -14,6 +14,7 @@ import {
   connectionVerb,
   unfinishedConnections,
 } from "@opensesame/app-core/lib/identity-graph.js";
+import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import {
   type Flash,
   connectorPath,
@@ -83,7 +84,14 @@ export function NeedsAttention({
               />
               <div className="conn-service__copy">
                 <h3>{connection.displayName}</h3>
-                <p>{statusSentence(connection, provider)}</p>
+                <p>
+                  {statusSentence(
+                    connection,
+                    provider,
+                    readNativeConnector(connection.connectionId)?.configuration
+                      .method,
+                  )}
+                </p>
               </div>
               <div className="conn-service__actions">
                 <StatusMark

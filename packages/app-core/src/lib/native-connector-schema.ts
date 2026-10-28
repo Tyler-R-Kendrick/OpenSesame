@@ -130,7 +130,7 @@ export const NativePendingSchema = NativeBindingSchema.extend({
     .min(16)
     .max(512)
     .regex(/^[!-~]+$/),
-  verifier: z.string().min(43).max(128),
+  verifier: z.union([z.string().min(43).max(128), z.literal("")]),
   redirectUri: text,
   createdAt: timestamp,
   expiresAt: timestamp,

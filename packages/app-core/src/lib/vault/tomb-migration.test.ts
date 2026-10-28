@@ -7,7 +7,7 @@ import {
   IDP_REGISTRY_CONFIG_PATH,
   listIdpRegistrations,
 } from "../idp-registry.js";
-import { kvDelete, kvGet, kvSet } from "../kv.js";
+import { kvDelete, kvGet, kvSeams, kvSet } from "../kv.js";
 import { ORG_PROFILE_CONFIG_PATH, activeOrgProfileId } from "../orgs.js";
 import {
   PROJECTS_CONFIG_PATH,
@@ -155,6 +155,18 @@ describe("phase B — legacy vault storage into the tomb (pre-unlock)", () => {
 });
 
 describe("phase C — config into the sealed tomb (on unlock)", () => {
+  it("hydrates both daemon pairings before either panel reads them", async () => {
+    await unlockedPersonalTomb();
+    const hydrate = vi.spyOn(kvSeams, "kvHydrate");
+    await hydrateAndMigrateTombOnUnlock(PERSONAL_TOMB);
+    expect(hydrate).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        tombFileKey(PERSONAL_TOMB, "config/tailnet-admin"),
+        tombFileKey(PERSONAL_TOMB, "config/plugin-daemon"),
+      ]),
+    );
+  });
+
   it("seals legacy prefs, deletes the legacy key, and keeps no plaintext at rest", async () => {
     await unlockedPersonalTomb();
     kvSet(LEGACY_PREFS_KEY, '{"theme":"dark","autoLockMinutes":5}');

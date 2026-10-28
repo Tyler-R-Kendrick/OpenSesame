@@ -151,6 +151,8 @@ function tombSessionKeys(tomb: string): string[] {
     "config/siop-keys",
     DEVICE_IDENTITY_KEY_PATH,
     "config/tailnet-drive",
+    "config/tailnet-admin",
+    "config/plugin-daemon",
   ].map((path) => tombFileKey(tomb, path));
 }
 

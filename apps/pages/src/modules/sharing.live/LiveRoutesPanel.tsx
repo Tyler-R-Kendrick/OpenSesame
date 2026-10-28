@@ -18,7 +18,7 @@ import {
   isIceUrl,
 } from "@opensesame/app-core/lib/live/transport.js";
 import { TRANSPORT_FILE } from "@opensesame/app-core/sections/settings/live-transport-files.js";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FieldRow } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
@@ -26,7 +26,11 @@ import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { OpenFileKey } from "../../sections/settings/files/OpenFileKey.js";
 import { Carriers } from "./LiveCarriers.js";
-import { type Change, RemoveKey } from "./live-route-parts.js";
+import {
+  type Change,
+  RemoveKey,
+  useRouteSaveGuard,
+} from "./live-route-parts.js";
 import {
   withAddress,
   withServer,
@@ -41,6 +45,7 @@ function Addresses({
   change,
 }: { transport: LiveTransport; change: Change }) {
   const [draft, setDraft] = useState("");
+  const draftRevision = useRef(0);
   const value = draft.trim();
   return (
     <>
@@ -64,9 +69,11 @@ function Addresses({
         onSubmit={(event) => {
           event.preventDefault();
           if (!isAddress(value)) return;
-          void change((now) => withAddress(now, value)).then(
-            (refused) => refused === null && setDraft(""),
-          );
+          const submittedRevision = draftRevision.current;
+          void change((now) => withAddress(now, value)).then((refused) => {
+            if (refused === null && draftRevision.current === submittedRevision)
+              setDraft("");
+          });
         }}
       >
         <FieldShell
@@ -75,7 +82,10 @@ function Addresses({
           mono
           placeholder="100.64.0.1"
           value={draft}
-          onValueChange={setDraft}
+          onValueChange={(next) => {
+            draftRevision.current += 1;
+            setDraft(next);
+          }}
           status={
             value && !isAddress(value) ? (
               <StatusMark tone="err" label="Not an IP address" />
@@ -98,17 +108,10 @@ function Addresses({
   );
 }
 
-function IceServers({
+function IceServerRows({
   transport,
   change,
 }: { transport: LiveTransport; change: Change }) {
-  const [url, setUrl] = useState("");
-  const [username, setUsername] = useState("");
-  const [credential, setCredential] = useState("");
-  const value = url.trim();
-  const turn = value.startsWith("turn");
-  const ready =
-    isIceUrl(value) && (!turn || (username !== "" && credential !== ""));
   return (
     <>
       {transport.ice.map((server, at) => (
@@ -131,20 +134,50 @@ function IceServers({
           </span>
         </FieldRow>
       ))}
+    </>
+  );
+}
+
+function IceServers({
+  transport,
+  change,
+}: { transport: LiveTransport; change: Change }) {
+  const [url, setUrl] = useState("");
+  const [username, setUsername] = useState("");
+  const [credential, setCredential] = useState("");
+  const draftRevision = useRef({ url: 0, username: 0, credential: 0 });
+  const save = useRouteSaveGuard();
+  const value = url.trim();
+  const turn = value.startsWith("turn");
+  const ready =
+    isIceUrl(value) && (!turn || (username !== "" && credential !== ""));
+  return (
+    <>
+      <IceServerRows transport={transport} change={change} />
       <form
         className="setup__stack"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!ready) return;
+          if (!ready || !save.begin()) return;
           const server = turn
             ? { urls: [value], username, credential }
             : { urls: [value] };
-          void change((now) => withServer(now, server)).then((refused) => {
-            if (refused !== null) return;
-            setUrl("");
-            setUsername("");
-            setCredential("");
-          });
+          const submittedRevision = { ...draftRevision.current };
+          void change((now) => withServer(now, server))
+            .then((refused) => {
+              const targetChanged =
+                draftRevision.current.url !== submittedRevision.url;
+              if (refused !== null && !targetChanged) return;
+              if (refused === null && !targetChanged) setUrl("");
+              if (draftRevision.current.username === submittedRevision.username)
+                setUsername("");
+              if (
+                draftRevision.current.credential ===
+                submittedRevision.credential
+              )
+                setCredential("");
+            })
+            .finally(save.finish);
         }}
       >
         <FieldShell
@@ -153,7 +186,10 @@ function IceServers({
           mono
           placeholder="turns:turn.example.com:443?transport=tcp"
           value={url}
-          onValueChange={setUrl}
+          onValueChange={(next) => {
+            draftRevision.current.url += 1;
+            setUrl(next);
+          }}
           status={
             value && !isIceUrl(value) ? (
               <StatusMark tone="err" label="Not a stun: or turn: URL" />
@@ -167,7 +203,10 @@ function IceServers({
               label="TURN username"
               autoComplete="off"
               value={username}
-              onValueChange={setUsername}
+              onValueChange={(next) => {
+                draftRevision.current.username += 1;
+                setUsername(next);
+              }}
             />
             <FieldShell
               id="live-ice-credential"
@@ -175,13 +214,16 @@ function IceServers({
               type="password"
               autoComplete="off"
               value={credential}
-              onValueChange={setCredential}
+              onValueChange={(next) => {
+                draftRevision.current.credential += 1;
+                setCredential(next);
+              }}
             />
           </>
         ) : null}
         <FormCommit
           label="Add the server"
-          disabled={!ready}
+          disabled={!ready || save.pending}
           icon={<IconPlus size={18} />}
         />
       </form>

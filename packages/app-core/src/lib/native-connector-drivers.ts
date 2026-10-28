@@ -51,6 +51,13 @@ export type NativeConnectorDriver = {
 };
 
 const drivers = new Map<NativeMethod, NativeConnectorDriver>();
+/**
+ * Methods whose owning runtime released its driver. A withdrawn capability
+ * closes its road even though the compiled contract remains; a session that
+ * never activated the runtime leaves the road to the compiled contract alone
+ * (ADR 0142 withdrawal, ADR 0147 compiled availability).
+ */
+const withdrawn = new Set<NativeMethod>();
 
 export function registerNativeConnectorDriver(
   method: NativeMethod,
@@ -59,9 +66,24 @@ export function registerNativeConnectorDriver(
   if (drivers.has(method))
     throw new Error("Native provider driver is already active");
   drivers.set(method, driver);
+  withdrawn.delete(method);
   return () => {
-    if (drivers.get(method) === driver) drivers.delete(method);
+    if (drivers.get(method) === driver) {
+      drivers.delete(method);
+      withdrawn.add(method);
+    }
   };
+}
+
+/** Whether this method's runtime was activated and then taken away. */
+export function nativeConnectorWithdrawn(method: NativeMethod): boolean {
+  return withdrawn.has(method);
+}
+
+/** A fresh session (a new page load, a test) has no activation history. */
+export function resetNativeConnectorDrivers(): void {
+  drivers.clear();
+  withdrawn.clear();
 }
 
 export function hasNativeConnectorDriver(

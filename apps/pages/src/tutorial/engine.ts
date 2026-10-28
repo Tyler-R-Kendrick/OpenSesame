@@ -10,8 +10,8 @@
 import type { PageContextInput } from "@opensesame/app-core/tutorial/registry/context.js";
 import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
 import {
-  GUIDE_ROUTES,
   type GuideRouteId,
+  navigationGuideRoutes,
 } from "@opensesame/app-core/tutorial/registry/routes.js";
 import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
 import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
@@ -224,7 +224,7 @@ export async function loadBrowserEngine(
   const authoredVocabulary = {
     goals: guideGoalIds(),
     targets: guideTargetIds(),
-    routes: GUIDE_ROUTES.map((route) => route.id),
+    routes: navigationGuideRoutes().map((route) => route.id),
     predicates: guidePredicateIds(),
   };
 

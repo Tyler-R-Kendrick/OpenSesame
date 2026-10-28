@@ -63,7 +63,7 @@
     "verify:encrypted-search": "node scripts/verify-encrypted-search.mjs",
     "verify:portable-drop": "node scripts/verify-portable-drop.mjs",
     "verify:native-connectors": "node scripts/verify-native-connectors-journey.mjs",
-    "verify:native-public-protocol": "node scripts/verify-native-public-protocol.mjs",
+    "verify:native-public-protocol": "node scripts/verify-native-public-protocol.mjs && node scripts/verify-origin-app.mjs",
     "verify:provider-auth": "node scripts/verify-provider-auth.mjs",
     "verify:quorum-browser": "node scripts/verify-quorum-browser.mjs",
     "verify:trusted-unlock": "node scripts/verify-trusted-unlock.mjs",

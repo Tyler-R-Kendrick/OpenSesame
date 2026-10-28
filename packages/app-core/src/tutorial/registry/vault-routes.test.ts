@@ -61,4 +61,10 @@ describe("where a tour's navigate goes", () => {
       guideNavigationPath("/vault/trash", here("/vault", "?f=trash")),
     ).toBeNull();
   });
+
+  it("opens the Tailnet record from its semantic route", () => {
+    expect(
+      guideNavigationPath("/identity/devices/tailnet", here("/identity")),
+    ).toBe("/identity?view=devices#tailnet-devices");
+  });
 });

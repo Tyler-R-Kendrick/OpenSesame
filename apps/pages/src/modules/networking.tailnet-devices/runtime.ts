@@ -25,6 +25,7 @@ import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/ru
 import { tailnetAdmin } from "@opensesame/app-core/lib/tailnet-admin/client.js";
 import {
   TAILNET_DEVICES_GOALS,
+  TAILNET_DEVICES_ROUTES,
   TAILNET_DEVICES_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
 import { createElement } from "react";
@@ -38,6 +39,7 @@ export const CAPABILITY = "networking.tailnet-devices";
 export const TUTORIAL = {
   targets: TAILNET_DEVICES_TARGETS,
   goals: TAILNET_DEVICES_GOALS,
+  routes: TAILNET_DEVICES_ROUTES,
 } as const;
 
 export const capabilityRuntime: CapabilityRuntime = {

@@ -35,11 +35,15 @@ export async function attachmentCrosses({ a, b, drive, code, steps }) {
     mimeType: "text/plain",
     buffer: CONTENT,
   });
-  await a.page.waitForTimeout(1500);
+  await expect(a.page.getByText("w2.txt", { exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
   const save = a.page.getByRole("button", { name: "Save item", exact: true });
   await save.first().click();
-  await a.page.waitForTimeout(900);
-  await visit(a.page, "settings/vaults");
+  await expect(
+    a.page.getByRole("heading", { level: 1, name: NAME, exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
+  await visit(a.page, "settings/features/networking/networking.tailnet");
   await a.page.getByRole("button", { name: "Sync now" }).click();
   await inStep(a.page);
   const { parts } = await readSlot(drive, code, "/parts");
@@ -49,7 +53,7 @@ export async function attachmentCrosses({ a, b, drive, code, steps }) {
   if (JSON.stringify(stored).includes("84,210.00"))
     throw new Error("TS-FILE: the drive can read the file");
 
-  await visit(b.page, "settings/vaults");
+  await visit(b.page, "settings/features/networking/networking.tailnet");
   await b.page.getByRole("button", { name: "Sync now" }).tap();
   await inStep(b.page);
   await visit(b.page, "vault");

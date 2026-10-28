@@ -7,6 +7,7 @@ import type {
 } from "./native-mcp-protocol.js";
 import {
   type NativeOAuthClientOwner,
+  assertNativeOAuthClientPolicy,
   nativeOAuthClientClassification,
 } from "./native-oauth-client-config.js";
 import { commitNativeOAuthGrant } from "./native-oauth-commit.js";
@@ -22,6 +23,7 @@ export async function verifyNativeOAuthMcpResource(
   signal?: AbortSignal,
 ) {
   const record = requireNativeOAuthRecord(id);
+  assertNativeOAuthClientPolicy(record.configuration, owner);
   const retained = record.privateState.recovery.filter(
     (item) => item.credentials?.phase === "verify",
   );
@@ -101,6 +103,7 @@ async function operation<T extends NativeMcpDiscovery | NativeMcpToolResult>(
   signal?: AbortSignal,
 ) {
   const record = requireNativeOAuthRecord(id);
+  assertNativeOAuthClientPolicy(record.configuration, owner);
   const grant = record.privateState.grants.user;
   if (
     !grant ||

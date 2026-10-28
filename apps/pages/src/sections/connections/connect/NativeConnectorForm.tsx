@@ -25,8 +25,7 @@ import { OutLink } from "./fields.js";
 import type { NativeAuthorizationTicket } from "./native-connector-controller.js";
 import {
   nativeEditTargetIds,
-  nativeInitialMethod,
-  nativeInitialValues,
+  useNativeMethodSelection,
 } from "./native-connector-edit-values.js";
 import {
   nativeError,
@@ -35,9 +34,9 @@ import {
   nativeNextValues,
   nativePublicUrl,
   nativeScopeDefaults,
+  nativeVerificationClaim,
   nativeVerified,
 } from "./native-connector-ui-values.js";
-import { nativeMethodConfigurable } from "./native-connector-ui.js";
 import type {
   NativeConnectorCallbacks,
   NativeConnectorController,
@@ -102,33 +101,20 @@ function useNativeForm(props: Props) {
   const { descriptor, controller, view, onChanged, onFlash } = props;
   const { lifetime, busy, setBusyOwner, failure, setFailure } =
     useNativeFormFeedback(props);
-  const available = descriptor.methods.filter(nativeMethodConfigurable);
-  const initial = nativeInitialMethod(descriptor, view);
-  const [methodId, setMethodId] = useState(initial?.id);
-  const [values, setValues] = useState(() =>
-    initial ? nativeInitialValues(initial, view) : {},
-  );
-  const [scopes, setScopes] = useState(() =>
-    initial
-      ? nativeScopeDefaults(initial, view?.configuration.requestedScopes)
-      : {},
-  );
   const image = useNativePreferences(descriptor.name, view);
   const { name } = image;
-  const selectedMethod = available.find((item) => item.id === methodId);
+  const { values, setValues, scopes, setScopes, choose, selectedMethod } =
+    useNativeMethodSelection(
+      descriptor,
+      view,
+      busy,
+      image.iconBusy,
+      setFailure,
+    );
   const providerId = descriptor.providerId;
   const method = selectedMethod
     ? nativeDraftMethod(providerId, selectedMethod, view, values, scopes)
     : undefined;
-
-  function choose(next: NativeMethodDescriptor) {
-    if (view || !nativeMethodConfigurable(next) || busy || image.iconBusy)
-      return;
-    setMethodId(next.id);
-    setValues(nativeInitialValues(next, view));
-    setScopes(nativeScopeDefaults(next));
-    setFailure("");
-  }
 
   const ready = nativeFormReady(method, values, busy, image.iconBusy, name);
   async function submit(event: FormEvent) {
@@ -158,7 +144,14 @@ function useNativeForm(props: Props) {
         setValues(nativeFieldValues(method.fields, values, false));
         onFlash({
           tone: "ok",
-          text: `${descriptor.name} access verified and saved on this device.`,
+          text:
+            method.id === "native-local"
+              ? `${descriptor.name} configuration verified and saved on this device; provider access was not checked.`
+              : nativeVerificationClaim(
+                  descriptor.providerId,
+                  descriptor.name,
+                  true,
+                ),
         });
       } else {
         onFlash({

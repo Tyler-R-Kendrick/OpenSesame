@@ -257,6 +257,13 @@ and was retained. Local captures also match the failed hosted Chrome 155
 captures within the existing budgets. No application UI, threshold, font,
 viewport, enrollment assertion or comparison logic changed.
 
+The connector follow-up also compared the three failing upstream alternatives
+with fresh production captures on the pinned local renderer. The recovered
+current-UI fixtures for the desktop front door and both PIN-seal screens matched
+those captures byte for byte. Those three files were restored after direct image
+comparison; all six checks then passed with `VISUAL_UPDATE` unset. The other
+refreshed fixtures remained in place.
+
 ## What the orchestrator should do next
 
 If `apps/pages` changes in a way that's expected to alter its rendering,

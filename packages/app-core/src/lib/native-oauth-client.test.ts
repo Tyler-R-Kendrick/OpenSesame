@@ -337,4 +337,39 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
       requireNativeOAuthRecord(receipt.connectionId).privateState.grants,
     ).toEqual({});
   });
+  it("accepts a documented read-only API resource query", async () => {
+    const f = await nativeOAuthClientFixture();
+    closing.push(f.close);
+    f.input.parameters.resource = `${f.state.resource}?fields=user`;
+    const saved = await configureNativeOAuthClient(f.input, f.owner);
+    const authorization = new URL(
+      await beginNativeOAuthClient(saved.connectionId, f.owner),
+    );
+    expect(authorization.searchParams.get("resource")).toBe(
+      f.input.parameters.resource,
+    );
+    expect(f.requests).toHaveLength(0);
+  });
+  it("omits an unused token relay from the registered OAuth target", async () => {
+    const f = await nativeOAuthClientFixture();
+    closing.push(f.close);
+    f.input.parameters.token_relay_url = "";
+    const saved = await configureNativeOAuthClient(f.input, f.owner);
+    expect(saved.configuration.parameters).not.toHaveProperty(
+      "token_relay_url",
+    );
+    const authorization = new URL(
+      await beginNativeOAuthClient(saved.connectionId, f.owner),
+    );
+    f.state.challenge = authorization.searchParams.get("code_challenge") ?? "";
+    await exchangeNativeOAuthClient(
+      new URLSearchParams({
+        native_state: authorization.searchParams.get("state") ?? "",
+        native_code: "one-use-code",
+      }).toString(),
+      f.owner,
+    );
+    expect(f.requests).toHaveLength(1);
+    expect(f.requests[0]?.path).toBe("/token");
+  });
 });

@@ -6,6 +6,11 @@ import type { NativeGrant } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import {
+  assertGoogleDriveAccountScopes,
+  isGoogleDriveAccountScopeSet,
+  normalizeGoogleDriveAccountScopes,
+} from "./native-google-drive-account.js";
+import {
   type NativeOAuthClientOwner,
   assertNativeOAuthClientOwner,
   assertNativeOAuthClientPolicy,
@@ -79,13 +84,19 @@ function issued(
   const pair = Pair.safeParse(body);
   if (!pair.success) throw new NativeOAuthError("provider");
   const details = Details.safeParse(body);
-  const scopes =
+  const scopes = normalizeGoogleDriveAccountScopes(
+    pending.providerId,
     details.success && details.data.scope !== undefined
       ? [...new Set(details.data.scope.split(/\s+/).filter(Boolean))]
-      : null;
+      : null,
+  );
   const validScopes =
     scopes === null ||
     (scopes.length <= 256 && scopes.every((scope) => scope.length <= 512));
+  const accountScopes = isGoogleDriveAccountScopeSet(
+    pending.providerId,
+    scopes,
+  );
   const grant: NativeGrant = {
     kind: "oauth",
     providerId: pending.providerId,
@@ -101,11 +112,16 @@ function issued(
       details.success && details.data.expires_in !== undefined
         ? Date.now() + details.data.expires_in * 1000
         : null,
-    scopes: validScopes ? scopes : null,
+    scopes: validScopes && accountScopes ? scopes : null,
   };
   return {
     grant,
-    valid: status >= 200 && status < 300 && details.success && validScopes,
+    valid:
+      status >= 200 &&
+      status < 300 &&
+      details.success &&
+      validScopes &&
+      accountScopes,
   };
 }
 function exchangeForm(
@@ -194,6 +210,7 @@ export async function exchangeNativeOAuthClient(
   const id = claim.record.connectionId;
   const target = nativeOAuthClientTarget(claim.record.configuration);
   const pending = claim.pending;
+  assertGoogleDriveAccountScopes(pending.providerId, pending.scopes);
   if (
     pending.endpoint !== target.token_endpoint ||
     pending.issuer !== target.issuer ||

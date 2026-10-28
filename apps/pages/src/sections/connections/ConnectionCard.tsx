@@ -10,6 +10,7 @@ import {
 } from "@opensesame/app-core/lib/connections.js";
 import { publicConnectorFields } from "@opensesame/app-core/lib/device-connectors.js";
 import { isLocalGitRemoteId } from "@opensesame/app-core/lib/git-remote-local.js";
+import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import {
   type Flash,
   STATUS_CHIP,
@@ -149,7 +150,11 @@ export function ConnectionCard({
       </div>
 
       <p className="conn-card__status">
-        {statusSentence(connection, provider)}
+        {statusSentence(
+          connection,
+          provider,
+          readNativeConnector(connection.connectionId)?.configuration.method,
+        )}
       </p>
       {Object.entries(savedFields).map(([name, value]) => (
         <p

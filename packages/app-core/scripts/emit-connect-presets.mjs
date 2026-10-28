@@ -21,6 +21,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  allowedError,
+  responseBinding,
+} from "./connect-verification-policy.mjs";
 import { renderPackedJsonRows } from "./pack-json.mjs";
 import {
   READONLY_PAYMENT_IDS,
@@ -78,6 +82,7 @@ function templateParams(row) {
     ...param,
     required: param.required !== false,
     secret: param.secret === true,
+    defaultValue: param.default_value,
   }));
 }
 
@@ -91,7 +96,10 @@ function verification(row) {
     accountField: row.account_field ?? null,
     success: row.success ?? [],
     requiredFields: row.required_fields ?? [],
+    requiredArrayFields: row.required_array_fields,
     errorFields: row.error_fields ?? [],
+    allowedError: allowedError(row.allowed_error),
+    responseBinding: responseBinding(row.response_binding),
     auth: row.header
       ? {
           kind: "header",
@@ -292,22 +300,23 @@ function docsFor(service, row, oauth, apiKey) {
   );
 }
 
-function categoryFor(id, service, row) {
+function categoryFor(id, service, row, preset) {
   return (
     CATEGORY_OVERRIDE[id] ??
     row?.category ??
+    preset?.category ??
     CATEGORY[service?.categories[0] ?? "other"] ??
     "developer"
   );
 }
 
-function planFor(id, service, row, oauth, apiKey, rule) {
+function planFor(id, service, row, oauth, apiKey, rule, preset) {
   const safeRead = readonlyPaymentContract(id, apiKey);
   const plan = {
     id,
-    name: service?.name ?? row?.display_name ?? id,
+    name: service?.name ?? row?.display_name ?? preset?.display_name ?? id,
     docsUrl: docsFor(service, row, oauth, apiKey),
-    category: categoryFor(id, service, row),
+    category: categoryFor(id, service, row, preset),
     registry: Boolean(service),
     refused: refused(id, row) && !safeRead,
     methods: READONLY_PAYMENT_IDS.has(id)
@@ -344,6 +353,10 @@ export function renderPlanJson(
     }
   }
   const listed = new Map(services.services.map((row) => [row.service, row]));
+  /** Researched rows carry their own name and category when no registry row does. */
+  const presetMeta = new Map(
+    [...presets.api_key, ...presets.oauth].map((row) => [row.service, row]),
+  );
   const ids = [
     ...listed.keys(),
     ...[...oauth.keys(), ...apiKey.keys()].filter((id) => !listed.has(id)),
@@ -356,6 +369,7 @@ export function renderPlanJson(
       oauth.get(id),
       apiKey.get(id),
       mcp.get(id),
+      presetMeta.get(id),
     ),
   );
   return plans.map((plan) => JSON.stringify(plan));

@@ -129,6 +129,68 @@ async function identityFixture(
   return id;
 }
 
+it("does not turn an OIDC-only proof into a Google Drive access claim", async () => {
+  const id = await saveModelFixture("google-drive");
+  const saved = readNativeConnector(id);
+  if (!saved) throw new Error("Missing Google Drive fixture");
+  await updateNativeConnector(id, saved, classification, (record) => {
+    record.configuration.method = "oauth";
+    record.configuration.requestedScopes = { user: ["openid", "email"] };
+    const grant = record.privateState.grants.app;
+    if (!grant) throw new Error("Missing Google Drive grant fixture");
+    record.privateState.grants = {
+      user: {
+        ...grant,
+        actor: "user",
+        kind: "oauth",
+        scopes: ["openid", "email"],
+      },
+    };
+    record.runtime.grants = record.runtime.grants.map((metadata) => ({
+      ...metadata,
+      actor: "user",
+      permissionState: "known",
+      grantedScopes: ["openid", "email"],
+    }));
+    record.runtime.identity = {
+      id: "google-account",
+      label: "Google account",
+      kind: "account",
+      assurance: "credential-valid",
+    };
+    return record;
+  });
+  const changed = readNativeConnector(id);
+  if (!changed) throw new Error("Missing changed Google Drive fixture");
+  await updateNativeConnector(id, changed, classification, (record) => {
+    record.privateState.verification = {
+      fingerprint: record.configuration.fingerprint,
+      verifiedAt: 100,
+      kind: "provider",
+    };
+    record.runtime.verifiedAt = 100;
+    record.runtime.grants = record.runtime.grants.map((grant) => ({
+      ...grant,
+      needsReauth: false,
+    }));
+    return record;
+  });
+  expect(readNativeConnector(id)).toMatchObject({ status: "connected" });
+  activate();
+  const row = readDeviceRows().find(
+    (candidate) => candidate.connectionId === id,
+  );
+  if (!row) throw new Error("Missing Google Drive native row");
+  const drive = catalogProvider("google-drive");
+  if (!drive) throw new Error("Missing Google Drive provider");
+  const header = nativeConnectorHeaderStatus(deviceConnectorView(row), drive);
+  expect(header?.sentence).toContain(
+    "Google account verified; Drive access was not checked.",
+  );
+  expect(header?.sentence).not.toContain("Google Drive access verified");
+  expect(header?.label).toBe("Account verified");
+});
+
 it("renders credential verification without inventing an account or token lifetime", async () => {
   const id = await identityFixture("credential-valid");
   activate();

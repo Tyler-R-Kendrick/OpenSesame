@@ -68,6 +68,56 @@ it("composes the shared configuration with a partner endpoint, protocol and edit
   ).toHaveProperty("disabled", true);
 });
 
+it("resets the draft and credential when the selected provider changes", async () => {
+  connectorIntegration();
+  const onConnected = vi.fn();
+  const onFlash = vi.fn();
+  const onClose = vi.fn();
+  const target = (providerId: string) => {
+    const selected = aiProviderSheetTarget({
+      provider:
+        getBundledProviders().find((row) => row.id === providerId) ?? null,
+      connections: [],
+      connectionId: undefined,
+      pathname: `/connections/${providerId}`,
+    });
+    if (!selected) throw new Error(`Missing AI provider sheet: ${providerId}`);
+    return selected;
+  };
+  const { rerender } = render(
+    <AiProviderSheet
+      target={target("openai")}
+      onConnected={onConnected}
+      onFlash={onFlash}
+      onClose={onClose}
+    />,
+  );
+  await userEvent.type(screen.getByLabelText("API key"), SECRET);
+  expect(screen.getByLabelText("Connection name")).toHaveProperty(
+    "value",
+    "OpenAI",
+  );
+  rerender(
+    <AiProviderSheet
+      target={target("openrouter")}
+      onConnected={onConnected}
+      onFlash={onFlash}
+      onClose={onClose}
+    />,
+  );
+  expect(screen.getByLabelText("Connection name")).toHaveProperty(
+    "value",
+    "OpenRouter",
+  );
+  expect(screen.getByLabelText("API base URL")).toHaveProperty(
+    "value",
+    "https://openrouter.ai/api/v1",
+  );
+  expect(screen.getByLabelText("API key")).toHaveProperty("value", "");
+  expect(readDeviceRows()).toHaveLength(0);
+  expect(onConnected).not.toHaveBeenCalled();
+});
+
 it("tests inference against the configured serving endpoint without saving", async () => {
   const probe = vi
     .spyOn(aiConnectionUiDependencies, "test")

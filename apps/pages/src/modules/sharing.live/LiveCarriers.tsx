@@ -10,7 +10,7 @@ import {
   type LiveTransport,
   isCarrierUrl,
 } from "@opensesame/app-core/lib/live/transport.js";
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { FieldRow } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
@@ -24,8 +24,88 @@ import {
   natsDraftFields,
   natsDraftReady,
 } from "./LiveNatsFields.js";
-import { type Change, KIND_LABELS, RemoveKey } from "./live-route-parts.js";
+import {
+  type Change,
+  KIND_LABELS,
+  RemoveKey,
+  useRouteSaveGuard,
+} from "./live-route-parts.js";
 import { withCarrier, withoutCarrier } from "./live-transport-edits.js";
+
+const NATS_DRAFT_FIELDS = [
+  "signIn",
+  "account",
+  "signingKey",
+  "jwt",
+  "seed",
+  "session",
+] as const;
+
+type NatsRevisions = {
+  signIn: number;
+  account: number;
+  signingKey: number;
+  jwt: number;
+  seed: number;
+  session: number;
+};
+
+function clearedNatsDraft(
+  now: NatsDraft,
+  revisions: NatsRevisions,
+  submitted: NatsRevisions,
+  refused: string | null,
+): NatsDraft {
+  const edited = (field: keyof NatsDraft) =>
+    revisions[field] !== submitted[field];
+  const authEdited = (
+    ["signIn", "account", "signingKey", "jwt", "seed"] as const
+  ).some(edited);
+  return {
+    signIn: authEdited ? now.signIn : EMPTY_NATS_DRAFT.signIn,
+    account: edited("account") ? now.account : "",
+    signingKey: edited("signingKey") ? now.signingKey : "",
+    jwt: edited("jwt") ? now.jwt : "",
+    seed: edited("seed") ? now.seed : "",
+    session:
+      refused !== null || edited("session")
+        ? now.session
+        : EMPTY_NATS_DRAFT.session,
+  };
+}
+
+function CarrierKindSelect({
+  kind,
+  onSelect,
+}: {
+  kind: CarrierKind;
+  onSelect: (kind: CarrierKind) => void;
+}) {
+  return (
+    <div className="sw">
+      <label className="sw__name" htmlFor="live-carrier-kind">
+        Code carrier
+      </label>
+      <select
+        id="live-carrier-kind"
+        className="sw__select"
+        value={kind}
+        onChange={(event) => {
+          const picked = CARRIER_KINDS.find(
+            (entry) => entry === event.target.value,
+          );
+          if (picked) onSelect(picked);
+        }}
+      >
+        {CARRIER_KINDS.map((entry) => (
+          <option key={entry} value={entry}>
+            {KIND_LABELS[entry]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export function Carriers({
   transport,
@@ -65,6 +145,17 @@ function CarrierAdd({ change }: { change: Change }) {
   const [kind, setKind] = useState<CarrierKind>("ntfy");
   const [url, setUrl] = useState("");
   const [nats, setNats] = useState<NatsDraft>(EMPTY_NATS_DRAFT);
+  const urlRevision = useRef(0);
+  const kindRevision = useRef(0);
+  const natsRevision = useRef<NatsRevisions>({
+    signIn: 0,
+    account: 0,
+    signingKey: 0,
+    jwt: 0,
+    seed: 0,
+    session: 0,
+  });
+  const save = useRouteSaveGuard();
   const value = kind === "broadcast" ? "" : url.trim();
   const isNats = kind === "nats";
   const ready = isCarrierUrl(kind, value) && (!isNats || natsDraftReady(nats));
@@ -73,39 +164,39 @@ function CarrierAdd({ change }: { change: Change }) {
       className="setup__stack"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!ready) return;
+        if (!ready || !save.begin()) return;
         const extra = isNats ? natsDraftFields(nats) : {};
-        void change((now) =>
-          withCarrier(now, { kind, url: value, ...extra }),
-        ).then((refused) => {
-          if (refused !== null) return;
-          setUrl("");
-          setNats(EMPTY_NATS_DRAFT);
-        });
+        const submittedURL = urlRevision.current;
+        const submittedKind = kindRevision.current;
+        const submittedNats = { ...natsRevision.current };
+        void change((now) => withCarrier(now, { kind, url: value, ...extra }))
+          .then((refused) => {
+            const urlChanged = urlRevision.current !== submittedURL;
+            const kindChanged = kindRevision.current !== submittedKind;
+            const targetChanged = urlChanged || kindChanged;
+            if (refused !== null && !targetChanged) return;
+            if (!urlChanged && (refused === null || kindChanged)) setUrl("");
+            // Clear a submitted secret unless this exact field was edited since
+            // submit. A different destination alone must not reuse the old key.
+            setNats((now) =>
+              clearedNatsDraft(
+                now,
+                natsRevision.current,
+                submittedNats,
+                refused,
+              ),
+            );
+          })
+          .finally(save.finish);
       }}
     >
-      <div className="sw">
-        <label className="sw__name" htmlFor="live-carrier-kind">
-          Code carrier
-        </label>
-        <select
-          id="live-carrier-kind"
-          className="sw__select"
-          value={kind}
-          onChange={(event) => {
-            const picked = CARRIER_KINDS.find(
-              (entry) => entry === event.target.value,
-            );
-            if (picked) setKind(picked);
-          }}
-        >
-          {CARRIER_KINDS.map((entry) => (
-            <option key={entry} value={entry}>
-              {KIND_LABELS[entry]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <CarrierKindSelect
+        kind={kind}
+        onSelect={(picked) => {
+          kindRevision.current += 1;
+          setKind(picked);
+        }}
+      />
       {kind === "broadcast" ? null : (
         <FieldShell
           id="live-carrier-url"
@@ -118,7 +209,10 @@ function CarrierAdd({ change }: { change: Change }) {
               : "wss://relay.example.com"
           }
           value={url}
-          onValueChange={setUrl}
+          onValueChange={(next) => {
+            urlRevision.current += 1;
+            setUrl(next);
+          }}
           status={
             value && !ready ? (
               <StatusMark tone="err" label="Needs a secure address" />
@@ -129,12 +223,16 @@ function CarrierAdd({ change }: { change: Change }) {
       {isNats ? (
         <NatsAddFields
           draft={nats}
-          edit={(patch) => setNats((now) => ({ ...now, ...patch }))}
+          edit={(patch) => {
+            for (const field of NATS_DRAFT_FIELDS)
+              if (Object.hasOwn(patch, field)) natsRevision.current[field] += 1;
+            setNats((now) => ({ ...now, ...patch }));
+          }}
         />
       ) : null}
       <FormCommit
         label="Add the carrier"
-        disabled={!ready}
+        disabled={!ready || save.pending}
         icon={<IconPlus size={18} />}
       />
     </form>

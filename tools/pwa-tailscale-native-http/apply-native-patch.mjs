@@ -16,7 +16,10 @@ const targets = {
   "disable-logtail.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
   "native-peer-get.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
   "exit-route.patch": ["cmd/tsconnect/wasmbuild/wasmbuild.go"],
-  "native-ssh.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
+  "native-ssh.patch": [
+    "cmd/tsconnect/wasm/wasm_js.go",
+    "net/tlsdial/tlsdial.go",
+  ],
 };
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 function requireValue(condition) {
@@ -81,6 +84,11 @@ function specification(pins, name) {
             path: targets[name][0],
             beforeSha256: pins.nativeSSH.patch.beforeSha256,
             afterSha256: pins.nativeSSH.patch.afterSha256,
+          },
+          {
+            path: targets[name][1],
+            beforeSha256: pins.nativeSSH.tlsVerification.beforeSha256,
+            afterSha256: pins.nativeSSH.tlsVerification.afterSha256,
           },
         ],
       };

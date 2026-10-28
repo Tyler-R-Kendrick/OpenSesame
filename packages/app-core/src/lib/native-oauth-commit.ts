@@ -62,6 +62,7 @@ function consumeDevicePending(
   );
 }
 function replacesRevocableToken(old: NativeGrant, grant: NativeGrant) {
+  if (grant.providerId === "origin") return false;
   return !(
     grant.providerId === "twitch" &&
     old.providerId === grant.providerId &&

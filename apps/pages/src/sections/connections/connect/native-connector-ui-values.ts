@@ -109,6 +109,27 @@ export function nativeError(
   return sanitized;
 }
 
+export function nativeVerificationClaim(
+  providerId: string,
+  providerName: string,
+  saved = false,
+): string {
+  if (providerId === "google-drive")
+    return saved
+      ? "Google account verified; Drive access was not checked. Configuration saved on this device."
+      : "Google account verified; Drive access was not checked";
+  return `${providerName} access verified${saved ? " and saved on this device." : ""}`;
+}
+
+export function nativeVerificationAction(
+  providerId: string,
+  providerName: string,
+): string {
+  return providerId === "google-drive"
+    ? "Verify Google account"
+    : `Verify ${providerName} access`;
+}
+
 export function nativeVerified(view: NativeConnectorView): boolean {
   return (
     view.status === "connected" &&

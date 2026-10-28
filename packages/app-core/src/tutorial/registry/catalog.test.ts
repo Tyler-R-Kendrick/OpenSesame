@@ -28,7 +28,7 @@ import {
 } from "./goals.js";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import { GUIDE_PREDICATES, registerGuidePredicates } from "./predicates.js";
-import { isKnownGuideRoute, mergedGuideRoutes } from "./routes.js";
+import { isKnownGuideRoute, navigationGuideRoutes } from "./routes.js";
 import { guidePredicateIds } from "./state.js";
 import {
   describeGuideTargets,
@@ -168,7 +168,7 @@ describe("the page context a model is handed", () => {
   const ALLOWED_KEYS = new Set(["id", "description", "role", "mounted"]);
 
   it("describes targets without leaking an element, a closure or an extra field", () => {
-    for (const route of mergedGuideRoutes()) {
+    for (const route of navigationGuideRoutes()) {
       const described = describeGuideTargets(route.id);
       for (const entry of described) {
         for (const [key, value] of Object.entries(entry)) {
@@ -196,7 +196,7 @@ describe("the authored guides", () => {
     const vocab = {
       goals: guideGoalIds(),
       targets: guideTargetIds(),
-      routes: mergedGuideRoutes().map((route) => route.id),
+      routes: navigationGuideRoutes().map((route) => route.id),
       predicates: guidePredicateIds(),
     };
 

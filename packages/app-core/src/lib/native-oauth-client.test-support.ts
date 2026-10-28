@@ -71,7 +71,12 @@ type FixtureState = {
   resourceDenied: boolean;
   holdResource: boolean;
 };
-type FixtureRequests = { path: string; authorization: string; body: string }[];
+type FixtureRequests = {
+  path: string;
+  method?: string;
+  authorization: string;
+  body: string;
+}[];
 type Gate = ReturnType<typeof deferred<void>>;
 function validCode(form: URLSearchParams, state: FixtureState): boolean {
   return (
@@ -94,6 +99,7 @@ async function resourceReply(
 ) {
   requests.push({
     path: request.url ?? "",
+    method: request.method,
     authorization: request.headers.authorization ?? "",
     body: "",
   });
@@ -193,7 +199,12 @@ function tokenServer(
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const body = Buffer.concat(chunks).toString();
     const authorization = request.headers.authorization ?? "";
-    requests.push({ path: request.url ?? "", authorization, body });
+    requests.push({
+      path: request.url ?? "",
+      method: request.method,
+      authorization,
+      body,
+    });
     const form = new URLSearchParams(body);
     const valid =
       request.method === "POST" &&

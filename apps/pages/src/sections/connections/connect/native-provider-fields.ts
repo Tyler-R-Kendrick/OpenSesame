@@ -12,6 +12,7 @@ export function providerParameterField(parameter: Parameter): NativeField {
     secret: parameter.secret,
     required: parameter.required,
     placeholder: parameter.placeholder,
+    defaultValue: parameter.defaultValue,
     choices: parameter.choices?.map((choice) => ({
       id: choice.value,
       label: choice.label,

@@ -179,7 +179,8 @@ export const AUDIT =
 
   for (const el of document.querySelectorAll(CONTROLS)) {
     if (hidden(el)) continue;
-    const rect = el.getBoundingClientRect();
+    const target = ["radio", "checkbox"].includes(el.type) ? el.closest("label") ?? el : el;
+    const rect = target.getBoundingClientRect();
     const label = name(el);
     const size = Math.round(rect.width) + "x" + Math.round(rect.height);
 

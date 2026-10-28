@@ -1,7 +1,7 @@
 /**
  * Targets and walkthroughs the runtime-installed plugin capabilities
- * contribute (ADR 0150 §7): each plugin's tile inside its Settings ›
- * Features section, live only while that capability is in the plan.
+ * contribute (ADR 0150 §7): each plugin's tile on its Settings › Features
+ * page, live only while that capability is in the plan.
  */
 
 import type { GuideGoalDescriptor } from "./goals.js";
@@ -33,6 +33,8 @@ export const SURROGATE_GOALS: readonly GuideGoalDescriptor[] = [
       'wait route "/settings/features" timeout=15000',
       'scroll "feature.surrogates"',
       'focus "feature.surrogates" "The Surrogate credentials section. Its switch adds the proxy to this installation." side=bottom',
+      'navigate "/settings/features/surrogates"',
+      'wait target "settings.surrogate-credentials" event=appear timeout=60000',
       'focus "settings.surrogate-credentials" "Its panel pairs with the daemon using the code opensesame plugins pair prints; once paired, its mark says whether the proxy is installed and running, the key beside it switches it there, and the list under it is what it refused." side=top',
       "end",
     ].join("\n"),
@@ -65,6 +67,8 @@ export const AUTOFILL_GOALS: readonly GuideGoalDescriptor[] = [
       'wait route "/settings/features" timeout=15000',
       'scroll "feature.autofill"',
       'focus "feature.autofill" "The Browser autofill section. Its switch adds the extension to this installation." side=bottom',
+      'navigate "/settings/features/autofill"',
+      'wait target "settings.browser-autofill" event=appear timeout=60000',
       'focus "settings.browser-autofill" "Its panel pairs with the daemon the same way; once paired, its mark says whether the extension is installed and running, and the key beside it switches it there." side=top',
       "end",
     ].join("\n"),
