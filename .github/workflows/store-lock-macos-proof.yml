@@ -1,0 +1,54 @@
+name: Verify macOS store lock lint and contracts
+on:
+  push:
+    branches: [review/store-lock-macos-proof]
+permissions:
+  contents: read
+jobs:
+  proof:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/store-lock-macos-proof' }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: 39f1170b5e29090286e4ca4b5bb52899f21de25d
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - name: Verify immutable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 39f1170b5e29090286e4ca4b5bb52899f21de25d
+          test "$(git rev-parse HEAD^{tree})" = 42c67ba79e20a0eee6eda204a6600d45f5b2bb95
+          test "$(git rev-parse HEAD^)" = bf9a13f6b00466c6a346252159f61195e9a47a78
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Check formatting and the original strict Clippy rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --package opensesame-sealed-store -- --check
+          cargo clippy --locked -p opensesame-sealed-store --all-targets --all-features --message-format=short -- \
+            -D warnings -D clippy::pedantic -D clippy::cognitive_complexity -D clippy::excessive_nesting \
+            -D clippy::too_many_lines -D clippy::too_many_arguments -D clippy::type_complexity
+      - name: Check fork and physical lock contracts
+        run: |
+          cargo test --locked -p opensesame-sealed-store --lib store_lock:: -- --nocapture
+      - name: Verify source stayed unchanged
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 42c67ba79e20a0eee6eda204a6600d45f5b2bb95
+          git diff --exit-code
+          git diff --cached --exit-code
