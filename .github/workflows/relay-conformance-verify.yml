@@ -14,16 +14,16 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: b67cf28791047d0e8859d9157c214d3b09b23b75
+          ref: e7e3ec343941fbab652c79ba891f79a6370cfc04
       - name: Verify immutable source and exact patch
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = b67cf28791047d0e8859d9157c214d3b09b23b75
-          test "$(git rev-parse HEAD^{tree})" = a99cf8c4704a7c3b8ca826a59fdb088bf28c783e
-          test "$(git rev-parse HEAD^)" = 6a2fc3f2925a950cedf47c28ddabc89c26cd7119
+          test "$(git rev-parse HEAD)" = e7e3ec343941fbab652c79ba891f79a6370cfc04
+          test "$(git rev-parse HEAD^{tree})" = 40fac3aabfd104546c921bb9f55f684b5b1b2b43
+          test "$(git rev-parse HEAD^)" = 1f32b8afeb345f8e5dc7711098c1794b9c52eeeb
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/conformance.patch"
-          printf '%s  %s\n' c0e8c2fe9c6b12a18ec65002208d562357dc3d13c249888611830f2ea693da12 "$RUNNER_TEMP/conformance.patch" | sha256sum --check
+          printf '%s  %s\n' f9d456149ee63aba6d9d2e71e3ce679d3c0db549e31e3ee2ec72fda45a2792be "$RUNNER_TEMP/conformance.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
@@ -44,13 +44,13 @@ jobs:
         run: |
           set -euo pipefail
           pnpm --filter @opensesame/pages typecheck
-          pnpm lint:anti-slop:files apps/pages/scripts/emit-connect-verify-targets.mjs apps/pages/server/connect-verify.mjs apps/pages/server/test/connect-verify.test.mjs apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
-          pnpm exec biome check spec/connectors/verification-trust.json apps/pages/scripts/emit-connect-verify-targets.mjs apps/pages/server/connect-verify-targets.generated.mjs apps/pages/server/connect-verify-targets.generated.d.mts apps/pages/server/connect-verify.mjs apps/pages/server/test/connect-verify.test.mjs apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
+          pnpm lint:anti-slop:files apps/pages/scripts/emit-connect-verify-targets.mjs apps/pages/server/connect-verify.mjs apps/pages/server/test/connect-verify.test.mjs apps/pages/server/test/connect-verify-compatibility.test.mjs apps/pages/server/test/connect-verify-unbound-host.test.mjs apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
+          pnpm exec biome check spec/connectors/verification-hosts.json apps/pages/scripts/emit-connect-verify-targets.mjs apps/pages/server/connect-verify-targets.generated.mjs apps/pages/server/connect-verify-targets.generated.d.mts apps/pages/server/connect-verify.mjs apps/pages/server/test/connect-verify.test.mjs apps/pages/server/test/connect-verify-compatibility.test.mjs apps/pages/server/test/connect-verify-unbound-host.test.mjs apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
           pnpm quality:gate
       - name: Check source after tests
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = b67cf28791047d0e8859d9157c214d3b09b23b75
+          test "$(git rev-parse HEAD)" = e7e3ec343941fbab652c79ba891f79a6370cfc04
           git diff --exit-code
           git diff --cached --exit-code
