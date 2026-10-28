@@ -14,16 +14,16 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: c1b40f3b961fcef03162f0814b159df9a7c81b07
+          ref: 459f474e65625c3b267eac64e3a98bc60e1b683b
       - name: Verify immutable source and exact patch
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = c1b40f3b961fcef03162f0814b159df9a7c81b07
-          test "$(git rev-parse HEAD^{tree})" = 480729b93981a3711f32dd4c6862e4d07da47ab3
-          test "$(git rev-parse HEAD^)" = 844fea8f0a51cfe711d5b8a59655b95875373be0
+          test "$(git rev-parse HEAD)" = 459f474e65625c3b267eac64e3a98bc60e1b683b
+          test "$(git rev-parse HEAD^{tree})" = 7feb2960c1be88fbb1d6607adcacbc4182513d78
+          test "$(git rev-parse HEAD^)" = c1b40f3b961fcef03162f0814b159df9a7c81b07
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/conformance.patch"
-          printf '%s  %s\n' 747933ae196e6df420536adb51297dc0a1e555e7df9408aab474b2a27eb64adc "$RUNNER_TEMP/conformance.patch" | sha256sum --check
+          printf '%s  %s\n' bc8152f60119e3f138004cb831672cc315af71a61ca7e4f0cbc3bf69332d031b "$RUNNER_TEMP/conformance.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
@@ -39,8 +39,8 @@ jobs:
           pnpm exec biome format --write apps/pages/server/connect-verify-targets.generated.mjs
           git diff --exit-code -- apps/pages/server/connect-verify-targets.generated.mjs
           pnpm --filter @opensesame/app-core generate:connect
-          git diff --exit-code -- packages/app-core/src/lib/connect-presets.generated.ts
-          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-api-higgsfield.test.ts src/lib/native-api-obsidian.test.ts src/lib/native-api-fal.test.ts src/lib/native-api-target.test.ts src/lib/native-api-dot-segment.test.ts src/lib/native-api-auth.test.ts src/lib/native-api-verify.test.ts src/lib/connect-presets.test.ts src/lib/generated-json.test.ts
+          git diff --exit-code -- packages/app-core/src/lib/connect-presets.generated.ts packages/app-core/src/lib/native-google-account-policy.generated.ts
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-google-account-policy.test.ts src/lib/native-google-drive-account.test.ts src/lib/native-api-higgsfield.test.ts src/lib/native-api-obsidian.test.ts src/lib/native-api-fal.test.ts src/lib/native-api-target.test.ts src/lib/native-api-dot-segment.test.ts src/lib/native-api-auth.test.ts src/lib/native-api-verify.test.ts src/lib/connect-presets.test.ts src/lib/generated-json.test.ts
           pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance/connect-conformance.test.ts
           node --test apps/pages/server/test/connect-manage.test.mjs apps/pages/server/test/connect-verify*.test.mjs
       - name: Typecheck and lint the changed contract
@@ -50,13 +50,13 @@ jobs:
           pnpm --filter @opensesame/pages typecheck
           pnpm lint:anti-slop:files apps/pages/scripts/emit-connect-verify-targets.mjs apps/pages/server/connect-verify.mjs apps/pages/server/test/connect-verify*.test.mjs apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
           pnpm exec biome check spec/connectors/relay-verification-presets.json spec/connectors/connect-presets.json spec/connectors/verification-hosts.json apps/pages/scripts/emit-connect-verify-targets.mjs apps/pages/server/connect-verify-targets.generated.mjs apps/pages/server/connect-verify-targets.generated.d.mts apps/pages/server/connect-verify.mjs apps/pages/server/test/connect-verify*.test.mjs apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
-          pnpm lint:anti-slop:files packages/app-core/scripts/connect-verification-policy.mjs packages/app-core/scripts/emit-connect-presets.mjs packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-verify.ts packages/app-core/src/lib/native-api-connectors.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-obsidian.test.ts packages/app-core/src/lib/native-api-fal.test.ts packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-api-dot-segment.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-verify.test.ts
-          pnpm exec biome check packages/app-core/scripts/connect-verification-policy.mjs packages/app-core/scripts/emit-connect-presets.mjs packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-verify.ts packages/app-core/src/lib/native-api-connectors.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-obsidian.test.ts packages/app-core/src/lib/native-api-fal.test.ts packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-api-dot-segment.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-verify.test.ts
+          pnpm lint:anti-slop:files packages/app-core/scripts/emit-google-account-policy.mjs packages/app-core/src/lib/native-google-account-policy.test.ts packages/app-core/src/lib/native-google-drive-account.ts packages/app-core/scripts/connect-verification-policy.mjs packages/app-core/scripts/emit-connect-presets.mjs packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-verify.ts packages/app-core/src/lib/native-api-connectors.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-obsidian.test.ts packages/app-core/src/lib/native-api-fal.test.ts packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-api-dot-segment.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-verify.test.ts
+          pnpm exec biome check packages/app-core/scripts/emit-google-account-policy.mjs packages/app-core/src/lib/native-google-account-policy.test.ts packages/app-core/src/lib/native-google-drive-account.ts packages/app-core/scripts/connect-verification-policy.mjs packages/app-core/scripts/emit-connect-presets.mjs packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-verify.ts packages/app-core/src/lib/native-api-connectors.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-obsidian.test.ts packages/app-core/src/lib/native-api-fal.test.ts packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-api-dot-segment.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-verify.test.ts
           pnpm quality:gate
       - name: Check source after tests
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = c1b40f3b961fcef03162f0814b159df9a7c81b07
+          test "$(git rev-parse HEAD)" = 459f474e65625c3b267eac64e3a98bc60e1b683b
           git diff --exit-code
           git diff --cached --exit-code
