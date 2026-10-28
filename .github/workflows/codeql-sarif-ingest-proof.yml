@@ -1,0 +1,108 @@
+name: Review composed Go SARIF ingestion
+on:
+  workflow_dispatch:
+  push:
+    branches: [review/codeql-sarif-ingest-proof]
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+concurrency:
+  group: codeql-sarif-ingest-proof
+  cancel-in-progress: false
+jobs:
+  ingest:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/codeql-sarif-ingest-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout exact proof source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          path: candidate
+          ref: 69e60b69be2348fef8c1bed84f21d853af444148
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - name: Test mapper on hosted runner
+        run: node --test controller/scripts/security/map-composed-go-sarif.test.mjs
+      - name: Install candidate dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Fetch and compose pinned source
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 69e60b69be2348fef8c1bed84f21d853af444148
+          mkdir -p "$RUNNER_TEMP/native-input"
+          node -e 'const p=require("./tools/pwa-tailscale-native-http/source.json"); for(const x of [p.source,p.compiler]) {if(!/^https:\/\//.test(x.archiveURL)||!/^[0-9a-f]{64}$/.test(x.archiveSha256)) process.exit(1);console.log(x.archiveURL);console.log(x.archiveSha256)}' > "$RUNNER_TEMP/native-input/pins"
+          mapfile -t pins < "$RUNNER_TEMP/native-input/pins"
+          test "${#pins[@]}" = 4
+          for n in 0 2; do
+            i=$((n / 2))
+            curl --fail --show-error --location --proto '=https' --proto-redir '=https' --max-time 120 --max-filesize 1073741824 --output "$RUNNER_TEMP/native-input/$i.tar.gz" -- "${pins[$n]}"
+            printf '%s  %s\n' "${pins[$((n + 1))]}" "$RUNNER_TEMP/native-input/$i.tar.gz" | sha256sum --check
+          done
+          node tools/pwa-tailscale-native-http/build.mjs "$RUNNER_TEMP/native-input/0.tar.gz" "$RUNNER_TEMP/native-input/1.tar.gz" "$GITHUB_WORKSPACE/candidate/.codeql-native" --audit
+      - name: Fetch exact earlier raw SARIF artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          artifact-ids: 12825362344
+          run-id: 40709285689
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/ingest-raw
+      - name: Validate and map actual findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$RUNNER_TEMP/ingest-raw/_temp/codeql-native-sarif/go.sarif"
+          printf '%s  %s\n' 101b04012fb3669335556b86cb1c3bd9ddf1b2d9ed9f802438ba15803884c24c "$raw" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/mapped"
+          node controller/scripts/security/map-composed-go-sarif.mjs native "$GITHUB_WORKSPACE/candidate" 69e60b69be2348fef8c1bed84f21d853af444148 "$raw" "$RUNNER_TEMP/mapped/go.sarif" "$RUNNER_TEMP/mapped/summary.json"
+          node controller/scripts/security/verify-ingest-proof.mjs validate "$raw" "$RUNNER_TEMP/mapped/go.sarif" "$RUNNER_TEMP/mapped/summary.json"
+      - name: Verify target branch still names reviewed source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(gh api repos/Tyler-R-Kendrick/OpenSesame/git/ref/heads/review/native-ssh-host-key-proof --jq .object.sha)"
+          test "$actual" = 69e60b69be2348fef8c1bed84f21d853af444148
+      - name: Upload real findings only to temporary proof branch
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: ${{ runner.temp }}/mapped/go.sarif
+          checkout_path: ${{ github.workspace }}/candidate
+          ref: refs/heads/review/native-ssh-host-key-proof
+          sha: 69e60b69be2348fef8c1bed84f21d853af444148
+          wait-for-processing: true
+      - name: Inspect resulting branch alerts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(gh api repos/Tyler-R-Kendrick/OpenSesame/git/ref/heads/review/native-ssh-host-key-proof --jq .object.sha)"
+          test "$actual" = 69e60b69be2348fef8c1bed84f21d853af444148
+          gh api --method GET repos/Tyler-R-Kendrick/OpenSesame/code-scanning/alerts -f ref=refs/heads/review/native-ssh-host-key-proof -f state=open -f per_page=100 --paginate --slurp > "$RUNNER_TEMP/alerts-api.json"
+          node controller/scripts/security/verify-ingest-proof.mjs alerts "$RUNNER_TEMP/alerts-api.json" "$RUNNER_TEMP/mapped/alerts-summary.json"
+          cat "$RUNNER_TEMP/mapped/alerts-summary.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain raw and mapped evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codeql-sarif-ingest-proof
+          path: |
+            ${{ runner.temp }}/ingest-raw/_temp/codeql-native-sarif/go.sarif
+            ${{ runner.temp }}/mapped
+          if-no-files-found: warn
