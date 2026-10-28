@@ -22,7 +22,10 @@ import {
 import { evaluatePasswordResetReadiness } from "@opensesame/app-core/lib/password-reset/readiness.js";
 import { createActivation } from "../activation.js";
 import { PasswordResetMailPanel } from "./panel.js";
-import { installPasswordResetRotationRelay } from "./rotation-relay.js";
+import {
+  createHostResetRunNoticeBridge,
+  installPasswordResetRotationRelay,
+} from "./rotation-relay.js";
 import { createPasswordResetScan } from "./scan.js";
 import { installPasswordResetVaultUiSeams } from "./vault-ui.js";
 
@@ -53,6 +56,10 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("background-job", {
       id: "password-reset-mail",
       start: scan.start,
+    });
+    activation.register("background-job", {
+      id: "password-reset-run-notices",
+      start: createHostResetRunNoticeBridge().start,
     });
     activation.onDispose(installPasswordResetVaultUiSeams());
     activation.onDispose(

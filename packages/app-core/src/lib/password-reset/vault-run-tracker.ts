@@ -26,6 +26,8 @@ export type VaultResetRunRecord = {
   phase: VaultResetRunPhase;
   updatedAt: string;
   detail: string | null;
+  /** Host rotation job id for this run, when the hand-off was accepted. */
+  runId: string | null;
 };
 
 const listeners = new Set<() => void>();
@@ -79,6 +81,7 @@ function parseRecord(value: BoundaryValue): VaultResetRunRecord | null {
     phase,
     updatedAt: value.updatedAt,
     detail,
+    runId: isString(value.runId) ? value.runId : null,
   };
 }
 
@@ -98,19 +101,26 @@ export function vaultResetRunFor(
   );
 }
 
+export function listVaultResetRuns(): VaultResetRunRecord[] {
+  return readAll();
+}
+
 export function setVaultResetRunPhase(
   scope: string,
   itemId: string,
   phase: VaultResetRunPhase,
   detail: string | null,
   now = new Date(),
+  runId?: string | null,
 ): VaultResetRunRecord {
+  const existing = vaultResetRunFor(scope, itemId);
   const next: VaultResetRunRecord = {
     scope,
     itemId,
     phase,
     updatedAt: now.toISOString(),
     detail,
+    runId: runId === undefined ? (existing?.runId ?? null) : runId,
   };
   const rest = readAll().filter(
     (record) => record.scope !== scope || record.itemId !== itemId,

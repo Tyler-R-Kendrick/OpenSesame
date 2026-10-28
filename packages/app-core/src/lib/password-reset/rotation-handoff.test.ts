@@ -57,9 +57,12 @@ describe("dispatchPasswordResetRotation", () => {
     passwordResetHandOffSeams.handOff = null;
   });
 
-  it("completes when the hand-off accepts", async () => {
+  it("stays in-progress with the job id when the hand-off accepts", async () => {
     clearVaultResetRunsForTest();
-    passwordResetHandOffSeams.handOff = vi.fn(async () => true);
+    passwordResetHandOffSeams.handOff = vi.fn(async () => ({
+      accepted: true,
+      jobId: "job-7",
+    }));
     const item = createItem("account", "Mail");
     item.id = "item-1";
     item.uris = [
@@ -67,7 +70,9 @@ describe("dispatchPasswordResetRotation", () => {
     ];
     const result = await dispatchPasswordResetRotation(event, item);
     expect(result).toEqual({ ok: true });
-    expect(vaultResetRunFor("personal", "item-1")).toBeNull();
+    const run = vaultResetRunFor("personal", "item-1");
+    expect(run?.phase).toBe("in-progress");
+    expect(run?.runId).toBe("job-7");
     passwordResetHandOffSeams.handOff = null;
   });
 });
