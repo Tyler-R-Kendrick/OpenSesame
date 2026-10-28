@@ -95,13 +95,14 @@ test(
     assert.notEqual(await run(f), 0); // Forward-only: never treat an already applied patch as success.
   },
 );
-test("all five reviewed patch invocations select the same Node helper; compiler commands stay original", () => {
+test("all reviewed patch invocations select the same Node helper; compiler commands stay original", () => {
   for (const name of [
     "native-toolchain.patch",
     "native-node.patch",
     "disable-logtail.patch",
     "native-peer-get.patch",
     "exit-route.patch",
+    "native-ssh.patch",
   ]) {
     const original = ["--batch", "--forward", "-p1", "-i", join(here, name)];
     const result = nativePatchCommand("patch", original);
@@ -123,6 +124,45 @@ test("all five reviewed patch invocations select the same Node helper; compiler 
     program: "/owned/compiler/bin/go",
     args: original,
   });
+});
+
+test("SSH patch requires its exact target, digest, preimage and postimage", async (t) => {
+  const f = await fixture(t);
+  const path = "cmd/tsconnect/wasm/wasm_js.go";
+  const original = "original SSH predecessor\n";
+  const result = "verified SSH successor\n";
+  const patch = `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-${original}+${result}`;
+  await mkdir(dirname(join(f.source, path)), { recursive: true });
+  for (const mode of ["digest", "preimage", "postimage", "target"]) {
+    const input =
+      mode === "target"
+        ? patch.replaceAll(path, "cmd/tsconnect/wasm/other_js.go")
+        : patch;
+    const bytes = mode === "preimage" ? "stale\n" : original;
+    f.pins.nativeSSH.patch = {
+      ...f.pins.nativeSSH.patch,
+      sha256: mode === "digest" ? "0".repeat(64) : hash(input),
+      beforeSha256: hash(original),
+      afterSha256: mode === "postimage" ? "0".repeat(64) : hash(result),
+    };
+    await savePins(f);
+    await writeFile(join(f.tools, "native-ssh.patch"), input);
+    await writeFile(join(f.source, path), bytes);
+    assert.notEqual(await run(f, "native-ssh.patch"), 0);
+    assert.equal(await readFile(join(f.source, path), "utf8"), bytes);
+  }
+  f.pins.nativeSSH.patch = {
+    ...f.pins.nativeSSH.patch,
+    sha256: hash(patch),
+    beforeSha256: hash(original),
+    afterSha256: hash(result),
+  };
+  await savePins(f);
+  await writeFile(join(f.tools, "native-ssh.patch"), patch);
+  await writeFile(join(f.source, path), original);
+  assert.equal(await run(f, "native-ssh.patch"), 0);
+  assert.equal(await readFile(join(f.source, path), "utf8"), result);
+  assert.notEqual(await run(f, "native-ssh.patch"), 0);
 });
 test(
   "stale preimage and wrong postimage refuse without target writes",
