@@ -54,7 +54,12 @@ describe("the host Test connection and Save send the key to", () => {
       const parameters = Object.fromEntries(
         preset.templateParams
           .filter((field) => !field.secret && !field.choices)
-          .map((field) => [field.name, "tenant"]),
+          .map((field) => [
+            field.name,
+            field.format === "uuid"
+              ? "d7e6c0f3-6699-4f6c-bb45-2ad7fd9158ff"
+              : "tenant",
+          ]),
       );
       const target = nativeApiTarget(provider.id, parameters);
       const credentials = Object.fromEntries(

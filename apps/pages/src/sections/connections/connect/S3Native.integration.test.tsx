@@ -2,6 +2,7 @@
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { deviceConnection } from "@opensesame/app-core/lib/device-connectors.js";
+import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { configureNativeS3 } from "@opensesame/app-core/lib/native-s3.js";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -29,7 +30,61 @@ const provider = found;
 const xml =
   '<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><Prefix/><IsTruncated>false</IsTruncated><Contents><Key>sealed/document</Key></Contents></ListBucketResult>';
 
-it("keeps S3 in its native authentication owner when its browser driver is unavailable", () => {
+it("offers S3's compiled setup before activation without admitting runtime operations", () => {
+  expect(catalogConnectorAction(provider, null)).toMatchObject({
+    kind: "connect",
+    glyph: "plus",
+  });
+  expect(() => nativeConnectorDriver("api-key", "s3")).toThrow(
+    "unavailable in the active browser runtime",
+  );
+});
+
+it("offers S3's compiled road before its runtime driver activates", () => {
+  // The descriptor built with an explicit refusal keeps its unavailable shape.
+  const descriptor = nativeS3Descriptor(provider, false);
+  expect(descriptor.methods[0]).toMatchObject({
+    id: "api-key",
+    available: false,
+  });
+  // The catalog card reads the compiled contract, not the driver's
+  // registration state: a fresh session offers the road this device can take.
+  expect(catalogConnectorAction(provider, null)).toMatchObject({
+    kind: "connect",
+    glyph: "plus",
+    method: "api-key",
+  });
+  render(
+    <MemoryRouter>
+      <ConnectorSettingsPage
+        provider={provider}
+        providerId="s3"
+        connection={null}
+        connections={[]}
+        loading={false}
+        online
+        canConfigure
+        configureHint=""
+        flash={null}
+        rememberOffer={null}
+        onFlash={vi.fn()}
+        onRememberOffer={vi.fn()}
+        onChanged={vi.fn()}
+      />
+    </MemoryRouter>,
+  );
+  expect(screen.getByLabelText("S3 HTTPS service origin")).toBeTruthy();
+  expect(screen.getByLabelText("Bucket")).toBeTruthy();
+  expect(
+    screen.queryByRole("img", {
+      name: `${provider.displayName} has no supported browser connection method.`,
+    }),
+  ).toBeNull();
+});
+
+it("keeps S3 in its native authentication owner after its browser driver is withdrawn", () => {
+  const fixture = connectorIntegration();
+  fixture.activation.dispose();
   const descriptor = nativeS3Descriptor(provider, false);
   expect(descriptor.methods[0]).toMatchObject({
     id: "api-key",

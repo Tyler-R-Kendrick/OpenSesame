@@ -27,7 +27,12 @@ describe("compiled native API-key request protocols", () => {
         (entry) => !entry.secret,
       ))
         parameters[field.name] =
-          field.choices?.[0]?.value ?? (field.required ? "tenant" : "");
+          field.choices?.[0]?.value ??
+          (field.format === "uuid"
+            ? "d7e6c0f3-6699-4f6c-bb45-2ad7fd9158ff"
+            : field.required
+              ? "tenant"
+              : "");
       const target = nativeApiTarget(id, parameters);
       const values = Object.fromEntries(
         target.classification.privateCredentials.map((name) => [
@@ -53,6 +58,31 @@ describe("compiled native API-key request protocols", () => {
       }
     },
   );
+
+  it("builds a Higgsfield status request only from a UUID and both credentials", () => {
+    const requestId = "d7e6c0f3-6699-4f6c-bb45-2ad7fd9158ff";
+    const target = nativeApiTarget("higgsfield", { request_id: requestId });
+    const credentials = nativeApiCredentials(target, {
+      api_key: "test-id",
+      key_secret: "test-secret",
+    });
+    const request = nativeApiVerificationRequest(target, credentials);
+    expect(request.method).toBe("GET");
+    expect(String(request.url)).toBe(
+      `https://api.higgsfield.ai/requests/${requestId}/status`,
+    );
+    expect(request.headers.get("authorization")).toBe(
+      "Key test-id:test-secret",
+    );
+    for (const invalid of ["", ".", "..", "request-1", "../status"]) {
+      expect(() =>
+        nativeApiTarget("higgsfield", { request_id: invalid }),
+      ).toThrow();
+    }
+    expect(() =>
+      nativeApiCredentials(target, { api_key: "test-id" }),
+    ).toThrow();
+  });
 
   it("uses exact Basic pairs, custom headers, compound headers and optional header omission", () => {
     const mailgun = nativeApiTarget("mailgun", {});

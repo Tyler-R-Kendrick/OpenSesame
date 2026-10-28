@@ -1,29 +1,30 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { VERIFY_TARGETS } from "../connect-verify-targets.generated.mjs";
-import { resolveTarget, verifyWithToken } from "../connect-verify.mjs";
+import {
+  resolveTarget,
+  verifyTargetFor,
+  verifyWithToken,
+} from "../connect-verify.mjs";
 
-test("the unpublished Higgsfield proof stays disabled even if public fields change", async () => {
-  const target = VERIFY_TARGETS.higgsfield.apiKey;
-  assert.equal(target.proofDisabled, true);
-  const resolved = resolveTarget(target, { data: {} });
-  try {
-    target.proofDisabled = false;
-    resolved.proofDisabled = false;
-    for (const candidate of [target, resolved])
-      assert.equal(
-        await verifyWithToken(candidate, "synthetic-token", () =>
-          assert.fail("must not fetch"),
-        ),
-        null,
-      );
-  } finally {
-    target.proofDisabled = true;
-  }
+test("the single-key relay refuses Higgsfield's multi-secret status proof", async () => {
+  assert.equal(VERIFY_TARGETS.higgsfield, undefined);
+  const target = verifyTargetFor({
+    service: "higgsfield",
+    type: "api-key",
+    data: {},
+  });
+  assert.equal(target, null);
+  assert.equal(
+    await verifyWithToken(target, "synthetic-token", () =>
+      assert.fail("must not fetch"),
+    ),
+    null,
+  );
 });
 
-test("structural copies of disabled Higgsfield targets stay closed", async () => {
-  const target = VERIFY_TARGETS.higgsfield.apiKey;
+test("structural copies of disabled proofs stay closed", async () => {
+  const target = { url: "https://example.test/status", proofDisabled: true };
   const resolved = resolveTarget(target, { data: {} });
   for (const copy of [{ ...target }, { ...resolved }]) {
     assert.equal(

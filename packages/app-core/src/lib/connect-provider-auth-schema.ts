@@ -36,6 +36,7 @@ export const ProviderTemplateParamSchema = z.object({
   placeholder: z.string(),
   required: z.boolean().default(true),
   secret: z.boolean().default(false),
+  format: z.literal("uuid").optional(),
   choices: z
     .array(z.object({ value: z.string(), label: z.string() }))
     .optional(),
