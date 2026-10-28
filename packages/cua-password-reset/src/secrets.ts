@@ -60,6 +60,8 @@ export function assertProxyLane(
   proxyProofSchema.parse(proxy);
 }
 
+const SYNTHETIC_SYMBOLS = "!@#$%^&*()-_=+[]{};:,.<>?/";
+
 function syntheticCandidate(password: string): string {
   return [...password]
     .map((character) => {
@@ -68,7 +70,9 @@ function syntheticCandidate(password: string): string {
       if (/[A-Z]/u.test(character))
         return randomFrom("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
       if (/[0-9]/u.test(character)) return randomFrom("0123456789");
-      return character;
+      // Symbols are candidate content too (the pepper may be all symbols):
+      // substitute within the class instead of passing them through.
+      return randomFrom(SYNTHETIC_SYMBOLS);
     })
     .join("");
 }

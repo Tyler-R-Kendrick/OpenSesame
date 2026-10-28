@@ -561,6 +561,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:fresh-vault-login
+      - name: Vault password reset prompts
+        # Both generate entry points prompt to configure, then name the
+        # missing runtime once the feature is on; static dist only.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:vault-password-reset
       - name: CLI on the public site
         # P8-5: Pair CLI on the shared origin, with no loopback pairing field.
         if: matrix.shard == 'journeys-2'

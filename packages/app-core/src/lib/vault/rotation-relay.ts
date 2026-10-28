@@ -13,6 +13,8 @@ import {
   saveRotationSchedules,
 } from "./rotation-queue.js";
 
+export type { RotationEvent } from "./rotation-queue.js";
+
 export type RotationRelayResult = { ok: true } | { ok: false; detail?: string };
 
 export type RotationRelay = (
