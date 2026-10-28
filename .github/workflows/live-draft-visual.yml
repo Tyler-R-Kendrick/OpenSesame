@@ -52,7 +52,7 @@ jobs:
           cd work/live-draft-visual-tools/scripts/review/live-draft
           printf '%s  %s\n' \
             c540dddd672bc6a249b16502094ffcd4ff46bf0a891bf2a650c77279a1bd91fb LiveRoutesPanel.tsx \
-            40aae37d3cdfc97ea88ef7bcfd333dc17f0c43d2372013830a14a919693c8e66 LiveCarriers.tsx \
+            df36b245ae65a6261a93c40e8e5a08e3c69bf92ad1fe366a4a627f40e087e847 LiveCarriers.tsx \
             777d19d1be4fafa6304328b0daed0ff3266a71ed62e4ac221654fc5ec907288f live-route-parts.tsx \
             a3457ba10ad063da41995ac005c10543e2eb22fc9e71da2c0e981be02f2c9e77 visual.mjs | sha256sum --check
       - name: Apply reviewed source only for the after build
