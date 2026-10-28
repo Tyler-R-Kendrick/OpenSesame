@@ -124,18 +124,22 @@ fn a_trusted_gh_that_prints_a_token_gives_it() {
 fn gh_is_handed_a_ghes_token_and_a_version_managers_home() {
     use opensesame_trusted_exec::testkit::Fixture;
     let fixture = Fixture::new("gh");
+    let enterprise_token = "T".repeat(32);
     let lookup = fixture.lookup(&[
-        ("GH_ENTERPRISE_TOKEN", "vtok_dummy_ghes_0123456789abcdef"),
-        (
-            "GITHUB_ENTERPRISE_TOKEN",
-            "vtok_dummy_ghes_0123456789abcdef",
-        ),
+        ("GH_ENTERPRISE_TOKEN", enterprise_token.as_str()),
+        ("GITHUB_ENTERPRISE_TOKEN", enterprise_token.as_str()),
         ("ASDF_DATA_DIR", "/home/dummy/.asdf"),
         ("NIX_SSL_CERT_FILE", "/etc/ssl/certs/ca-bundle.crt"),
     ]);
     let mut command = gh_in(&lookup).unwrap();
     assert!(command.args(["auth", "token"]).status().unwrap().success());
     let env = fixture.env().expect("gh ran");
+    for name in ["GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"] {
+        assert_eq!(
+            env.get(name).map(String::as_str),
+            Some(enterprise_token.as_str())
+        );
+    }
     for name in [
         "GH_ENTERPRISE_TOKEN",
         "GITHUB_ENTERPRISE_TOKEN",
