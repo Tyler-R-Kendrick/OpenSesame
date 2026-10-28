@@ -1,18 +1,18 @@
 name: Reviewed SSH full verification
 on:
   push:
-    branches: [review/ssh-hosted-verify]
+    branches: [review/ssh-hosted-verify-bc4877]
 permissions:
   contents: read
 
 jobs:
   verify:
-    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/ssh-hosted-verify' }}
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/ssh-hosted-verify-bc4877' }}
     name: Complete pnpm verify
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      EXPECTED_HEAD: 1ead5f45b7f4596efa37d11293b9002765f30cc0
+      EXPECTED_HEAD: bc4877e9d6566c2f8dd1a81f309afd2bffabdac6
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -21,14 +21,14 @@ jobs:
     steps:
       - name: Validate immutable source input
         env:
-          SOURCE_SHA: 1ead5f45b7f4596efa37d11293b9002765f30cc0
+          SOURCE_SHA: bc4877e9d6566c2f8dd1a81f309afd2bffabdac6
         shell: bash
         run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: 1ead5f45b7f4596efa37d11293b9002765f30cc0
+          ref: bc4877e9d6566c2f8dd1a81f309afd2bffabdac6
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -56,12 +56,12 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^{tree})" = 0e9e3f2393296fdc471187f023080142cf462ca1
-          test "$(git rev-parse HEAD^)" = bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
+          test "$(git rev-parse HEAD^{tree})" = 7ac2dd5a68237ca47fbf767ffa6f017f65a13745
+          test "$(git rev-parse HEAD^)" = 1ead5f45b7f4596efa37d11293b9002765f30cc0
           git diff --abbrev=9 --no-renames HEAD^ HEAD > "$RUNNER_TEMP/ssh-reviewed.patch"
-          printf '%s  %s\n' c6da93775af4190fd0112b161e0a7c8cfeaa09adfa83d3ef9c7a1800b8ea4133 "$RUNNER_TEMP/ssh-reviewed.patch" | sha256sum --check
+          printf '%s  %s\n' 85d31e2e86227d6b3926b024a34f093857e6e273ff5935fd693309aa46f66b5c "$RUNNER_TEMP/ssh-reviewed.patch" | sha256sum --check
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/ssh-full-index.patch"
-          printf '%s  %s\n' 7beaafef71850cefa49cde77a65ef2407ff1a2ca64b4e852b0f7bc362d453223 "$RUNNER_TEMP/ssh-full-index.patch" | sha256sum --check
+          printf '%s  %s\n' 2bd59912b5e8a7ddc670b62147fa7ce6d511223d728f82f9fb18835e5e655567 "$RUNNER_TEMP/ssh-full-index.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
           test -x "$PLAYWRIGHT_CHROMIUM"
@@ -80,6 +80,8 @@ jobs:
         run: >-
           node --input-type=module -e
           'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
+      - name: Test the exact pinned native artifact assertions
+        run: pnpm --filter @opensesame/pages exec vitest run scripts/tailscale-wasm-assets.test.mjs
       - name: Name the runner's node for the bridge
         # The env-spec bridge runs only a `node` nobody else could have
         # replaced, and the hosted image's tool cache and /usr/local/bin are
@@ -108,7 +110,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: ssh-complete-verify-1ead5f45b7f4596efa37d11293b9002765f30cc0
+          name: ssh-complete-verify-bc4877e9d6566c2f8dd1a81f309afd2bffabdac6
           path: |
             ${{ runner.temp }}/opensesame-full-verify/
             tests/visual-contract/output/
