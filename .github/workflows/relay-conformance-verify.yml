@@ -14,16 +14,16 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: 55f6f90a0e4a3d5a5c855c1006559f4bf2922603
+          ref: 22afed11cd52d41c1618d29ede8d1d366c266417
       - name: Verify immutable source and exact patch
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 55f6f90a0e4a3d5a5c855c1006559f4bf2922603
-          test "$(git rev-parse HEAD^{tree})" = 5e31971fa42150221bc11a199256fbe87e57deec
-          test "$(git rev-parse HEAD^)" = bed5aa865e5e405fa52d87bf85931b155d725f42
+          test "$(git rev-parse HEAD)" = 22afed11cd52d41c1618d29ede8d1d366c266417
+          test "$(git rev-parse HEAD^{tree})" = 270e77237ab79dc73b0179876697d853c525c12e
+          test "$(git rev-parse HEAD^)" = 55f6f90a0e4a3d5a5c855c1006559f4bf2922603
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/conformance.patch"
-          printf '%s  %s\n' 1d508ac16ea0faf1792123d1166ff5227d4c0a6797936dc36686d8c02132a130 "$RUNNER_TEMP/conformance.patch" | sha256sum --check
+          printf '%s  %s\n' 82c7fe4728a142b4030fb755a04f6414d146aa499908a2816e6daee9942fc502 "$RUNNER_TEMP/conformance.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
@@ -53,6 +53,6 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 55f6f90a0e4a3d5a5c855c1006559f4bf2922603
+          test "$(git rev-parse HEAD)" = 22afed11cd52d41c1618d29ede8d1d366c266417
           git diff --exit-code
           git diff --cached --exit-code
