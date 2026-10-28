@@ -1,6 +1,6 @@
 # Only release-weekly.yml calls this after prerelease, mutation and security pass.
 # Every job revalidates identity/evidence. No source build is allowed here.
-# Draft notes/assets precede release approval; both products wait for that gate.
+# Release approval precedes draft/tag creation and native publication.
 # Native publication follows live Pages verification.
 name: Release publish
 'on':
@@ -90,8 +90,10 @@ jobs:
     if: needs.admission.outputs.promote == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # This job reserves the tag and stages an unpublished draft for review.
-    # The release environment approval below gates both actual publications.
+    # Review the immutable candidate run before any tag or draft write.
+    environment:
+      name: release
+      url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ inputs.run_id }}"
     permissions:
       contents: write
       actions: read
@@ -131,43 +133,10 @@ jobs:
     - name: Create or resume the owned draft with exactly the allowed assets
       id: draft
       run: node .ci-control/scripts/release/publish-release.mjs prepare release-files
-  approval:
-    name: Approve staged release for both products
-    needs: stage
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    environment:
-      name: release
-      url: ${{ needs.stage.outputs.draft_url }}
-    permissions:
-      contents: read
-      actions: read
-      attestations: read
-    steps:
-    - name: Require the trusted main controller
-      run: '[ "$GITHUB_REF" = refs/heads/main ]'
-    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-      with:
-        ref: ${{ github.workflow_sha }}
-        path: .ci-control
-        persist-credentials: false
-        sparse-checkout: |-
-          .github/workflows
-          scripts/release
-          scripts/lib
-    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-      with:
-        node-version: 22
-        package-manager-cache: false
-    - name: Require existing owner-approved release environment protection
-      run: node .ci-control/scripts/release/release-environment.mjs
-    - name: Revalidate the reviewed candidate after the environment wait
-      run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
   pages:
     name: Promote exact Pages bytes
     needs:
     - stage
-    - approval
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment:
@@ -253,10 +222,12 @@ jobs:
     name: Release publication gate
     needs:
     - stage
-    - approval
     - pages
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    environment:
+      name: release
+      url: ${{ needs.stage.outputs.draft_url }}
     permissions:
       contents: write
       actions: read

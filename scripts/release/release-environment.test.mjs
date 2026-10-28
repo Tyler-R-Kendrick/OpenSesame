@@ -249,7 +249,7 @@ test("all release jobs inspect protection before candidate verification or side 
     new URL("../../.github/workflows/release-publish.yml", import.meta.url),
     "utf8",
   );
-  for (const name of ["admission", "stage", "approval", "pages", "publish"]) {
+  for (const name of ["admission", "stage", "pages", "publish"]) {
     const job =
       workflow.split(`\n  ${name}:`)[1]?.split(/\n {2}[a-z][a-z0-9_-]*:/)[0] ??
       "";
