@@ -71,9 +71,14 @@ function queueSpawn(outputs: SpawnAnswer[]) {
     (_executable: string, _args: readonly string[], _options: SpawnOptions) => {
       const stdout = new PassThrough();
       const stderr = new PassThrough();
-      const stdio: [null, PassThrough, PassThrough] = [null, stdout, stderr];
+      const stdin = new PassThrough();
+      const stdio: [PassThrough, PassThrough, PassThrough] = [
+        stdin,
+        stdout,
+        stderr,
+      ];
       const child = Object.assign(new ChildProcess(), {
-        stdin: null,
+        stdin,
         stdout,
         stderr,
         stdio,

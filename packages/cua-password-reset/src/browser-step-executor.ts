@@ -1,6 +1,6 @@
 import type { BrowserDriver } from "./agent-browser.js";
 import { detectChallenge } from "./decisions.js";
-import { stepDrift } from "./recipe.js";
+import { resolveStepRef } from "./recipe.js";
 import { type CandidateCustody, assertProxyLane } from "./secrets.js";
 import type {
   HumanChallenge,
@@ -77,14 +77,14 @@ export class BrowserStepExecutor {
         return done;
       }
       case "click":
-        await this.assertCurrent(step, run);
-        await this.browser.click(requiredRef(step));
+        await this.browser.click(await this.assertCurrent(step, run));
         return done;
-      case "submit":
-        if (!(await this.current(step, run)))
-          return { stepId: step.id, outcome: "failed_before_submit" };
-        await this.browser.click(requiredRef(step));
+      case "submit": {
+        const ref = await this.currentRef(step, run);
+        if (!ref) return { stepId: step.id, outcome: "failed_before_submit" };
+        await this.browser.click(ref);
         return done;
+      }
       case "await-email-link": {
         const url = endpoint(await this.ports.mailbox.resetLink());
         if (!run.recipe.allowedOrigins.includes(url.origin))
@@ -93,8 +93,7 @@ export class BrowserStepExecutor {
         return done;
       }
       case "fill-field":
-        await this.assertCurrent(step, run);
-        await this.fill(step, run);
+        await this.fill(step, run, await this.assertCurrent(step, run));
         return done;
       case "verify-login":
         return (await this.ports.verifyLogin(run))
@@ -128,19 +127,31 @@ export class BrowserStepExecutor {
     return { stepId: step.id, outcome: "waiting" };
   }
 
-  private async current(step: RecipeStep, run: ResetRun): Promise<boolean> {
+  private async currentRef(
+    step: RecipeStep,
+    run: ResetRun,
+  ): Promise<string | null> {
     const observation = await this.browser.snapshot();
-    return observation.origin === run.origin && !stepDrift(step, observation);
+    if (observation.origin !== run.origin) return null;
+    return resolveStepRef(step, observation);
   }
 
-  private async assertCurrent(step: RecipeStep, run: ResetRun): Promise<void> {
-    if (!(await this.current(step, run)))
-      throw new Error("Recipe step drifted");
+  private async assertCurrent(
+    step: RecipeStep,
+    run: ResetRun,
+  ): Promise<string> {
+    const ref = await this.currentRef(step, run);
+    if (!ref) throw new Error("Recipe step drifted");
+    return ref;
   }
 
-  private async fill(step: RecipeStep, run: ResetRun): Promise<void> {
+  private async fill(
+    step: RecipeStep,
+    run: ResetRun,
+    ref: string,
+  ): Promise<void> {
     if (step.purpose === "identifier") {
-      await this.browser.fill(requiredRef(step), await this.ports.identifier());
+      await this.browser.fill(ref, await this.ports.identifier());
       return;
     }
     if (step.purpose !== "new-password")
@@ -173,19 +184,14 @@ export class BrowserStepExecutor {
           synthetic,
           withRealPassword: (use) => this.ports.candidate.withPassword(use),
         });
-        await this.browser.fill(requiredRef(step), synthetic);
+        await this.browser.fill(ref, synthetic);
       });
       return;
     }
     await this.ports.candidate.withPassword((password) =>
-      this.browser.fillSecret(requiredRef(step), password),
+      this.browser.fillSecret(ref, password),
     );
   }
-}
-
-function requiredRef(step: RecipeStep): string {
-  if (!step.ref) throw new Error("Browser step requires an element ref");
-  return step.ref;
 }
 
 function endpoint(value: string): URL {

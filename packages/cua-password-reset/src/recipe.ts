@@ -16,23 +16,53 @@ export function recipeMatches(recipe: ResetRecipe, origin: string): boolean {
   );
 }
 
+type Field = Observation["fields"][number];
+
+function kindCompatible(step: RecipeStep, field: Field): boolean {
+  if (step.purpose === "new-password") return field.kind === "password";
+  if (step.purpose === "identifier")
+    return ["email", "text"].includes(field.kind);
+  if (step.primitive === "click" || step.primitive === "submit")
+    return ["button", "link"].includes(field.kind);
+  return true;
+}
+
+/**
+ * Snapshot refs are ephemeral: real drivers (agent-browser) renumber them on
+ * every snapshot. The durable anchor recorded in a recipe is the expected
+ * label + kind; the stored ref is only a hint. Resolution fails closed:
+ * no unique label+kind match means the step has drifted.
+ */
+export function resolveStepRef(
+  step: RecipeStep,
+  observation: Observation,
+): string | null {
+  if (!step.ref) return null;
+  const masked = modelObservation(observation).fields;
+  const labelMatches = (field: Field): boolean =>
+    step.expectedLabel === undefined ||
+    field.label === step.expectedLabel ||
+    masked.find((candidate) => candidate.ref === field.ref)?.label ===
+      step.expectedLabel;
+  const exact = observation.fields.find(
+    (candidate) => candidate.ref === step.ref,
+  );
+  if (exact && kindCompatible(step, exact) && labelMatches(exact))
+    return exact.ref;
+  if (
+    step.expectedLabel === undefined ||
+    step.expectedLabel === "[masked password]"
+  )
+    return null;
+  const candidates = observation.fields.filter(
+    (field) => kindCompatible(step, field) && labelMatches(field),
+  );
+  return candidates.length === 1 ? (candidates[0]?.ref ?? null) : null;
+}
+
 export function stepDrift(step: RecipeStep, observation: Observation): boolean {
   if (!step.ref) return false;
-  const field = observation.fields.find(
-    (candidate) => candidate.ref === step.ref,
-  );
-  if (!field) return true;
-  if (step.purpose === "new-password" && field.kind !== "password") return true;
-  if (step.purpose === "identifier" && !["email", "text"].includes(field.kind))
-    return true;
-  const masked = modelObservation(observation).fields.find(
-    (candidate) => candidate.ref === step.ref,
-  );
-  return (
-    step.expectedLabel !== undefined &&
-    field.label !== step.expectedLabel &&
-    masked?.label !== step.expectedLabel
-  );
+  return resolveStepRef(step, observation) === null;
 }
 
 export interface RecipeRepair {

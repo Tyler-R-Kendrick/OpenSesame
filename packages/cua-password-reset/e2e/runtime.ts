@@ -200,26 +200,18 @@ export function proxy(page: Page): ExactFormProxyPort {
   };
 }
 
-export function runtime(
-  page: Page,
-  site: MockResetSite,
-  challenge: Challenge = null,
-  store: CheckpointJournal = new MemoryCheckpointJournal(),
-  withProxy = false,
-) {
-  const initial = resetRun(site, challenge);
-  if (withProxy) initial.transport = "proxy";
-  if (withProxy)
-    initial.recipe.proxySubstitution = {
-      origin: site.origin,
-      method: "POST",
-      path: "/password",
-      field: "password",
-      contentType: "application/x-www-form-urlencoded",
-      identityEncoding: true,
-      untransformedForm: true,
-      canaryVerified: true,
-    };
+export interface RuntimeDriverOptions {
+  challenge?: Challenge;
+  store?: CheckpointJournal;
+  withProxy?: boolean;
+  proxyPort?: ExactFormProxyPort;
+  /** Refs observed from the real driver, keyed by recipe step id. */
+  refs?: Readonly<Record<string, string>>;
+  verifyLogin?: (custody: CandidateCustody) => Promise<boolean>;
+  takeoverResume?: () => Promise<void>;
+}
+
+function authorizedCustody(initial: ResetRun) {
   const provider = fixedGrants(
     Object.fromEntries(
       RESET_ACTIONS.map((action: ResetAction) => [
@@ -240,17 +232,53 @@ export function runtime(
         throw new Error("Not authorized");
     },
   );
+  return { provider, custody };
+}
+
+export function runtimeForDriver(
+  browser: BrowserDriver,
+  site: MockResetSite,
+  options: RuntimeDriverOptions = {},
+) {
+  const challenge = options.challenge ?? null;
+  const store = options.store ?? new MemoryCheckpointJournal();
+  const withProxy = options.withProxy ?? false;
+  const initial = resetRun(site, challenge);
+  if (options.refs) {
+    for (const step of initial.recipe.steps) {
+      const ref = options.refs[step.id];
+      if (ref) step.ref = ref;
+    }
+  }
+  if (withProxy) initial.transport = "proxy";
+  if (withProxy)
+    initial.recipe.proxySubstitution = {
+      origin: site.origin,
+      method: "POST",
+      path: "/password",
+      field: "password",
+      contentType: "application/x-www-form-urlencoded",
+      identityEncoding: true,
+      untransformedForm: true,
+      canaryVerified: true,
+    };
+  const { provider, custody } = authorizedCustody(initial);
   const challenges: HumanChallenge[] = [];
-  const verifyLogin = async () => {
-    await page.goto(`${site.origin}/login`);
-    await page.locator("input[name='email']").fill("person@example.test");
-    await custody.withPassword((password) =>
-      page.locator("input[name='password']").fill(password),
-    );
-    await page.locator("form[action='/login'] button").click();
-    return new URL(page.url()).pathname === "/account";
-  };
-  const browser = new PlaywrightDriver(page);
+  const verifyLogin = async () =>
+    options.verifyLogin
+      ? options.verifyLogin(custody)
+      : custody.withPassword(async (password) => {
+          const response = await fetch(`${site.origin}/login`, {
+            method: "POST",
+            redirect: "manual",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              email: "person@example.test",
+              password,
+            }),
+          });
+          return response.headers.get("location") === "/account";
+        });
   const stepPorts: BrowserStepPorts = {
     identifier: async () => "person@example.test",
     mailbox: { resetLink: async () => site.resetLink() },
@@ -263,13 +291,18 @@ export function runtime(
         challenges.push(challenge);
       },
       resume: async () => {
-        await page.locator("form[action='/challenge/clear'] button").click();
+        if (options.takeoverResume) return options.takeoverResume();
+        await fetch(`${site.origin}/challenge/clear`, {
+          method: "POST",
+          redirect: "manual",
+        });
+        await browser.open(site.resetLink());
       },
     },
     verifyLogin,
   };
-  if (withProxy && initial.recipe.proxySubstitution)
-    stepPorts.proxy = proxy(page);
+  if (withProxy && initial.recipe.proxySubstitution && options.proxyPort)
+    stepPorts.proxy = options.proxyPort;
   const executor = new BrowserStepExecutor(browser, stepPorts);
   const effects: ResetEffects = {
     execute: (step, current, context) =>
@@ -292,4 +325,31 @@ export function runtime(
     journal,
     runner: new DurableResetRunner(journal, effects, provider),
   };
+}
+
+export function runtime(
+  page: Page,
+  site: MockResetSite,
+  challenge: Challenge = null,
+  store: CheckpointJournal = new MemoryCheckpointJournal(),
+  withProxy = false,
+) {
+  return runtimeForDriver(new PlaywrightDriver(page), site, {
+    challenge,
+    store,
+    withProxy,
+    ...(withProxy ? { proxyPort: proxy(page) } : {}),
+    verifyLogin: async (custody) => {
+      await page.goto(`${site.origin}/login`);
+      await page.locator("input[name='email']").fill("person@example.test");
+      await custody.withPassword((password) =>
+        page.locator("input[name='password']").fill(password),
+      );
+      await page.locator("form[action='/login'] button").click();
+      return new URL(page.url()).pathname === "/account";
+    },
+    takeoverResume: async () => {
+      await page.locator("form[action='/challenge/clear'] button").click();
+    },
+  });
 }

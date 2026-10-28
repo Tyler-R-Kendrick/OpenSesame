@@ -4,7 +4,7 @@ import {
   spawn,
 } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import type { Readable } from "node:stream";
+import type { Readable, Writable } from "node:stream";
 import { z } from "zod";
 import { type Observation, observationSchema } from "./types.js";
 
@@ -16,14 +16,15 @@ export interface BrowserDriver {
   click(ref: string): Promise<void>;
   fill(ref: string, value: string): Promise<void>;
   fillSecret(ref: string, value: string): Promise<void>;
+  pageUrl?(): Promise<string>;
   close?(): Promise<void>;
 }
 
 type Spawn = (
   command: string,
   args: string[],
-  options: SpawnOptions & { stdio: ["ignore", "pipe", "pipe"] },
-) => ChildProcessByStdio<null, Readable, Readable>;
+  options: SpawnOptions & { stdio: ["pipe", "pipe", "pipe"] },
+) => ChildProcessByStdio<Writable, Readable, Readable>;
 
 export interface AgentBrowserConfig {
   executable: string;
@@ -32,7 +33,11 @@ export interface AgentBrowserConfig {
   browserExecutable?: string;
   timeoutMs?: number;
   spawn?: Spawn;
-  secretFill(ref: string, value: string): Promise<void>;
+  /**
+   * Optional override. Default: `agent-browser batch` commands on stdin, so
+   * the secret never appears in process argv, logs, or the run journal.
+   */
+  secretFill?(ref: string, value: string): Promise<void>;
 }
 
 const rawSnapshotSchema = z
@@ -138,6 +143,9 @@ export class AgentBrowser implements BrowserDriver {
 
   async click(ref: string): Promise<void> {
     await this.run(["click", elementRef(ref)]);
+    // A form submit click returns before the POST/navigation settles; the
+    // next step (or candidate verification) must not race the server.
+    await this.run(["wait", "--load", "load"]);
   }
 
   async fill(ref: string, value: string): Promise<void> {
@@ -145,8 +153,23 @@ export class AgentBrowser implements BrowserDriver {
     await this.run(["fill", elementRef(ref), value]);
   }
 
-  fillSecret(ref: string, value: string): Promise<void> {
-    return this.config.secretFill(elementRef(ref), value);
+  get sessionName(): string {
+    return this.config.session;
+  }
+
+  async fillSecret(ref: string, value: string): Promise<void> {
+    const target = elementRef(ref);
+    if (this.config.secretFill) return this.config.secretFill(target, value);
+    if (value.length > 4096) throw new Error("Browser fill exceeds its bound");
+    const output = await this.run(
+      ["batch", "--bail", "--json"],
+      JSON.stringify([["fill", target, value]]),
+    );
+    assertBatchSucceeded(output);
+  }
+
+  async pageUrl(): Promise<string> {
+    return this.currentUrl();
   }
 
   async close(): Promise<void> {
@@ -160,7 +183,7 @@ export class AgentBrowser implements BrowserDriver {
     return result.data.url;
   }
 
-  private run(args: string[]): Promise<string> {
+  private run(args: string[], stdin?: string): Promise<string> {
     const globals = [
       "--session",
       this.config.session,
@@ -180,9 +203,12 @@ export class AgentBrowser implements BrowserDriver {
         {
           shell: false,
           env: { HOME: process.env.HOME ?? "", PATH: process.env.PATH ?? "" },
-          stdio: ["ignore", "pipe", "pipe"],
+          stdio: ["pipe", "pipe", "pipe"],
         },
       );
+      child.stdin.on("error", () => {});
+      if (stdin !== undefined) child.stdin.end(stdin);
+      else child.stdin.end();
       let stdout = "";
       let settled = false;
       const finish = (error?: Error, output = "") => {
@@ -214,6 +240,20 @@ export class AgentBrowser implements BrowserDriver {
           : finish(new Error("agent-browser command failed")),
       );
     });
+  }
+}
+
+const batchResultSchema = z.array(
+  z.object({ success: z.boolean() }).passthrough(),
+);
+
+function assertBatchSucceeded(output: string): void {
+  try {
+    const results = batchResultSchema.parse(JSON.parse(output));
+    if (results.length === 0 || results.some((r) => !r.success))
+      throw new Error("failed");
+  } catch {
+    throw new Error("agent-browser command failed");
   }
 }
 
