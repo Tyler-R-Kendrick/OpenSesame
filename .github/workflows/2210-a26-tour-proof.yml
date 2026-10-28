@@ -1,0 +1,91 @@
+name: Provisional 2210 paired and unpaired tour validation
+on:
+  push:
+    branches: [review/2210-a26-hosted-proof]
+    paths: [.github/workflows/2210-a26-tour-proof.yml]
+permissions:
+  contents: read
+jobs:
+  walk:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-a26-hosted-proof'
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.variant == 'paired' && 50 || 25 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [unpaired, paired]
+    env:
+      SOURCE_SHA: 474a21d74791e636235c3fd9b4d173740fdeedd2
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /OpenSesame/
+      TUTORIALS_ONLY: identity.tailnet.devices.manage
+      TUTORIALS_WIDTHS: 1280,390
+      TUTORIALS_SHOTS: '1'
+      TUTORIALS_OUT: ${{ github.workspace }}/work/tailnet-tour-output-${{ matrix.variant }}
+    steps:
+      - name: Check out exact candidate base
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Verify exact integrated source tree
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD^{tree})" = 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
+          git diff --exit-code
+          mkdir -p "$TUTORIALS_OUT"
+          printf '%s\n' "$SOURCE_SHA" > "$TUTORIALS_OUT/source.txt"
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        if: matrix.variant == 'paired'
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        if: matrix.variant == 'paired'
+      - name: Install system libraries for the native daemon
+        if: matrix.variant == 'paired'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build the ordinary unpaired app
+        if: matrix.variant == 'unpaired'
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Walk the full tour with no daemon paired
+        if: matrix.variant == 'unpaired'
+        run: pnpm --filter @opensesame/pages verify:tutorials
+      - name: Build the real daemon and dedicated-origin app
+        if: matrix.variant == 'paired'
+        run: |
+          cargo +1.88.0 build -p opensesame-cli --features tailnet-admin-test-upstream
+          pnpm --filter @opensesame/pages build:live-dedicated
+      - name: Verify real daemon management and read-only pairing
+        if: matrix.variant == 'paired'
+        env:
+          TAILNET_DEVICES_OUT: ${{ env.TUTORIALS_OUT }}/device-security
+        run: pnpm --filter @opensesame/pages verify:tailnet-devices
+      - name: Walk the full tour with a real paired daemon
+        if: matrix.variant == 'paired'
+        env:
+          TUTORIALS_DIST: ${{ github.workspace }}/apps/pages/dist-live-dedicated
+          TUTORIALS_TAILNET_DAEMON: '18794'
+        run: pnpm --filter @opensesame/pages verify:tutorials
+      - name: Preserve screenshots and provenance
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: provisional-2210-tour-${{ matrix.variant }}
+          path: ${{ env.TUTORIALS_OUT }}
+          if-no-files-found: error
+          retention-days: 7
