@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      EXPECTED_HEAD: a4e75fd60a107063926e2d362d807a3b1888221f
+      EXPECTED_HEAD: 1ead5f45b7f4596efa37d11293b9002765f30cc0
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -21,14 +21,14 @@ jobs:
     steps:
       - name: Validate immutable source input
         env:
-          SOURCE_SHA: a4e75fd60a107063926e2d362d807a3b1888221f
+          SOURCE_SHA: 1ead5f45b7f4596efa37d11293b9002765f30cc0
         shell: bash
         run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: a4e75fd60a107063926e2d362d807a3b1888221f
+          ref: 1ead5f45b7f4596efa37d11293b9002765f30cc0
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -56,11 +56,11 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^{tree})" = d842748547ca0eac344f434db3bc67e228c62bb2
-          test "$(git rev-parse HEAD^)" = cf0b18d020d17e58bb6273d33230fde729d31651
-          git diff --abbrev=9 --no-renames b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0 HEAD > "$RUNNER_TEMP/ssh-reviewed.patch"
+          test "$(git rev-parse HEAD^{tree})" = 0e9e3f2393296fdc471187f023080142cf462ca1
+          test "$(git rev-parse HEAD^)" = bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
+          git diff --abbrev=9 --no-renames HEAD^ HEAD > "$RUNNER_TEMP/ssh-reviewed.patch"
           printf '%s  %s\n' c6da93775af4190fd0112b161e0a7c8cfeaa09adfa83d3ef9c7a1800b8ea4133 "$RUNNER_TEMP/ssh-reviewed.patch" | sha256sum --check
-          git diff --binary --full-index --no-renames b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0 HEAD > "$RUNNER_TEMP/ssh-full-index.patch"
+          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/ssh-full-index.patch"
           printf '%s  %s\n' 7beaafef71850cefa49cde77a65ef2407ff1a2ca64b4e852b0f7bc362d453223 "$RUNNER_TEMP/ssh-full-index.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
@@ -108,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: ssh-complete-verify-a4e75fd60a107063926e2d362d807a3b1888221f
+          name: ssh-complete-verify-1ead5f45b7f4596efa37d11293b9002765f30cc0
           path: |
             ${{ runner.temp }}/opensesame-full-verify/
             tests/visual-contract/output/
