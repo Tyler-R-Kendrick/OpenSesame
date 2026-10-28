@@ -5,7 +5,7 @@ use super::*;
 
 fn honey() -> (String, String) {
     let id = "0123456789abcdef0123456789abcdef".to_string();
-    let secret = "fedcba9876543210fedcba9876543210".to_string();
+    let secret = "a".repeat(HONEY_TOKEN_SECRET_LEN);
     (format!("{HONEY_TOKEN_MARKER}{id}_{secret}"), id)
 }
 

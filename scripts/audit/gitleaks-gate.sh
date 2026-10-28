@@ -16,25 +16,34 @@ CFG="$ROOT/.gitleaks.toml"
 REPORT_DIR="$OPENSESAME_AUDIT_DIR/gitleaks-dir.json"
 REPORT_GIT="$OPENSESAME_AUDIT_DIR/gitleaks-git.json"
 
-# Working-tree scan is the primary gate (this is what hung without allowlists).
-echo "==> gitleaks detect --no-git (working tree, allowlisted dirs pruned)"
+# The scanner sees every non-build source path. Reviewed working-tree fixtures
+# are evaluated afterward using their exact file and match digests. Keep raw
+# reports and scanner output private; never emit a matched credential.
+WORK_DIR="$(mktemp -d "$OPENSESAME_AUDIT_DIR/.gitleaks-private.XXXXXXXX")"
+chmod 700 "$WORK_DIR"
+trap 'rm -rf "$WORK_DIR"' EXIT
+REVIEW_MANIFEST="$ROOT/scripts/security/gitleaks-reviewed-working-tree.json"
+REVIEW_GATE="$ROOT/scripts/security/gitleaks-working-tree-gate.mjs"
+node "$REVIEW_GATE" prepare "$ROOT" "$REVIEW_MANIFEST" "$WORK_DIR/state.json"
+echo "==> gitleaks detect --no-git (working tree)"
 set +e
 gitleaks detect \
   --source . \
   --no-git \
   --config "$CFG" \
-  --report-path "$REPORT_DIR" \
+  --report-path "$WORK_DIR/raw.json" \
   --report-format json \
-  --redact
+  --no-banner \
+  --log-level error >"$WORK_DIR/scanner-output" 2>&1
 dir_status=$?
 set -e
-
 if [[ "$dir_status" -gt 1 ]]; then
   echo "gitleaks gate: FAIL (scanner error status=$dir_status)" >&2
   exit 1
 fi
-if [[ "$dir_status" -eq 1 ]]; then
-  echo "gitleaks gate: FAIL (working-tree leaks found)" >&2
+if ! node "$REVIEW_GATE" classify "$ROOT" "$REVIEW_MANIFEST" "$WORK_DIR/state.json" \
+  "$WORK_DIR/raw.json" "$REPORT_DIR" "$dir_status"; then
+  echo "gitleaks gate: FAIL (unreviewed finding or invalid evidence)" >&2
   exit 1
 fi
 
@@ -47,7 +56,7 @@ gitleaks detect \
   --config "$CFG" \
   --report-path "$REPORT_GIT" \
   --report-format json \
-  --redact
+  --redact=100
 git_status=$?
 set -e
 

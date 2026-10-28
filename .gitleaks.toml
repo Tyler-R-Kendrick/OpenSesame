@@ -14,102 +14,34 @@ useDefault = true
 description = "Build outputs, package stores, and local tooling (must prune for dir scans)"
 paths = [
   '''(^|/)\.git(?:/|$)''',
-  '''(^|/)\.tools(?:/|$)''',
+  '''^\.tools(?:/|$)''',
   '''(^|/)\.stryker-tmp(?:/|$)''',
-  '''(^|/)\.deepsec/\.env[^/]*$''',
-  '''(^|/)\.impeccable/live/sessions(?:/|$)''',
-  '''(^|/)\.impeccable/live/server\.json$''',
+  '''^\.deepsec/\.env[^/]*$''',
+  '''^(?:\.impeccable|apps/pages/\.impeccable)/live/sessions(?:/|$)''',
+  '''^(?:\.impeccable|apps/pages/\.impeccable)/live/server\.json$''',
   '''(^|/)\.serena/cache(?:/|$)''',
   '''(^|/)artifacts(?:/|$)''',
-  '''(^|/)target(?:/|$)''',
+  '''^target(?:/|$)''',
+  '''^tests/fuzz/cargo/target(?:/|$)''',
   '''(^|/)node_modules(?:/|$)''',
-  '''(^|/)\.pnpm-store(?:/|$)''',
+  '''^\.pnpm-store(?:/|$)''',
   '''(^|/)dist(?:/|$)''',
-  '''(^|/)dist-identity-verify(?:/|$)''',
-  '''(^|/)dist-secret-backends-verify(?:/|$)''',
-  '''(^|/)dist-profiles(?:/|$)''',
+  '''^apps/pages/dist-identity-verify(?:/|$)''',
+  '''^apps/pages/dist-secret-backends-verify(?:/|$)''',
+  '''^apps/pages/(?:.*/)?dist-profiles(?:/|$)''',
   '''(^|/)coverage(?:/|$)''',
   '''(^|/)\.turbo(?:/|$)''',
   '''(^|/)\.output(?:/|$)''',
   '''(^|/)\.wxt(?:/|$)''',
   '''(^|/)sbom(?:/|$)''',
   '''(^|/)test-results(?:/|$)''',
-  '''(^|/)tests/visual-contract/output(?:/|$)''',
+  '''^tests/visual-contract/output(?:/|$)''',
   '''(^|/)\.headroom-cache(?:/|$)''',
   '''(^|/)\.superpowers(?:/|$)''',
-  '''(?i)\.(?:log|sqlite|sqlite-.*)$''',
+  '''(?i)\.(?:sqlite|sqlite-.*)$''',
 ]
 
-# Remediated historical commits that still contain old sk_test_* test placeholders.
-[[allowlists]]
-description = "Remediated historical commits (old sk_test_* placeholders)"
-commits = [
-  '''9b15cdf5f97ab761f5324d9d69865e064e700663''',
-  '''ff63081de227dc7573698504cf50b30fe57989da''',
-]
-
-# Cryptographic test vectors — the four files that cannot carry a comment.
-#
-# Everywhere else the exemption is a trailing `// gitleaks:allow` on the
-# offending line, which is precise: the rest of the file stays scanned. These
-# four cannot take one. Three are JSON, which has no comment syntax, and
-# Cargo.lock is generated — a comment there is erased by the next resolve.
-#
-# Each was read before it was listed and every value is visibly synthetic: the
-# Bitwarden vectors use "correct horse battery staple" as the master password
-# and a wrapped user key that base64-decodes to "ZZZZZZZZZZZZZZZZ", and the
-# Cargo.lock hit is a crate checksum, not a credential.
-#
-# Note these are whole-file exemptions. `targetRules` would have pinned each to
-# the single rule it answers, but it has no effect on rules inherited through
-# `[extend] useDefault` in gitleaks 8.28 — verified by running a scan with and
-# without it and getting the same 12 findings. So a genuine AWS key pasted into
-# one of these four fixtures would not be caught. Keep the list to files whose
-# entire contents someone has read, and prefer the inline comment anywhere it
-# is possible.
-
-[[allowlists]]
-description = "Synthetic crypto vectors and a lockfile checksum (no comment syntax available)"
-paths = [
-  '''(^|/)crates/provider-bitwarden/tests/vectors/crypto_vectors\.json$''',
-  '''(^|/)crates/provider-bitwarden/tests/fixtures/cloud/sync\.json$''',
-  '''(^|/)crates/provider-bitwarden/tests/fixtures/vaultwarden/sync\.json$''',
-  '''(^|/)Cargo\.lock$''',
-]
-
-# Known synthetic fixtures / test doubles that gitleaks 8.x flags under
-# generic-api-key / age-secret-key / private-key. Prefer // gitleaks:allow
-# on TS lines when adding new hits; these whole-file paths are the ones
-# currently breaking every local pre-commit on an otherwise clean tree.
-[[allowlists]]
-description = "Synthetic fixtures currently flagged by default rules"
-paths = [
-  '''(^|/)apps/cli/src/certs\.rs$''',
-  '''(^|/)packages/control-plane/src/__tests__/oauth2-proxy-live\.test\.ts$''',
-  '''(^|/)apps/pages/index\.html$''',
-  '''(^|/)crates/human-vault/tests/fixtures/root_protection_shared_vectors\.json$''',
-  '''(^|/)packages/app-core/src/lib/age-keys\.test\.ts$''',
-  '''(^|/)packages/app-core/src/lib/capabilities/keys\.ts$''',
-  '''(^|/)packages/app-core/src/lib/capabilities/trust/accepted-revision\.ts$''',
-  '''(^|/)packages/app-core/src/lib/duress/incident/intent-journal\.ts$''',
-  '''(^|/)packages/app-core/src/lib/duress/settings/unlock-secret-collision\.test\.ts$''',
-  '''(^|/)packages/app-core/src/lib/duress/store/store\.test\.ts$''',
-  '''(^|/)packages/app-core/src/lib/github-app-secret\.test\.ts$''',
-  '''(^|/)packages/app-core/src/lib/git-auth-modes\.test\.ts$''',
-  '''(^|/)packages/app-core/src/lib/sops/fixtures/upstream/identities\.json$''',
-  '''(^|/)packages/app-core/src/lib/transport-browser\.test\.ts$''',
-  '''(^|/)packages/app-core/src/lib/transport-settings\.test\.ts$''',
-  '''(^|/)packages/app-core/src/lib/vault/protection/fixtures/shared-vectors\.json$''',
-  '''(^|/)packages/app-core/src/lib/vault/protection/browser-enroll\.ts$''',
-  '''(^|/)scripts/lib/mtls-manifest\.test\.mjs$''',
-  '''(^|/)spec/conformance/vault-drive-protocol\.json$''',
-  '''(^|/)spec/conformance/item-type-cases\.json$''',
-  '''(^|/)crates/bitwarden-server/tests/protocol\.rs$''',
-]
-
-# Reviewed synthetic test literals and public schema/storage names. Each exemption
-# matches only the exact captured literal, so other keys in the same files
-# remain detectable. Paths are descriptions, not scanner-pruning exemptions.
+# Reviewed exact synthetic fixture and public identifier literals.
 [[allowlists]]
 description = "Reviewed synthetic fixture or public identifier: apps/cli/src/daemon_toolbar.rs"
 regexes = ['''(?s)\Aosc_clm_bearer\-12345\z''']
@@ -253,7 +185,7 @@ description = "Reviewed synthetic fixture or public identifier: spec/log-scrub/l
 regexes = ['''(?s)\A\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMIIEvQIBADANBg\\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-\ done",\n\ \ \ \ \ \ "expect":\ "key:\ \[REDACTED\]\ done"\n\ \ \ \ \},\n\ \ \ \ \{\n\ \ \ \ \ \ "rule":\ "pem",\n\ \ \ \ \ \ "input":\ "cut\ \-\-\-\-\-BEGIN\ RSA\ PRIVATE\ KEY\-\-\-\-\-\z''']
 [[allowlists]]
 description = "Ignored task scratch artifacts (never shipped)"
-paths = ['''(^|/)work(?:/|$)''']
+paths = ['''^work(?:/|$)''', '''^apps/pages/work(?:/|$)''']
 
 [[rules]]
 id = "generic-api-key"
@@ -285,166 +217,3 @@ condition = "AND"
 regexTarget = "secret"
 regexes = ['\AaLFFjcOCEhdA6stg4G0a\z']
 paths = ['(^|/)spec/conformance/produce\-vectors\.json$']
-
-
-# ---------------------------------------------------------------------------
-# Full-history scan coverage (the scheduled gitleaks pass walks every commit).
-# The lists above name current paths; the tree has moved files between the
-# packages/ and apps/ roots across its refactors, and the pre-refactor commits
-# predate the inline `gitleaks:allow` comments. These blocks are the
-# history-safe restatement of the same reviewed-synthetic judgments:
-# filename-or-unique-suffix scoping for moved fixtures, and the committed
-# historical build bundles and evidence captures.
-
-[[allowlists]]
-description = "Committed historical build bundles (assets/ predates its gitignore)"
-paths = [
-  '''(^|/)assets/index-[\w-]+\.js$''',
-]
-
-[[allowlists]]
-description = "Evidence captures: journeys/capabilities JSON and the prose pages that quote them"
-paths = [
-  '''(^|/)docs/evidence/.*/journeys?\.json$''',
-  '''(^|/)docs/evidence/.*/capabilities\.json$''',
-  '''(^|/)docs/evidence/2026-09-25-claim-route/README\.md$''',
-  '''(^|/)docs/design/vault-vfs\.md$''',
-  '''(^|/)docs/(contributing/)?ai-automation-roadmap\.md$''',
-  '''(^|/)docs/implementation/one-shot-automation-prompt\.md$''',
-  '''(^|/)docs/operators/proxied-run-quickstart\.md$''',
-  '''(^|/)ops/routines/(pr-security-review|weekly-security-audit)\.md$''',
-]
-
-[[allowlists]]
-description = "Synthetic fixtures whose files moved between workspace roots (scoped by unique path suffix)"
-paths = [
-  '''lib/age-keys\.test\.ts$''',
-  '''lib/git-auth-modes\.test\.ts$''',
-  '''lib/transport-browser\.test\.ts$''',
-  '''lib/transport-settings\.test\.ts$''',
-  '''lib/sops/fixtures/upstream/identities\.json$''',
-  '''lib/duress/store/store\.test\.ts$''',
-  '''lib/duress/redteam/unlock-visible-items\.(fixture|test)\.ts$''',
-  '''lib/capabilities/keys\.ts$''',
-  '''lib/capabilities/trust/accepted-revision\.ts$''',
-  '''lib/vault/protection/browser-enroll\.ts$''',
-  '''lib/vault/protection/browser-service\.ts$''',
-  '''lib/vault/protection/fixtures/shared-vectors\.json$''',
-  '''lib/share-target-intake\.test\.ts$''',
-  '''lib/join/presented\.ts$''',
-  '''lib/native-azure-ac\.test\.ts$''',
-  '''lib/secret-fs/s3\.(test|test-support)\.ts$''',
-  '''lib/tailnet-sync/plugin-daemon\.test\.ts$''',
-  '''lib/claims/link\.test\.ts$''',
-  '''lib/byo-connections\.test\.ts$''',
-  '''lib/vault/import/formats/cxf\.(characterization\.)?test\.ts$''',
-]
-
-[[allowlists]]
-description = "Synthetic vectors in test, conformance, and PKI fixtures added or renamed since the last audit pass"
-paths = [
-  '''(^|/)packages/vault-core/src/openssl/openssl\.test\.ts$''',
-  '''(^|/)packages/vault-core/src/item-formats\.test\.ts$''',
-  '''(^|/)spec/conformance/hpke-rfc9180-vectors\.json$''',
-  '''(^|/)spec/conformance/quorum-recovery-fixture\.json$''',
-  '''(^|/)apps/cli/src/security/watchtower/tests\.rs$''',
-  '''(^|/)crates/invoke-through/src/surrogate_honey_tests\.rs$''',
-  '''(^|/)crates/ceremony/tests/github_ceremony\.rs$''',
-  '''(^|/)crates/rotation-web/tests/ceremony_envelope\.rs$''',
-  '''(^|/)packages/wallet/src/payload\.test\.ts$''',
-  '''(^|/)apps/cli/tests/dev_run_bridge_env\.rs$''',
-  '''(^|/)apps/cli/src/github/tests\.rs$''',
-  '''(^|/)packages/cli/src/vault-sync-security\.test\.ts$''',
-  '''(^|/)apps/pages/src/lib/vault-relay-sync\.integration\.test\.ts$''',
-  '''(^|/)packages/contracts/src/__tests__/claims\.test\.ts$''',
-  '''(^|/)apps/pages/src/modules/sharing\.trusted-contacts/pending-store\.test\.ts$''',
-  '''(^|/)apps/pages/src/lib/vault/sample\.ts$''',
-  '''(^|/)apps/pages/src/lib/join-session\.test\.ts$''',
-  '''(^|/)apps/pages/src/lib/vault/crypto\.test\.ts$''',
-  '''(^|/)apps/pages/src/lib/vault/tomb-migration\.ts$''',
-  '''(^|/)apps/pages/src/tutorial/__tests__/adversarial/context-leak\.test\.ts$''',
-  '''(^|/)apps/pages/src/webmcp/tools\.test\.ts$''',
-  '''(^|/)apps/pm-bridges/src/pairing\.rs$''',
-  '''(^|/)apps/gateway/src/routes/nats_callout\.rs$''',
-  '''(^|/)apps/control-plane/src/__tests__/(agent-auth\.chaos|openid4vp-routes)\.test\.ts$''',
-  '''(^|/)apps/ceremonies/src/pages/DropAcceptance\.test\.tsx$''',
-  '''(^|/)apps/pages/src/sections/connections/ai/AiProviderSheet\.integration\.test\.tsx$''',
-  '''(^|/)apps/pages/src/sections/settings/security/DuressPanel\.visible\.test\.tsx$''',
-  '''(^|/)packages/webmcp/src/fence\.test\.ts$''',
-  '''(^|/)scripts/quality/credential-equivalence/(policy|cfg-inventory|repository-code-pins)\.json$''',
-  '''(^|/)tools/mutation/credential-adapter-applicability\.json$''',
-  '''(^|/)packages/env-spec-bridge/test/parse\.test\.mjs$''',
-]
-
-[[allowlists]]
-description = "Historical paths only (files since moved, renamed or removed; current equivalents are allowlisted or carry inline allows). No forward surface."
-paths = [
-  '''(^|/)apps/cli/src/bridge\.rs$''',
-  '''(^|/)apps/pages/src/lib/vault/store\.ts$''',
-  '''(^|/)crates/daemon/src/mint_tests\.rs$''',
-  '''(^|/)crates/env-spec/tests/bridge_isolation\.rs$''',
-  '''(^|/)crates/env-spec/tests/support/mod\.rs$''',
-  '''(^|/)crates/provider-bitwarden/tests/common/mod\.rs$''',
-  '''__tests__/oauth2-proxy-live\.test\.ts$''',
-]
-
-# Production modules are NOT path-exempt (that would silence future content of
-# live code and weaken the pre-commit gate, which shares this config). Their
-# historical synthetic-vector findings are exempted per exact commit instead:
-[[allowlists]]
-description = "Historical synthetic vectors in crates/pki-core/src/keys.rs: exact commits only, no forward surface"
-paths = [
-  '''(^|/)crates/pki-core/src/keys\.rs$''',
-]
-commits = [
-  '''d20a55bb4d7b456189b7443080a0960a97157a65''',
-]
-
-[[allowlists]]
-description = "Historical synthetic vectors in crates/pki-core/src/bundle.rs: exact commits only, no forward surface"
-paths = [
-  '''(^|/)crates/pki-core/src/bundle\.rs$''',
-]
-commits = [
-  '''d20a55bb4d7b456189b7443080a0960a97157a65''',
-]
-
-[[allowlists]]
-description = "Historical synthetic vectors in crates/ceremony/src/capture.rs: exact commits only, no forward surface"
-paths = [
-  '''(^|/)crates/ceremony/src/capture\.rs$''',
-]
-commits = [
-  '''64b8206877908a56fbb72774e5399512262b0848''',
-]
-
-[[allowlists]]
-description = "Historical synthetic vectors in crates/connection-broker/src/secret_debug.rs: exact commits only, no forward surface"
-paths = [
-  '''(^|/)crates/connection-broker/src/secret_debug\.rs$''',
-]
-commits = [
-  '''7d611db8fde8c93b2447b16049a86ff96cad0b8d''',
-]
-
-[[allowlists]]
-description = "Historical synthetic vectors in packages/wallet/src/config.ts: exact commits only, no forward surface"
-paths = [
-  '''(^|/)packages/wallet/src/config\.ts$''',
-]
-commits = [
-  '''45a8cda477addf42863699b500252b784ac69a51''',
-]
-
-
-[[allowlists]]
-description = "Vendored upstream code (Go x/crypto test vectors and anything else under third_party/): public RFC test data, maintained upstream"
-paths = [
-  '''(^|/)third_party/(?:.*/)?''',
-]
-
-[[allowlists]]
-description = "Historical path only (bitwarden-sdk-resource test since moved or removed; no forward surface)"
-paths = [
-  '''bitwarden-sdk-resource\.test\.mjs$''',
-]
