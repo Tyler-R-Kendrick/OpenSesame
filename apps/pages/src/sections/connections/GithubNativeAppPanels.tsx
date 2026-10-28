@@ -9,7 +9,7 @@ import {
 import { hasPendingGithubAppSecret } from "@opensesame/app-core/lib/github-app-secret.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppConfigSummary } from "./GithubAppConfigSummary.js";
@@ -57,6 +57,36 @@ export function GithubNativeAppPanels(props: {
       ? "token"
       : "app",
   );
+  const connectionId = props.connection?.connectionId;
+  const connectionStatus = props.connection?.status;
+  const savedNativeMethod =
+    connectionStatus === "active" && connectionId
+      ? readNativeConnector(connectionId)?.configuration.method
+      : undefined;
+  const previousConnection = useRef({
+    id: connectionId,
+    status: connectionStatus,
+    method: savedNativeMethod,
+  });
+  useEffect(() => {
+    const previous = previousConnection.current;
+    previousConnection.current = {
+      id: connectionId,
+      status: connectionStatus,
+      method: savedNativeMethod,
+    };
+    const arrived =
+      previous.id !== connectionId ||
+      previous.status !== connectionStatus ||
+      previous.method !== savedNativeMethod;
+    if (
+      arrived &&
+      !new URLSearchParams(window.location.search).has("github_app") &&
+      connectionStatus === "active" &&
+      savedNativeMethod === "api-key"
+    )
+      setMethod("token");
+  }, [connectionId, connectionStatus, savedNativeMethod]);
   const app = useSyncExternalStore(
     subscribeLocalGithubApp,
     readLocalGithubApp,

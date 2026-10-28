@@ -233,6 +233,7 @@ it("keeps the verified callback mounted when saved App hides create and the toke
 
 it("shows saved metadata without inventing access and recovers creation through the shared remove control", async () => {
   connectorIntegration();
+  vi.spyOn(window, "confirm").mockReturnValue(true);
   rememberLocalGithubApp(app);
   stashPendingGithubAppSecret(app, "memory-only-pem", null);
   const { container } = draw();
@@ -310,6 +311,54 @@ it("starts with the existing active native personal token rather than App regist
       selector: 'input[type="password"]',
     }),
   ).toBeTruthy();
+});
+
+it("selects a saved native personal token when the connection arrives after loading", async () => {
+  const fixture = connectorIntegration();
+  fixture.replies.push({ body: { id: 123, login: "operator", type: "User" } });
+  const saved = await configureNativeGithubPersonal({
+    providerId: "github",
+    displayName: "GitHub",
+    parameters: {},
+    credentials: { api_key: "private-test-token" },
+  });
+  const connection = deviceConnection(saved.connectionId);
+  if (!connection) throw new Error("Saved GitHub connection required");
+  const provider = catalogProvider("github");
+  if (!provider) throw new Error("GitHub catalog row required");
+  const view = draw();
+  expect(screen.getByRole("radio", { name: "GitHub App" })).toHaveProperty(
+    "checked",
+    true,
+  );
+  view.rerender(
+    <MemoryRouter initialEntries={[window.location.pathname]}>
+      <ConnectorSettingsPage
+        provider={{ ...provider, configured: true }}
+        providerId="github"
+        connection={connection}
+        connections={[connection]}
+        loading={false}
+        online={true}
+        canConfigure={true}
+        configureHint=""
+        flash={null}
+        rememberOffer={null}
+        onFlash={vi.fn()}
+        onRememberOffer={vi.fn()}
+        onChanged={vi.fn()}
+      />
+    </MemoryRouter>,
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("radio", { name: "Personal access token" }),
+    ).toHaveProperty("checked", true),
+  );
+  expect(screen.getByRole("radio", { name: "GitHub App" })).toHaveProperty(
+    "checked",
+    false,
+  );
 });
 
 it("shows the App return alongside an existing active token without trusting a forged marker", async () => {

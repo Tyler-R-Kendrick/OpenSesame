@@ -86,6 +86,8 @@ export function composeConfiguredMcpDriver(
       },
       prepare: (id, original) =>
         forConnection(id).cleanup.prepare?.(id, original) ?? Promise.resolve(),
+      finalize: (id, original) =>
+        forConnection(id).cleanup.finalize?.(id, original) ?? Promise.resolve(),
       cleanup: (obligation, context) =>
         forConfiguration(context.configuration).cleanup.cleanup(
           obligation,

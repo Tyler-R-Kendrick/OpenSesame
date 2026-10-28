@@ -41,7 +41,7 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   // its only links.
   expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();
   const stripe = container.querySelector("#catalog-stripe");
-  // Stripe has a complete API-key contract and opens its configuration page.
+  // Stripe has a bounded balance check, so its tile opens real configuration.
   const stripeLink = screen.getByRole("link", { name: "Connect Stripe" });
   expect(stripe?.querySelector("a")).toBe(stripeLink);
   expect(stripeLink.getAttribute("href")).toBe("/connections/stripe");
@@ -51,10 +51,11 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   expect(stripeLink.tabIndex).toBe(-1);
   const blocked = stripe?.querySelector(".conn-tile__go title");
   expect(blocked).toBeNull();
+  expect(stripe?.textContent).not.toMatch(/No way to check a key/);
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });
 
-it("puts BYO AI first and keeps partner tiles alphabetical", () => {
+it("offers BYO AI through the custom entry in the add builder, not a browse tile", () => {
   const ids = new Set(["openai", "anthropic", "byo-ai"]);
   const { container } = render(
     <MemoryRouter>
@@ -65,22 +66,15 @@ it("puts BYO AI first and keeps partner tiles alphabetical", () => {
       />
     </MemoryRouter>,
   );
-  const tiles = [...container.querySelectorAll(".conn-grid > .conn-tile")];
-  expect(tiles[0]?.id).toBe("catalog-byo-ai");
-  expect(
-    tiles
-      .map((tile) => tile.id)
-      .filter((id) =>
-        ["catalog-byo-ai", "catalog-anthropic", "catalog-openai"].includes(id),
-      ),
-  ).toEqual(["catalog-byo-ai", "catalog-anthropic", "catalog-openai"]);
-  const byo = container.querySelector("#catalog-byo-ai");
-  expect(byo?.querySelector("a")?.getAttribute("href")).toBe(
-    "/connections/byo-ai",
+  const tileIds = [
+    ...container.querySelectorAll(".conn-grid > .conn-tile"),
+  ].map((tile) => tile.id);
+  expect(tileIds).not.toContain("catalog-byo-ai");
+  expect(tileIds.indexOf("catalog-anthropic")).toBeGreaterThanOrEqual(0);
+  expect(tileIds.indexOf("catalog-anthropic")).toBeLessThan(
+    tileIds.indexOf("catalog-openai"),
   );
-  expect(byo?.querySelector(".conn-tag--method")?.textContent).toBe(
-    "Configuration",
-  );
+  expect(container.querySelector("#catalog-byo-ai")).toBeNull();
 });
 
 it("links the + button to the custom connector form", () => {

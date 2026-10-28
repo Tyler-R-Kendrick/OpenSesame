@@ -68,6 +68,7 @@ it("prepares the selected method and dispatches an old grant to its original met
   );
   const oauthPrepare = vi.fn(async () => {});
   const mcpPrepare = vi.fn(async () => {});
+  const mcpFinalize = vi.fn(async () => {});
   const oauthCleanup = vi.fn<NativeProviderCleanup["cleanup"]>(
     async (obligation) => {
       expect(obligation.grant?.kind).toBe("oauth");
@@ -104,6 +105,7 @@ it("prepares the selected method and dispatches an old grant to its original met
         classification: () => classification,
         credentialSlots: () => ["mcp_client", "mcp_target"],
         prepare: mcpPrepare,
+        finalize: mcpFinalize,
         cleanup: mcpCleanup,
       }),
     ),
@@ -166,6 +168,7 @@ it("prepares the selected method and dispatches an old grant to its original met
   controller.load();
   await controller.remove();
   expect(mcpPrepare).toHaveBeenCalledOnce();
+  expect(mcpFinalize).toHaveBeenCalledOnce();
   expect(oauthPrepare).not.toHaveBeenCalled();
   expect(mcpCleanup).toHaveBeenCalledOnce();
   expect(oauthCleanup).toHaveBeenCalledOnce();

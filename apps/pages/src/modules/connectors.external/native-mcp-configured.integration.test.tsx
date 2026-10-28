@@ -189,6 +189,16 @@ it.each(["bearer", "header", "anonymous"] as const)(
     expect(f.faults).toEqual([]);
     await f.controller.remove();
     expect(f.controller.load()).toBeNull();
+    expect(
+      vaultStore
+        .getSnapshot()
+        .items.filter(
+          (item) =>
+            item.kind === "credential" &&
+            item.method.type === "token" &&
+            item.method.token === MCP_KEY,
+        ),
+    ).toEqual([]);
   },
 );
 it("clears a hidden bearer when switching to explicit anonymous and preserves public OAuth as the original default", async () => {
