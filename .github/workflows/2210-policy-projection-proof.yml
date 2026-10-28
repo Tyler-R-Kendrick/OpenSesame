@@ -1,0 +1,64 @@
+name: Verify provisional browser-policy projection
+on:
+  push:
+    branches: [review/2210-policy-projection-proof]
+    paths: [.github/workflows/2210-policy-projection-proof.yml]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-policy-projection-proof'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 221c1eb65d5ee411ee5ba32b6230410a148de234
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact source and patch
+        run: |
+          test "$(git rev-parse HEAD)" = 221c1eb65d5ee411ee5ba32b6230410a148de234
+          test "$(git rev-parse HEAD^{tree})" = f3bc23632fc2c94863eb2bc3a7d623ea379f6d6e
+          test "$(git rev-parse HEAD^)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
+          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/projection.patch"
+          printf '%s  %s\n' a1187f1a5ccd43b7aeda2224fad3275d4bc8a478a5320eba2ab626888ae90541 "$RUNNER_TEMP/projection.patch" | sha256sum --check
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check source generation and full audit preservation
+        run: |
+          node packages/app-core/scripts/emit-browser-policy.mjs
+          pnpm exec biome format --write packages/app-core/src/lib/native-browser-policy.runtime.generated.ts
+          git diff --exit-code -- packages/app-core/src/lib/native-browser-policy.generated.ts packages/app-core/src/lib/native-browser-policy.runtime.generated.ts
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-browser-policy.test.ts src/lib/generated-json.test.ts
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm exec biome check packages/app-core/scripts/emit-browser-policy.mjs packages/app-core/scripts/emit-browser-policy.d.mts packages/app-core/src/lib/native-browser-policy.ts packages/app-core/src/lib/native-browser-policy.test.ts packages/app-core/src/lib/native-browser-policy.runtime.generated.ts
+      - name: Verify source remained unchanged
+        if: always()
+        run: git diff --exit-code
+  measure:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-policy-projection-proof'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 221c1eb65d5ee411ee5ba32b6230410a148de234
+          persist-credentials: false
+      - name: Verify exact source
+        run: |
+          test "$(git rev-parse HEAD)" = 221c1eb65d5ee411ee5ba32b6230410a148de234
+          test "$(git rev-parse HEAD^{tree})" = f3bc23632fc2c94863eb2bc3a7d623ea379f6d6e
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/lib/ci-pages-build.mjs
+      - name: Measure existing default bundle budgets
+        run: node scripts/quality/bundle-budget-gate.mjs
