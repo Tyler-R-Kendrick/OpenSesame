@@ -24,6 +24,7 @@ function method(): PasswordMethod {
       minSymbols: 0,
     },
     pepper: false,
+    changedAt: "2026-10-27T00:00:00.000Z",
   };
 }
 

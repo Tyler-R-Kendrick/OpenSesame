@@ -65,6 +65,8 @@ export const DRIVER_GATES = {
   "verify-peering-diagnostic-observation.mjs": ["journeys"],
   // P8-4: fresh-vault Passwords onboarding and a saved account (journeys-2).
   "verify-fresh-vault-login.mjs": ["journeys"],
+  // Vault password-reset prompts from both generate entry points.
+  "verify-vault-password-reset.mjs": ["journeys"],
   // P8-5: CLI pairing on the public static site (journeys-2).
   "verify-cli-public-site.mjs": ["journeys"],
   // ADR 0181: the journeys shard runs the relay join walk.
