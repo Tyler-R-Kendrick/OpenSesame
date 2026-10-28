@@ -71,6 +71,14 @@ jobs:
             --testNamePattern 'keeps (a newer address typed|newer TURN server and credentials|a newer carrier draft)' \
             --reporter=json --outputFile "$RUNNER_TEMP/live-draft-evidence/after.json"
           node work/draft-evidence/scripts/review/live-draft/check-results.mjs "$RUNNER_TEMP/live-draft-evidence/after.json" after
+      - name: Run complete related form suites
+        run: >-
+          pnpm --filter @opensesame/pages exec vitest run
+          src/modules/sharing.live/LiveRoutesPanel.test.tsx
+          src/modules/sharing.live/LiveRoutes.test.tsx
+          src/modules/sharing.live/LiveNatsRoutes.test.tsx
+      - name: Typecheck Pages
+        run: pnpm --filter @opensesame/pages typecheck
       - name: Keep the before and after test reports
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
