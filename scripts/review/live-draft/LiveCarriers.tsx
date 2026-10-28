@@ -41,10 +41,19 @@ const NATS_DRAFT_FIELDS = [
   "session",
 ] as const;
 
+type NatsRevisions = {
+  signIn: number;
+  account: number;
+  signingKey: number;
+  jwt: number;
+  seed: number;
+  session: number;
+};
+
 function clearedNatsDraft(
   now: NatsDraft,
-  revisions: Record<keyof NatsDraft, number>,
-  submitted: Record<keyof NatsDraft, number>,
+  revisions: NatsRevisions,
+  submitted: NatsRevisions,
   refused: string | null,
 ): NatsDraft {
   const edited = (field: keyof NatsDraft) =>
@@ -138,7 +147,7 @@ function CarrierAdd({ change }: { change: Change }) {
   const [nats, setNats] = useState<NatsDraft>(EMPTY_NATS_DRAFT);
   const urlRevision = useRef(0);
   const kindRevision = useRef(0);
-  const natsRevision = useRef<Record<keyof NatsDraft, number>>({
+  const natsRevision = useRef<NatsRevisions>({
     signIn: 0,
     account: 0,
     signingKey: 0,
