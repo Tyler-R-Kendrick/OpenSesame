@@ -45,8 +45,8 @@ publication. Pages and native release publication share identity but are not an
 atomic external transaction. Recovery requalifies the same candidate in a fresh
 attempt and resumes its unpublished draft while the original dev evidence is
 fresh. The first successful weekly selection is retained across attempts; a retry
-cannot switch to a newer nightly candidate. A configured release approval occurs
-after the draft and notes exist and before either production publication.
+cannot switch to a newer nightly candidate. Configured release approvals gate
+draft/tag staging and, separately, native publication after Pages verification.
 Published product bytes stay immutable.
 
 The pipeline requires evidence retention, policy compatibility and version

@@ -140,10 +140,10 @@ or analysis/extraction error also fails.
    main. Its summary identifies selected source and excluded newer main work.
 3. Let Thursday's controller run, or manually dispatch `release-weekly.yml` on
    main. Manual dispatch uses the same gates/concurrency and is the urgent path.
-4. Review the generated draft release notes and exact candidate in the staging
-   summary, then approve the `release` environment if a reviewer is configured.
-   Both Pages deployment and final native publication depend on this gate.
-5. Confirm all publishing jobs finish. Exact release assets/checksums, original
+4. Review the immutable candidate run linked by the `release` environment,
+   then approve staging. The draft and tag are created only after that approval.
+5. After Pages verification, review the draft and approve the `release`
+   environment again for final publication. Confirm all publishing jobs finish. Exact release assets/checksums, original
    build proof, receipts and promotion attestation accompany the native release;
    served Pages content must match the qualified files.
 
@@ -151,8 +151,8 @@ Another source or changed payload bytes under an existing version is a collision
 Published assets cannot be overwritten. Identical already published payloads
 produce a visible no-op only after verifying publication completeness. New
 producer IDs alone do not force a version bump for unchanged source/bytes.
-Release notes are generated while staging the draft; an environment approval can
-serve as editorial review. A tag push does not start another build or publish.
+Release notes are generated while staging the draft; the final publication approval
+can serve as editorial review. A tag push does not start another build or publish.
 
 ## Recovery
 
@@ -238,8 +238,8 @@ or additional credential is needed. GitHub documents the read permission for
 [Get an environment](https://docs.github.com/en/rest/deployments/environments#get-an-environment)
 and [List deployment branch policies](https://docs.github.com/en/rest/deployments/branch-policies#list-deployment-branch-policies).
 
-The draft and its version tag are staged before the approval wait, while both
-production publications wait after it. The schedules become active when these
+A release-environment approval precedes draft and tag staging. Pages waits for
+that staging, and a second release-environment approval precedes native publication. The schedules become active when these
 files reach main, but release promotion stays blocked until the live approved
 protections are configured and readable.
 

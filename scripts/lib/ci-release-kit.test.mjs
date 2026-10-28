@@ -163,28 +163,45 @@ describe("artifact publication workflow", () => {
       expect(jobScripts(job)).toContain("verify-promotion");
   });
 
-  it("stages reviewable notes before one approval gates both products", () => {
-    for (const name of ["stage", "publish"]) {
-      expect(publisher.jobs[name].environment).toBeUndefined();
-      expect(publisher.jobs[name].permissions.contents).toBe("write");
-    }
-    const approval = publisher.jobs.approval;
-    expect(approval.needs).toBe("stage");
-    expect(approval.environment).toEqual({
+  it("gates every contents-write job and waits for Pages before publication", () => {
+    const ungatedWrites = (jobs, workflowPermissions = {}) =>
+      Object.entries(jobs).flatMap(([name, job]) => {
+        const permissions = job.permissions ?? workflowPermissions;
+        const writesContents =
+          permissions === "write-all" || permissions?.contents === "write";
+        const environment = job.environment;
+        return writesContents &&
+          environment !== "release" &&
+          environment?.name !== "release"
+          ? [name]
+          : [];
+      });
+    expect(ungatedWrites(publisher.jobs, publisher.permissions)).toEqual([]);
+    expect(ungatedWrites({ rogue: {} }, { contents: "write" })).toEqual([
+      "rogue",
+    ]);
+    expect(ungatedWrites({ rogue: {} }, "write-all")).toEqual(["rogue"]);
+    expect(
+      ungatedWrites({ rogue: { permissions: { contents: "write" } } }),
+    ).toEqual(["rogue"]);
+    expect(ungatedWrites({ rogue: { permissions: "write-all" } })).toEqual([
+      "rogue",
+    ]);
+    expect(publisher.jobs.stage.needs).toBe("admission");
+    expect(publisher.jobs.stage.environment).toEqual({
+      name: "release",
+      url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ inputs.run_id }}",
+    });
+    expect(publisher.jobs.publish.environment).toEqual({
       name: "release",
       url: "${{ needs.stage.outputs.draft_url }}",
-    });
-    expect(approval.permissions).toEqual({
-      contents: "read",
-      actions: "read",
-      attestations: "read",
     });
     expect(publisher.jobs.stage.outputs.draft_url).toBe(
       "${{ steps.draft.outputs.draft_url }}",
     );
     expect(publisher.jobs.pages.environment.name).toBe("github-pages");
-    expect(publisher.jobs.pages.needs).toContain("approval");
-    expect(publisher.jobs.publish.needs).toContain("approval");
+    expect(publisher.jobs.pages.needs).toContain("stage");
+    expect(publisher.jobs.publish.needs).toContain("stage");
     expect(publisher.jobs.publish.needs).toContain("pages");
     expect(jobScripts(publisher.jobs.stage)).toContain(
       "publish-release.mjs prepare",

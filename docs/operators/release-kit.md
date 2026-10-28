@@ -176,23 +176,24 @@ export OPENSESAME_NODE="$(readlink -f "$(command -v node)")"
    prerelease qualification, then mutation and security checks. They all bind to
    the same original candidate. Source-based mutation and instrumentation remain
    source/test evidence; they do not replace the production artifacts.
-5. The publisher revalidates all receipts and original provenance after every
-   environment wait. It checks the source remains on main, the version matches
+5. The staging job first waits for `release` environment approval linked to the
+   immutable candidate run. The publisher revalidates all receipts and original
+   provenance after every environment wait. It checks the source remains on main, the version matches
    that source, the stable version advances, and the tag is absent or already
    points to that exact source. It never force-updates a tag. If permitted by
    repository rules, it creates the missing lightweight tag.
 6. It creates or resumes an owned unpublished draft, attaches the explicit asset
    set, and signs the checksum inventory as promotion evidence. The stage summary
-   links the generated notes and assets and identifies the exact candidate. A
-   read-only job then waits for any configured `release` environment approval
-   and revalidates evidence afterward. Both products depend on that gate. Pages
+   links the generated notes and assets and identifies the exact candidate. Pages
+   depends on the approved staging job and revalidates evidence afterward. Pages
    receives the original archive's tar bytes in the hosting transport; no production
    build, stamp, origin rewrite, or archive rewrite occurs. The uploaded transport
    is downloaded and digest-checked before deployment. Every served content file
    is compared with the extracted candidate afterward; `.nojekyll` is a packaging
    control file, not a public endpoint.
-7. Only after live Pages verification does the final job recheck the complete
-   release assets and tag, then publish the GitHub release. Failure leaves a
+7. Only after live Pages verification and a second `release` environment approval
+   does the final job recheck the complete release assets and tag, then publish
+   the GitHub release. Failure leaves a
    visible failed workflow and an unpublished draft. A Pages deployment that
    succeeded before a later publication failure may already be live; retrying
    promotes those same bytes again.
@@ -231,10 +232,9 @@ production publication:
   `main`; trusted workflow revisions come from that protected branch.
 - **Release environment.** Settings › Environments › release must permit
   deployments from `main`. An older `v*`-only deployment rule blocks this new
-  main-based publisher. Retain any required reviewer policy. The approval job
-  uses this environment after draft notes and assets exist and before either
-  product is published. Draft staging and tag reservation happen before that
-  approval; the approval job itself has only read permissions.
+  main-based publisher. Retain any required reviewer policy. Both jobs with
+  contents-write permission use this environment: staging waits before creating
+  any draft or tag, and native publication waits again after Pages verification.
 - **Pages environment and source.** The `github-pages` environment must permit
   `main`, and the Pages publishing source must be GitHub Actions. The PWA is
   still the existing shared-origin `/OpenSesame/` deployment, not four isolated

@@ -8,20 +8,74 @@ import {
   timestamp,
 } from "./candidate-policy.mjs";
 
+// Security tools read these paths from the candidate checkout. Include both
+// present files and future additions so an older candidate cannot qualify under
+// a controller that reviews different ignore rules or scanner settings.
+const SCANNER_CONFIG_NAMES = new Set([
+  ".gitleaks.toml",
+  ".gitleaksignore",
+  ".osv-scanner.toml",
+  ".semgrepignore",
+  ".semgrep.yml",
+  ".semgrep.yaml",
+  ".gitignore",
+  ".ignore",
+  ".rgignore",
+  "sgconfig.yml",
+  "sgconfig.yaml",
+  "deny.toml",
+  "osv-scanner.toml",
+]);
+const REQUIRED_SCANNER_CONFIGS = [
+  ".github/codeql/codeql-config.yml",
+  ".gitleaks.toml",
+  ".cargo/audit.toml",
+  "deny.toml",
+  "osv-scanner.toml",
+];
+
+function scannerHelper(path, prefix) {
+  return (
+    path.startsWith(prefix) &&
+    /\.(?:mjs|cjs|js|sh|py)$/.test(path) &&
+    !path.includes(".test.")
+  );
+}
+
+function scannerPolicyPath(path) {
+  const parts = path.split("/");
+  const name = parts.at(-1);
+  return (
+    SCANNER_CONFIG_NAMES.has(name) ||
+    path.startsWith(".github/codeql/") ||
+    parts.includes(".semgrep") ||
+    (parts.includes(".cargo") &&
+      ["audit.toml", "config", "config.toml"].includes(name)) ||
+    path === "scripts/lib/audit-directory.sh" ||
+    (path.startsWith("scripts/audit/") && !path.includes(".test.")) ||
+    scannerHelper(path, "scripts/test/live-turn/") ||
+    scannerHelper(path, "tools/pwa-tailscale-native-http/") ||
+    (path.startsWith("scripts/security/") && !path.includes(".test."))
+  );
+}
+
+function isPolicyPath(path) {
+  return (
+    (path.startsWith(".github/workflows/") && /\.ya?ml$/.test(path)) ||
+    (path.startsWith("scripts/release/") && !path.includes(".test.")) ||
+    (/^scripts\/(?:ci\/|lib\/ci-)/.test(path) && !path.includes(".test.")) ||
+    (path.startsWith("scripts/audit/") && path.endsWith("-gate.sh")) ||
+    path.startsWith("tools/mutation/") ||
+    path.startsWith("tools/security/") ||
+    scannerPolicyPath(path) ||
+    path === "scripts/fuzz/fuzz-batch.sh" ||
+    CI_RECIPE.includes(path)
+  );
+}
+
 export function policyEntriesForTree(tree) {
   return [...tree]
-    .filter(
-      ([path]) =>
-        (path.startsWith(".github/workflows/") && /\.ya?ml$/.test(path)) ||
-        (path.startsWith("scripts/release/") && !path.includes(".test.")) ||
-        (/^scripts\/(?:ci\/|lib\/ci-)/.test(path) &&
-          !path.includes(".test.")) ||
-        (path.startsWith("scripts/audit/") && path.endsWith("-gate.sh")) ||
-        path.startsWith("tools/mutation/") ||
-        path.startsWith("tools/security/") ||
-        path === "scripts/fuzz/fuzz-batch.sh" ||
-        CI_RECIPE.includes(path),
-    )
+    .filter(([path]) => isPolicyPath(path))
     .sort(([a], [b]) => a.localeCompare(b));
 }
 
@@ -135,10 +189,19 @@ export class GitHub {
             !data.truncated && Array.isArray(data.tree),
             "Incomplete Git tree cannot establish policy compatibility",
           );
+          const blobs = data.tree.filter((item) => item.type === "blob");
+          for (const item of blobs) {
+            if (isPolicyPath(item.path))
+              demand(
+                ["100644", "100755"].includes(item.mode) &&
+                  /^[a-f0-9]{40}$/.test(item.sha),
+                `Invalid policy file mode or digest: ${item.path}`,
+              );
+          }
+          // Git blob IDs do not include file mode. Preserve it so an
+          // executable or symlink change cannot inherit prior qualification.
           return new Map(
-            data.tree
-              .filter((item) => item.type === "blob")
-              .map((item) => [item.path, item.sha]),
+            blobs.map((item) => [item.path, `${item.mode}:${item.sha}`]),
           );
         }),
       );
@@ -148,7 +211,7 @@ export class GitHub {
   async policyEntries() {
     const tree = await this.tree(this.ctx.workflowSha);
     const entries = policyEntriesForTree(tree);
-    for (const path of CI_RECIPE)
+    for (const path of [...CI_RECIPE, ...REQUIRED_SCANNER_CONFIGS])
       demand(tree.has(path), `Current policy is incomplete: ${path}`);
     demand(
       entries.length >= 12,
