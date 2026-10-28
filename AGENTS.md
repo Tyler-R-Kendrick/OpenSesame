@@ -84,10 +84,12 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
   3. **Cursor** when both CLIs are unavailable — **Grok 4.7** for security
      testing / red-team; **Composer** or **auto** otherwise. Record the tier and
      reason in the PR Provenance section and `docs/audit/2026-10-provenance.md`.
-- **Grok Build** image install: `curl -fsSL https://x.ai/cli/install.sh | bash`
-  in [`.cursor/Dockerfile`](.cursor/Dockerfile) (`GROK_BIN_DIR=/usr/local/bin`).
-- **Kimi Code CLI** image install: `@moonshot-ai/kimi-code` (pinned) on `PATH`
-  via `/etc/profile.d/kimi-code.sh` (unchanged).
+- **Grok Build** image install: `scripts/dev/install-cloud-cli.mjs` verifies
+  the versioned payload against [`.cursor/tools/downloads.json`](.cursor/tools/downloads.json)
+  before installing it in `/usr/local/bin` (`GROK_BIN_DIR=/usr/local/bin`).
+- **Kimi Code CLI** image install: `npm ci` from [`.cursor/tools/package-lock.json`](.cursor/tools/package-lock.json)
+  into `/opt/opensesame-cloud-tools`, exposed as `/usr/local/bin/kimi` and on
+  `PATH` via `/etc/profile.d/kimi-code.sh`.
 - **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.

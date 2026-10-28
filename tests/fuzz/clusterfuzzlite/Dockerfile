@@ -16,7 +16,7 @@
 # OpenSesame's OSS-Fuzz / ClusterFuzzLite builder. This repository runs no
 # ClusterFuzzLite GitHub Actions workflow — local and scheduled agent runs use
 # scripts/fuzz/fuzz-pr-gate.sh and scripts/fuzz/fuzz-batch.sh instead (ADR 0211).
-FROM gcr.io/oss-fuzz-base/base-builder-rust
+FROM gcr.io/oss-fuzz-base/base-builder-rust@sha256:3428d0a90b1e7efbe2ba947bd1d0c9a70594986b4b6553804547f1fb24cfc92f
 
 COPY . $SRC/opensesame
 WORKDIR $SRC/opensesame
