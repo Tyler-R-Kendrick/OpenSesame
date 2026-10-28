@@ -26,7 +26,11 @@ import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { OpenFileKey } from "../../sections/settings/files/OpenFileKey.js";
 import { Carriers } from "./LiveCarriers.js";
-import { type Change, RemoveKey } from "./live-route-parts.js";
+import {
+  type Change,
+  RemoveKey,
+  useRouteSaveGuard,
+} from "./live-route-parts.js";
 import {
   withAddress,
   withServer,
@@ -111,7 +115,8 @@ function IceServers({
   const [url, setUrl] = useState("");
   const [username, setUsername] = useState("");
   const [credential, setCredential] = useState("");
-  const draftRevision = useRef(0);
+  const draftRevision = useRef({ url: 0, username: 0, credential: 0 });
+  const save = useRouteSaveGuard();
   const value = url.trim();
   const turn = value.startsWith("turn");
   const ready =
@@ -142,18 +147,25 @@ function IceServers({
         className="setup__stack"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!ready) return;
+          if (!ready || !save.begin()) return;
           const server = turn
             ? { urls: [value], username, credential }
             : { urls: [value] };
-          const submittedRevision = draftRevision.current;
-          void change((now) => withServer(now, server)).then((refused) => {
-            if (refused !== null || draftRevision.current !== submittedRevision)
-              return;
-            setUrl("");
-            setUsername("");
-            setCredential("");
-          });
+          const submittedRevision = { ...draftRevision.current };
+          void change((now) => withServer(now, server))
+            .then((refused) => {
+              if (refused !== null) return;
+              if (draftRevision.current.url === submittedRevision.url)
+                setUrl("");
+              if (draftRevision.current.username === submittedRevision.username)
+                setUsername("");
+              if (
+                draftRevision.current.credential ===
+                submittedRevision.credential
+              )
+                setCredential("");
+            })
+            .finally(save.finish);
         }}
       >
         <FieldShell
@@ -163,7 +175,7 @@ function IceServers({
           placeholder="turns:turn.example.com:443?transport=tcp"
           value={url}
           onValueChange={(next) => {
-            draftRevision.current += 1;
+            draftRevision.current.url += 1;
             setUrl(next);
           }}
           status={
@@ -180,7 +192,7 @@ function IceServers({
               autoComplete="off"
               value={username}
               onValueChange={(next) => {
-                draftRevision.current += 1;
+                draftRevision.current.username += 1;
                 setUsername(next);
               }}
             />
@@ -191,7 +203,7 @@ function IceServers({
               autoComplete="off"
               value={credential}
               onValueChange={(next) => {
-                draftRevision.current += 1;
+                draftRevision.current.credential += 1;
                 setCredential(next);
               }}
             />
@@ -199,7 +211,7 @@ function IceServers({
         ) : null}
         <FormCommit
           label="Add the server"
-          disabled={!ready}
+          disabled={!ready || save.pending}
           icon={<IconPlus size={18} />}
         />
       </form>

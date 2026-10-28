@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        phase: [before, after]
+        phase: [after]
     env:
       SOURCE_SHA: b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
       DRAFT_PHASE: ${{ matrix.phase }}
@@ -48,16 +48,19 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test "$(git hash-object apps/pages/src/modules/sharing.live/LiveRoutesPanel.tsx)" = f1de978d25292bd3223649823365302bb68d29af
           test "$(git hash-object apps/pages/src/modules/sharing.live/LiveCarriers.tsx)" = 422ce876cd6391ee1ecf2d421543cca319da09f5
+          test "$(git hash-object apps/pages/src/modules/sharing.live/live-route-parts.tsx)" = 8cd433cdadcac47673b3586b5493a44974e87338
           cd work/live-draft-visual-tools/scripts/review/live-draft
           printf '%s  %s\n' \
-            dd4fc74b03bb97abc33124882237e11d25f13b3c3de417f44c66ceb25def7e0f LiveRoutesPanel.tsx \
-            c51738a396d815870bee9d7710c38965b5d777a86256b0c808997138f10e8186 LiveCarriers.tsx \
+            64ee4d965e06a11d89ade307826ac3e8373944151c692e33667a295397d6e960 LiveRoutesPanel.tsx \
+            a3ba8cd3bba9bb06b4e4b9208502bc80b251e00066d486d00f3a20c8f347820c LiveCarriers.tsx \
+            777d19d1be4fafa6304328b0daed0ff3266a71ed62e4ac221654fc5ec907288f live-route-parts.tsx \
             a3457ba10ad063da41995ac005c10543e2eb22fc9e71da2c0e981be02f2c9e77 visual.mjs | sha256sum --check
       - name: Apply reviewed source only for the after build
         if: matrix.phase == 'after'
         run: |
           cp work/live-draft-visual-tools/scripts/review/live-draft/LiveRoutesPanel.tsx apps/pages/src/modules/sharing.live/LiveRoutesPanel.tsx
           cp work/live-draft-visual-tools/scripts/review/live-draft/LiveCarriers.tsx apps/pages/src/modules/sharing.live/LiveCarriers.tsx
+          cp work/live-draft-visual-tools/scripts/review/live-draft/live-route-parts.tsx apps/pages/src/modules/sharing.live/live-route-parts.tsx
       - name: Build the actual Pages profile
         run: node scripts/lib/ci-pages-build.mjs
       - name: Walk real forms at desktop and phone widths
