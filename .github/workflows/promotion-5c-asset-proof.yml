@@ -1,0 +1,42 @@
+name: Review promotion 5c native assets
+on:
+  workflow_dispatch:
+  push:
+    branches: [review/promotion-5c-asset-proof]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/promotion-5c-asset-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: 03a0f58e6c2f14571459e1f23886d7ac72dc7b76
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify source identity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 03a0f58e6c2f14571459e1f23886d7ac72dc7b76
+          test "$(git rev-parse HEAD^{tree})" = 3d65927abfd6ca6667f0b80d908bc5799b8228d9
+          test "$(git rev-parse HEAD^)" = 5c9016516ad30c22b2cc85113c9100a95e2cec49
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify native assets and exact assertions
+        run: pnpm --filter @opensesame/pages exec vitest run scripts/tailscale-wasm-assets.test.mjs
+      - name: Verify source after test
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 03a0f58e6c2f14571459e1f23886d7ac72dc7b76
+          git diff --exit-code
+          git diff --cached --exit-code
