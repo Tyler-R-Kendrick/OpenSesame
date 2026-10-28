@@ -14,13 +14,13 @@ jobs:
       - name: Checkout exact candidate
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: 03a0f58e6c2f14571459e1f23886d7ac72dc7b76
+          ref: ca7fc9e0c8fc8fb5f6cb34da451b5d857de53779
           fetch-depth: 2
           persist-credentials: false
       - name: Verify source identity
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 03a0f58e6c2f14571459e1f23886d7ac72dc7b76
+          test "$(git rev-parse HEAD)" = ca7fc9e0c8fc8fb5f6cb34da451b5d857de53779
           test "$(git rev-parse HEAD^{tree})" = 3d65927abfd6ca6667f0b80d908bc5799b8228d9
           test "$(git rev-parse HEAD^)" = 5c9016516ad30c22b2cc85113c9100a95e2cec49
           git diff --exit-code
@@ -37,6 +37,6 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 03a0f58e6c2f14571459e1f23886d7ac72dc7b76
+          test "$(git rev-parse HEAD)" = ca7fc9e0c8fc8fb5f6cb34da451b5d857de53779
           git diff --exit-code
           git diff --cached --exit-code
