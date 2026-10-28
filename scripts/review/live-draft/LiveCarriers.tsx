@@ -32,6 +32,15 @@ import {
 } from "./live-route-parts.js";
 import { withCarrier, withoutCarrier } from "./live-transport-edits.js";
 
+const NATS_DRAFT_FIELDS = [
+  "signIn",
+  "account",
+  "signingKey",
+  "jwt",
+  "seed",
+  "session",
+] as const;
+
 export function Carriers({
   transport,
   change,
@@ -177,8 +186,8 @@ function CarrierAdd({ change }: { change: Change }) {
         <NatsAddFields
           draft={nats}
           edit={(patch) => {
-            for (const field of Object.keys(patch) as (keyof NatsDraft)[])
-              natsRevision.current[field] += 1;
+            for (const field of NATS_DRAFT_FIELDS)
+              if (Object.hasOwn(patch, field)) natsRevision.current[field] += 1;
             setNats((now) => ({ ...now, ...patch }));
           }}
         />

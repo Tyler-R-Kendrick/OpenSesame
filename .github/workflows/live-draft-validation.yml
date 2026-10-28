@@ -50,7 +50,7 @@ jobs:
             12fac778a23291d2fec3c3204404242d3462e726601b2731fe5380b51e1e4e6d LiveRouteRefusalRace.test.tsx \
             7aabdbc44bd595e085c50150dd1915efbf8edc0fbf40f3366562eff19aa0d50e live-route-race.test-support.ts \
             3474ba62f3b15f0e6e70a520971eb2700fe8cca4cb6a47685e7d24301bd4aac7 LiveRoutesPanel.tsx \
-            bd44e828f338331b416e37326c46ece8717087925145da9cd25b1a55dce8f6dd LiveCarriers.tsx \
+            d213b833f868b8b30f263c0f4b8746101ffd0449bc1e6a7d032eb08fd5b9fb80 LiveCarriers.tsx \
             777d19d1be4fafa6304328b0daed0ff3266a71ed62e4ac221654fc5ec907288f live-route-parts.tsx | sha256sum --check
       - name: Reproduce lost drafts on the exact baseline
         shell: bash
