@@ -3,10 +3,7 @@
  * it holds. Kept apart from the tree because these are independent facts
  * about one record, and the tree is already at the module-size budget.
  */
-import {
-  subscribeVaultResetRuns,
-  vaultResetRunFor,
-} from "@opensesame/app-core/lib/password-reset/vault-run-tracker.js";
+import { passwordResetVaultUiSeams } from "@opensesame/app-core/lib/password-reset/vault-ui-seam.js";
 import {
   rotationEventFor,
   subscribeRotationQueue,
@@ -41,8 +38,8 @@ export function Decorations({
     () => "",
   );
   const resetRunPhase = useSyncExternalStore(
-    subscribeVaultResetRuns,
-    () => vaultResetRunFor(scope, item.id)?.phase ?? "",
+    (listener) => passwordResetVaultUiSeams.subscribeRuns(listener),
+    () => passwordResetVaultUiSeams.runPhaseFor(scope, item.id) ?? "",
     () => "",
   );
   const incoming = shared?.incoming ?? [];
