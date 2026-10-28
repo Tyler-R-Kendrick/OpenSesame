@@ -108,19 +108,10 @@ function Addresses({
   );
 }
 
-function IceServers({
+function IceServerRows({
   transport,
   change,
 }: { transport: LiveTransport; change: Change }) {
-  const [url, setUrl] = useState("");
-  const [username, setUsername] = useState("");
-  const [credential, setCredential] = useState("");
-  const draftRevision = useRef({ url: 0, username: 0, credential: 0 });
-  const save = useRouteSaveGuard();
-  const value = url.trim();
-  const turn = value.startsWith("turn");
-  const ready =
-    isIceUrl(value) && (!turn || (username !== "" && credential !== ""));
   return (
     <>
       {transport.ice.map((server, at) => (
@@ -143,6 +134,26 @@ function IceServers({
           </span>
         </FieldRow>
       ))}
+    </>
+  );
+}
+
+function IceServers({
+  transport,
+  change,
+}: { transport: LiveTransport; change: Change }) {
+  const [url, setUrl] = useState("");
+  const [username, setUsername] = useState("");
+  const [credential, setCredential] = useState("");
+  const draftRevision = useRef({ url: 0, username: 0, credential: 0 });
+  const save = useRouteSaveGuard();
+  const value = url.trim();
+  const turn = value.startsWith("turn");
+  const ready =
+    isIceUrl(value) && (!turn || (username !== "" && credential !== ""));
+  return (
+    <>
+      <IceServerRows transport={transport} change={change} />
       <form
         className="setup__stack"
         onSubmit={(event) => {

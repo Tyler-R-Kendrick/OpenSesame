@@ -41,6 +41,63 @@ const NATS_DRAFT_FIELDS = [
   "session",
 ] as const;
 
+function clearedNatsDraft(
+  now: NatsDraft,
+  revisions: Record<keyof NatsDraft, number>,
+  submitted: Record<keyof NatsDraft, number>,
+  refused: string | null,
+): NatsDraft {
+  const edited = (field: keyof NatsDraft) =>
+    revisions[field] !== submitted[field];
+  const authEdited = (
+    ["signIn", "account", "signingKey", "jwt", "seed"] as const
+  ).some(edited);
+  return {
+    signIn: authEdited ? now.signIn : EMPTY_NATS_DRAFT.signIn,
+    account: edited("account") ? now.account : "",
+    signingKey: edited("signingKey") ? now.signingKey : "",
+    jwt: edited("jwt") ? now.jwt : "",
+    seed: edited("seed") ? now.seed : "",
+    session:
+      refused !== null || edited("session")
+        ? now.session
+        : EMPTY_NATS_DRAFT.session,
+  };
+}
+
+function CarrierKindSelect({
+  kind,
+  onSelect,
+}: {
+  kind: CarrierKind;
+  onSelect: (kind: CarrierKind) => void;
+}) {
+  return (
+    <div className="sw">
+      <label className="sw__name" htmlFor="live-carrier-kind">
+        Code carrier
+      </label>
+      <select
+        id="live-carrier-kind"
+        className="sw__select"
+        value={kind}
+        onChange={(event) => {
+          const picked = CARRIER_KINDS.find(
+            (entry) => entry === event.target.value,
+          );
+          if (picked) onSelect(picked);
+        }}
+      >
+        {CARRIER_KINDS.map((entry) => (
+          <option key={entry} value={entry}>
+            {KIND_LABELS[entry]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function Carriers({
   transport,
   change,
@@ -112,53 +169,25 @@ function CarrierAdd({ change }: { change: Change }) {
             if (!urlChanged && (refused === null || kindChanged)) setUrl("");
             // Clear a submitted secret unless this exact field was edited since
             // submit. A different destination alone must not reuse the old key.
-            setNats((now) => {
-              const edited = (field: keyof NatsDraft) =>
-                natsRevision.current[field] !== submittedNats[field];
-              const authEdited = (
-                ["signIn", "account", "signingKey", "jwt", "seed"] as const
-              ).some(edited);
-              return {
-                signIn: authEdited ? now.signIn : EMPTY_NATS_DRAFT.signIn,
-                account: edited("account") ? now.account : "",
-                signingKey: edited("signingKey") ? now.signingKey : "",
-                jwt: edited("jwt") ? now.jwt : "",
-                seed: edited("seed") ? now.seed : "",
-                session:
-                  refused !== null || edited("session")
-                    ? now.session
-                    : EMPTY_NATS_DRAFT.session,
-              };
-            });
+            setNats((now) =>
+              clearedNatsDraft(
+                now,
+                natsRevision.current,
+                submittedNats,
+                refused,
+              ),
+            );
           })
           .finally(save.finish);
       }}
     >
-      <div className="sw">
-        <label className="sw__name" htmlFor="live-carrier-kind">
-          Code carrier
-        </label>
-        <select
-          id="live-carrier-kind"
-          className="sw__select"
-          value={kind}
-          onChange={(event) => {
-            const picked = CARRIER_KINDS.find(
-              (entry) => entry === event.target.value,
-            );
-            if (picked) {
-              kindRevision.current += 1;
-              setKind(picked);
-            }
-          }}
-        >
-          {CARRIER_KINDS.map((entry) => (
-            <option key={entry} value={entry}>
-              {KIND_LABELS[entry]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <CarrierKindSelect
+        kind={kind}
+        onSelect={(picked) => {
+          kindRevision.current += 1;
+          setKind(picked);
+        }}
+      />
       {kind === "broadcast" ? null : (
         <FieldShell
           id="live-carrier-url"
