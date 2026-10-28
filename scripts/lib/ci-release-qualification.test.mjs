@@ -102,8 +102,12 @@ describe("release mode admission executes fail closed", () => {
     ]);
     const codeql = read("codeql.yml");
     expect(job(codeql, "analyze-native-go")).toContain("target: [wasm, host]");
-    expect(job(codeql, "verify-sarif")).toContain("needs: [analyze, analyze-native-go]");
-    expect(job(codeql, "verify-sarif")).toContain('test "$NATIVE_GO_RESULT" = success');
+    expect(job(codeql, "verify-sarif")).toContain(
+      "needs: [analyze, analyze-native-go]",
+    );
+    expect(job(codeql, "verify-sarif")).toContain(
+      'test "$NATIVE_GO_RESULT" = success',
+    );
     expect(job(release, "gate")).toContain(
       "needs: [admit, mutation, security, codeql]",
     );
@@ -256,10 +260,10 @@ describe("complete coverage and publication boundaries", () => {
   it("reports CodeQL on the actual PR or main commit and qualifies the selected release source", () => {
     const workflow = read("codeql.yml");
     expect(workflow).toContain("workflow_call:");
-    expect(workflow).toMatch(/^  push:\n    branches: \[main\]/m);
-    expect(workflow).toMatch(/^  pull_request:\n/m);
-    expect(workflow).toMatch(/^  workflow_dispatch:/m);
-    expect(workflow).toMatch(/^  schedule:\n/m);
+    expect(workflow).toMatch(/^ {2}push:\n {4}branches: \[main\]/m);
+    expect(workflow).toMatch(/^ {2}pull_request:\n/m);
+    expect(workflow).toMatch(/^ {2}workflow_dispatch:/m);
+    expect(workflow).toMatch(/^ {2}schedule:\n/m);
     expect(workflow).toContain(
       "github.event_name != 'pull_request' || !github.event.pull_request.draft",
     );
@@ -268,22 +272,35 @@ describe("complete coverage and publication boundaries", () => {
       "ref: ${{ inputs.source_sha && 'refs/heads/main' || github.ref }}",
     );
     expect(workflow).toContain("sha: ${{ inputs.source_sha || github.sha }}");
-    // Direct PR/main events upload their own analysis; candidate calls never
-    // overwrite live main but still keep and gate their exact-source SARIF.
+    // Direct PR/main events upload their own analysis. Go is mapped before its
+    // separate upload; candidate calls never overwrite live main.
     expect(workflow).toContain(
-      "upload: ${{ inputs.source_sha && 'never' || 'always' }}",
+      "upload: ${{ (inputs.source_sha || matrix.language == 'go') && 'never' || 'always' }}",
     );
     const analysis = job(workflow, "analyze");
+    expect(analysis).toContain(
+      "if: ${{ matrix.language == 'go' && !inputs.source_sha }}",
+    );
+    expect(analysis).toContain(
+      "sarif_file: ${{ runner.temp }}/codeql-live-mapped/go.sarif",
+    );
     expect(analysis).toContain("output: ${{ runner.temp }}/codeql-results");
     expect(analysis).not.toContain("check-codeql-sarif.mjs");
     expect(analysis).toContain(
       "name: codeql-sarif-${{ matrix.language }}-${{ inputs.source_sha || github.sha }}",
     );
     expect(analysis).toContain("if: always()");
+    const native = job(workflow, "analyze-native-go");
+    expect(native).toContain("upload: never");
+    expect(native).toContain("if: ${{ !inputs.source_sha }}");
+    expect(native).toContain(
+      "sarif_file: ${{ runner.temp }}/codeql-native-mapped/go.sarif",
+    );
     const trusted = job(workflow, "verify-sarif");
     expect(trusted).toContain("if: ${{ always() && inputs.source_sha }}");
-    expect(trusted).toContain("needs: analyze");
+    expect(trusted).toContain("needs: [analyze, analyze-native-go]");
     expect(trusted).toContain('test "$ANALYZE_RESULT" = success');
+    expect(trusted).toContain('test "$NATIVE_GO_RESULT" = success');
     expect(trusted).toContain('test "$GITHUB_REF" = refs/heads/main');
     expect(trusted).toContain("ref: ${{ github.workflow_sha }}");
     expect(trusted).toContain("persist-credentials: false");
