@@ -713,14 +713,14 @@
   "nativeSSH": {
     "patch": {
       "path": "native-ssh.patch",
-      "sha256": "ffc090d09efecd875d9965e2c418205582f2cf5264ba6f9bc5a6ef34ceae6488",
+      "sha256": "d5b03a625b35b7966b5b96ca10929cd2ba1698484f8e1ef75bebf1866f582ee0",
       "beforeSha256": "68c659ce00f9dff452bcb7b1c95a7c9d93807c4c6b858a00fcd261b51f16b67b",
       "afterSha256": "dd5eae4dc32111fba41d81b51fcbc560f88e98f370e3ccd09687f9d9ee48f9e7"
     },
     "tlsVerification": {
       "path": "net/tlsdial/tlsdial.go",
       "beforeSha256": "49adc77dc68cf066fa695037cc41164509949dfa8a97e96a9c4fd334cd3b7e1e",
-      "afterSha256": "b382f197e41f2d6c567391a39d0181105f389e0af1addedd3f4a7cebf8437d87"
+      "afterSha256": "f4a27ef3abd5826dbb5fd54e6dc94b6d58e77329f127642946eab907c97cedb1"
     },
     "stagingHelper": {
       "path": "stage-native-ssh.mjs",
