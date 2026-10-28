@@ -524,7 +524,7 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "921ebae24b04414c90a551b3c85fbc7b95d8a360d1d1a05d99ccc126866c7166"
+        "sha256": "9ec92c5db8dd07f9f3b2ebb397cfa95be6568f0e3452325898982b4b3d9d5cec"
       },
       {
         "path": "compose-native.mjs",
