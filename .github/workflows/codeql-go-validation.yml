@@ -1,6 +1,8 @@
 name: Review composed Go CodeQL extraction
 on:
   workflow_dispatch:
+  push:
+    branches: [review/codeql-go-extraction-proof]
 permissions:
   contents: read
 concurrency:
