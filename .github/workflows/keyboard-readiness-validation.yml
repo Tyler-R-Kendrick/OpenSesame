@@ -1,0 +1,118 @@
+name: Default keyboard readiness validation
+on:
+  push:
+    branches: [review/keyboard-readiness-validation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: >-
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor_id == '145080887' &&
+      github.ref == 'refs/heads/review/keyboard-readiness-validation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        phase: [after]
+    env:
+      AFTER_SHA: 660eef2b47734044b89992721059dbfd85c86b9f
+      EVIDENCE_DIR: ${{ github.workspace }}/work/review-output/keyboard-readiness-validation-${{ matrix.phase }}
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - name: Check out exact source revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ env.AFTER_SHA }}
+          persist-credentials: false
+      - name: Check out transient capture tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: work/evidence-tools
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Reuse normal CI pinned native distribution cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build exact source with ordinary CI defaults
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          test "$(git rev-parse HEAD)" = "$AFTER_SHA"
+          test -z "${OPENSESAME_CAPABILITY_PROFILE:-}"
+          test -z "${OPENSESAME_BUILD_MODE:-}"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source.txt"
+          echo "${{ github.sha }}" > "$EVIDENCE_DIR/tooling.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+          sha256sum pnpm-lock.yaml package.json apps/pages/package.json > "$EVIDENCE_DIR/dependency-fingerprints.txt"
+          set -o pipefail
+          node scripts/lib/ci-pages-build.mjs 2>&1 | tee "$EVIDENCE_DIR/build.log"
+          git diff --exit-code
+      - name: Add bounded sanitized keyboard diagnostics
+        env:
+          KEYBOARD_DIAGNOSTIC_HELPER: ${{ github.workspace }}/work/evidence-tools/scripts/review/keyboard-failure-diagnostic.mjs
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync, writeFileSync} from 'node:fs';
+          import {pathToFileURL} from 'node:url';
+          import {createHash} from 'node:crypto';
+          import {join} from 'node:path';
+          const path='apps/pages/scripts/verify-keyboard.mjs';
+          const source=readFileSync(path,'utf8');
+          const marker='  throw new Error(\n    `${key} cannot reach ${await target.getAttribute("aria-label")}`,\n  );';
+          if(source.split(marker).length!==2) throw Error('Unexpected keyboard failure boundary');
+          const helper=JSON.stringify(pathToFileURL(process.env.KEYBOARD_DIAGNOSTIC_HELPER).href);
+          const diagnostics=`  try { await (await import(${helper})).captureKeyboardFailure(page, target, key); } catch (error) { console.error("Failure diagnostic capture:", error); }\n`;
+          const start='    await page.setViewportSize({ width, height: 900 });';
+          const finish='    await context.close();';
+          const reload='    await page.reload({ waitUntil: "networkidle" });';
+          if(source.split(start).length!==2 || source.split(finish).length!==2 || source.split(reload).length!==2) throw Error('Unexpected ordinary main-page boundary');
+          const install=`\n    await (await import(${helper})).installKeyboardTrace(page);`;
+          const flush=`    await (await import(${helper})).flushKeyboardTrace(page);\n`;
+          writeFileSync(path,source.replace(marker,diagnostics+marker).replace(start,start+install).replace(reload,flush+reload).replace(finish,flush+finish));
+          const contractPath='apps/pages/scripts/lib/local-session-lifecycle-contract.mjs';
+          const contract=readFileSync(contractPath,'utf8');
+          const before='  async function activate(target) {\n    await tabTo(page, target);';
+          const after='  async function activate(target) {\n    // Directory actions are disabled until the current seed has settled.\n    await expect(target).toBeEnabled();\n    await tabTo(page, target);';
+          if(contract.split(before).length!==2) throw Error('Unexpected lifecycle activation boundary');
+          const candidate=contract.replace(before,after);
+          const candidateSha=createHash('sha256').update(candidate).digest('hex');
+          if(candidateSha !== '7d0175ce8af6a16e8df4ee1581ce7336aa0b0d33202949a8b478048fc1188683') throw Error('Unexpected reviewed candidate');
+          writeFileSync(join(process.env.EVIDENCE_DIR,'candidate-contract.sha256'),candidateSha+'\n');
+          const ready='    await expect(target).toBeEnabled();';
+          const monitored=`    try { await expect(target).toBeEnabled(); } catch (error) { try { await (await import(${helper})).captureKeyboardFailure(page, target, "readiness"); } catch (captureError) { console.error("Readiness diagnostic capture:", captureError); } throw error; }`;
+          if(candidate.split(ready).length!==2) throw Error('Unexpected readiness boundary');
+          writeFileSync(contractPath,candidate.replace(ready,monitored));
+          JS
+      - name: Run keyboard contract with reviewed readiness assertion
+        env:
+          KEYBOARD_DIAGNOSTIC_OUT: ${{ env.EVIDENCE_DIR }}
+          PAGES_VERIFY_OUT: ${{ env.EVIDENCE_DIR }}/keyboard
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/pages verify:keyboard 2>&1 | tee "$EVIDENCE_DIR/keyboard.log"
+      - name: Upload review screenshots and measured geometry
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: keyboard-readiness-validation-${{ matrix.phase }}
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
