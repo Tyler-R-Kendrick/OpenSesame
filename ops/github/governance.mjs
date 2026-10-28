@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import {
+  applyReleaseTagPolicies,
   pagesPolicyChanges,
   rulesetAction,
   selectRuleset,
@@ -11,9 +12,9 @@ const root = `repos/${repository}`;
 const readPolicy = (file) =>
   JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
 const expected = readPolicy("./default-branch.json");
-// Who may create, move or delete a v* tag, which is what starts a release
-// (docs/operators/release-kit.md).
+// Keep creation exceptions separate from protected tag updates/deletions.
 const releaseTags = readPolicy("./release-tags.json");
+const releaseTagCreation = readPolicy("./release-tag-creation.json");
 const mode = process.argv[2] ?? "--dry-run";
 if (
   !["--dry-run", "--apply", "--verify"].includes(mode) ||
@@ -66,17 +67,29 @@ function inspect() {
   };
   const current = detail(expected);
   const currentTags = detail(releaseTags);
+  const currentTagCreation = detail(releaseTagCreation);
   const environment = api(`${root}/environments/github-pages`);
   const branches = list(
     `${root}/environments/github-pages/deployment-branch-policies`,
     "branch_policies",
   );
-  return { repo, current, currentTags, environment, branches };
+  return {
+    repo,
+    current,
+    currentTags,
+    currentTagCreation,
+    environment,
+    branches,
+  };
 }
 
 let state = inspect();
 const action = rulesetAction(state.current, expected);
 const tagsAction = rulesetAction(state.currentTags, releaseTags);
+const creationAction = rulesetAction(
+  state.currentTagCreation,
+  releaseTagCreation,
+);
 const pages = pagesPolicyChanges(state.branches, state.repo.default_branch);
 console.log(
   JSON.stringify({
@@ -84,6 +97,8 @@ console.log(
     mode,
     ruleset: action,
     release_tags: tagsAction,
+    release_tag_creation: creationAction,
+    release_tag_bootstrap: state.currentTags ? "none" : "owner-only-first",
     pages,
     auto_merge: state.repo.allow_auto_merge,
   }),
@@ -91,7 +106,7 @@ console.log(
 
 function writeRuleset(policy, current, todo) {
   if (todo === "none") return;
-  api(
+  return api(
     todo === "create" ? `${root}/rulesets` : `${root}/rulesets/${current.id}`,
     todo === "create" ? "POST" : "PUT",
     policy,
@@ -126,12 +141,21 @@ if (mode === "--apply") {
   if (pages.create)
     api(endpoint, "POST", { name: state.repo.default_branch, type: "branch" });
   for (const policy of pages.remove) api(`${endpoint}/${policy.id}`, "DELETE");
-  // Last, and on its own: GitHub may refuse the tag ruleset's bypass actor (a
-  // personal repository), and that must not skip the steps above.
+  // Keep branch/Pages work independent of an unsupported tag configuration.
+  // First activation bootstraps owner-only protection; the creation exception
+  // is installed before removing creation from the old combined ruleset.
   try {
-    writeRuleset(releaseTags, state.currentTags, tagsAction);
+    applyReleaseTagPolicies(
+      writeRuleset,
+      state.currentTags,
+      state.currentTagCreation,
+      releaseTags,
+      releaseTagCreation,
+    );
   } catch (error) {
-    console.error(`release tag ruleset was not written: ${error.message}`);
+    console.error(
+      `release tag rulesets were not fully written: ${error.message}`,
+    );
   }
   state = inspect();
 }
@@ -147,6 +171,7 @@ if (mode !== "--dry-run") {
   if (
     rulesetAction(state.current, expected) !== "none" ||
     rulesetAction(state.currentTags, releaseTags) !== "none" ||
+    rulesetAction(state.currentTagCreation, releaseTagCreation) !== "none" ||
     !branch.protected ||
     !state.repo.allow_auto_merge ||
     remaining.create ||
@@ -163,6 +188,7 @@ if (mode !== "--dry-run") {
       verified: true,
       ruleset_id: state.current.id,
       release_tags_ruleset_id: state.currentTags.id,
+      release_tag_creation_ruleset_id: state.currentTagCreation.id,
       ...expected,
       pages_branch: state.repo.default_branch,
       auto_merge: true,

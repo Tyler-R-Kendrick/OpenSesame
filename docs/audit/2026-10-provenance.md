@@ -695,6 +695,7 @@ animated rings, wordmark and successful-unlock doors, and captured separate
 base/changed production builds for desktop, tablet and phone evidence.
 
 - 2026-10-23: Latest-main integration and CI follow-up. Grok Build subscription authentication was unavailable and Kimi Code was not installed; bounded Codex agents prepared isolated slices, with root review, canonical checks, and GitHub-signed stacked publication.
+- 2026-10-24: Connector configuration completion. Initial work was imported from an OpenCode session; Kimi Code CLI (`kimi-code/k3.1-pro`) led the continuation, integration, implementation, lifecycle and catalog reviews, and PR self-review. Browser proofs use disclosed synthetic protocol authorities, not live provider accounts or credentials. Exact gates and evidence limitations are recorded on the associated pull request.
 
 - 2026-10-25: Codex Security Cloud finding remediation in an isolated worktree from `aad2c85b`. Grok subscription authentication was absent and Kimi Code was unavailable. Codex agents implemented separate boundary fixes with independent candidate reviews and focused validation. The operator approved exact organization-bound issuer authorization and independent local autofill approval.
 
@@ -731,3 +732,31 @@ The exact native WASM package audit also exposed affected SSH imports; verified
 composition requirements update maintained Go modules and their required MVS
 dependencies while preserving immutable upstream source files. A mandatory
 package-graph audit complements the native standard-library inventory.
+
+### 2026-10-25 — Trunk CI and immutable artifact promotion
+
+The user authorized implementation of the reviewed CI proposal. An isolated
+worktree from `aad2c85b4b567fd632d0e409d53d17bb66e8fba4` was partitioned among
+ChatGPT agents for integration/qualification, candidate verification, build and
+publication, and scanner/release-gate changes. The parent integrated and reviewed
+the resulting workflow graph and negative controls. Cursor-hosted Grok/Kimi
+coding tools are not installed in this environment. Validation results and live
+activation limitations belong in the implementation PR; a local test pass is
+not a claim that hosted release qualification or deployment has occurred.
+
+The implementation was subsequently restacked onto `427d8921cbd6b70dbfef76956a37373417387a23`, preserving concurrent dependency, serial CPU-budget, rootless DBus and browser-security fixes. The implementation PR distinguishes validation of the original and current bases.
+
+### 2026-10-26 — CI failure and review follow-up
+
+The user requested fixes and merge of PR #2195. The live CI log identified the
+unsigned implementation commit as the preflight failure; the PR also remained a
+draft. Codex agents repaired both subsequent review findings: generated candidate
+output names containing digits, and the placeholder OSV checksum introduced by
+Copilot Autofix. Regression tests exercise the actual candidate output inventory,
+output-injection refusals, pinned Linux scanner downloads, and verified binary
+overrides. OSV v2.5.0 pins were compared against the official release metadata,
+checksum asset and published provenance subjects. The coding preflight reported
+missing Grok subscription authentication and no Kimi executable; no Grok or Kimi
+authorship is claimed. Signature, required-check and scanner integrity policies
+remain enforced. Test results and the authenticated signing prerequisite are
+recorded in the PR; no hosted qualification or merge is claimed from local tests.

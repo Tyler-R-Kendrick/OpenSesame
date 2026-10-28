@@ -65,10 +65,12 @@ many dependency versions were already patched on the checked-out main commit.
 
 ## Signed releases
 
-The public result says **no releases found**. The release workflow already
-creates signed build provenance; it now also attaches the original Sigstore
-bundles as `.sigstore.json` release assets and verifies those exact bundles
-before publishing. See [release verification](../operators/release-kit.md).
+The public result says **no releases found**. The candidate builder creates
+signed provenance binding the selected application source, controller and payload
+inventory. Promotion retains the verified original builder bundle as
+`build-provenance.sigstore.json`; it signs release qualification separately
+without claiming a new build. The retired tag builder cannot independently
+publish or replace those signatures. See [release verification](../operators/release-kit.md).
 Run the normal reviewed release process when a release is ready. A workflow
 edit or a dry run cannot change a check that examines published releases.
 
@@ -99,7 +101,7 @@ certification is asserted here.
 | Pinned-Dependencies | Pin public Rust, Debian, Node and OSS-Fuzz images by verified digest; replace mutable Grok/Cursor installers with versioned SHA-256 checked artifacts and lock Kimi's npm dependency inventory. OSS Verify's base is supplied by its external local-builder framework, not a public registry tag to which a fabricated digest can be attached. |
 | Security-Policy | Add the direct private-report URL. GitHub confirms private vulnerability reporting is enabled. |
 | Code-Review | GitHub accepted a real Copilot review request. It does not create a second human maintainer or guarantee an approving review. Do not manufacture review records to change the score. |
-| Branch-Protection | Reconcile the checked-in policy with the supported strict up-to-date checks on this personal repository, replacing an unsupported merge-queue specification. Existing signatures, checks, resolved threads and force-push/deletion protection remain. Applying release-tag protection returns HTTP 403 to this integration. The owner approved the exact release-environment protections recorded in ops/github. Activation remains blocked by HTTP 403 because this integration lacks Environment/Administration write access. |
+| Branch-Protection | Reconcile the checked-in policy with the supported strict up-to-date checks on this personal repository, replacing an unsupported merge-queue specification. Existing signatures, checks, resolved threads and force-push/deletion protection remain. Applying release-tag protection returns HTTP 403 to this integration. The release environment proposal retains owner review and no admin bypass, and allows only main because immutable promotion runs from that controller branch. Tag protection remains separate. Activation remains blocked by HTTP 403 because this integration lacks Environment/Administration write access. |
 | Binary-Artifacts | Retain the required Gradle wrapper bootstrap. Its SHA-256 matches the official Gradle 8.13 wrapper checksum, and the downloaded distribution has a checked-in checksum. A regression test rejects changed bootstrap bytes. This verifies artifact identity, not absence of implementation vulnerabilities, and does not pretend the bootstrap is source text. |
 | Maintained / Contributors | Project age and independent contributor diversity require real time and contributions; do not create artificial activity or identities for the score. |
 

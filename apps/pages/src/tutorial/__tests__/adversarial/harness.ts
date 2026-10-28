@@ -1,7 +1,7 @@
 import { buildSupportPageContext } from "@opensesame/app-core/tutorial/registry/context.js";
 import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
-import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { navigationGuideRoutes } from "@opensesame/app-core/tutorial/registry/routes.js";
 import {
   guidePredicateIds,
   isKnownGuidePredicate,
@@ -151,7 +151,7 @@ export function createDomEngine(
         {
           goals: guideGoalIds(),
           targets: guideTargetIds(),
-          routes: GUIDE_ROUTES.map((route) => route.id),
+          routes: navigationGuideRoutes().map((route) => route.id),
           predicates: guidePredicateIds(),
         },
         AUTHORED_GUIDE_LIMITS,

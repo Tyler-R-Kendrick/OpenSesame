@@ -36,6 +36,8 @@ type ProfileFn = dyn Fn(&Generation) -> Result<ServerProfile, TransportError> + 
 pub struct ListenerCounters {
     handshakes_ok: AtomicU64,
     handshakes_failed: AtomicU64,
+    #[cfg(feature = "testkit")]
+    accepted: AtomicU64,
     refused_withdrawn: AtomicU64,
     refused_unprepared: AtomicU64,
     resumed: AtomicU64,
@@ -49,6 +51,11 @@ impl ListenerCounters {
     #[must_use]
     pub fn handshakes_failed(&self) -> u64 {
         self.handshakes_failed.load(Ordering::SeqCst)
+    }
+    #[cfg(feature = "testkit")]
+    #[must_use]
+    pub fn accepted(&self) -> u64 {
+        self.accepted.load(Ordering::SeqCst)
     }
     /// Connections closed before a handshake because the generation was
     /// withdrawn.
@@ -67,6 +74,10 @@ impl ListenerCounters {
     #[must_use]
     pub fn resumed(&self) -> u64 {
         self.resumed.load(Ordering::SeqCst)
+    }
+    #[cfg(feature = "testkit")]
+    pub(crate) fn record_accepted(&self) {
+        self.accepted.fetch_add(1, Ordering::SeqCst);
     }
     pub(crate) fn record_ok(&self) {
         self.handshakes_ok.fetch_add(1, Ordering::SeqCst);
@@ -225,6 +236,8 @@ impl SecureListener {
                 () = &mut shutdown => break,
                 accepted = self.tcp.accept() => accepted.map_err(|e| malformed(format!("accept: {e}")))?,
             };
+            #[cfg(feature = "testkit")]
+            self.counters.record_accepted();
             let prepared = match self.current_prepared() {
                 Ok(prepared) => prepared,
                 Err(reason) => {

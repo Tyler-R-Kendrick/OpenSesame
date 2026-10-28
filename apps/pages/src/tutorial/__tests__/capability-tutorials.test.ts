@@ -12,7 +12,7 @@ import {
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
-import { mergedGuideRoutes } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { navigationGuideRoutes } from "@opensesame/app-core/tutorial/registry/routes.js";
 import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
 import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { CAPABILITIES } from "@opensesame/capability-registry";
@@ -39,7 +39,7 @@ function vocabulary() {
   return {
     goals: guideGoalIds(),
     targets: guideTargetIds(),
-    routes: mergedGuideRoutes().map((route) => route.id),
+    routes: navigationGuideRoutes().map((route) => route.id),
     predicates: guidePredicateIds(),
   };
 }

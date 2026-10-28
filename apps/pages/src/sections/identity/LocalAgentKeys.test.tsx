@@ -23,9 +23,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalAgentKeys } from "./LocalAgentKeys.js";
 
-let tomb: string;
 let fixture: Awaited<ReturnType<typeof localRequestFixture>>;
+let tomb: string;
 let principalId: string;
+
+async function signOwnerIn() {
+  fixture.session = await signInLocalIdentity(tomb, fixture.personId);
+}
+
 beforeEach(async () => {
   // jsdom's realm differs from Node's TextEncoder/WebCrypto realm.
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
@@ -37,10 +42,10 @@ beforeEach(async () => {
     kind: "agent",
     name: "Test agent",
   });
-  const agent = directory.entries.find((entry) => entry.kind === "agent");
+  const agent = directory.entries.find((row) => row.kind === "agent");
   if (!agent) throw new Error("Missing agent fixture");
   principalId = agent.id;
-  await signInLocalIdentity(tomb, fixture.personId);
+  await signOwnerIn();
 });
 afterEach(() => {
   cleanup();
@@ -129,7 +134,7 @@ it("enrolls, authenticates with a real signature, and revokes the agent session"
     (await currentLocalIdentitySession(tomb, principalId))?.authentication,
   ).toBe("agent_key");
   await userEvent.click(screen.getByRole("button", { name: "Keep agent key" }));
-  await signInLocalIdentity(tomb, fixture.personId);
+  await signOwnerIn();
   await userEvent.click(
     screen.getByRole("button", { name: "Revoke agent key" }),
   );

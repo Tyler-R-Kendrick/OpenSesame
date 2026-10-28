@@ -50,6 +50,13 @@ async fn stalled_handshake_times_out_and_frees_its_slot() {
     let (served, config) = bounded().await;
     // A TCP connection that never speaks TLS holds the only handshake slot.
     let mut silent = tokio::net::TcpStream::connect(served.addr).await.unwrap();
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while served.counters.accepted() == 0 {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("stalled connection is accepted before the real client");
     let started = std::time::Instant::now();
     // The next real client must wait for the slot, then succeed.
     let (status, _) = tokio::time::timeout(
@@ -60,9 +67,14 @@ async fn stalled_handshake_times_out_and_frees_its_slot() {
     .unwrap()
     .unwrap();
     assert_eq!(status, 200);
+    let elapsed = started.elapsed();
+    assert_eq!(served.counters.accepted(), 2, "both clients were accepted");
     assert!(
-        started.elapsed() >= Duration::from_millis(350),
-        "waited for the stalled handshake to time out"
+        elapsed >= Duration::from_millis(350),
+        "stalled handshake was not waited out: elapsed={elapsed:?}, accepted={}, ok={}, failed={}",
+        served.counters.accepted(),
+        served.counters.handshakes_ok(),
+        served.counters.handshakes_failed()
     );
     // The silent socket was closed by the server.
     let mut buf = [0u8; 8];

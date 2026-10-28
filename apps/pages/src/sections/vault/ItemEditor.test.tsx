@@ -222,10 +222,7 @@ describe("ItemEditor", () => {
     renderEditor();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    expect(savedItem()).toMatchObject({
-      kind: "account",
-      uris: [],
-    });
+    expect(savedItem()).toMatchObject({ kind: "account", uris: [] });
   });
   it("saves an all-domains wildcard only when explicitly chosen", async () => {
     renderEditor();
