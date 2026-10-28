@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { authoredDisposition } from "./browser-disposition.js";
 import { type ConnectPlan, connectPlan } from "./connect-plan.js";
-import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
+import { NATIVE_BROWSER_POLICY_RUNTIME_JSON } from "./native-browser-policy.runtime.generated.js";
 import {
   type NativeBrowserPolicyCarrier,
   type NativeMethodPolicyCarrier,
@@ -26,7 +26,7 @@ const policy = z
     qualification: z.string(),
     rules: z.array(ruleSchema),
   })
-  .parse(JSON.parse(NATIVE_BROWSER_POLICY_JSON));
+  .parse(JSON.parse(NATIVE_BROWSER_POLICY_RUNTIME_JSON));
 
 const originBindings: { origin: () => string }[] = [];
 

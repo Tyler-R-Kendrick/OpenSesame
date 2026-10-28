@@ -12,6 +12,7 @@ import {
   nativeBrowserMethodPolicy,
   nativeBrowserOAuthPolicy,
 } from "./native-browser-policy.js";
+import { NATIVE_BROWSER_POLICY_RUNTIME_JSON } from "./native-browser-policy.runtime.generated.js";
 import { NativeMcpSession } from "./native-mcp-protocol.js";
 
 const authored = JSON.parse(
@@ -29,6 +30,23 @@ describe("audited browser-only policy", () => {
   it("compiles the single authored source without drift", () => {
     expect(JSON.parse(NATIVE_BROWSER_POLICY_JSON)).toEqual(authored);
     expect(NATIVE_BROWSER_POLICY_JSON).toBe(JSON.stringify(authored));
+  });
+  it("retains every policy decision field in the runtime projection", () => {
+    const runtime = JSON.parse(NATIVE_BROWSER_POLICY_RUNTIME_JSON);
+    expect(runtime).toEqual({
+      schema_version: authored.schema_version,
+      audited_origin: authored.audited_origin,
+      checked_date: authored.checked_date,
+      qualification: authored.qualification,
+      rules: authored.rules.map((rule: Record<string, unknown>) => ({
+        provider_id: rule.provider_id,
+        method: rule.method,
+        ...(rule.origins === undefined ? {} : { origins: rule.origins }),
+        parameters: rule.parameters,
+        reason: rule.reason,
+        evidence_urls: rule.evidence_urls,
+      })),
+    });
   });
   it("contains only TLS-verified concrete refusals with reproducible public evidence", () => {
     expect(authored.audited_origin).toBe("https://tyler-r-kendrick.github.io");
