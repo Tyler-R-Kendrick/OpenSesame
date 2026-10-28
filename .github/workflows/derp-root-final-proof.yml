@@ -1,0 +1,48 @@
+name: Verify DERP root follow-on
+on:
+  push:
+    branches: [review/derp-root-final-proof]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/derp-root-final-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: bb9f4d8ea4811fb201c095272f5fbff6eb226582
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact reviewed source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = bb9f4d8ea4811fb201c095272f5fbff6eb226582
+          test "$(git rev-parse HEAD^{tree})" = 3d848eece78a083192c6abd2637fbbf1abf3b989
+          test "$(git rev-parse HEAD^)" = 63b053782aca5a9429aa0ab8a4d77a2155cfc9de
+          git diff --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Test patch boundaries
+        run: node --test tools/pwa-tailscale-native-http/apply-native-patch.test.mjs
+      - name: Check pinned native assets with a cold build
+        run: pnpm --filter @opensesame/pages exec vitest run scripts/tailscale-wasm-assets.test.mjs
+      - name: Check changed source style and structural limits
+        run: |
+          set -euo pipefail
+          pnpm exec biome check apps/pages/scripts/tailscale-wasm-assets.test.mjs apps/pages/src/lib/capabilities/tailscale-artifacts.json tools/pwa-tailscale-native-http/apply-native-patch.mjs tools/pwa-tailscale-native-http/apply-native-patch.test.mjs tools/pwa-tailscale-native-http/build.mjs tools/pwa-tailscale-native-http/compose-native.test.mjs tools/pwa-tailscale-native-http/preparation-diagnostics.mjs tools/pwa-tailscale-native-http/source.json tools/pwa-tailscale-native-http/stage-native-node.mjs
+          pnpm quality:gate
+      - name: Verify source after tests
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = bb9f4d8ea4811fb201c095272f5fbff6eb226582
+          git diff --exit-code
+          git diff --cached --exit-code
