@@ -4,7 +4,11 @@ import {
   enqueueManualRotation,
 } from "@opensesame/app-core/lib/vault/rotation-queue.js";
 import { processRotationQueue } from "@opensesame/app-core/lib/vault/rotation-relay.js";
-import { type VaultItem, itemRotationMode, itemTypeId } from "@opensesame/vault-core";
+import {
+  type VaultItem,
+  itemRotationMode,
+  itemTypeId,
+} from "@opensesame/vault-core";
 import { useNavigate } from "react-router";
 import { useComposition } from "../../bindings/capabilities.js";
 import { promptConfigurePasswordReset } from "./rotation-password-reset-prompt.js";

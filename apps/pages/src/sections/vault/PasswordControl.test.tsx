@@ -34,7 +34,11 @@ function renderControl(onGenerate?: () => Promise<boolean>) {
     <PasswordControl
       method={method()}
       onEdit={onEdit}
-      options={{ open: false, controls: "m1-options", onToggle: () => undefined }}
+      options={{
+        open: false,
+        controls: "m1-options",
+        onToggle: () => undefined,
+      }}
       onGenerate={onGenerate}
     />,
   );

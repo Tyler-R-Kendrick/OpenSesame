@@ -95,10 +95,7 @@ describe("candidate custody", () => {
     ).toBe(true);
     // Symbol characters of the real candidate (pepper included) must not
     // pass through verbatim at their positions.
-    const symbolCustody = new CandidateCustody(
-      method,
-      async () => "!@#$%^&*",
-    );
+    const symbolCustody = new CandidateCustody(method, async () => "!@#$%^&*");
     const symbolReal = await symbolCustody.withPassword(
       async (password) => password,
     );
