@@ -1,0 +1,73 @@
+import { createItem } from "@opensesame/vault-core";
+import { describe, expect, it, vi } from "vitest";
+import type { RotationEvent } from "../vault/rotation-queue.js";
+import {
+  dispatchPasswordResetRotation,
+  passwordResetHandOffSeams,
+} from "./rotation-handoff.js";
+import {
+  clearVaultResetRunsForTest,
+  vaultResetRunFor,
+} from "./vault-run-tracker.js";
+
+const event: RotationEvent = {
+  id: "e1",
+  scope: "personal",
+  itemId: "item-1",
+  typeId: "account",
+  reason: "manual",
+  queuedAt: "2026-10-27T00:00:00.000Z",
+  dueAt: "2026-10-27T00:00:00.000Z",
+  state: "queued",
+  detail: null,
+};
+
+describe("dispatchPasswordResetRotation", () => {
+  it("marks needs-you when the hand-off is refused", async () => {
+    clearVaultResetRunsForTest();
+    passwordResetHandOffSeams.handOff = vi.fn(async () => false);
+    const item = createItem("account", "Mail");
+    item.id = "item-1";
+    item.uris = [
+      { id: "u1", uri: "https://mail.example.test", match: "domain" },
+    ];
+    const result = await dispatchPasswordResetRotation(event, item);
+    expect(result.ok).toBe(false);
+    expect(vaultResetRunFor("personal", "item-1")?.phase).toBe("needs-you");
+    passwordResetHandOffSeams.handOff = null;
+  });
+
+  it("refuses a second dispatch while in progress", async () => {
+    clearVaultResetRunsForTest();
+    passwordResetHandOffSeams.handOff = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          setTimeout(() => resolve(true), 50);
+        }),
+    );
+    const item = createItem("account", "Mail");
+    item.id = "item-1";
+    item.uris = [
+      { id: "u1", uri: "https://mail.example.test", match: "domain" },
+    ];
+    const first = dispatchPasswordResetRotation(event, item);
+    const second = await dispatchPasswordResetRotation(event, item);
+    expect(second.ok).toBe(false);
+    await first;
+    passwordResetHandOffSeams.handOff = null;
+  });
+
+  it("completes when the hand-off accepts", async () => {
+    clearVaultResetRunsForTest();
+    passwordResetHandOffSeams.handOff = vi.fn(async () => true);
+    const item = createItem("account", "Mail");
+    item.id = "item-1";
+    item.uris = [
+      { id: "u1", uri: "https://mail.example.test", match: "domain" },
+    ];
+    const result = await dispatchPasswordResetRotation(event, item);
+    expect(result).toEqual({ ok: true });
+    expect(vaultResetRunFor("personal", "item-1")).toBeNull();
+    passwordResetHandOffSeams.handOff = null;
+  });
+});

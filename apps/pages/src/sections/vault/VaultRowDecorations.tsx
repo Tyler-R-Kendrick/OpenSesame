@@ -4,6 +4,10 @@
  * about one record, and the tree is already at the module-size budget.
  */
 import {
+  subscribeVaultResetRuns,
+  vaultResetRunFor,
+} from "@opensesame/app-core/lib/password-reset/vault-run-tracker.js";
+import {
   rotationEventFor,
   subscribeRotationQueue,
 } from "@opensesame/app-core/lib/vault/rotation-queue.js";
@@ -36,6 +40,11 @@ export function Decorations({
     () => rotationEventFor(scope, item.id)?.state ?? "",
     () => "",
   );
+  const resetRunPhase = useSyncExternalStore(
+    subscribeVaultResetRuns,
+    () => vaultResetRunFor(scope, item.id)?.phase ?? "",
+    () => "",
+  );
   const incoming = shared?.incoming ?? [];
   const outgoing = shared?.outgoing ?? 0;
   const sharedNotes = [
@@ -54,7 +63,11 @@ export function Decorations({
         : `Shared by ${incoming[0]?.name} +${incoming.length - 1}`;
   return (
     <span className="vtree__side">
-      {rotationState === "out-of-sync" ? (
+      {resetRunPhase === "needs-you" ? (
+        <IconClock size={13} title="Password reset needs you" />
+      ) : resetRunPhase === "in-progress" || resetRunPhase === "queued" ? (
+        <IconClock size={13} title="Password reset in progress" />
+      ) : rotationState === "out-of-sync" ? (
         <IconClock
           size={13}
           title="Rotation queued — no relay configured yet"

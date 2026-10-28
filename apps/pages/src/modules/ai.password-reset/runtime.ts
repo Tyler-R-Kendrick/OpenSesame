@@ -12,10 +12,17 @@
  * lease and stops with it.
  */
 
+import { browserInference } from "@opensesame/app-core/lib/browser-inference.js";
 import { PASSWORD_RESET_MAIL_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import {
+  loadModelProvider,
+  resolveModelPlane,
+} from "@opensesame/app-core/lib/model-provider.js";
+import { evaluatePasswordResetReadiness } from "@opensesame/app-core/lib/password-reset/readiness.js";
 import { createActivation } from "../activation.js";
 import { PasswordResetMailPanel } from "./panel.js";
+import { installPasswordResetRotationRelay } from "./rotation-relay.js";
 import { createPasswordResetScan } from "./scan.js";
 
 export const CAPABILITY = "ai.password-reset";
@@ -46,6 +53,15 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "password-reset-mail",
       start: scan.start,
     });
+    activation.onDispose(
+      installPasswordResetRotationRelay({
+        readiness: async () => {
+          const verdict = await browserInference();
+          const plane = resolveModelPlane(loadModelProvider(), verdict);
+          return evaluatePasswordResetReadiness(["ai.password-reset"], plane);
+        },
+      }),
+    );
     return activation.handle();
   },
 };
