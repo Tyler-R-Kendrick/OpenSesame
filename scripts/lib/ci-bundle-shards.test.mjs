@@ -9,7 +9,10 @@ import { repoRootFromHere } from "./ci-changed-areas.mjs";
 import { DRIVER_GATES, bundleMatrix, loadShards } from "./ci-gates.mjs";
 
 const root = repoRootFromHere();
-const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+const ci = readFileSync(
+  join(root, ".github/workflows/ci-prerelease-checks.yml"),
+  "utf8",
+);
 const bundle = ci.split("  bundle:")[1]?.split("  device-inbox:")[0] ?? "";
 
 /** The matrix legs, in order: `{ shard, sizes? }`. */
@@ -61,6 +64,7 @@ const GATES = [
   "verify:peer-trust-two-context",
   "verify:peering-diagnostics",
   "verify:fresh-vault-login",
+  "verify:vault-password-reset",
   "verify:cli-public-site",
 ];
 
@@ -198,6 +202,24 @@ describe("the bundle job's shards", () => {
   });
 });
 
+it("qualifies vault password-reset prompts in the second journey shard", () => {
+  const matching = steps().filter((step) =>
+    step.text.includes("verify:vault-password-reset"),
+  );
+  expect(matching).toHaveLength(1);
+  expect(matching[0].when).toBe("matrix.shard == 'journeys-2'");
+  expect(matching[0].text).toContain(
+    "PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome",
+  );
+  expect(matching[0].text).toContain("VITE_BASE: /OpenSesame/");
+  expect(DRIVER_GATES["verify-vault-password-reset.mjs"]).toEqual(["journeys"]);
+  expect(
+    bundleMatrix(DRIVER_GATES["verify-vault-password-reset.mjs"], legs()).map(
+      (leg) => leg.shard,
+    ),
+  ).toContain("journeys-2");
+});
+
 it("runs the self-hosted connector contract in budgets with the static build and Chromium", () => {
   const matching = steps().filter((step) =>
     step.text.includes("verify:self-hosted-connectors"),
@@ -314,7 +336,9 @@ it("preserves only reviewed GitHub evidence after success or failure, excluding 
   expect(upload.text).toContain(
     "uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0",
   );
-  expect(upload.text).toContain("name: github-app-browser-${{ github.sha }}");
+  expect(upload.text).toContain(
+    "name: github-app-browser-${{ inputs.source_sha }}",
+  );
   const paths = /path: \|\n([\s\S]*?) {10}if-no-files-found:/.exec(
     upload.text,
   )?.[1];

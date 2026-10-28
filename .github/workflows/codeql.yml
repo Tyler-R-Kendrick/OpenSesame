@@ -12,13 +12,19 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '41 4 * * 1'
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact candidate source selected by the release controller
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: codeql-${{ inputs.source_sha && format('candidate-{0}', github.run_id) || format('monitor-{0}', github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: ${{ !inputs.source_sha }}
 
 jobs:
   analyze:
@@ -48,7 +54,7 @@ jobs:
             mode: none
           - language: go
             runner: ubuntu-latest
-            mode: autobuild
+            mode: manual
           - language: java-kotlin
             runner: ubuntu-latest
             mode: manual
@@ -64,11 +70,15 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
+          ref: ${{ inputs.source_sha || github.sha }}
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         if: matrix.language == 'go'
         with:
           go-version-file: scripts/test/live-turn/go.mod
           cache-dependency-path: scripts/test/live-turn/go.sum
+      - name: Isolate Go analysis cache
+        if: matrix.language == 'go'
+        run: echo "GOCACHE=$RUNNER_TEMP/codeql-live-go-cache" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         if: matrix.language == 'rust' || matrix.language == 'java-kotlin'
         with:
@@ -97,9 +107,37 @@ jobs:
           build-mode: ${{ matrix.mode }}
           config-file: ./.github/codeql/codeql-config.yml
           queries: security-extended
-      - name: Build Go modules and standalone tools
+      - name: Extract live-turn and its reviewed local crypto module
         if: matrix.language == 'go'
-        uses: github/codeql-action/autobuild@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        env:
+          GOFLAGS: -mod=readonly -buildvcs=false
+          GOTOOLCHAIN: local
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(command -v go)" = "$CODEQL_ACTION_GO_BINARY"
+          python3 scripts/test/live-turn/verify-crypto-subset.py
+          cd scripts/test/live-turn
+          go build -o "$RUNNER_TEMP/codeql-live-turn" .
+          go test -c -o "$RUNNER_TEMP/codeql-live-turn.test" .
+          cd third_party/x-crypto
+          go list ./... > "$RUNNER_TEMP/codeql-xcrypto-packages"
+          test -s "$RUNNER_TEMP/codeql-xcrypto-packages"
+          while IFS= read -r package; do
+            go test -c -o "$RUNNER_TEMP/codeql-xcrypto.test" "$package"
+          done < "$RUNNER_TEMP/codeql-xcrypto-packages"
+      - name: Extract the pinned SOPS development oracle
+        if: matrix.language == 'go'
+        env:
+          GOFLAGS: -mod=readonly -buildvcs=false
+          GOTOOLCHAIN: local
+          SOPS_ORACLE_DIR: ${{ github.workspace }}/.codeql-sops
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$SOPS_ORACLE_DIR"
+          node --input-type=module -e 'import {provisionTreedump} from "./packages/app-core/scripts/sops-oracle/oracle.mjs"; const result=provisionTreedump(); if(!result.bin) throw new Error(result.error ?? "SOPS oracle build failed");'
+          cmp packages/app-core/scripts/sops-oracle/treedump.go "$SOPS_ORACLE_DIR/sops-src/treedump/main.go"
       - name: Compile Android production and test Kotlin
         if: matrix.language == 'java-kotlin'
         run: |
@@ -111,11 +149,238 @@ jobs:
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           category: /language:${{ matrix.language }}
+          # A release caller supplies a vetted main candidate. Direct PR and
+          # branch events report the actual event ref and merge/head commit.
+          ref: ${{ inputs.source_sha && 'refs/heads/main' || github.ref }}
+          sha: ${{ inputs.source_sha || github.sha }}
+          # Release candidates may be older than current main. Keep their
+          # SARIF for the gate without changing live main alert state.
+          upload: ${{ (inputs.source_sha || matrix.language == 'go') && 'never' || 'always' }}
           output: ${{ runner.temp }}/codeql-results
+      - name: Map the verified SOPS oracle to its tracked source
+        if: ${{ matrix.language == 'go' && !inputs.source_sha }}
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/codeql-live-mapped"
+          node scripts/security/map-composed-go-sarif.mjs oracle "$GITHUB_WORKSPACE" "$SOURCE_SHA" "$RUNNER_TEMP/codeql-results/go.sarif" "$RUNNER_TEMP/codeql-live-mapped/go.sarif" "$RUNNER_TEMP/codeql-live-mapped/summary.json" | tee "$RUNNER_TEMP/codeql-live-map-summary"
+          cat "$RUNNER_TEMP/codeql-live-map-summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "All raw Go results, including any unmapped upstream findings, are retained in this run's artifacts." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Go monitoring results
+        if: ${{ matrix.language == 'go' && !inputs.source_sha }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: ${{ runner.temp }}/codeql-live-mapped/go.sarif
+          ref: ${{ github.ref }}
+          sha: ${{ github.sha }}
+          category: /language:go
+      - name: Report unresolved Go findings
+        if: ${{ matrix.language == 'go' && !inputs.source_sha }}
+        run: |
+          node -e 'const s=require(process.argv[1]); if (!Number.isSafeInteger(s.unmappedPrimaryFindings) || s.unmappedPrimaryFindings !== 0 || !Number.isSafeInteger(s.unmappedResultLocations) || s.unmappedResultLocations !== 0) throw new Error(`Go findings with locations outside verified copied-file mappings require review of the retained raw SARIF: ${s.unmappedPrimaryFindings} primaries, ${s.unmappedResultLocations} result locations`);' "$RUNNER_TEMP/codeql-live-mapped/summary.json"
       - name: Keep SARIF for review
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: codeql-sarif-${{ matrix.language }}
+          name: codeql-sarif-${{ matrix.language }}-${{ inputs.source_sha || github.sha }}
           path: ${{ runner.temp }}/codeql-results
-          if-no-files-found: warn
+          if-no-files-found: error
+
+  analyze-native-go:
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    name: Analyze native Go (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [wasm, host]
+    env:
+      CODEQL_EXTRACTOR_GO_OPTION_EXTRACT_TESTS: 'true'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.source_sha || github.sha }}
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install locked audit runtime
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Compose the exact pinned native graph
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          mkdir -p "$RUNNER_TEMP/native-input"
+          node -e 'const p=require("./tools/pwa-tailscale-native-http/source.json"); for(const x of [p.source,p.compiler]) {if(!/^https:\/\//.test(x.archiveURL)||!/^[0-9a-f]{64}$/.test(x.archiveSha256)) process.exit(1);console.log(x.archiveURL);console.log(x.archiveSha256)}' > "$RUNNER_TEMP/native-input/pins"
+          mapfile -t pins < "$RUNNER_TEMP/native-input/pins"
+          test "${#pins[@]}" = 4
+          for n in 0 2; do
+            i=$((n / 2))
+            curl --fail --show-error --location --proto '=https' --proto-redir '=https' --max-time 120 --max-filesize 1073741824 --output "$RUNNER_TEMP/native-input/$i.tar.gz" -- "${pins[$n]}"
+            printf '%s  %s\n' "${pins[$((n + 1))]}" "$RUNNER_TEMP/native-input/$i.tar.gz" | sha256sum --check
+          done
+          node tools/pwa-tailscale-native-http/build.mjs "$RUNNER_TEMP/native-input/0.tar.gz" "$RUNNER_TEMP/native-input/1.tar.gz" "$GITHUB_WORKSPACE/.codeql-native" --audit
+          test -s .codeql-native/native-audit.json
+          test -s .codeql-native/native-package-graph.json
+          echo "$GITHUB_WORKSPACE/.codeql-native/compiler/bin" >> "$GITHUB_PATH"
+      - name: Initialize native Go analysis
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          languages: go
+          build-mode: manual
+          config-file: ./.github/codeql/codeql-config.yml
+          queries: security-extended
+      - name: Extract the selected native Go target
+        env:
+          NATIVE_TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$GITHUB_WORKSPACE/.codeql-native"
+          tags="$(node --input-type=module -e 'import {readFile} from "node:fs/promises"; import {decodeNativeProductionTags} from "./tools/pwa-tailscale-native-http/native-audit.mjs"; console.log(await decodeNativeProductionTags(JSON.parse(await readFile(".codeql-native/audit-tags.json", "utf8"))))')"
+          compiler_version="$(node -p 'require("./tools/pwa-tailscale-native-http/source.json").compiler.version')"
+          cd "$out/source"
+          export GOMAXPROCS=2 GOMEMLIMIT=2GiB GOTOOLCHAIN=local GOENV=off GOWORK=off GOTELEMETRY=off
+          export GOCACHE="$out/cache/build" GOMODCACHE="$out/cache/mod" GOPATH="$out/cache/gopath" TMPDIR="$out/tmp"
+          export GOFLAGS="-p=2 -buildvcs=false -mod=readonly -modfile=$out/native.mod"
+          export VERSION_LONG='' VERSION_SHORT=''
+          test "$(command -v go)" = "$CODEQL_ACTION_GO_BINARY"
+          test "$(go env GOVERSION)" = "$compiler_version"
+          go clean -cache
+          case "$NATIVE_TARGET" in
+            wasm)
+              GOOS=js GOARCH=wasm go build -tags "$tags" -trimpath -ldflags '-s -w' -o "$out/codeql.wasm" tailscale.com/cmd/tsconnect/wasm
+              test -s "$out/codeql.wasm"
+              ;;
+            host)
+              go test -c -o "$out/native-http.test" ./cmd/tsconnect/nativehttp
+              go test -c -o "$out/native-node.test" ./cmd/tsconnect/wasm
+              go test -c -o "$out/native-extra-dns.test" ipn/ipnlocal/native-extra-dns.go ipn/ipnlocal/native-extra-dns_test.go
+              test -s "$out/native-http.test"
+              test -s "$out/native-node.test"
+              test -s "$out/native-extra-dns.test"
+              ;;
+            *) echo 'Unknown native Go target'; exit 1 ;;
+          esac
+      - name: Analyze raw native Go source
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          category: /language:go-native-${{ matrix.target }}
+          ref: ${{ inputs.source_sha && 'refs/heads/main' || github.ref }}
+          sha: ${{ inputs.source_sha || github.sha }}
+          upload: never
+          output: ${{ runner.temp }}/codeql-native-sarif
+      - name: Map byte-verified overlays to tracked source
+        if: ${{ !inputs.source_sha }}
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/codeql-native-mapped"
+          node scripts/security/map-composed-go-sarif.mjs native "$GITHUB_WORKSPACE" "$SOURCE_SHA" "$RUNNER_TEMP/codeql-native-sarif/go.sarif" "$RUNNER_TEMP/codeql-native-mapped/go.sarif" "$RUNNER_TEMP/codeql-native-mapped/summary.json" | tee "$RUNNER_TEMP/codeql-native-map-summary"
+          cat "$RUNNER_TEMP/codeql-native-map-summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "All raw native Go results, including unmapped upstream findings, are retained in this run's artifacts." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload native Go monitoring results
+        if: ${{ !inputs.source_sha }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        with:
+          sarif_file: ${{ runner.temp }}/codeql-native-mapped/go.sarif
+          ref: ${{ github.ref }}
+          sha: ${{ github.sha }}
+          category: /language:go-native-${{ matrix.target }}
+      - name: Report unresolved native Go findings
+        if: ${{ !inputs.source_sha }}
+        run: |
+          node -e 'const s=require(process.argv[1]); if (!Number.isSafeInteger(s.unmappedPrimaryFindings) || s.unmappedPrimaryFindings !== 0 || !Number.isSafeInteger(s.unmappedResultLocations) || s.unmappedResultLocations !== 0) throw new Error(`Native Go findings with locations outside verified copied-file mappings require review of the retained raw SARIF: ${s.unmappedPrimaryFindings} primaries, ${s.unmappedResultLocations} result locations`);' "$RUNNER_TEMP/codeql-native-mapped/summary.json"
+      - name: Keep unmodified native Go SARIF for review
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codeql-sarif-go-native-${{ matrix.target }}-${{ inputs.source_sha || github.sha }}
+          path: ${{ runner.temp }}/codeql-native-sarif
+          if-no-files-found: error
+
+  verify-sarif:
+    name: Validate CodeQL release evidence
+    # Direct events already upload SARIF. Candidate qualification uses a fresh
+    # runner and the protected controller's gate, never candidate-owned scripts.
+    if: ${{ always() && inputs.source_sha }}
+    needs: [analyze, analyze-native-go]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      CONTROLLER_SHA: ${{ github.workflow_sha }}
+      ANALYZE_RESULT: ${{ needs.analyze.result }}
+      NATIVE_GO_RESULT: ${{ needs.analyze-native-go.result }}
+    steps:
+      - name: Require successful analysis on the trusted release controller
+        shell: bash
+        env:
+          CALLED_JOB_CONTEXT: ${{ toJSON(job) }}
+          CALLER_WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          set -euo pipefail
+          test "$ANALYZE_RESULT" = success
+          test "$NATIVE_GO_RESULT" = success
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
+          node --input-type=module <<'NODE'
+          const called = JSON.parse(process.env.CALLED_JOB_CONTEXT);
+          const repository = process.env.GITHUB_REPOSITORY;
+          if (
+            called.workflow_repository !== repository ||
+            called.workflow_sha !== process.env.CONTROLLER_SHA ||
+            called.workflow_file_path !== '.github/workflows/codeql.yml' ||
+            process.env.CALLER_WORKFLOW_REF !==
+              `${repository}/.github/workflows/release-weekly.yml@refs/heads/main`
+          ) {
+            throw new Error('Untrusted CodeQL release controller');
+          }
+          NODE
+      - name: Check out trusted qualification policy
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/release/check-codeql-artifacts.mjs
+            scripts/release/check-codeql-sarif.mjs
+            scripts/lib/json-boundary.mjs
+      - name: Verify the controller checkout
+        run: test "$(git rev-parse HEAD)" = "$CONTROLLER_SHA"
+      - name: Check out candidate as data only
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: .candidate
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /README.md
+      - name: Download exact-source language evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: "codeql-sarif-*-${{ inputs.source_sha }}"
+          path: ${{ runner.temp }}/codeql-release-evidence
+          merge-multiple: false
+      - name: Reject missing, extra, malformed or unclean analyses
+        run: node scripts/release/check-codeql-artifacts.mjs "$RUNNER_TEMP/codeql-release-evidence" "$SOURCE_SHA" "$GITHUB_WORKSPACE/.candidate"

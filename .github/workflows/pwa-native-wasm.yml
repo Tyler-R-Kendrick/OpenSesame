@@ -1,47 +1,37 @@
 name: PWA native WASM cold validation
 
 # This build-only workflow never deploys or supplies an application backend.
-# A reviewed owner push to this explicit branch also works before the new
-# workflow has reached the default branch's manual-dispatch registry.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      expected_head:
-        description: Exact signed commit at the selected same-repository branch
+      source_sha:
+        description: Exact candidate source selected by the release controller
         required: true
         type: string
-  push:
-    branches: ['ci/pwa-native-wasm-*']
 
 permissions:
   contents: read
 
 concurrency:
-  group: pwa-native-wasm-${{ github.ref }}
+  group: pwa-native-wasm-${{ github.run_id }}-${{ inputs.source_sha }}
   cancel-in-progress: false
 
 jobs:
   native-wasm:
-    if: github.actor == github.repository_owner && github.ref_type == 'branch'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
-      EXPECTED_HEAD: ${{ github.sha }}
-      REQUESTED_HEAD: ${{ inputs.expected_head }}
+      EXPECTED_HEAD: ${{ inputs.source_sha }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.source_sha }}
           persist-credentials: false
       - name: Verify exact signed branch source
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$EXPECTED_HEAD" = "$GITHUB_SHA"
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-            test "$REQUESTED_HEAD" = "$EXPECTED_HEAD"
-          fi
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
           node scripts/release/check-merge-group-signature.mjs "$GITHUB_REPOSITORY" "$EXPECTED_HEAD"
@@ -63,7 +53,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: pwa-native-wasm-${{ github.sha }}-${{ github.run_attempt }}
+          name: pwa-native-wasm-${{ inputs.source_sha }}-${{ github.run_attempt }}
           retention-days: 14
           include-hidden-files: true
           if-no-files-found: error

@@ -14,40 +14,41 @@ const workflow = (name) =>
   );
 
 describe("publication authority", () => {
-  it("passes npm selections as data and publishes only the immutable main revision", () => {
-    const job = workflow("publish-npm").jobs.publish;
-    expect(job.if).toBe("github.ref == 'refs/heads/main'");
-    expect(job.steps[0].with.ref).toBe("${{ github.sha }}");
-    const publish = job.steps.find(
-      (step) => step.name === "Publish selected packages",
-    );
-    expect(publish.env.NPM_PACKAGES).toBe("${{ inputs.packages }}");
-    expect(publish.run).not.toContain("${{");
-    expect(publish.run).toContain("node scripts/release/publish-packages.mjs");
-  });
+  it.each(["publish-npm", "publish-containers"])(
+    "%s is a manual failure with no registry publication authority",
+    (name) => {
+      const definition = workflow(name);
+      expect(Object.keys(definition.on)).toEqual(["workflow_dispatch"]);
+      expect(definition.permissions).toEqual({ contents: "read" });
+      expect(definition.env).toBeUndefined();
+      expect(Object.keys(definition.jobs)).toEqual(["retired"]);
+      const job = definition.jobs.retired;
+      expect(job.if).toBeUndefined();
+      expect(job.environment).toBeUndefined();
+      expect(job.permissions).toBeUndefined();
+      expect(job.env).toBeUndefined();
+      expect(job.uses).toBeUndefined();
+      expect(job.steps).toHaveLength(1);
+      expect(Object.keys(job.steps[0]).sort()).toEqual(["name", "run"]);
+      expect(job.steps[0].run).toContain("::error::");
+      expect(job.steps[0].run).toMatch(/^\s*exit 1\s*$/m);
+      expect(JSON.stringify(definition)).not.toMatch(
+        /secrets\.|publish-packages\.mjs|\b(?:npm|pnpm)\s+publish|\bdocker\s+(?:login|push|build)|docker\/(?:login|build-push)-action/,
+      );
+    },
+  );
 
-  it("verifies a main commit or version tag before granting container write authority", () => {
-    const definition = workflow("publish-containers");
-    expect(definition.permissions).toEqual({ contents: "read" });
-    const { verify, ghcr } = definition.jobs;
-    expect(verify.if).toBe(
-      "github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')",
+  it("retains the upstream registry controls as prerequisites for a future integration", () => {
+    const guide = readFileSync(
+      new URL("../release/README.md", import.meta.url),
+      "utf8",
     );
-    expect(verify.steps[0].with["fetch-depth"]).toBe(0);
-    const check = verify.steps.find((step) => step.id === "check");
-    expect(check.run).toContain(
-      'scripts/release/tag-check.sh verify "$TAG" "$EVENT_SHA"',
-    );
-    expect(check.run).toContain(
-      'git merge-base --is-ancestor "$sha" refs/remotes/origin/main',
-    );
-    expect(check.run).not.toContain("${{");
-    expect(ghcr.needs).toBe("verify");
-    expect(ghcr.permissions.packages).toBeUndefined();
-    expect(ghcr.environment).toBe("container-release");
-    expect(
-      ghcr.steps.find((step) => step.name === "Log in to GHCR").with.password,
-    ).toBe("${{ secrets.GHCR_PUBLISH_TOKEN }}");
-    expect(ghcr.steps[0].with.ref).toBe("${{ needs.verify.outputs.sha }}");
+    expect(guide).toContain("publish-packages.mjs");
+    expect(guide).toContain("shell-free");
+    expect(guide).toContain("GHCR_PUBLISH_TOKEN");
+    expect(guide).toContain("container-release");
+    expect(guide).toMatch(/automatic Actions token write access/);
+    expect(guide).toMatch(/immutable artifact inventory, qualification/);
+    expect(guide).toContain("does not activate the retired workflow");
   });
 });
