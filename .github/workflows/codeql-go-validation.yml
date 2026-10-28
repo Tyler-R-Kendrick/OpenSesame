@@ -5,6 +5,7 @@ on:
     branches: [review/codeql-go-extraction-proof]
 permissions:
   contents: read
+  security-events: read
 concurrency:
   group: codeql-go-extraction-review
   cancel-in-progress: false
@@ -40,6 +41,7 @@ jobs:
           node tools/pwa-tailscale-native-http/build.mjs "$RUNNER_TEMP/native-input/0.tar.gz" "$RUNNER_TEMP/native-input/1.tar.gz" "$GITHUB_WORKSPACE/.codeql-native" --audit
           test -s .codeql-native/native-audit.json
           test -s .codeql-native/native-package-graph.json
+          echo "$GITHUB_WORKSPACE/.codeql-native/compiler/bin" >> "$GITHUB_PATH"
       - name: Initialize manual Go analysis
         uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
@@ -52,15 +54,19 @@ jobs:
         run: |
           set -euo pipefail
           out="$GITHUB_WORKSPACE/.codeql-native"
+          tags="$(node --input-type=module -e 'import {readFile} from "node:fs/promises"; import {decodeNativeProductionTags} from "./tools/pwa-tailscale-native-http/native-audit.mjs"; console.log(await decodeNativeProductionTags(JSON.parse(await readFile(".codeql-native/audit-tags.json", "utf8"))))')"
+          compiler_version="$(node -p 'require("./tools/pwa-tailscale-native-http/source.json").compiler.version')"
           cd "$out/source"
           export GOMAXPROCS=2 GOMEMLIMIT=2GiB GOTOOLCHAIN=local GOENV=off GOWORK=off GOTELEMETRY=off
           export GOCACHE="$out/cache/build" GOMODCACHE="$out/cache/mod" GOPATH="$out/cache/gopath" TMPDIR="$out/tmp"
           export GOFLAGS="-p=2 -buildvcs=false -mod=readonly -modfile=$out/native.mod"
-          export PATH="$out/compiler/bin:$PATH"
-          "$out/compiler/bin/go" clean -cache
-          "$out/compiler/bin/go" run "$out/upstream-command.go" "$out/compiler/bin/go" codeql "$out/codeql.wasm" "$out/codeql-build.json"
+          export VERSION_LONG='' VERSION_SHORT=''
+          test "$(command -v go)" = "$CODEQL_ACTION_GO_BINARY"
+          test "$(go env GOVERSION)" = "$compiler_version"
+          go version
+          go clean -cache
+          GOOS=js GOARCH=wasm go build -tags "$tags" -trimpath -ldflags '-s -w' -o "$out/codeql.wasm" tailscale.com/cmd/tsconnect/wasm
           test -s "$out/codeql.wasm"
-          node -e 'const x=require(process.argv[1]);if(x.pass!==true || !Array.isArray(x.tags) && typeof x.tags!=="string") process.exit(1)' "$out/codeql-build.json"
       - name: Analyze without uploading provisional source paths
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
@@ -76,5 +82,6 @@ jobs:
             ${{ runner.temp }}/codeql-native-sarif
             .codeql-native/native-audit.json
             .codeql-native/native-package-graph.json
-            .codeql-native/codeql-build.json
+            .codeql-native/audit-tags.json
+            .codeql-native/logs
           if-no-files-found: error
