@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      SOURCE_SHA: ed4e1ae01b2b0b64d30b33b28811b20851c8c1b5
-      SOURCE_TREE: 590ba036c3216402480e9314a2dbd469eda51ab4
+      SOURCE_SHA: 637c1e6dff4f8ffe430179c044ab8ae9139461eb
+      SOURCE_TREE: 46bfa0a98a9a732b954a64beefc98d640ec626bf
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
     steps:
       - name: Validate immutable source identifiers
@@ -43,3 +43,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Run the unmodified complete quality suite
         run: pnpm quality:test
+      - name: Run the qualification contract directly
+        run: pnpm exec vitest run scripts/lib/ci-release-qualification.test.mjs --testTimeout=30000
+      - name: Run the composed Go mapper tests directly
+        run: node --test scripts/security/map-composed-go-sarif.test.mjs
+      - name: Run the unchanged structural quality gate
+        run: pnpm quality:gate
