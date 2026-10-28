@@ -1,0 +1,59 @@
+name: Connector 2198 provisional focused proof
+on:
+  push:
+    branches: [review/connector-2198-relay22-proof]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/connector-2198-relay22-proof' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: 60da24c09ac201f5efb16ba1fe132ce431980558
+      - name: Verify immutable source and exact patch
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 60da24c09ac201f5efb16ba1fe132ce431980558
+          test "$(git rev-parse HEAD^{tree})" = eec3856c708fc35dfc7b38157cd16f4d8dc0791c
+          test "$(git rev-parse HEAD^)" = 22afed11cd52d41c1618d29ede8d1d366c266417
+          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/candidate.patch"
+          printf '%s  %s\n' 1c00aad643d49962d868f8f39c4e823a6bf60f67ca7148fc67296d02ef0abfee "$RUNNER_TEMP/candidate.patch" | sha256sum --check
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      - name: Install frozen dependency graph
+        run: pnpm install --frozen-lockfile
+      - name: Verify generated source
+        run: |
+          set -euo pipefail
+          node packages/app-core/scripts/emit-connect-presets.mjs
+          node apps/pages/scripts/emit-connect-verify-targets.mjs
+          pnpm exec biome format --write packages/app-core/src/lib/connect-presets.generated.ts apps/pages/server/connect-verify-targets.generated.mjs
+          git diff --exit-code -- packages/app-core/src/lib/connect-presets.generated.ts apps/pages/server/connect-verify-targets.generated.mjs
+      - name: Verify relay and connector contracts
+        run: |
+          set -euo pipefail
+          node --test apps/pages/server/test/connect-manage.test.mjs apps/pages/server/test/connect-verify-compatibility.test.mjs apps/pages/server/test/connect-verify-predicates.test.mjs apps/pages/server/test/connect-verify-unbound-host.test.mjs apps/pages/server/test/connect-verify-disabled-proof.test.mjs apps/pages/server/test/connect-verify-restored-providers.test.mjs apps/pages/server/test/connect-verify-alias-mismatch.test.mjs apps/pages/server/test/connect-verify.test.mjs
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-api-auth.test.ts src/lib/native-api-target.test.ts src/lib/native-api-higgsfield.test.ts src/lib/native-api-verify.test.ts src/lib/native-connector-availability.test.ts src/lib/connector-action-capability.test.ts src/lib/generated-json.test.ts
+          pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance/connect-conformance.test.ts src/sections/connections/ai/key-hosts.test.ts src/sections/connections/catalog-selection.test.ts src/sections/connections/catalog-connector-action.test.ts src/sections/connections/connect/S3Native.integration.test.tsx src/sections/ConnectionsSection.test.tsx src/sections/connections/SettingsPage.roads.test.tsx
+      - name: Typecheck and structural gate
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/pages typecheck
+          pnpm lint:anti-slop:files packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-verify.test.ts apps/pages/src/sections/connections/ai/key-hosts.test.ts apps/pages/server/test/connect-verify-disabled-proof.test.mjs
+          pnpm quality:gate
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = 60da24c09ac201f5efb16ba1fe132ce431980558
+          git diff --exit-code
+          git diff --cached --exit-code
