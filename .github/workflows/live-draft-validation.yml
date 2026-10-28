@@ -45,7 +45,9 @@ jobs:
           test "$(git hash-object apps/pages/src/modules/sharing.live/live-route-parts.tsx)" = 8cd433cdadcac47673b3586b5493a44974e87338
           cd work/draft-evidence/scripts/review/live-draft
           printf '%s  %s\n' \
-            b55ae7734c0fafdb97ab1212790861cba1ad9b9034889012c082810b154e45f2 LiveRoutesPanel.test.tsx \
+            39929649fc04af1ab3c72e162a450eaf93db6f027404cda92cc92455c2cccc10 LiveRoutesDraftRace.test.tsx \
+            5137a0ac89300aa629dbabfa3234742b12027570d06bb901221e9fd98098e10c LiveRouteCredentialRace.test.tsx \
+            cad8760ddece8725f1d79c795f65f3de18462413803bd15226d41c652b6fb941 live-route-race.test-support.ts \
             64ee4d965e06a11d89ade307826ac3e8373944151c692e33667a295397d6e960 LiveRoutesPanel.tsx \
             a3ba8cd3bba9bb06b4e4b9208502bc80b251e00066d486d00f3a20c8f347820c LiveCarriers.tsx \
             777d19d1be4fafa6304328b0daed0ff3266a71ed62e4ac221654fc5ec907288f live-route-parts.tsx | sha256sum --check
@@ -53,10 +55,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp work/draft-evidence/scripts/review/live-draft/LiveRoutesPanel.test.tsx apps/pages/src/modules/sharing.live/LiveRoutesPanel.test.tsx
+          cp work/draft-evidence/scripts/review/live-draft/LiveRoutesDraftRace.test.tsx apps/pages/src/modules/sharing.live/LiveRoutesDraftRace.test.tsx
+          cp work/draft-evidence/scripts/review/live-draft/LiveRouteCredentialRace.test.tsx apps/pages/src/modules/sharing.live/LiveRouteCredentialRace.test.tsx
+          cp work/draft-evidence/scripts/review/live-draft/live-route-race.test-support.ts apps/pages/src/modules/sharing.live/live-route-race.test-support.ts
           mkdir -p "$RUNNER_TEMP/live-draft-evidence"
           set +e
-          pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.live/LiveRoutesPanel.test.tsx \
+          pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.live/LiveRoutesDraftRace.test.tsx \
             --testNamePattern 'keeps (a newer address typed|newer TURN server and credentials|a newer carrier draft)' \
             --reporter=json --outputFile "$RUNNER_TEMP/live-draft-evidence/before.json"
           result=$?
@@ -70,7 +74,7 @@ jobs:
           cp work/draft-evidence/scripts/review/live-draft/LiveRoutesPanel.tsx apps/pages/src/modules/sharing.live/LiveRoutesPanel.tsx
           cp work/draft-evidence/scripts/review/live-draft/LiveCarriers.tsx apps/pages/src/modules/sharing.live/LiveCarriers.tsx
           cp work/draft-evidence/scripts/review/live-draft/live-route-parts.tsx apps/pages/src/modules/sharing.live/live-route-parts.tsx
-          pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.live/LiveRoutesPanel.test.tsx \
+          pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.live/LiveRoutesDraftRace.test.tsx \
             --testNamePattern 'keeps (a newer address typed|newer TURN server and credentials|a newer carrier draft)' \
             --reporter=json --outputFile "$RUNNER_TEMP/live-draft-evidence/after.json"
           node work/draft-evidence/scripts/review/live-draft/check-results.mjs "$RUNNER_TEMP/live-draft-evidence/after.json" after
@@ -78,6 +82,8 @@ jobs:
         run: >-
           pnpm --filter @opensesame/pages exec vitest run
           src/modules/sharing.live/LiveRoutesPanel.test.tsx
+          src/modules/sharing.live/LiveRoutesDraftRace.test.tsx
+          src/modules/sharing.live/LiveRouteCredentialRace.test.tsx
           src/modules/sharing.live/LiveRoutes.test.tsx
           src/modules/sharing.live/LiveNatsRoutes.test.tsx
       - name: Typecheck Pages
