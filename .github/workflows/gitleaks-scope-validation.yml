@@ -94,14 +94,16 @@ jobs:
           python3 - <<'PYTHON'
           import hashlib,pathlib,subprocess
           approved={
-            'scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go':('3d3bbcdc51d8a8d1c9d384d114d60e32b545830c','792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432'),
-            'scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go':('4788950f19c710291d690946689b7e3ca6ded3de','636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31'),
+            'spec/conformance/hpke-rfc9180-vectors.json':('ef2678ca7789e137c398f0845c58aacafe875213','3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687'),
+            'spec/conformance/quorum-recovery-fixture.json':('2ade61dfd55c7786c661f0e1dca6e559756a215b','0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf'),
+            'spec/conformance/vault-drive-protocol.json':('3998d6b57cd01cd655eb0bf1f33d488da5e33026','8ba44b1731c032fd8d19baf8fa384269b181df14672df27f7a1288900d228621'),
+            'apps/pages/scripts/lib/bitwarden-sdk-resource.test.mjs':('7282e523e28c35500417d1d4f295d54432afec4c','6bebb4d16a08f5fa6a64811ce1d489a06a85f16ffc80e55c299233fad956c2a1'),
           }
           for name,(blob,digest) in approved.items():
            path=pathlib.Path(name)
            if any(p.is_symlink() for p in (path,*path.parents)): raise RuntimeError('Unexpected symlink in approved vector path')
            if hashlib.sha256(path.read_bytes()).hexdigest()!=digest: raise RuntimeError('Approved vector bytes differ')
-           if subprocess.check_output(['git','--no-replace-objects','hash-object','--no-filters',name],text=True).strip()!=blob: raise RuntimeError('Approved upstream blob differs')
+           if subprocess.check_output(['git','--no-replace-objects','hash-object','--no-filters',name],text=True).strip()!=blob: raise RuntimeError('Approved fixture blob differs')
           PYTHON
           set +e
           "$RUNNER_TEMP/gitleaks" dir . --config .gitleaks.toml --gitleaks-ignore-path "$GITHUB_WORKSPACE" --report-path "$EVIDENCE_DIR/directory-raw.json" --report-format json --no-banner --log-level error >"$EVIDENCE_DIR/directory-scan.log" 2>&1
@@ -114,32 +116,46 @@ jobs:
           root=pathlib.Path(os.environ['GITHUB_WORKSPACE'])
           out=pathlib.Path(os.environ['EVIDENCE_DIR'])
           approved={
-            'scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go':('3d3bbcdc51d8a8d1c9d384d114d60e32b545830c','792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432',80),
-            'scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go':('4788950f19c710291d690946689b7e3ca6ded3de','636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31',50),
+            'spec/conformance/hpke-rfc9180-vectors.json':('ef2678ca7789e137c398f0845c58aacafe875213','3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687',10),
+            'spec/conformance/quorum-recovery-fixture.json':('2ade61dfd55c7786c661f0e1dca6e559756a215b','0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf',7),
+            'spec/conformance/vault-drive-protocol.json':('3998d6b57cd01cd655eb0bf1f33d488da5e33026','8ba44b1731c032fd8d19baf8fa384269b181df14672df27f7a1288900d228621',1),
+            'apps/pages/scripts/lib/bitwarden-sdk-resource.test.mjs':('7282e523e28c35500417d1d4f295d54432afec4c','6bebb4d16a08f5fa6a64811ce1d489a06a85f16ffc80e55c299233fad956c2a1',1),
+          }
+          approved_lines={
+            'spec/conformance/hpke-rfc9180-vectors.json':{19,20,21,22,24,101,102,103,104,106},
+            'spec/conformance/quorum-recovery-fixture.json':{16,179,195,211,227,243,259},
+            'spec/conformance/vault-drive-protocol.json':{135},
+            'apps/pages/scripts/lib/bitwarden-sdk-resource.test.mjs':{42},
+          }
+          reasons={
+            'spec/conformance/hpke-rfc9180-vectors.json':'Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture.',
+            'spec/conformance/quorum-recovery-fixture.json':'Generated test-only recovery fixture; its keys and shares protect nothing as documented in spec/conformance/slip39/README.md.',
+            'spec/conformance/vault-drive-protocol.json':'Invalid part-name conformance data, checked by the daemon test as rejected path identifiers; excludes the pairing credentials in this file.',
+            'apps/pages/scripts/lib/bitwarden-sdk-resource.test.mjs':'A JavaScript asset filename supplied to a mocked resource-failure test, not an authentication credential.',
           }
           rows=json.loads((out/'directory-raw.json').read_text())
           if not isinstance(rows,list): raise RuntimeError('Malformed scanner report')
           entries=[]
           for row in rows:
            name=row.get('File') if isinstance(row,dict) else None
-           if name not in approved: continue
-           if row.get('RuleID')!='generic-api-key' or not isinstance(row.get('Match'),str) or not isinstance(row.get('StartLine'),int) or row['StartLine']<1: raise RuntimeError('Unexpected vector finding')
+           if name not in approved or row.get('StartLine') not in approved_lines[name]: continue
+           if row.get('RuleID')!='generic-api-key' or not isinstance(row.get('Match'),str) or not isinstance(row.get('StartLine'),int) or row['StartLine']<1: raise RuntimeError('Unexpected fixture finding')
            blob,digest,_=approved[name]
-           entries.append({'path':name,'rule':row['RuleID'],'line':row['StartLine'],'fileSha256':digest,'matchSha256':hashlib.sha256(row['Match'].encode()).hexdigest(),'reason':'Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob '+blob+' matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c.'})
+           entries.append({'path':name,'rule':row['RuleID'],'line':row['StartLine'],'fileSha256':digest,'matchSha256':hashlib.sha256(row['Match'].encode()).hexdigest(),'reason':reasons[name]+' Exact source Git blob '+blob+'.'})
           counts=collections.Counter(x['path'] for x in entries)
-          if any(counts[name]!=expected for name,(_,_,expected) in approved.items()): raise RuntimeError('Unexpected approved vector finding count')
-          if len({(x['path'],x['rule'],x['line'],x['fileSha256'],x['matchSha256']) for x in entries})!=len(entries): raise RuntimeError('Duplicate vector finding')
+          if any(counts[name]!=expected for name,(_,_,expected) in approved.items()): raise RuntimeError('Unexpected approved fixture finding count')
+          if len({(x['path'],x['rule'],x['line'],x['fileSha256'],x['matchSha256']) for x in entries})!=len(entries): raise RuntimeError('Duplicate fixture finding')
           for name,(blob,digest,_) in approved.items():
            path=root/name
            if any(p.is_symlink() for p in (path,*path.parents)): raise RuntimeError('Unexpected symlink in approved vector path')
            if hashlib.sha256(path.read_bytes()).hexdigest()!=digest: raise RuntimeError('Approved vector bytes changed during scan')
-           if subprocess.check_output(['git','--no-replace-objects','hash-object','--no-filters',name],cwd=root,text=True).strip()!=blob: raise RuntimeError('Approved upstream blob changed during scan')
+           if subprocess.check_output(['git','--no-replace-objects','hash-object','--no-filters',name],cwd=root,text=True).strip()!=blob: raise RuntimeError('Approved fixture blob changed during scan')
           entries.sort(key=lambda x:(x['path'],x['line'],x['matchSha256']))
-          (out/'reviewed-vector-proposals.json').write_text(json.dumps(entries,indent=2)+'\n')
+          (out/'reviewed-fixture-proposals.json').write_text(json.dumps(entries,indent=2)+'\n')
           base=json.loads((root/'scripts/security/gitleaks-reviewed-working-tree.json').read_text())
           if not isinstance(base,list): raise RuntimeError('Malformed base review manifest')
           (out/'simulation-manifest.json').write_text(json.dumps(base+entries)+'\n')
-          print('Public upstream vector digest proposals:',len(entries))
+          print('Reviewed fixture digest proposals:',len(entries))
           PYTHON
           node scripts/security/gitleaks-working-tree-gate.mjs prepare "$GITHUB_WORKSPACE" "$EVIDENCE_DIR/simulation-manifest.json" "$EVIDENCE_DIR/simulation-state.json"
           set +e
@@ -175,29 +191,29 @@ jobs:
           if not disposition_path.exists(): raise RuntimeError('Directory classifier evidence is missing')
           dispositions=json.loads(disposition_path.read_text())
           if not isinstance(dispositions,list) or len(dispositions)!=len(counts['directory']): raise RuntimeError('Directory classifier evidence is inconsistent')
-          proposal_path=out/'reviewed-vector-proposals.json'
+          proposal_path=out/'reviewed-fixture-proposals.json'
           simulation_path=out/'simulation-dispositions.json'
-          if not proposal_path.exists() or not simulation_path.exists(): raise RuntimeError('Vector simulation evidence is missing')
+          if not proposal_path.exists() or not simulation_path.exists(): raise RuntimeError('Fixture simulation evidence is missing')
           proposals=json.loads(proposal_path.read_text())
           simulation=json.loads(simulation_path.read_text())
-          if not isinstance(proposals,list) or len(proposals)!=130 or not isinstance(simulation,list) or len(simulation)!=len(dispositions): raise RuntimeError('Vector simulation evidence is inconsistent')
-          approved_hashes={hashlib.sha256(p.encode()).hexdigest() for p in ('scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go','scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go')}
+          if not isinstance(proposals,list) or len(proposals)!=19 or not isinstance(simulation,list) or len(simulation)!=len(dispositions): raise RuntimeError('Fixture simulation evidence is inconsistent')
+          approved_pairs={(hashlib.sha256(p.encode()).hexdigest(),line) for p,lines in {'spec/conformance/hpke-rfc9180-vectors.json':{19,20,21,22,24,101,102,103,104,106},'spec/conformance/quorum-recovery-fixture.json':{16,179,195,211,227,243,259},'spec/conformance/vault-drive-protocol.json':{135},'apps/pages/scripts/lib/bitwarden-sdk-resource.test.mjs':{42}}.items() for line in lines}
           generic_hash=hashlib.sha256(b'generic-api-key').hexdigest()
           newly_reviewed=0
           for old,new in zip(dispositions,simulation):
-           if any(old.get(k)!=new.get(k) for k in ('pathSha256','ruleSha256','line')): raise RuntimeError('Vector simulation changed finding identity')
-           if old.get('reviewed') is True and new.get('reviewed') is not True: raise RuntimeError('Vector simulation lost a reviewed result')
+           if any(old.get(k)!=new.get(k) for k in ('pathSha256','ruleSha256','line')): raise RuntimeError('Fixture simulation changed finding identity')
+           if old.get('reviewed') is True and new.get('reviewed') is not True: raise RuntimeError('Fixture simulation lost a reviewed result')
            if old.get('reviewed') is not True and new.get('reviewed') is True:
-            if new.get('pathSha256') not in approved_hashes or new.get('ruleSha256')!=generic_hash: raise RuntimeError('Vector simulation reviewed an unrelated finding')
+            if (new.get('pathSha256'),new.get('line')) not in approved_pairs or new.get('ruleSha256')!=generic_hash: raise RuntimeError('Fixture simulation reviewed an unrelated finding')
             newly_reviewed+=1
-          if newly_reviewed!=130: raise RuntimeError('Vector simulation did not review the exact expected results')
-          summary={'vector_proposal_count':len(proposals),'simulation_status':int(os.environ['SIMULATION_STATUS']),'simulation_reviewed':sum(x.get('reviewed') is True for x in simulation),'simulation_unreviewed':sum(x.get('reviewed') is not True for x in simulation),'directory_reviewed':sum(x.get('reviewed') is True for x in dispositions),'directory_unreviewed':sum(x.get('reviewed') is not True for x in dispositions),'directory_dispositions':dispositions,'directory_classifier_status':int(os.environ['DIR_CLASSIFIER_STATUS']),'repository':repo,'source_sha':os.environ['CANDIDATE_SHA'],'base_sha':expected,'main_after':after,'run_id':os.environ['GITHUB_RUN_ID'],'observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'directory_status':int(os.environ['DIR_STATUS']),'history_status':int(os.environ['HISTORY_STATUS']),'directory_findings':counts['directory'],'history_findings':counts['history']}
+          if newly_reviewed!=19: raise RuntimeError('Fixture simulation did not review the exact expected results')
+          summary={'fixture_proposal_count':len(proposals),'simulation_status':int(os.environ['SIMULATION_STATUS']),'simulation_reviewed':sum(x.get('reviewed') is True for x in simulation),'simulation_unreviewed':sum(x.get('reviewed') is not True for x in simulation),'directory_reviewed':sum(x.get('reviewed') is True for x in dispositions),'directory_unreviewed':sum(x.get('reviewed') is not True for x in dispositions),'directory_dispositions':dispositions,'directory_classifier_status':int(os.environ['DIR_CLASSIFIER_STATUS']),'repository':repo,'source_sha':os.environ['CANDIDATE_SHA'],'base_sha':expected,'main_after':after,'run_id':os.environ['GITHUB_RUN_ID'],'observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'directory_status':int(os.environ['DIR_STATUS']),'history_status':int(os.environ['HISTORY_STATUS']),'directory_findings':counts['directory'],'history_findings':counts['history']}
           summary['unknown_pat_visible']=any(x['Commit']=='c9862a0e99b1fc7a8bc3169ec8158dd9abaebf01' and x['is_unknown_pat_path'] and x['RuleID']=='github-pat' and x['StartLine']==42 for x in counts['history'])
           (out/'metadata.json').write_text(json.dumps(summary,indent=2)+'\n')
           print(json.dumps({'directory_count':len(counts['directory']),'history_count':len(counts['history']),'unknown_pat_visible':summary['unknown_pat_visible'],'main_unchanged':after==expected}))
           for name in ('directory','history'): (out/(name+'-raw.json')).unlink()
           if after!=expected or not summary['unknown_pat_visible'] or summary['directory_status'] not in (0,1) or summary['history_status'] not in (0,1): raise SystemExit('Inventory evidence incomplete or main changed')
-          if summary['simulation_status'] not in (0,1) or (summary['simulation_status']==0) != (summary['simulation_unreviewed']==0): raise SystemExit('Vector simulation failed')
+          if summary['simulation_status'] not in (0,1) or (summary['simulation_status']==0) != (summary['simulation_unreviewed']==0): raise SystemExit('Fixture simulation failed')
           if summary['directory_classifier_status'] not in (0,1): raise SystemExit('Directory classifier failed')
           if (summary['directory_classifier_status']==0) != (summary['directory_unreviewed']==0): raise SystemExit('Directory classifier status disagrees with findings')
           if summary['directory_classifier_status'] or summary['history_status']: raise SystemExit('Security findings remain; review sanitized metadata')
@@ -209,6 +225,6 @@ jobs:
           name: gitleaks-scope-evidence
           path: |
             ${{ runner.temp }}/gitleaks-scope-evidence/metadata.json
-            ${{ runner.temp }}/gitleaks-scope-evidence/reviewed-vector-proposals.json
+            ${{ runner.temp }}/gitleaks-scope-evidence/reviewed-fixture-proposals.json
           if-no-files-found: error
           retention-days: 7
