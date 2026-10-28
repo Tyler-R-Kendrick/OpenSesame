@@ -141,6 +141,7 @@ test("maps exact committed overlay bytes while retaining all upstream findings a
     unmappedResultLocations: 1,
     invalidInvocations: 0,
     errorNotifications: 0,
+    reviewedFalsePositives: 0,
     verifiedFiles: entries.length,
     mappedLocations: 4,
   });
@@ -168,6 +169,39 @@ test("maps exact committed overlay bytes while retaining all upstream findings a
     run.results[1].locations[0].physicalLocation.artifactLocation.uri,
     upstream,
   );
+});
+
+test("dispositions only the exact reviewed TLS false positive", (t) => {
+  const f = fixture(t);
+  const uri = `${staged}/net/tlsdial/tlsdial.go`;
+  const bytes = "reviewed certificate and hostname validation\n";
+  f.write(uri, bytes);
+  const location = { physicalLocation: { artifactLocation: { uri } } };
+  const other = { ruleId: "go/other", locations: [location] };
+  const report = {
+    version: "2.1.0",
+    runs: [
+      {
+        artifacts: [],
+        results: [
+          { ruleId: "go/disabled-certificate-check", locations: [location] },
+          other,
+        ],
+      },
+    ],
+  };
+  const review = { workspace: f.directory, afterSha256: hash(bytes) };
+  const summary = mapReport(report, new Map(), review);
+  assert.equal(summary.reviewedFalsePositives, 1);
+  assert.equal(summary.unmappedPrimaryFindings, 1);
+  assert.deepEqual(report.runs[0].results, [other]);
+  const tampered = structuredClone(report);
+  tampered.runs[0].results.push({
+    ruleId: "go/disabled-certificate-check",
+    locations: [location],
+  });
+  f.write(uri, "unreviewed source\n");
+  assert.throws(() => mapReport(tampered, new Map(), review), /pinned bytes/);
 });
 
 test("counts missing and failed invocations and both kinds of error notifications", () => {
