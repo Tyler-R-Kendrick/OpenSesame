@@ -193,8 +193,10 @@ function ownerSteps() {
       for (const carrier of carriers) {
         await routes.getByLabel("Code carrier").selectOption(carrier.kind);
         const field = routes.getByLabel(/^Server \(/);
-        await field.fill(carrier.url);
-        await routes.getByRole("button", { name: "Add the carrier" }).click();
+        await field.pressSequentially(carrier.url);
+        const add = routes.getByRole("button", { name: "Add the carrier" });
+        await expect(add).toBeEnabled();
+        await add.click();
         await routes.getByText(carrier.url, { exact: true }).waitFor();
         await expect(field).toHaveValue("");
       }

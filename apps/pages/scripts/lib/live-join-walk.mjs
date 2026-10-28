@@ -167,9 +167,11 @@ export async function setRoutes(page, wanted) {
       continue;
     }
     const field = routes.getByLabel(/^Server \(/);
-    await field.fill(carrier.url);
+    await field.pressSequentially(carrier.url);
     if (carrier.kind === "nats") await natsChoices(routes, carrier);
-    await routes.getByRole("button", { name: "Add the carrier" }).click();
+    const add = routes.getByRole("button", { name: "Add the carrier" });
+    await expect(add).toBeEnabled();
+    await add.click();
     await routes.getByText(carrier.url, { exact: true }).waitFor();
     // Rows are optimistic; the submitted field clears after the write settles.
     // Wait for that reset before another step can type a newer draft.
