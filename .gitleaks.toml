@@ -436,13 +436,6 @@ commits = [
   '''45a8cda477addf42863699b500252b784ac69a51''',
 ]
 
-
-[[allowlists]]
-description = "Vendored upstream code (Go x/crypto test vectors and anything else under third_party/): public RFC test data, maintained upstream"
-paths = [
-  '''(^|/)third_party/(?:.*/)?''',
-]
-
 [[allowlists]]
 description = "Historical path only (bitwarden-sdk-resource test since moved or removed; no forward surface)"
 paths = [

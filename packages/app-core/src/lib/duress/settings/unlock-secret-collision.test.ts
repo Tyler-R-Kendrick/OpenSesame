@@ -86,7 +86,7 @@ describe("an ordinary unlock secret may not equal an armed duress code", () => {
     await expect(store.create(DURESS)).rejects.toThrow(AMBIGUOUS);
     await store.createGuest();
     await expect(store.enrollPassword(DURESS)).rejects.toThrow(AMBIGUOUS);
-    const password = "quiet-harbor-lantern-42";
+    const password = "p".repeat(40);
     await store.enrollPassword(password);
     await expect(store.changeMasterPassword(password, DURESS)).rejects.toThrow(
       AMBIGUOUS,
