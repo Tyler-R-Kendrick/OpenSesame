@@ -1,0 +1,60 @@
+name: Verify fork-safe store locks
+on:
+  push:
+    branches: [review/rotation-lock-namespace]
+permissions:
+  contents: read
+jobs:
+  proof:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/rotation-lock-namespace' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: a9680d72e6ef863706aa98181a633ca9d902dc90
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          components: rustfmt
+      - name: Verify exact source and parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a9680d72e6ef863706aa98181a633ca9d902dc90
+          test "$(git rev-parse HEAD^{tree})" = 41c9b9217793ab3fcf7baeadc6e766afe2fbc0bf
+          test "$(git rev-parse HEAD^)" = f8c14fe908aba2e3728bee6979b35f8bbb8815de
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Prepare Linux keychain build prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
+      - name: Check formatting and physical lock contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --package opensesame-sealed-store -- --check
+          cargo test --locked -p opensesame-sealed-store --lib store_lock:: -- --nocapture
+          cargo test --locked -p opensesame-sealed-store --lib rotation::tests::rotation_reencrypts_entries_and_attachments_under_the_new_root -- --exact --nocapture
+      - name: Test the complete sealed-store library on Linux
+        if: runner.os == 'Linux'
+        run: cargo test --locked -p opensesame-sealed-store --lib
+      - name: Verify source stayed unchanged
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 41c9b9217793ab3fcf7baeadc6e766afe2fbc0bf
+          git diff --exit-code
+          git diff --cached --exit-code
