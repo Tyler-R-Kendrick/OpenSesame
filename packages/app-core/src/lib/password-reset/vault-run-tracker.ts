@@ -3,7 +3,12 @@
  * secrets, origins, or provider responses.
  */
 
-import { isJsonObject, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { kvGet, kvSet } from "../kv.js";
 
 export const VAULT_RESET_RUNS_KEY = "password-reset.vault-runs.v1";
@@ -40,7 +45,7 @@ function readAll(): VaultResetRunRecord[] {
   const raw = kvGet(VAULT_RESET_RUNS_KEY);
   if (!raw) return [];
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = overlapCast<unknown, BoundaryValue>(JSON.parse(raw));
     if (!Array.isArray(parsed)) return [];
     return parsed.flatMap((entry) => parseRecord(entry) ?? []);
   } catch {
@@ -48,7 +53,7 @@ function readAll(): VaultResetRunRecord[] {
   }
 }
 
-function parseRecord(value: unknown): VaultResetRunRecord | null {
+function parseRecord(value: BoundaryValue): VaultResetRunRecord | null {
   if (!isJsonObject(value)) return null;
   if (!isString(value.scope) || !isString(value.itemId)) return null;
   if (!isString(value.phase) || !isString(value.updatedAt)) return null;
