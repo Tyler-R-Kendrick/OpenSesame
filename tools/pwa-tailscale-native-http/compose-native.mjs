@@ -62,6 +62,10 @@ async function verifyComposition({ here, source, output, pins, requireHash }) {
     join(source, "cmd/tsconnect/wasm/wasm_js.go"),
     pins.nativeSSH.patch.afterSha256,
   );
+  await requireHash(
+    join(source, pins.nativeSSH.tlsVerification.path),
+    pins.nativeSSH.tlsVerification.afterSha256,
+  );
   for (const file of pins.nativeNode.patchTargets.slice(1))
     await requireHash(join(source, file.path), file.afterSha256);
   await requireHash(

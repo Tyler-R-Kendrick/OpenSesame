@@ -226,7 +226,39 @@ test("scheduled native auditing fails closed on the real production graph after 
   assert.equal(job.steps[audit].if, undefined);
   assert.equal(job.steps[audit].env?.OPENSESAME_AUDIT_DIR, undefined);
   assert.ok(workflow.jobs["turn-crypto"]);
-  assert.ok(workflow.jobs["osv-scanner"]);
+  const osv = workflow.jobs["osv-scanner"];
+  assert.deepEqual(osv.permissions, {
+    contents: "read",
+    "security-events": "write",
+  });
+  assert.equal(osv.if, undefined);
+  const scan = osv.steps.find((step) =>
+    step.uses?.startsWith("google/osv-scanner-action/osv-scanner-action@"),
+  );
+  const reporter = osv.steps.find((step) =>
+    step.uses?.startsWith("google/osv-scanner-action/osv-reporter-action@"),
+  );
+  const upload = osv.steps.find((step) =>
+    step.uses?.startsWith("github/codeql-action/upload-sarif@"),
+  );
+  for (const step of [scan, reporter, upload]) {
+    assert.ok(step);
+    assert.equal(step.if, undefined);
+    assert.match(step.uses, /@[a-f0-9]{40}$/);
+  }
+  assert.match(scan.with["scan-args"], /--recursive/);
+  assert.match(reporter.with["scan-args"], /--new=osv-results\.json/);
+  assert.equal(upload.with.sarif_file, "osv-results.sarif");
+  // Candidate qualification independently blocks releases on lockfile findings.
+  const deep = readFileSync(
+    join(root, "scripts/release/deep-check.sh"),
+    "utf8",
+  );
+  assert.match(
+    deep,
+    /dependencies\)\n +pnpm audit:osv\n +pnpm audit:cargo-audit/,
+  );
+  assert.doesNotMatch(deep, /pnpm audit:osv[^\n]*\|\|/);
 });
 
 function imageProfile(dockerfile, name) {

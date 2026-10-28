@@ -1,0 +1,228 @@
+# Candidate-bound qualification; production archives are never rebuilt here.
+name: Nightly dev checks
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        type: string
+        required: true
+      candidate_id:
+        type: string
+        required: true
+      run_id:
+        type: string
+        required: true
+      run_attempt:
+        type: string
+        required: true
+      artifact_id:
+        type: string
+        required: true
+      artifact_digest:
+        type: string
+        required: true
+      payload_digest:
+        type: string
+        required: true
+      receipt_retention_days:
+        type: number
+        default: 35
+    outputs:
+      receipt:
+        description: Verified qualification artifact identity
+        value: ${{ jobs.receipt.outputs.receipt }}
+
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+
+env:
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  CANDIDATE_ID: ${{ inputs.candidate_id }}
+  CANDIDATE_RUN_ID: ${{ inputs.run_id }}
+  CANDIDATE_RUN_ATTEMPT: ${{ inputs.run_attempt }}
+  ARTIFACT_ID: ${{ inputs.artifact_id }}
+  ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+  PAYLOAD_DIGEST: ${{ inputs.payload_digest }}
+
+jobs:
+  admission:
+    name: Candidate admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release
+            scripts/lib
+            .github/workflows
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify the exact immutable candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/release/candidate.mjs verify
+          --directory "$RUNNER_TEMP/candidate"
+
+  source-tests:
+    name: Dev source tests
+    needs: admission
+    uses: ./.github/workflows/full-suite.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  artifact-smoke:
+    name: Dev artifact smoke (${{ matrix.target }})
+    needs: admission
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          path: .ci-control
+          sparse-checkout: |
+            scripts/release
+            scripts/lib
+            .github/workflows
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Materialize the verified candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node .ci-control/scripts/release/candidate.mjs verify
+          --directory "$RUNNER_TEMP/candidate"
+      - name: Execute the packaged native host and bundled parser
+        env:
+          KIT_ARCHIVE: ${{ matrix.target == 'x86_64-unknown-linux-gnu' && steps.candidate.outputs.native_x86_archive || steps.candidate.outputs.native_arm_archive }}
+        run: bash .ci-control/scripts/release/smoke-kit.sh "$KIT_ARCHIVE"
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+      - name: Install the candidate source's browser test dependencies
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: pnpm install --frozen-lockfile
+      - name: Extract the production Pages payload without rebuilding
+        id: pages
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        env:
+          PAGES_ARCHIVE: ${{ steps.candidate.outputs.pages_archive }}
+        run: |
+          test ! -e apps/pages/dist
+          python3 .ci-control/scripts/release/archive-safe.py tar "$PAGES_ARCHIVE" apps/pages/dist
+          find apps/pages/dist -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/pages-before.sha256"
+      - name: Walk the exact production Pages payload in a browser
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        # These drivers consume dist; none compiles or restamps a distribution.
+        # Service-worker drivers use their actual local HTTP worker harnesses.
+        run: |
+          pnpm --filter @opensesame/pages verify:static
+          pnpm --filter @opensesame/pages verify:local-iam
+          pnpm --filter @opensesame/pages verify:auth
+          pnpm --filter @opensesame/pages verify:trusted-unlock
+          pnpm --filter @opensesame/pages verify:encrypted-search
+          pnpm --filter @opensesame/pages verify:portable-drop
+          pnpm --filter @opensesame/pages verify:sw-dirty-edit
+          pnpm --filter @opensesame/pages verify:push-worker
+          pnpm verify:customer-vault-browser
+      - name: Require unchanged production files after the browser journeys
+        if: ${{ always() && steps.pages.outcome == 'success' }}
+        run: |
+          find apps/pages/dist -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/pages-after.sha256"
+          cmp "$RUNNER_TEMP/pages-before.sha256" "$RUNNER_TEMP/pages-after.sha256"
+
+  gate:
+    name: Dev gate
+    needs: [admission, source-tests, artifact-smoke]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release
+            scripts/lib
+            .github/workflows
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Require every qualification job to succeed
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/lib/ci-required-result.mjs all
+
+  receipt:
+    name: Record dev qualification
+    needs: [admission, gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      receipt: ${{ steps.envelope.outputs.receipt }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release
+            scripts/lib
+            .github/workflows
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Record successful candidate qualification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: >-
+          node scripts/release/candidate.mjs receipt --stage dev
+          --needs-env NEEDS_JSON --directory "$RUNNER_TEMP/qualification"
+      - name: Retain qualification evidence
+        id: evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: qualification-dev-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qualification/receipt.json
+          if-no-files-found: error
+          retention-days: ${{ inputs.receipt_retention_days }}
+      - name: Return the exact evidence identity
+        id: envelope
+        env:
+          RECEIPT_ARTIFACT_ID: ${{ steps.evidence.outputs.artifact-id }}
+          RECEIPT_ARTIFACT_DIGEST: ${{ steps.evidence.outputs.artifact-digest }}
+        run: >-
+          node scripts/release/candidate.mjs receipt-envelope --stage dev
+          --artifact-id "$RECEIPT_ARTIFACT_ID" --artifact-digest "$RECEIPT_ARTIFACT_DIGEST"
+          --output "$GITHUB_OUTPUT"

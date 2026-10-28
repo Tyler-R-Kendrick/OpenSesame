@@ -98,3 +98,12 @@
 -	return s.session.WindowChange(rows, cols)
 +	s.mu.Unlock()
 +	return session.WindowChange(rows, cols)
+--- a/net/tlsdial/tlsdial.go
++++ b/net/tlsdial/tlsdial.go
+@@ -255,5 +255,5 @@
+ 	// own cert verification, but do the same work that it'd do
+ 	// (but using certDNSName) in the VerifyPeerCertificate hook.
++	c.InsecureSkipVerify = true // CodeQL[go/disabled-certificate-check]: VerifyPeerCertificate below enforces certificate and hostname validation.
+-	c.InsecureSkipVerify = true
+ 	c.VerifyConnection = nil
+ 	c.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error {

@@ -17,7 +17,7 @@
 #     criteria and publishes the score to the code-scanning dashboard and
 #     the badge on the README)
 
-name: Security scanning
+name: Repository security monitoring
 
 on:
   schedule:

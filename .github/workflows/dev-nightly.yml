@@ -1,0 +1,112 @@
+# Immutable candidate promotion; schedules qualify one selected source snapshot.
+name: Nightly dev qualification
+
+on:
+  schedule:
+    - cron: "17 0 * * *"
+      timezone: America/Chicago
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  attestations: read
+
+concurrency:
+  group: candidate-dev
+  cancel-in-progress: false
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.select.outputs.source_sha }}
+      source_ci_run_id: ${{ steps.select.outputs.source_ci_run_id }}
+      source_ci_run_attempt: ${{ steps.select.outputs.source_ci_run_attempt }}
+      reuse: ${{ steps.select.outputs.reuse }}
+      candidate_id: ${{ steps.select.outputs.candidate_id }}
+      run_id: ${{ steps.select.outputs.run_id }}
+      run_attempt: ${{ steps.select.outputs.run_attempt }}
+      artifact_id: ${{ steps.select.outputs.artifact_id }}
+      artifact_digest: ${{ steps.select.outputs.artifact_digest }}
+      payload_digest: ${{ steps.select.outputs.payload_digest }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Require implemented and activated promotion policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/candidate.mjs policy --controller dev-nightly
+      - name: Freeze one integration source and optional complete artifact
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/release/candidate.mjs select-integration
+          --workflow .github/workflows/ci.yml
+          --reuse-complete --output "$GITHUB_OUTPUT"
+
+  build:
+    needs: select
+    if: ${{ needs.select.outputs.reuse == 'false' }}
+    uses: ./.github/workflows/candidate-build.yml
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      attestations: write
+    with:
+      source_sha: ${{ needs.select.outputs.source_sha }}
+      source_ci_run_id: ${{ needs.select.outputs.source_ci_run_id }}
+      source_ci_run_attempt: ${{ needs.select.outputs.source_ci_run_attempt }}
+
+  qualify:
+    needs: [select, build]
+    # The only allowed skipped builder is an explicitly verified full reuse.
+    if: >-
+      ${{ always() && needs.select.result == 'success' &&
+          (needs.build.result == 'success' ||
+           (needs.build.result == 'skipped' && needs.select.outputs.reuse == 'true')) }}
+    uses: ./.github/workflows/ci-dev-checks.yml
+    with:
+      source_sha: ${{ needs.select.outputs.source_sha }}
+      candidate_id: ${{ needs.build.outputs.candidate_id || needs.select.outputs.candidate_id }}
+      run_id: ${{ needs.build.outputs.run_id || needs.select.outputs.run_id }}
+      run_attempt: ${{ needs.build.outputs.run_attempt || needs.select.outputs.run_attempt }}
+      artifact_id: ${{ needs.build.outputs.artifact_id || needs.select.outputs.artifact_id }}
+      artifact_digest: ${{ needs.build.outputs.artifact_digest || needs.select.outputs.artifact_digest }}
+      payload_digest: ${{ needs.build.outputs.payload_digest || needs.select.outputs.payload_digest }}
+      # Reusable verifies origin + exact files, then runs full dev tests against
+      # source_sha and the downloaded production payload. It does not rebuild it.
+      # Only after success does it upload a dev receipt (35-day retention) binding
+      # these fields plus this qualification run/attempt. No if:always success
+      # receipts. Consumers must also verify this workflow attempt succeeded.
+      receipt_retention_days: 35
+
+  result:
+    name: Nightly qualification result
+    needs: [select, build, qualify]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      SELECT_RESULT: ${{ needs.select.result }}
+      BUILD_RESULT: ${{ needs.build.result }}
+      QUALIFY_RESULT: ${{ needs.qualify.result }}
+      REUSE: ${{ needs.select.outputs.reuse }}
+    steps:
+      - name: Reject incomplete or unexpectedly skipped qualification
+        run: |
+          test "$SELECT_RESULT" = success
+          test "$QUALIFY_RESULT" = success
+          case "$REUSE:$BUILD_RESULT" in
+            true:skipped|false:success) ;;
+            *) exit 1 ;;
+          esac

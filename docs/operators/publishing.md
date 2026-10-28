@@ -1,44 +1,50 @@
 # Publishing OpenSesame artifacts
 
-## GitHub Container Registry (host image)
+The supported entry point is **Weekly release** on `main`
+(`.github/workflows/release-weekly.yml`). It selects a dev-qualified immutable
+candidate, requires prerelease, mutation and security, and promotes the stored
+Pages and Linux kits. See [CI and artifact promotion](ci-promotion.md) for
+schedules, versions, settings, evidence and recovery.
 
-Workflow: `.github/workflows/publish-containers.yml`
+## Pages and native kits
 
-- Triggers on `workflow_dispatch` or version tags `v*`.
-- Builds `ops/compose/Dockerfile` (the `opensesame` CLI / host roles).
-- Pushes to `ghcr.io/<owner>/<repo>` using `GITHUB_TOKEN` (`packages: write`).
+Nightly production stamps the Pages runtime/profile/release metadata before
+qualification. Publication verifies the complete candidate, deploys unchanged
+Pages files through Actions and checks the served source and content. Native
+releases contain the same qualified archives, original build proof, receipts
+and promotion evidence.
 
-Optional repository variable: set `OPENSESAME_FEATURES` in the workflow dispatch
-input when you need optional cargo features (for example `bitwarden-compat`).
+Tag creation is owner-only. Configure `RELEASE_PUBLISH_TOKEN` as a protected
+`release` environment secret for a dedicated GitHub App or fine-grained token
+whose only repository permission is Contents read/write on this repository.
+The ordinary Actions token cannot create version tags; staging fails closed if
+the protected credential is absent.
 
-## npm packages
+The old `deploy-pages.yml`, `release-kit.yml` and local
+`scripts/release/deploy-pages.sh` paths now fail with a migration message.
+Manual releases use the same nightly/weekly controllers and gates. A tag push
+cannot start another native build. See [Release kit](release-kit.md) for consumer
+verification and separately named test proxy downloads.
 
-Workflow: `.github/workflows/publish-npm.yml`
+## Container and npm publication
 
-1. Create an npm Automation token with publish rights to `@opensesame/*`.
-2. Add it as repository secret `NPM_TOKEN`.
-3. Run the workflow and pass a comma-separated `packages` input.
+The old `publish-containers.yml` and `publish-npm.yml` publishers are retired.
+They rebuilt outside candidate qualification; their manual entry points now
+fail without publication permissions. Container build validation still runs
+in prerelease.
 
-Packages remain private in the monorepo until you remove `"private": true` from
-their `package.json` and set `"publishConfig": { "access": "public" }` where
-appropriate.
+Restoring these distributions requires OCI digests/npm tarballs in the immutable
+candidate inventory, tests of those payloads and candidate-bound publishing.
+An npm token or tag alone must not restore the old rebuild-and-publish path.
 
-## Vercel (Pages + default service URLs)
+## Other hosting providers
 
-Static Pages already deploy on every push to `main` via
-`.github/workflows/deploy-pages.yml` (GitHub Pages).
+A Vercel or other provider Git integration that rebuilds on every main push is
+a separate policy. It does not consume the qualified Pages artifact and is
+outside this initial publisher. Review such external automatic deployments when
+adopting the weekly production cadence.
 
-For Vercel:
-
-1. Link the repository in the Vercel dashboard (root directory `apps/pages`,
-   build settings in `apps/pages/vercel.json`).
-2. Set **Actions variables** on GitHub (see `deploy-pages.yml` header):
-   `PAGES_IDENTITY_API`, `PAGES_HOST_API`, `PAGES_DAEMON_API` — these stamp
-   `os-runtime-config.json` so the PWA boots against your hosted Identity and
-   Host APIs.
-3. Optional: add a Vercel Git integration deploy; the checked-in `vercel.json`
-   runs the same turbo build as CI.
-
-Hosted Identity and Host themselves are the GHCR image (`opensesame host run`,
-control-plane via `pnpm --filter @opensesame/control-plane start`) plus
-operator compose under `ops/compose/`.
+The Pages product is static and device-local. Do not reintroduce Identity,
+Host or daemon endpoints into its runtime configuration: the existing writer
+enforces that boundary. Hosted Identity/Host services have their own operator
+configuration under `ops/compose/`.

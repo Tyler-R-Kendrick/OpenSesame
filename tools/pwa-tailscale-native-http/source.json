@@ -519,7 +519,7 @@
       },
       {
         "path": "compose-native.mjs",
-        "sha256": "2e61a3c9995900bd293c40ae8872d9e1c59c4426eb936a6e7427b0f0d7d13066"
+        "sha256": "70446a3b4691f657ac768c0067870d6193642d80abfa26abbb765e7889db363d"
       },
       {
         "path": "native-assets.mjs",
@@ -527,7 +527,7 @@
       },
       {
         "path": "compose-native.test.mjs",
-        "sha256": "625de8be78abcbd6251fb7f167d081fc109f88c207feea9832443e63483352ec"
+        "sha256": "85697f3abd5b96c2cc7938144f70ced45f4d1648ae0e46af92d978f193214bcd"
       },
       {
         "path": "compress-wasm.mjs",
@@ -559,11 +559,11 @@
       },
       {
         "path": "apply-native-patch.mjs",
-        "sha256": "a41e3e7f1828d2d20cd97ca2887b82afd77c7b7b39e76dfcb2af0c442db5b733"
+        "sha256": "49ce7ced4f20222b5cd4184128b8740be88a17b0071d0bf1d3a49f989a6013e6"
       },
       {
         "path": "apply-native-patch.test.mjs",
-        "sha256": "7106a3bad31c5efbdc1ee0b5542e71a2bdc997525fa247650ba527fb36b56fc6"
+        "sha256": "13baf3fafd415548fd7dfa856025315093b95feb480330a178b9c048c145fe68"
       },
       {
         "path": "compressor-archive.mjs",
@@ -713,13 +713,18 @@
   "nativeSSH": {
     "patch": {
       "path": "native-ssh.patch",
-      "sha256": "fe57e51957229f686aefc6ee0853ddbc16702bebfdfc46d4abf885693874d799",
+      "sha256": "d5b03a625b35b7966b5b96ca10929cd2ba1698484f8e1ef75bebf1866f582ee0",
       "beforeSha256": "68c659ce00f9dff452bcb7b1c95a7c9d93807c4c6b858a00fcd261b51f16b67b",
       "afterSha256": "dd5eae4dc32111fba41d81b51fcbc560f88e98f370e3ccd09687f9d9ee48f9e7"
     },
+    "tlsVerification": {
+      "path": "net/tlsdial/tlsdial.go",
+      "beforeSha256": "49adc77dc68cf066fa695037cc41164509949dfa8a97e96a9c4fd334cd3b7e1e",
+      "afterSha256": "f4a27ef3abd5826dbb5fd54e6dc94b6d58e77329f127642946eab907c97cedb1"
+    },
     "stagingHelper": {
       "path": "stage-native-ssh.mjs",
-      "sha256": "b299aa0433e601e8a02bdaae3f71eb14da800bb8ea631955a13389943460175c"
+      "sha256": "53edf87bc57b28ea8c08307615ac281cf50faa60ed89c1f2af3737892082c06d"
     },
     "scope": "The raw ssh method only connects to a currently authorized direct tailnet peer advertising its host public key. Ordinary SSH, unadvertised keys, exit-node or route-all configurations, unavailable peer authority and changed peer keys fail closed. Original selected peer identity and route must remain current for the session."
   }

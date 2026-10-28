@@ -5,7 +5,10 @@ import { repoRootFromHere } from "./ci-changed-areas.mjs";
 import { driverReach, gatesForPaths } from "./ci-gates.mjs";
 
 const root = repoRootFromHere();
-const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+const ci = readFileSync(
+  join(root, ".github/workflows/ci-prerelease-checks.yml"),
+  "utf8",
+);
 const job = ci.split("  live-join-e2e:")[1]?.split("\n  rust:")[0] ?? "";
 const reach = driverReach(root);
 const gatesOf = (...paths) => [...gatesForPaths(paths, reach)];

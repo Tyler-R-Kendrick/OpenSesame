@@ -1,86 +1,110 @@
-# Release kit
+# Release kit and artifact promotion
 
-A `v*` tag the owner pushes, on a commit `main` holds and named for the
-workspace version, publishes a GitHub release of prebuilt Linux binaries, so a
-lane that runs `opensesame` does not have to build the workspace
-([ADR 0212](../adr/0212-release-kit-binaries.md)). The workflow is
-[`.github/workflows/release-kit.yml`](../../.github/workflows/release-kit.yml);
-the archives are made by
-[`scripts/release/kit-archive.sh`](../../scripts/release/kit-archive.sh).
+OpenSesame integrates changes on `main`, builds selected snapshots into immutable
+candidates, and publishes the same qualified bytes on the weekly release train.
+[`candidate-build.yml`](../../.github/workflows/candidate-build.yml) produces the
+artifacts; [`release-publish.yml`](../../.github/workflows/release-publish.yml)
+promotes them after the dev, prerelease, mutation, and security gates pass.
+A tag push no longer starts a production build or a deployment. The old
+`release-kit.yml` and `deploy-pages.yml` entry points fail with migration guidance.
 
 ## What is in a release
 
-`<target>` is `x86_64-unknown-linux-gnu` or `aarch64-unknown-linux-gnu`.
+The prospective stable version comes from `[workspace.package].version` in the
+selected source commit's `Cargo.toml`. Choose it **before** building. Channel
+qualification does not rewrite versions or repack archives. `<tag>` is
+`v<major.minor.patch>`; `<target>` is `x86_64-unknown-linux-gnu` or
+`aarch64-unknown-linux-gnu`.
 
-| File | Holds |
-|---|---|
-| `opensesame-kit_<tag>_<target>.tar.gz` | One directory of the same name: `opensesame` and `opensesame-surrogate-proxy`, built with the shipped features; `opensesame-env-parse.mjs`, the env-spec bridge bundled with `@env-spec/parser` into one file; `LICENSE` |
-| `opensesame-surrogate-proxy-TEST-upstream-override_<tag>_<target>.tar.gz` | The plugin's **test build** (`--features upstream-override`), under that name, and `LICENSE`. It can be aimed at a stand-in for the provider with `OPENSESAME_SURROGATE_TEST_UPSTREAM` and prints `TEST BUILD` on stderr. For test lanes only: never give it a real token |
-| `opensesame-env-parse.mjs` | The bundled bridge on its own, the same bytes as in every kit |
-| `SHA256SUMS` | The sha256 of every file above, and an attestation of its own |
-| `release-files.sigstore.json` | The signed Sigstore provenance bundle covering every file named by `SHA256SUMS` |
-| `SHA256SUMS.sigstore.json` | The signed Sigstore provenance bundle covering `SHA256SUMS` |
+| Asset | Meaning |
+| --- | --- |
+| `opensesame-kit_<tag>_<target>.tar.gz` (two) | One directory of the same name containing `opensesame`, the shipped `opensesame-surrogate-proxy`, the bundled `opensesame-env-parse.mjs`, and `LICENSE` |
+| `opensesame-surrogate-proxy-TEST-upstream-override_<tag>_<target>.tar.gz` (two) | Explicitly labeled test proxy and `LICENSE`; permits a stand-in upstream. Never provide real provider tokens to this build |
+| `opensesame-env-parse.mjs` | The exact bridge contained in both production kits |
+| `opensesame-pages_<tag>.tar.gz` | The entire production Pages site, including runtime config, security profile, release marker, and worker/assets |
+| `candidate.json` | Canonical source, version, original builder run/attempt and workflow revision, source CI, and six-file hash/size inventory |
+| `build-provenance.sigstore.json` | The original builder's signed attestation bundle, preserved rather than replaced by a publisher's build claim |
+| `dev-receipt.json`, `prerelease-receipt.json`, `mutation-receipt.json`, `security-receipt.json` | The exact qualification records used for this publication |
+| `promotion.json` | Candidate identity, qualification envelopes, current release controller identity, and policy digest |
+| `SHA256SUMS` | Every other release asset's SHA-256, in a fixed explicit inventory; signed separately as promotion evidence |
 
-The shipped plugin and `opensesame` do not contain the test build's override at
-all; the archive script refuses to pack them if they do, and refuses a test
-build that does not.
+There are fourteen release assets. `SHA256SUMS` cannot contain its own digest;
+its promotion attestation supplies that binding. Production archives, separately
+named test downloads, and `candidate.json` are immutable once staged. Test
+behavior markers must be absent from shipped executables and present in the
+test proxy. The manifest gate also checks that each kit contains the exact
+standalone bridge bytes.
 
 ## Verify a download
 
+Download the checksum file, canonical candidate, promotion record, and the kit
+needed by the lane. The CLI must support `gh attestation verify` and its signer
+and source-digest options.
+
 ```bash
-tag=v0.1.0 target=x86_64-unknown-linux-gnu
-gh release download "$tag" --repo Tyler-R-Kendrick/OpenSesame \
-  --pattern SHA256SUMS --pattern '*.sigstore.json' \
+tag=v0.2.0
+target=x86_64-unknown-linux-gnu
+repo=Tyler-R-Kendrick/OpenSesame
+gh release download "$tag" --repo "$repo" \
+  --pattern SHA256SUMS --pattern candidate.json --pattern promotion.json \
   --pattern "opensesame-kit_${tag}_${target}.tar.gz"
-gh attestation verify SHA256SUMS --bundle SHA256SUMS.sigstore.json \
-  --repo Tyler-R-Kendrick/OpenSesame \
-  --signer-workflow Tyler-R-Kendrick/OpenSesame/.github/workflows/release-kit.yml \
-  --source-ref refs/tags/$tag
-sha256sum --check --ignore-missing SHA256SUMS
-gh attestation verify "opensesame-kit_${tag}_${target}.tar.gz" \
-  --bundle release-files.sigstore.json \
-  --repo Tyler-R-Kendrick/OpenSesame \
-  --signer-workflow Tyler-R-Kendrick/OpenSesame/.github/workflows/release-kit.yml \
-  --source-ref refs/tags/$tag
+
+builder=$(node -p 'JSON.parse(require("fs").readFileSync("candidate.json")).producer.workflow_sha')
+promoter=$(node -p 'JSON.parse(require("fs").readFileSync("promotion.json")).controller.workflow_sha')
+
+gh attestation verify candidate.json --repo "$repo" \
+  --signer-workflow "$repo/.github/workflows/candidate-build.yml" \
+  --signer-digest "$builder" --source-ref refs/heads/main --source-digest "$builder" \
+  --predicate-type https://opensesame.dev/attestations/candidate-build/v1 \
+  --deny-self-hosted-runners
+
+gh attestation verify SHA256SUMS --repo "$repo" \
+  --signer-workflow "$repo/.github/workflows/release-publish.yml" \
+  --signer-digest "$promoter" --source-ref refs/heads/main --source-digest "$promoter" \
+  --predicate-type https://opensesame.dev/attestations/release-promotion/v1 \
+  --deny-self-hosted-runners
+
+sha256sum --check --strict --ignore-missing SHA256SUMS
 ```
 
-`sha256sum --check` proves the file is the one the release lists.
+The first signature authenticates the original build and its canonical inventory.
+The second authenticates promotion of the fixed download set after qualification.
+The checksum check then binds the files actually downloaded, including
+`candidate.json` and `promotion.json`, to the signed publication inventory.
+Inspect the candidate's `version` and `source_sha` against the intended release;
+record the desired archive digest in downstream configuration.
 
-`gh attestation verify` with those three flags proves that a run of
-`.github/workflows/release-kit.yml` in this repository, started by a push of
-`refs/tags/<tag>`, signed a provenance statement whose subject is this file's
-digest, and the statement names the commit and the run. Without
-`--signer-workflow` and `--source-ref` it proves only that some workflow of the
-repository attested the file: a run of an edited copy of the workflow on a
-branch would pass. Add `--source-digest <commit sha>` to pin the commit as well.
-The files named by `SHA256SUMS` are subjects of `release-files.sigstore.json`;
-`SHA256SUMS` is the subject of its separate bundle. Verify the manifest before
-trusting its lines. These are the action's original signed bundles, also uploaded
-to GitHub's attestation service; omitting `--bundle` retrieves them from that
-service. The bundles do not list their own hashes in `SHA256SUMS`.
+A selected source SHA can be older than the controller's revision. The signed
+candidate explicitly distinguishes `source_sha` from `producer.workflow_sha`.
+The latter identifies the trusted workflow code; it is the source digest in
+GitHub's signing certificate. A reusable workflow's attestation signer is
+`candidate-build.yml`, even when the Actions run API reports `dev-nightly.yml`
+as the top-level workflow. The custom build predicate binds the selected source,
+source-CI attempt, original producer attempt, and all payloads. The publisher
+signs a **promotion** predicate and does not claim to have compiled the binaries.
 
-Publishing the bundles as release assets also makes the signatures discoverable
-by OpenSSF Scorecard's Signed-Releases check. A workflow change alone does not
-change that check: it examines published releases. It does not verify signatures,
-so use the commands above to verify the downloaded bytes and signer.
+Do not weaken these checks to `--repo` alone. A signature from an unrelated
+workflow, a branch dispatch, another workflow revision, or an unrelated producer
+attempt is insufficient. `scripts/release/provenance.mjs` performs these checks
+for internal consumers and compares the signed predicate with the candidate.
+The preserved build bundle retains the original signed DSSE payload, signatures
+and verification material. Canonical JSON serialization stabilizes its release
+checksum without changing any signed bytes or creating a new build signature.
+The preserved build bundle supports offline verification with `--bundle`; an
+online verification also checks GitHub's current repository identity.
 
-It does not prove that the commit was reviewed, that the source is free of
-defects, or that the binaries rebuild bit for bit. The workflow checks that the
-tag names the workspace version and a commit `main` holds; an attestation says
-the workflow ran, and a run of a workflow edited at the tagged commit would have
-checked what it was told. What keeps anyone but the owner from creating such a
-tag, once the owner has applied it, is the tag ruleset in
-[Cut a release](#cut-a-release).
+Releases produced before this migration retain their original verification
+contract: `--signer-workflow
+Tyler-R-Kendrick/OpenSesame/.github/workflows/release-kit.yml` and
+`--source-ref refs/tags/<tag>`, using the default SLSA provenance predicate.
+Do not treat an old release's missing candidate metadata as a new-pipeline
+success; choose the verification policy belonging to the release.
 
-The archives are reproducible: entries sorted, every mtime the tagged commit's
-time, owner and group 0, fixed modes and `gzip -n`. Packing the same binaries
-again gives the same bytes; the binaries themselves are built with `--locked`
-on Rust 1.88.0 and are not claimed to rebuild bit for bit. The build remaps the
-checkout and cargo home in debug info and panic messages, except the
-compiled-in checkout fallback of the bridge lookup (`CARGO_MANIFEST_DIR`, which
-the compiler expands before the remap): a release binary still carries the path
-it was built from, `/home/runner/work/…`, and uses it only when nothing sits
-beside it and `OPENSESAME_ENV_PARSE` is unset (ADR 0212).
+The archives remain reproducible packages: sorted members, selected commit
+mtime, owner/group 0, fixed modes and `gzip -n`. Repacking the same binaries
+produces the same archives; independently rebuilt binaries are not claimed to
+be identical. Rust 1.88.0 uses locked dependencies and path remapping, except the
+compiled-in checkout fallback used by the bridge lookup (`CARGO_MANIFEST_DIR`).
 
 ## Use it in a lane
 
@@ -134,70 +158,107 @@ export OPENSESAME_NODE="$(readlink -f "$(command -v node)")"
   installed file takes the plugin's own name. Pin the digest your lane recorded,
   rather than one computed from the file in hand, once you have it.
 
-## Cut a release
+## Release operation and recovery
 
-1. Set the workspace version (`[workspace.package] version` in `Cargo.toml`);
-   the release refuses a tag that is not `v<that version>` or
-   `v<that version>-<suffix>`. A suffix makes a prerelease.
-2. Tag a commit that `main` already holds and push the tag. The first job,
-   `tag check` (`scripts/release/tag-check.sh`), refuses any other tag before a
-   build minute is spent; every other job needs it. An annotated tag is fine:
-   the check peels `GITHUB_SHA`, which can be the tag object, to its commit.
-3. The run builds both targets, checks that the unpacked kit parses
-   `tests/fixtures/demo.env.schema` with its own bridge (and refuses one made
-   world-writable), writes `SHA256SUMS`, attests every file and the sums, then
-   creates the release as a draft at the built commit and publishes it only
-   while the tag still names that commit. A failed publish leaves the draft:
-   delete it and re-run the job.
+1. Merge changes continuously to `main` with fast CI. Set a new stable workspace
+   version before selecting a candidate that will occupy that version's tag.
+2. The nightly controller captures an exact successful `push`-to-`main` CI
+   attempt. It reuses a complete verified compatible candidate or invokes the
+   producer. The two native architectures are built for that snapshot, not for
+   every incremental commit. A manual builder dispatch still requires an exact
+   main source SHA and successful source-CI run ID and attempt.
+3. The original builder checks production archives, executes each kit's adjacent
+   parser and writable-parser refusal, signs all six outputs plus the manifest,
+   and retains the complete artifact for 35 days. Intermediate transfers verify
+   immutable artifact ID/name/run binding, authenticated upload digest, and the
+   downloaded ZIP digest before safe extraction. A digest mismatch fails.
+4. The weekly controller selects a recent successful dev candidate, runs
+   prerelease qualification, then mutation and security checks. They all bind to
+   the same original candidate. Source-based mutation and instrumentation remain
+   source/test evidence; they do not replace the production artifacts.
+5. The staging job first waits for `release` environment approval linked to the
+   immutable candidate run. The publisher revalidates all receipts and original
+   provenance after every environment wait. It checks the source remains on main, the version matches
+   that source, the stable version advances, and the tag is absent or already
+   points to that exact source. It never force-updates a tag. If permitted by
+   repository rules, it creates the missing lightweight tag.
+6. It creates or resumes an owned unpublished draft, attaches the explicit asset
+   set, and signs the checksum inventory as promotion evidence. The stage summary
+   links the generated notes and assets and identifies the exact candidate. Pages
+   depends on the approved staging job and revalidates evidence afterward. Pages
+   receives the original archive's tar bytes in the hosting transport; no production
+   build, stamp, origin rewrite, or archive rewrite occurs. The uploaded transport
+   is downloaded and digest-checked before deployment. Every served content file
+   is compared with the extracted candidate afterward; `.nojekyll` is a packaging
+   control file, not a public endpoint.
+7. Only after live Pages verification and a second `release` environment approval
+   does the final job recheck the complete release assets and tag, then publish
+   the GitHub release. Failure leaves a
+   visible failed workflow and an unpublished draft. A Pages deployment that
+   succeeded before a later publication failure may already be live; retrying
+   promotes those same bytes again.
 
-**Actions › Release kit › Run workflow** with a label such as
-`v0.0.0-dryrun` is a dry run of the selected commit: the files are left as
-artifacts of the run, and nothing is attested or released.
+**Retry the complete weekly qualification attempt.** The policy rejects mixing
+receipts from different release attempts or running only a failed publish job
+with old qualification evidence. The original candidate can remain unchanged.
+Its dev evidence must still be fresh and its original artifact available.
 
-### What the repository owner applies once
+An unpublished draft may resume only if its ownership marker and immutable
+`candidate.json` bind to the same candidate. Existing product files with identical
+hashes are reused; any product collision stops publication. Freshly verified
+qualification can replace only the fixed staging evidence names: the four
+receipts, `promotion.json`, `build-provenance.sigstore.json`, and `SHA256SUMS`.
+This draft-only exception allows a new complete attempt to supersede earlier
+staging evidence. Old receipts remain in their original Actions artifacts.
+No published release asset is overwritten, deleted, or appended. Unknown assets,
+duplicate names, missing published files, or a draft belonging to another
+candidate fail instead of being silently cleaned up.
 
-The checks in the workflow file are not enough on their own: whoever can push a
-tag can run an edited copy of the file at the tagged commit. The ruleset below
-is what stops that, and until the owner applies it nothing does; the other two
-settings add friction and tamper resistance.
+Expired or incomplete candidates are not reconstructed under the same identity.
+Build a new candidate and repeat qualification. A version already published for
+different source or payload bytes is a collision even when some files happen
+to match. An already published candidate, or a new envelope with the same source,
+version, and all six identical payloads, can be an explicit no-op only after the
+complete published assets, original signatures, and live Pages bytes verify.
+The existing release retains its original candidate and provenance; no new
+identity is substituted into published files.
 
-- **A `v*` tag ruleset.** `ops/github/release-tags.json` restricts creating,
-  updating and deleting tags matching `v*` to repository admins: the admin role
-  is its one bypass actor, because the owner has to be able to cut the release
-  (the default-branch ruleset beside it has none). It also stops an edited copy
-  dispatched from a branch from creating a tag, which `gh release create
-  --verify-tag` would need. Without it, any collaborator who can push a tag can
-  run an edited copy of this workflow, and its attestation and release would pass
-  a check that names only the repository. Run
-  `node ops/github/governance.mjs --dry-run` first (it writes nothing), then
-  `--apply`, then `--verify`; `--verify` fails while the ruleset is missing or
-  differs, and prints its id once it is in place. If `--apply` is answered with a
-  422 for the bypass actor (the `RepositoryRole` with id 5, the admin role, may
-  not be accepted on a personal repository), change the actor in
-  `release-tags.json` to `{ "actor_id": <your user id>, "actor_type": "User",
-  "bypass_mode": "always" }` and run it again. `--apply` writes this ruleset last,
-  so a refusal does not skip the auto-merge and Pages steps, and reports it at the
-  end.
-- **A `release` environment** (Settings › Environments › release): add a
-  required reviewer and limit deployments to the tag pattern `v*`. The
-  `publish` job names it, so a release waits for approval. That is an approval
-  step, not a boundary: a copy of the workflow without `environment:` gets
-  the job's token without asking. Until you configure it the name is only a
-  label and the job runs unattended. `governance.mjs` does not manage this
-  environment. The files `publish` uses are kept 35 days, longer than an approval
-  can wait.
-- **Immutable releases** (Settings › General), optional: once a release is
-  published, its assets and its tag cannot be replaced by a later run of an
-  edited workflow.
+### Repository settings required for operation
 
-Before it creates anything, `publish` runs `gh attestation verify` on every file
-and on `SHA256SUMS` using the exact bundles it will publish and the flags in
-[Verify a download](#verify-a-download),
-and `kit-archive.sh sums` refuses to write `SHA256SUMS` unless the bridge on its
-own is the one inside every kit.
+These workflows do not change repository settings. Confirm them before enabling
+production publication:
 
-## Not in the kit
+- **Main protection.** Keep the verified-signature and required-check rules on
+  `main`; trusted workflow revisions come from that protected branch.
+- **Release environment.** Settings › Environments › release must permit
+  deployments from `main`. An older `v*`-only deployment rule blocks this new
+  main-based publisher. Retain any required reviewer policy. Both jobs with
+  contents-write permission use this environment: staging waits before creating
+  any draft or tag, and native publication waits again after Pages verification.
+- **Pages environment and source.** The `github-pages` environment must permit
+  `main`, and the Pages publishing source must be GitHub Actions. The PWA is
+  still the existing shared-origin `/OpenSesame/` deployment, not four isolated
+  hosted environments.
+- **Tag policy.** Verify both `ops/github/release-tag-creation.json` and
+  `ops/github/release-tags.json` are applied. The first permits owner/admin and
+  the Actions integration to create `v*` tags; the second permits only the
+  owner/admin to update or delete them. Never give Actions a mutation bypass.
+  An authorized operator may instead create the exact tag at the verified
+  source. A denied tag write stops the workflow; it never relaxes a rule.
+- **Attestations.** The repository/account must support artifact attestations,
+  and the reusable caller must grant the declared token scopes. A signing or
+  verification failure blocks qualification; there is no unsigned fallback.
+- **Retention and immutability.** Preserve the 35-day candidate/evidence retention
+  and consider GitHub Immutable releases for additional protection of published
+  tags/assets. Approval waits can outlast dev-evidence freshness, requiring a
+  fresh qualified attempt rather than an override.
 
-- macOS and Windows: no job builds or runs the surrogate-proxy plugin there
-  yet, and the proxied run is Linux only.
-- Signatures beyond the provenance attestation.
+## Scope
+
+This publisher covers the production Pages PWA, two Linux kits, the standalone
+bridge, and separately labeled test proxy downloads. It does not claim to
+publish npm packages, container images, browser extensions, signed IWAs, macOS,
+Windows, or mobile packages. Those require their own immutable producer and
+qualification contracts. This migration does not deploy four PWA origins;
+origin/base/security-profile changes require a separately built and tested
+variant.

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  applyReleaseTagPolicies,
   pagesPolicyChanges,
   rulesetAction,
   selectRuleset,
@@ -94,8 +95,12 @@ const tags = JSON.parse(
   readFileSync(new URL("ops/github/release-tags.json", root), "utf8"),
 );
 
+const tagCreation = JSON.parse(
+  readFileSync(new URL("ops/github/release-tag-creation.json", root), "utf8"),
+);
+
 describe("repository governance release tags", () => {
-  it("lets only a repository admin create, move or delete a v* tag", () => {
+  it("lets only a repository admin move or delete a v* tag", () => {
     expect(tags.target).toBe("tag");
     expect(tags.enforcement).toBe("active");
     expect(tags.name).not.toBe(policy.name);
@@ -104,11 +109,10 @@ describe("repository governance release tags", () => {
       exclude: [],
     });
     expect(tags.rules.map((rule) => rule.type).sort()).toEqual([
-      "creation",
       "deletion",
       "update",
     ]);
-    // Role 5 is admin: the owner cuts the release, nobody else may.
+    // Role 5 is admin: Actions cannot move or delete an existing tag.
     expect(tags.bypass_actors).toEqual([
       { actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "always" },
     ]);
@@ -187,4 +191,148 @@ describe("repository governance pages and workflows", () => {
       }
     }
   });
+});
+
+it("gates main artifact promotion with the owner review and no admin bypass", () => {
+  const environment = JSON.parse(
+    readFileSync(new URL("ops/github/release-environment.json", root), "utf8"),
+  );
+  const branch = JSON.parse(
+    readFileSync(
+      new URL("ops/github/release-environment-branches.json", root),
+      "utf8",
+    ),
+  );
+  expect(environment).toEqual({
+    wait_timer: 0,
+    prevent_self_review: false,
+    reviewers: [{ type: "User", id: 145080887 }],
+    can_admins_bypass: false,
+    deployment_branch_policy: {
+      protected_branches: false,
+      custom_branch_policies: true,
+    },
+  });
+  expect(branch).toEqual({ name: "main", type: "branch" });
+  const publish = readFileSync(
+    new URL(".github/workflows/release-publish.yml", root),
+    "utf8",
+  );
+  expect(publish).toContain('[ "$GITHUB_REF" = refs/heads/main ]');
+  expect(publish).toMatch(/environment:\n +name: release/);
+});
+
+it("keeps version-tag creation and mutation owner-only", () => {
+  expect(tagCreation.name).toBe("opensesame-release-tag-creation");
+  expect(tagCreation.target).toBe("tag");
+  expect(tagCreation.enforcement).toBe("active");
+  expect(tagCreation.conditions).toEqual(tags.conditions);
+  expect(tagCreation.rules).toEqual([{ type: "creation" }]);
+  expect(tagCreation.bypass_actors).toEqual([
+    { actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "always" },
+  ]);
+  expect(tags.rules).toEqual([{ type: "update" }, { type: "deletion" }]);
+  expect(tags.bypass_actors).toEqual([
+    { actor_id: 5, actor_type: "RepositoryRole", bypass_mode: "always" },
+  ]);
+  expect(policy.bypass_actors).toEqual([]);
+  expect(selectRuleset([tags, tagCreation], tagCreation.name)).toBe(
+    tagCreation,
+  );
+  expect(rulesetAction({ ...tagCreation, id: 3 }, tagCreation)).toBe("none");
+  expect(
+    rulesetAction(
+      { ...tagCreation, rules: [...tagCreation.rules, { type: "update" }] },
+      tagCreation,
+    ),
+  ).toBe("update");
+});
+
+function tagPolicyWriter(initial = []) {
+  const writes = [];
+  const current = new Map(initial.map((spec) => [spec.name, spec]));
+  const write = (spec, live, action) => {
+    if (action === "none") return live;
+    const saved = {
+      ...structuredClone(spec),
+      id: live?.id ?? writes.length + 1,
+    };
+    writes.push(saved);
+    current.set(spec.name, saved);
+    // At every activation step Actions remains unable to update/delete tags.
+    for (const operation of ["update", "deletion"]) {
+      expect(
+        [...current.values()].some(
+          (rule) =>
+            rule.rules.some(({ type }) => type === operation) &&
+            !rule.bypass_actors.some(
+              (actor) =>
+                actor.actor_type === "Integration" && actor.actor_id === 15368,
+            ),
+        ),
+      ).toBe(true);
+    }
+    return saved;
+  };
+  return { writes, current, write };
+}
+
+it("bootstraps immutable tags before first enabling app creation, and applies idempotently", () => {
+  const { writes, current, write } = tagPolicyWriter();
+  applyReleaseTagPolicies(write, null, null, tags, tagCreation);
+  expect(
+    writes.map((spec) => [spec.name, spec.rules.map(({ type }) => type)]),
+  ).toEqual([
+    [tags.name, ["creation", "update", "deletion"]],
+    [tagCreation.name, ["creation"]],
+    [tags.name, ["update", "deletion"]],
+  ]);
+  expect(writes[0].bypass_actors).toEqual(tags.bypass_actors);
+  applyReleaseTagPolicies(
+    write,
+    current.get(tags.name),
+    current.get(tagCreation.name),
+    tags,
+    tagCreation,
+  );
+  expect(writes).toHaveLength(3);
+});
+
+it("does not drop legacy creation protection if installing the creation-only policy fails", () => {
+  const original = {
+    ...tags,
+    id: 2,
+    rules: [{ type: "creation" }, ...tags.rules],
+  };
+  const writes = [];
+  expect(() =>
+    applyReleaseTagPolicies(
+      (spec) => {
+        writes.push(spec.name);
+        throw new Error("HTTP 403");
+      },
+      original,
+      null,
+      tags,
+      tagCreation,
+    ),
+  ).toThrow("HTTP 403");
+  expect(writes).toEqual([tagCreation.name]);
+  expect(original.rules[0].type).toBe("creation");
+});
+
+it("installs the creation-only policy before dropping the legacy creation restriction", () => {
+  const original = {
+    ...tags,
+    id: 2,
+    rules: [{ type: "creation" }, ...tags.rules],
+  };
+  const { writes, write } = tagPolicyWriter([original]);
+  applyReleaseTagPolicies(write, original, null, tags, tagCreation);
+  expect(writes.map((spec) => spec.name)).toEqual([
+    tagCreation.name,
+    tags.name,
+  ]);
+  expect(writes[1].rules).toEqual([{ type: "update" }, { type: "deletion" }]);
+  expect(writes[1].bypass_actors).toEqual(tags.bypass_actors);
 });

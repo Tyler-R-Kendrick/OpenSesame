@@ -1,13 +1,14 @@
 # Agent routines — standing automation outside CI
 
-CI is the merge gate, not the whole story. `.github/workflows/ci.yml` runs
-what a diff can reach as the required up-to-date pull-request checks
-(TypeScript, Bundle budgets, Rust), `.github/workflows/deploy-pages.yml`
-publishes `apps/pages` from `main`, and two further workflows run the whole
-TypeScript suite nightly (`full-suite.yml`) and the 2password parity gauntlet
-on the pull requests that touch it (`password-parity.yml`). The long audit,
-fuzz and drift passes are not Actions jobs. The deeper verification comes from
-three layers (the gates and hooks are described in [Contributing](README.md)):
+Fast CI remains the up-to-date PR merge gate: TypeScript, Bundle budgets and
+Rust. Nightly dev qualification and the weekly prerelease → mutation/security →
+publication graph now run in Actions against immutable candidate identities.
+See [CI and artifact promotion](../operators/ci-promotion.md). The full TS,
+password parity, browser/native, coverage and deterministic audit/fuzz suites
+have explicit scheduled owners; routine reports do not replace their receipts.
+
+The autonomous routines here investigate failures, triage findings and propose
+fixes. Their own sessions remain outside Actions and supplement three layers:
 
 1. **Local git hooks** (`.githooks/` + `scripts/dev/setup-hooks.sh`) — run on
    every commit and push, on the contributor's own machine.

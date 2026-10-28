@@ -22,6 +22,7 @@ const spec = (name) =>
   JSON.parse(readFileSync(join(root, "ops/github", name), "utf8"));
 const branchPolicy = spec("default-branch.json");
 const tagPolicy = spec("release-tags.json");
+const tagCreationPolicy = spec("release-tag-creation.json");
 
 const work = mkdtempSync(join(tmpdir(), "governance-"));
 afterAll(() => rmSync(work, { recursive: true, force: true }));
@@ -43,12 +44,16 @@ if (process.env.GOVERNANCE_REFUSE && body?.name === process.env.GOVERNANCE_REFUS
 if (method !== "GET") {
   fs.appendFileSync(${JSON.stringify(writes)}, JSON.stringify({ method, path: bare, body }) + "\\n");
   if (bare === repo + "/rulesets") {
-    state.rulesets.push({ ...body, id: state.rulesets.length + 10 });
+    const created = { ...body, id: state.rulesets.length + 10 };
+    state.rulesets.push(created);
     save();
+    out(created);
   } else if (bare.startsWith(repo + "/rulesets/")) {
     const id = Number(bare.split("/").pop());
-    state.rulesets = state.rulesets.map((r) => (r.id === id ? { ...body, id } : r));
+    const updated = { ...body, id };
+    state.rulesets = state.rulesets.map((r) => (r.id === id ? updated : r));
     save();
+    out(updated);
   }
   process.exit(0);
 }
@@ -90,18 +95,20 @@ function governance(mode, extraEnv = {}) {
 describe("governance.mjs", () => {
   beforeEach(() => setState([]));
 
-  it("plans both rulesets in a dry run and writes nothing", () => {
+  it("plans the default branch and both tag rulesets in a dry run and writes nothing", () => {
     const run = governance("--dry-run");
     expect(run.status).toBe(0);
     expect(run.plan).toMatchObject({
       ruleset: "create",
       release_tags: "create",
+      release_tag_creation: "create",
+      release_tag_bootstrap: "owner-only-first",
     });
     expect(written()).toEqual([]);
   });
 
   it("fails --verify while the release tag ruleset is missing", () => {
-    setState(live(branchPolicy));
+    setState(live(branchPolicy, tagCreationPolicy));
     const run = governance("--verify");
     expect(run.plan).toMatchObject({ ruleset: "none", release_tags: "create" });
     expect(run.status).not.toBe(0);
@@ -109,14 +116,20 @@ describe("governance.mjs", () => {
   });
 
   it("fails --verify while the release tag ruleset has drifted", () => {
-    setState(live(branchPolicy, { ...tagPolicy, enforcement: "disabled" }));
+    setState(
+      live(
+        branchPolicy,
+        { ...tagPolicy, enforcement: "disabled" },
+        tagCreationPolicy,
+      ),
+    );
     const run = governance("--verify");
     expect(run.plan.release_tags).toBe("update");
     expect(run.status).not.toBe(0);
   });
 
-  it("passes --verify with both in place, and names the tag ruleset", () => {
-    setState(live(branchPolicy, tagPolicy));
+  it("passes --verify with all three policies in place and names both tag rulesets", () => {
+    setState(live(branchPolicy, tagPolicy, tagCreationPolicy));
     const run = governance("--verify");
     expect(run.status).toBe(0);
     expect(run.plan).toMatchObject({ ruleset: "none", release_tags: "none" });
@@ -124,17 +137,30 @@ describe("governance.mjs", () => {
     expect(verified).toMatchObject({
       verified: true,
       release_tags_ruleset_id: 2,
+      release_tag_creation_ruleset_id: 3,
     });
   });
+});
+
+describe("governance.mjs activation", () => {
+  beforeEach(() => setState([]));
 
   it("applies the missing rulesets, as written in the spec files, and then verifies", () => {
     const run = governance("--apply");
     expect(run.status).toBe(0);
-    const rulesets = written().filter((w) => w.path.endsWith("/rulesets"));
+    const rulesets = written().filter((w) => w.path.includes("/rulesets"));
     expect(rulesets.map((w) => [w.method, w.body])).toEqual([
       ["POST", branchPolicy],
-      ["POST", tagPolicy],
+      [
+        "POST",
+        { ...tagPolicy, rules: [{ type: "creation" }, ...tagPolicy.rules] },
+      ],
+      ["POST", tagCreationPolicy],
+      ["PUT", tagPolicy],
     ]);
+    expect(rulesets[3].path).toBe(
+      "repos/Tyler-R-Kendrick/OpenSesame/rulesets/11",
+    );
     expect(run.stdout).toContain('"verified":true');
   });
 
@@ -153,7 +179,7 @@ describe("governance.mjs", () => {
   it("reports a refused tag ruleset at the end, after the other steps ran", () => {
     const run = governance("--apply", { GOVERNANCE_REFUSE: tagPolicy.name });
     expect(run.status).not.toBe(0);
-    expect(run.stderr).toContain("release tag ruleset was not written");
+    expect(run.stderr).toContain("release tag rulesets were not fully written");
     const done = written().map(
       (w) => `${w.method} ${w.path.split("/").slice(-2).join("/")}`,
     );
@@ -169,7 +195,9 @@ describe("governance.mjs", () => {
         ? { ...rule, parameters: { update_allows_fetch_and_merge: false } }
         : rule,
     );
-    setState(live(branchPolicy, { ...tagPolicy, rules: echoed }));
+    setState(
+      live(branchPolicy, { ...tagPolicy, rules: echoed }, tagCreationPolicy),
+    );
     const run = governance("--verify");
     expect(run.plan.release_tags).toBe("none");
     expect(run.status).toBe(0);
@@ -177,7 +205,11 @@ describe("governance.mjs", () => {
 
   it("updates only the tag ruleset when only it drifted", () => {
     setState(
-      live(branchPolicy, { ...tagPolicy, rules: [{ type: "creation" }] }),
+      live(
+        branchPolicy,
+        { ...tagPolicy, rules: [{ type: "creation" }] },
+        tagCreationPolicy,
+      ),
     );
     const run = governance("--apply");
     expect(run.status).toBe(0);
@@ -186,4 +218,60 @@ describe("governance.mjs", () => {
       rulesets.map((w) => [w.method, w.path.split("/").pop(), w.body]),
     ).toEqual([["PUT", "2", tagPolicy]]);
   });
+});
+
+it("fails verification while the separate creation policy is missing", () => {
+  setState(live(branchPolicy, tagPolicy));
+  const run = governance("--verify");
+  expect(run.plan).toMatchObject({
+    release_tags: "none",
+    release_tag_creation: "create",
+  });
+  expect(run.status).not.toBe(0);
+  expect(run.stderr).toContain("governance verification failed");
+  expect(written()).toEqual([]);
+});
+
+it("updates only the creation policy when its owner bypass drifted", () => {
+  setState(
+    live(branchPolicy, tagPolicy, {
+      ...tagCreationPolicy,
+      bypass_actors: [],
+    }),
+  );
+  const before = governance("--verify");
+  expect(before.status).not.toBe(0);
+  expect(before.plan).toMatchObject({
+    release_tags: "none",
+    release_tag_creation: "update",
+  });
+  expect(written()).toEqual([]);
+  const run = governance("--apply");
+  expect(run.status).toBe(0);
+  const rulesets = written().filter((w) => w.path.includes("/rulesets"));
+  expect(
+    rulesets.map((w) => [w.method, w.path.split("/").pop(), w.body]),
+  ).toEqual([["PUT", "3", tagCreationPolicy]]);
+  expect(run.stdout).toContain('"verified":true');
+});
+
+it("retains owner-only bootstrap protection when the creation exception is refused", () => {
+  setState([]);
+  const run = governance("--apply", {
+    GOVERNANCE_REFUSE: tagCreationPolicy.name,
+  });
+  expect(run.status).not.toBe(0);
+  expect(run.stderr).toContain("release tag rulesets were not fully written");
+  expect(run.stderr).toContain("governance verification failed");
+  expect(run.stdout).not.toContain('"verified":true');
+  const tags = JSON.parse(readFileSync(state, "utf8")).rulesets.find(
+    (r) => r.name === tagPolicy.name,
+  );
+  expect(tags.rules).toEqual([{ type: "creation" }, ...tagPolicy.rules]);
+  expect(tags.bypass_actors).toEqual(tagPolicy.bypass_actors);
+  const rulesets = written().filter((w) => w.path.includes("/rulesets"));
+  expect(rulesets.map((w) => w.body.name)).toEqual([
+    branchPolicy.name,
+    tagPolicy.name,
+  ]);
 });

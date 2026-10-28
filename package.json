@@ -26,7 +26,7 @@
     "anti-slop:manifest": "node skills/install-anti-slop/scripts/manifest.mjs",
     "quality": "pnpm quality:test && pnpm quality:gate && pnpm quality:log-hygiene && pnpm quality:packages && pnpm quality:app-core",
     "quality:log-hygiene": "node scripts/quality/log-hygiene-gate.mjs",
-    "quality:test": "vitest run scripts/lib --testTimeout=30000 && node --test scripts/security/*.test.mjs",
+    "quality:test": "vitest run scripts/lib --testTimeout=30000 && node --test scripts/security/*.test.mjs && pnpm test:ci-promotion",
     "quality:gate": "node scripts/quality/quality-gate.mjs",
     "quality:app-core": "node scripts/quality/app-core-boundary.mjs --check",
     "quality:packages": "node scripts/quality/package-metrics-gate.mjs",
@@ -112,7 +112,8 @@
     "repo:check": "node scripts/quality/repository-size-gate.mjs && node scripts/dev/sync-agent-skills.mjs --check",
     "skills:sync": "node scripts/dev/sync-agent-skills.mjs",
     "skills:check": "node scripts/dev/sync-agent-skills.mjs --check",
-    "deps:install": "bash scripts/dev/install-dependencies.sh"
+    "deps:install": "bash scripts/dev/install-dependencies.sh",
+    "test:ci-promotion": "node --test scripts/release/*.test.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

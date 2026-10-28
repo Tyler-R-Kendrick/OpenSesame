@@ -6,11 +6,19 @@ Release and merge-gate tooling run from a terminal or CI.
 |------|------|
 | `check-pr-signatures.mjs` | Fails a PR whose commits are not GitHub-verified (`scripts/lib/pr-signatures.mjs`) |
 | `land-signed-stack.mjs` | Replays a local branch stack as GitHub-verified commits |
-| `deploy-pages.sh`, `pages-release.mjs` | Pages publish and release marker |
+| `candidate.mjs`, `lib/candidate-*.mjs` | Select and admit immutable candidates; verify source, provenance, qualification receipts and existing publication |
+| `artifact-transfer.mjs`, `archive-safe.py` | Verify immutable artifact identity and downloaded bytes before safe extraction |
+| `build-manifest.py`, `collect-build.mjs`, `provenance.mjs` | Assemble the complete candidate and bind its payloads to the selected source and original build |
+| `deep-tools.sh`, `deep-check.sh` | Pinned weekly mutation/security tooling and required suites; missing or incomplete evidence fails |
+| `stage-release.mjs`, `publish-release.mjs`, `publish-assets.mjs`, `verify-site.mjs` | Stage exact assets, publish the qualified release and verify every served Pages file |
+| `deploy-pages.sh`, `pages-release.mjs` | Retired local publisher and the build-time Pages release marker; publication now belongs to `release-weekly.yml` |
 | `pin-connect-services.mjs`, `pin-marketplace.mjs` | Pin generated service and marketplace digests |
-| `kit-archive.sh` | The release kit's reproducible archives and `SHA256SUMS`, run by `.github/workflows/release-kit.yml` ([docs/operators/release-kit.md](../../docs/operators/release-kit.md)) |
-| `publish-packages.mjs` | Validates exact workspace package names from `NPM_PACKAGES` and publishes with shell-free argv; used only by the main-branch npm workflow |
-| `tag-check.sh` | What a `v*` tag must be before the release kit builds anything: the workspace version, a commit `main` holds, the commit an annotated tag peels to (`commit`, `verify`); the workflow's first job ([docs/operators/release-kit.md](../../docs/operators/release-kit.md)) |
+| `kit-archive.sh` | The native kit's reproducible archives, built once by `candidate-build.yml` and promoted unchanged ([release kit](../../docs/operators/release-kit.md)) |
+| `publish-packages.mjs` | Preserved shell-free npm helper: validates exact workspace names from `NPM_PACKAGES`; no active publisher calls it until npm artifacts join candidate qualification |
+| `tag-check.sh` | Offline tag/version/ancestry checks; the active publisher independently enforces the selected source and stable version before writes ([release kit](../../docs/operators/release-kit.md)) |
+
+See [CI and artifact promotion](../../docs/operators/ci-promotion.md) for the
+nightly and weekly controllers, artifact inventory, evidence and recovery.
 
 ## land-signed-stack
 
@@ -45,9 +53,20 @@ throwaway repository in `signed-replay.test.mjs`).
 Status: tested offline only (plan, payloads, refusals, dry run). The live
 GitHub calls have not been exercised yet.
 
-Container publication uses `GHCR_PUBLISH_TOKEN` from the `container-release`
-environment. Configure that environment for branch `main` and tags `v*`, and
-remove this source repository's automatic Actions token write access to the
-official package. Keep the separate credential in the environment only; an
-editable workflow cannot enforce a package ACL by itself. Until those controls
-are configured, publication is intentionally unavailable.
+## Deferred registry publication
+
+The npm and container workflow entry points are retired, manual-only failures.
+The weekly candidate currently publishes Pages and Linux kits; it does not invoke
+`publish-packages.mjs` or publish an OCI image. The shell-free npm helper remains
+available for a future integration, with its exact workspace-name validation and
+separate security tests intact. Reenabling either registry requires an explicit
+immutable artifact inventory, qualification, provenance and promotion contract.
+Calling the preserved helper directly is not a qualified release path.
+
+Before reenabling container publication, preserve the upstream credential
+boundary: use `GHCR_PUBLISH_TOKEN` only from the `container-release` environment,
+configure that environment for branch `main` and release tags `v*`, and remove
+this source repository's automatic Actions token write access to the official
+package. An editable workflow cannot enforce the package ACL by itself. These
+external controls are prerequisites for a future publisher; configuring them
+does not activate the retired workflow or add OCI artifacts to this pipeline.
