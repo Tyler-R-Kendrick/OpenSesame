@@ -49,6 +49,7 @@ async function fixture() {
     "LICENSE",
     "cmd/tsconnect/wasm/wasm_js.go",
     "net/tsdial/tsdial.go",
+    "net/tlsdial/tlsdial.go",
     "ipn/ipnlocal/node_backend.go",
     "licenses/tailscale.md",
   ]) {
