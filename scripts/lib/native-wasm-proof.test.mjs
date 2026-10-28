@@ -293,7 +293,10 @@ test("workflow retains signature, fixed command, original deadlines and exact ev
   );
   assert.match(source, /runs-on: ubuntu-24\.04/);
   assert.match(source, /check-merge-group-signature\.mjs/);
-  assert.match(source, /test "\$REQUESTED_HEAD" = "\$EXPECTED_HEAD"/);
+  assert.match(source, /workflow_call:/);
+  assert.match(source, /ref: \$\{\{ inputs\.source_sha \}\}/);
+  assert.match(source, /EXPECTED_HEAD: \$\{\{ inputs\.source_sha \}\}/);
+  assert.match(source, /test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_HEAD"/);
   assert.match(source, /persist-credentials: false/);
   assert.match(source, /pnpm install --frozen-lockfile/);
   assert.match(
