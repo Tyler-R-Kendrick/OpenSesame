@@ -89,29 +89,41 @@ function publicInputs(
 ) {
   const parameters: Record<string, string> = {};
   if (variantId) parameters.credential_variant = variantId;
-  for (const field of profile.templateParams.filter((entry) => !entry.secret)) {
-    const value =
-      supplied[field.name]?.trim() || field.choices?.[0]?.value || "";
-    if (field.required && !value) throw new Error(`Enter ${field.label}`);
-    if (
-      value &&
-      field.choices &&
-      !field.choices.some((choice) => choice.value === value)
-    )
-      throw new Error(`Select a supported ${field.label}`);
-    if (value.length > 256 || /[\r\n]/.test(value))
-      throw new Error("Enter valid provider parameters");
-    if (
-      value &&
-      field.format === "uuid" &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        value,
-      )
-    )
-      throw new Error(`Enter a valid ${field.label}`);
-    parameters[field.name] = value;
-  }
+  for (const field of profile.templateParams.filter((entry) => !entry.secret))
+    parameters[field.name] = publicInput(field, supplied);
   return parameters;
+}
+
+function publicInput(
+  field: NativeApiProfile["templateParams"][number],
+  supplied: Record<string, string>,
+): string {
+  const value = supplied[field.name]?.trim() || field.choices?.[0]?.value || "";
+  if (field.required && !value) throw new Error(`Enter ${field.label}`);
+  if (
+    value &&
+    field.choices &&
+    !field.choices.some((choice) => choice.value === value)
+  )
+    throw new Error(`Select a supported ${field.label}`);
+  if (value.length > 256 || /[\r\n]/.test(value))
+    throw new Error("Enter valid provider parameters");
+  validatePublicFormat(field, value);
+  return value;
+}
+
+function validatePublicFormat(
+  field: NativeApiProfile["templateParams"][number],
+  value: string,
+): void {
+  if (
+    value &&
+    field.format === "uuid" &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  )
+    throw new Error(`Enter a valid ${field.label}`);
 }
 
 export function nativeApiCredentials(
