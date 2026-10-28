@@ -8,6 +8,9 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +31,27 @@ func nativeSSHTestSigner(t *testing.T, fill byte) ssh.Signer {
 
 func nativeSSHAdvertised(signer ssh.Signer) string {
 	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
+}
+
+// SSH peers both write their banners before reading; unlike net.Pipe, a real
+// loopback TCP stream buffers those writes and exercises the actual handshake.
+func nativeSSHTestSockets(t *testing.T) (net.Conn, net.Conn) {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	client, err := net.DialTimeout("tcp", listener.Addr().String(), 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := listener.Accept()
+	if err != nil {
+		client.Close()
+		t.Fatal(err)
+	}
+	return client, server
 }
 
 func TestNativeSSHHostKeysRejectMissingMalformedAndUnadvertised(t *testing.T) {
@@ -71,7 +95,7 @@ func TestNativeSSHRealHandshakeUsesCurrentSelectedPeerKey(t *testing.T) {
 			if scenario.withdraw {
 				fixture.route = func(netip.Addr) (nativePeerRoute, bool) { return nativePeerRoute{}, false }
 			}
-			clientSocket, serverSocket := net.Pipe()
+			clientSocket, serverSocket := nativeSSHTestSockets(t)
 			defer clientSocket.Close()
 			defer serverSocket.Close()
 			_ = clientSocket.SetDeadline(time.Now().Add(5 * time.Second))
@@ -155,5 +179,94 @@ func TestNativeSSHHandshakeTimeoutClosesStalledConnection(t *testing.T) {
 	config := &ssh.ClientConfig{User: "test", HostKeyCallback: func(_ string, _ net.Addr, _ ssh.PublicKey) error { return errNativeSSHHostKey }}
 	if _, _, _, err := ssh.NewClientConn(client, "peer:22", config); err == nil || ctx.Err() != context.DeadlineExceeded {
 		t.Fatalf("stalled handshake must close on its original deadline: %v", err)
+	}
+}
+
+func TestNativeSSHChannelSetupCancellationClosesEstablishedHandshake(t *testing.T) {
+	signer := nativeSSHTestSigner(t, 7)
+	keys, err := parseNativeSSHHostKeys([]string{nativeSSHAdvertised(signer)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clientSocket, serverSocket := nativeSSHTestSockets(t)
+	defer clientSocket.Close()
+	defer serverSocket.Close()
+	_ = clientSocket.SetDeadline(time.Now().Add(5 * time.Second))
+	_ = serverSocket.SetDeadline(time.Now().Add(5 * time.Second))
+	stop := watchNativeSSHConnection(ctx, clientSocket)
+	defer stop()
+	channelSeen := make(chan struct{})
+	serverDone := make(chan struct{})
+	serverConfig := &ssh.ServerConfig{NoClientAuth: true}
+	serverConfig.AddHostKey(signer)
+	go func() {
+		defer close(serverDone)
+		connection, channels, _, serverErr := ssh.NewServerConn(serverSocket, serverConfig)
+		if serverErr != nil {
+			return
+		}
+		defer connection.Close()
+		if _, ok := <-channels; ok {
+			close(channelSeen) // Deliberately neither accept nor reject the channel.
+			<-ctx.Done()
+		}
+	}()
+	config := &ssh.ClientConfig{User: "test", HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
+		return keys.verify(key)
+	}}
+	connection, channels, requests, err := ssh.NewClientConn(clientSocket, "peer:22", config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := ssh.NewClient(connection, channels, requests)
+	defer client.Close()
+	result := make(chan error, 1)
+	go func() {
+		session, sessionErr := client.NewSession()
+		if session != nil {
+			session.Close()
+		}
+		result <- sessionErr
+	}()
+	select {
+	case <-channelSeen:
+	case <-time.After(5 * time.Second):
+		t.Fatal("server did not receive the SSH channel request")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if err == nil {
+			t.Fatal("withheld SSH channel must not succeed after cancellation")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("cancellation did not close the pending SSH channel")
+	}
+	<-serverDone
+}
+
+func TestNativeSSHSourceKeepsDeadlineThroughShellSetup(t *testing.T) {
+	_, path, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("test source location is unavailable")
+	}
+	source, err := os.ReadFile(filepath.Join(filepath.Dir(path), "wasm_js.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source)
+	start := strings.Index(text, "func (s *jsSSHSession) Run()")
+	end := strings.Index(text, "func (s *jsSSHSession) Close()")
+	if start < 0 || end <= start {
+		t.Fatal("the SSH session implementation is unavailable")
+	}
+	run := text[start:end]
+	watch := strings.Index(run, "stopHandshake := watchNativeSSHConnection(ctx, c)")
+	shell := strings.Index(run, "err = session.Shell()")
+	stop := strings.LastIndex(run, "stopHandshake()")
+	if watch < 0 || shell <= watch || stop <= shell || strings.Count(run, "stopHandshake()") != 2 {
+		t.Fatal("the connection deadline must cover handshake, channel, PTY and shell setup")
 	}
 }

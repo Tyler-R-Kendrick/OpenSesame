@@ -39,20 +39,19 @@
 +			if err := route.peer.sshKeys.verify(key); err != nil {
 +				return err
 +			}
-@@ -464,0 +490,5 @@
-+	stopHandshake()
+@@ -464,0 +490,4 @@
 +	if err == nil && ctx.Err() != nil {
 +		sshConn.Close()
 +		err = ctx.Err()
 +	}
-@@ -478,0 +509,6 @@
+@@ -478,0 +508,6 @@
 +	s.mu.Lock()
 +	if s.closed {
 +		s.mu.Unlock()
 +		session.Close()
 +		return
 +	}
-@@ -479,0 +516,7 @@
+@@ -479,0 +515,7 @@
 +	if s.pendingResizeRows != 0 {
 +		rows = s.pendingResizeRows
 +	}
@@ -60,7 +59,7 @@
 +		cols = s.pendingResizeCols
 +	}
 +	s.mu.Unlock()
-@@ -500,8 +542,0 @@
+@@ -500,8 +541,0 @@
 -	// We might have gotten a resize notification since we started opening the
 -	// session, pick up the latest size.
 -	if s.pendingResizeRows != 0 {
@@ -69,7 +68,13 @@
 -	if s.pendingResizeCols != 0 {
 -		cols = s.pendingResizeCols
 -	}
-@@ -529 +564,8 @@
+@@ -518,0 +553,5 @@
++	stopHandshake()
++	if ctx.Err() != nil {
++		writeError("SSH connection", ctx.Err())
++		return
++	}
+@@ -529 +568,8 @@
 -	if s.session == nil {
 +	s.mu.Lock()
 +	s.closed = true
@@ -79,17 +84,17 @@
 +		cancel()
 +	}
 +	if session == nil {
-@@ -533 +575 @@
+@@ -533 +579 @@
 -	return s.session.Close()
 +	return session.Close()
-@@ -537 +579,3 @@
+@@ -537 +583,3 @@
 -	if s.session == nil {
 +	s.mu.Lock()
 +	session := s.session
 +	if session == nil {
-@@ -539,0 +584 @@
+@@ -539,0 +588 @@
 +		s.mu.Unlock()
-@@ -542 +587,2 @@
+@@ -542 +591,2 @@
 -	return s.session.WindowChange(rows, cols)
 +	s.mu.Unlock()
 +	return session.WindowChange(rows, cols)

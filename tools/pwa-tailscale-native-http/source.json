@@ -198,7 +198,7 @@
       },
       {
         "path": "native-ssh-keys_test.go",
-        "sha256": "7be4148ea553d3d4a3ef1ab4d1f6032a90ecd454e896ea4d5b67a37766635ef7"
+        "sha256": "d1148160510d600a30fae60375354c626289f397e90bea1bf16826c4724e03ce"
       },
       {
         "path": "nodessh_js.go",
@@ -723,9 +723,9 @@
   "nativeSSH": {
     "patch": {
       "path": "native-ssh.patch",
-      "sha256": "ed16cfca147a9f775e4dd5f599d4b09ccafbac3dfb3fdfa6cfc72fe1bc2d8f2c",
+      "sha256": "fe57e51957229f686aefc6ee0853ddbc16702bebfdfc46d4abf885693874d799",
       "beforeSha256": "68c659ce00f9dff452bcb7b1c95a7c9d93807c4c6b858a00fcd261b51f16b67b",
-      "afterSha256": "9c86ae8796498a822c345a2713cb16365a5bac65136c081f544bd39a550e48e8"
+      "afterSha256": "dd5eae4dc32111fba41d81b51fcbc560f88e98f370e3ccd09687f9d9ee48f9e7"
     },
     "stagingHelper": {
       "path": "stage-native-ssh.mjs",
