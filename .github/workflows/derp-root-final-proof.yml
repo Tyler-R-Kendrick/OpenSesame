@@ -12,15 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: bb9f4d8ea4811fb201c095272f5fbff6eb226582
-          fetch-depth: 0
+          ref: 95b13bc9a68a769e8684af5ca90d99f0c3c261f7
+          fetch-depth: 2
           persist-credentials: false
       - name: Verify exact reviewed source
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = bb9f4d8ea4811fb201c095272f5fbff6eb226582
-          test "$(git rev-parse HEAD^{tree})" = 3d848eece78a083192c6abd2637fbbf1abf3b989
-          test "$(git rev-parse HEAD^)" = 63b053782aca5a9429aa0ab8a4d77a2155cfc9de
+          test "$(git rev-parse HEAD)" = 95b13bc9a68a769e8684af5ca90d99f0c3c261f7
+          test "$(git rev-parse HEAD^{tree})" = 6628acc27c4cd8b0df374ed722415d0822474d53
+          test "$(git rev-parse HEAD^)" = bb9f4d8ea4811fb201c095272f5fbff6eb226582
           git diff --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
@@ -43,6 +43,6 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = bb9f4d8ea4811fb201c095272f5fbff6eb226582
+          test "$(git rev-parse HEAD)" = 95b13bc9a68a769e8684af5ca90d99f0c3c261f7
           git diff --exit-code
           git diff --cached --exit-code
