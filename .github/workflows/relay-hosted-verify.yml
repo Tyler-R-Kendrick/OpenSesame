@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      EXPECTED_HEAD: c28cd692b26d1635467bca18ea53007a1d669fb5
+      EXPECTED_HEAD: dd98c380a820bd7f696fcfc03347f848256f1fb7
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -21,14 +21,14 @@ jobs:
     steps:
       - name: Validate immutable source input
         env:
-          SOURCE_SHA: c28cd692b26d1635467bca18ea53007a1d669fb5
+          SOURCE_SHA: dd98c380a820bd7f696fcfc03347f848256f1fb7
         shell: bash
         run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: c28cd692b26d1635467bca18ea53007a1d669fb5
+          ref: dd98c380a820bd7f696fcfc03347f848256f1fb7
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -56,8 +56,8 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^{tree})" = 622fc253df5099e47780b394ba113015f40cb7cf
-          test "$(git rev-parse HEAD^)" = b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
+          test "$(git rev-parse HEAD^{tree})" = 16ed56453883ca61db8550a69dba81ce444b3450
+          test "$(git rev-parse HEAD^)" = bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/relay-reviewed.patch"
           printf '%s  %s\n' cca2e0937960edcb9b670812228017e914a2bc91ae59c2c7bb5fc53029b5cb78 "$RUNNER_TEMP/relay-reviewed.patch" | sha256sum --check
           git diff --exit-code
@@ -106,7 +106,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: relay-complete-verify-c28cd692b26d1635467bca18ea53007a1d669fb5
+          name: relay-complete-verify-dd98c380a820bd7f696fcfc03347f848256f1fb7
           path: |
             ${{ runner.temp }}/opensesame-full-verify/
             tests/visual-contract/output/
