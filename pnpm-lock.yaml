@@ -1325,8 +1325,8 @@ importers:
         version: 4.6.6
     devDependencies:
       '@playwright/test':
-        specifier: 1.55.1
-        version: 1.55.1
+        specifier: 1.64.1
+        version: 1.64.1
       '@types/node':
         specifier: 22.15.29
         version: 22.15.29
