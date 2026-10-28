@@ -67,8 +67,10 @@ jobs:
           go clean -cache
           go test -c -o "$out/native-http.test" ./cmd/tsconnect/nativehttp
           go test -c -o "$out/native-node.test" ./cmd/tsconnect/wasm
+          go test -c -o "$out/native-extra-dns.test" ipn/ipnlocal/native-extra-dns.go ipn/ipnlocal/native-extra-dns_test.go
           test -s "$out/native-http.test"
           test -s "$out/native-node.test"
+          test -s "$out/native-extra-dns.test"
       - name: Analyze without uploading provisional source paths
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
