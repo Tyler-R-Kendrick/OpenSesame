@@ -57,7 +57,7 @@ export async function syncResetRunNotices(
     const jobId = record.runId;
     if (!jobId) continue;
     const agentRun = runs.find((run) => run.job_id === jobId) ?? null;
-    if (agentRun && PARKED.has(agentRun.control_state)) {
+    if (agentRun && !agentRun.closed_at && PARKED.has(agentRun.control_state)) {
       const noticeId = agentRunNoticeId(agentRun.id);
       if (!listNotices().some((notice) => notice.id === noticeId)) {
         appendStatusNotice({

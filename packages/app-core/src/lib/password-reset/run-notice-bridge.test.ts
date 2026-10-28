@@ -94,6 +94,25 @@ describe("reset run notice bridge", () => {
     expect(vaultResetRunFor("personal", "item-1")).toBeNull();
   });
 
+  it("settles closed suspended runs instead of offering takeover", async () => {
+    trackedRun();
+    await syncResetRunNotices(
+      deps(
+        [
+          {
+            id: "run-9",
+            job_id: "job-1",
+            control_state: "suspended",
+            closed_at: "2026-10-28T00:00:00.000Z",
+          },
+        ],
+        "failed",
+      ),
+    );
+    expect(listNotices()).toHaveLength(0);
+    expect(vaultResetRunFor("personal", "item-1")?.phase).toBe("failed");
+  });
+
   it("marks failed when the rotation job failed", async () => {
     trackedRun();
     await syncResetRunNotices(deps([], "failed"));

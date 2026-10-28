@@ -12,7 +12,10 @@ import {
   BUNDLED_LOCAL_MODULE,
   loadResetConfiguration,
 } from "./password-reset-config.js";
-import { createLocalPasswordResetEffects } from "./password-reset-local-runtime.js";
+import {
+  createLocalPasswordResetEffects,
+  resetRecipeHostnames,
+} from "./password-reset-local-runtime.js";
 import type { PasswordResetCommand } from "./password-reset-parse.js";
 import type { ResetRuntimeContext } from "./password-reset-runtime.js";
 
@@ -354,6 +357,15 @@ describe("bundled local runtime effects", () => {
     );
     expect(receipt.outcome).toBe("failed_before_submit");
     expect(sandbox.close).toHaveBeenCalledOnce();
+  });
+
+  it("includes every approved reset-link hostname", () => {
+    const context = localContext();
+    context.run.recipe.allowedOrigins.push("https://idp.example.test");
+    expect(resetRecipeHostnames(context.run.recipe)).toEqual([
+      "127.0.0.1",
+      "idp.example.test",
+    ]);
   });
 
   it("rejects an approved recipe beyond the configured step budget", async () => {

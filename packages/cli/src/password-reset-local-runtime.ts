@@ -5,6 +5,7 @@ import {
   type LocalSandbox,
   type MailboxPort,
   type ResetEffects,
+  type ResetRun,
   createLocalSandbox,
 } from "@opensesame/cua-password-reset";
 import type { ResetRuntimeContext } from "./password-reset-runtime.js";
@@ -45,6 +46,7 @@ export async function createLocalPasswordResetEffects(
     options.sandbox ??
     createLocalSandbox({
       origin: run.origin,
+      extraAllowedDomains: resetRecipeHostnames(run.recipe),
       // Stable per run so a later `resume` invocation rejoins the same
       // agent-browser session a human was handed.
       session: `cua-${run.id}`,
@@ -149,6 +151,10 @@ async function probeLogin(
   )
     return null;
   return !after.fields.some((field) => field.kind === "password");
+}
+
+export function resetRecipeHostnames(recipe: ResetRun["recipe"]): string[] {
+  return recipe.allowedOrigins.map((origin) => new URL(origin).hostname);
 }
 
 function unique(
