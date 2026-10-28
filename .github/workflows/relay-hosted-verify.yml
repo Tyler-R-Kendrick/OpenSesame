@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      EXPECTED_HEAD: b67cf28791047d0e8859d9157c214d3b09b23b75
+      EXPECTED_HEAD: e7e3ec343941fbab652c79ba891f79a6370cfc04
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -21,14 +21,14 @@ jobs:
     steps:
       - name: Validate immutable source input
         env:
-          SOURCE_SHA: b67cf28791047d0e8859d9157c214d3b09b23b75
+          SOURCE_SHA: e7e3ec343941fbab652c79ba891f79a6370cfc04
         shell: bash
         run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: b67cf28791047d0e8859d9157c214d3b09b23b75
+          ref: e7e3ec343941fbab652c79ba891f79a6370cfc04
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -56,12 +56,12 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^{tree})" = a99cf8c4704a7c3b8ca826a59fdb088bf28c783e
-          test "$(git rev-parse HEAD^)" = 6a2fc3f2925a950cedf47c28ddabc89c26cd7119
+          test "$(git rev-parse HEAD^{tree})" = 40fac3aabfd104546c921bb9f55f684b5b1b2b43
+          test "$(git rev-parse HEAD^)" = 1f32b8afeb345f8e5dc7711098c1794b9c52eeeb
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/relay-reviewed.patch"
-          printf '%s  %s\n' c0e8c2fe9c6b12a18ec65002208d562357dc3d13c249888611830f2ea693da12 "$RUNNER_TEMP/relay-reviewed.patch" | sha256sum --check
+          printf '%s  %s\n' f9d456149ee63aba6d9d2e71e3ce679d3c0db549e31e3ee2ec72fda45a2792be "$RUNNER_TEMP/relay-reviewed.patch" | sha256sum --check
           git diff --binary --full-index --no-renames bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a HEAD > "$RUNNER_TEMP/relay-logical.patch"
-          printf '%s  %s\n' 12f3ca990d070229f0862a5ba23c54255c1521b5f87b08ee2e517d15859737a9 "$RUNNER_TEMP/relay-logical.patch" | sha256sum --check
+          printf '%s  %s\n' ebce6ef8853b0821902dde49b5d4c610190bb38f1a8355fb5fd76bc7ff0b1c0c "$RUNNER_TEMP/relay-logical.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
           test -x "$PLAYWRIGHT_CHROMIUM"
@@ -108,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: relay-complete-verify-b67cf28791047d0e8859d9157c214d3b09b23b75
+          name: relay-complete-verify-e7e3ec343941fbab652c79ba891f79a6370cfc04
           path: |
             ${{ runner.temp }}/opensesame-full-verify/
             tests/visual-contract/output/
