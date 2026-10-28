@@ -46,17 +46,18 @@ import {
 } from "./lib/enable-capabilities.mjs";
 import { passTheDoor } from "./lib/front-door.mjs";
 import { DEDICATED_ORIGIN } from "./lib/live-dedicated.mjs";
-import { allowLoopbackDevelopment } from "./lib/local-network-permission.mjs";
 import { sealLocalOnly } from "./lib/pages-journey.mjs";
 import { inShard, isFirstShard, parseShard } from "./lib/shard.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
-import { pairByLink, startDaemon } from "./lib/tailnet-devices-stack.mjs";
+import { startDaemon } from "./lib/tailnet-devices-stack.mjs";
 import { gatePass, popupPass } from "./lib/tutorial-gates.mjs";
 import {
   escapeEndsTheTour,
   moveAdvancesTheTour,
 } from "./lib/tutorial-interact.mjs";
+import { createTutorialPageFactory } from "./lib/tutorial-page.mjs";
 import { seedVault } from "./lib/tutorial-seed.mjs";
+import { pairTutorialTailnet } from "./lib/tutorial-tailnet.mjs";
 import {
   listTutorials,
   resetToVault,
@@ -90,7 +91,6 @@ const shard = parseShard(process.env.TUTORIALS_SHARD);
 const firstShard = isFirstShard(shard);
 const keepShots = process.env.TUTORIALS_SHOTS === "1";
 const verbose = process.env.TUTORIALS_VERBOSE === "1";
-
 const dist = process.env.TUTORIALS_DIST
   ? path.resolve(process.env.TUTORIALS_DIST)
   : fileURLToPath(new URL("../dist", import.meta.url));
@@ -126,7 +126,6 @@ const walker = createWalker({
   keepShots,
 });
 const { walkOne, guarded } = walker;
-
 const browser = devUrl
   ? await chromium.launch({
       executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
@@ -134,32 +133,13 @@ const browser = devUrl
     })
   : await harness.launch();
 
-const PHONE = {
-  viewport: { width: 390, height: 844 },
-  hasTouch: true,
-  isMobile: true,
-  deviceScaleFactor: 2,
-};
-
-async function newPage(width) {
-  const device = width < 600 ? PHONE : { viewport: { width, height: 900 } };
-  if (!devUrl) {
-    const made = await harness.newPage(browser, {
-      device,
-      passthrough: tailnet ? [tailnet.url] : [],
-    });
-    const networkPermission = tailnet
-      ? await allowLoopbackDevelopment(made.page, origin)
-      : null;
-    return { ...made, networkPermission };
-  }
-  const context = await browser.newContext(device);
-  const page = await context.newPage();
-  page.on("pageerror", (error) =>
-    harness.record("PAGE-ERROR", String(error.message).slice(0, 300)),
-  );
-  return { page, context };
-}
+const newPage = createTutorialPageFactory({
+  browser,
+  devUrl,
+  harness,
+  origin,
+  tailnet,
+});
 
 const say = (line) => {
   if (verbose) console.log(line);
@@ -197,42 +177,18 @@ async function sealedShell(width) {
     say("  leaving support models off");
     await ensureModelsOff(page, { origin, base, verbose });
   }
-  if (tailnet) {
-    say("  pairing the real tailnet daemon");
-    await pairByLink(
+  if (tailnet)
+    await pairTutorialTailnet({
       page,
       base,
-      tailnet.pairLink("manage", `Tutorials ${width}`),
-    );
-    const devices = page.getByRole("region", { name: "Tailnet devices" });
-    await expect(devices.getByRole("heading", { level: 3 })).toHaveCount(4, {
-      timeout: 20000,
+      tailnet,
+      width,
+      out,
+      guarded,
+      walkOne,
+      check,
+      say,
     });
-    await expect(
-      devices.getByRole("button", { name: "Add a device", exact: true }),
-    ).toBeVisible();
-    await page.screenshot({
-      path: path.join(out, `${width}-tailnet-devices-paired.png`),
-    });
-    await guarded(page, "paired Add tutorial", async () => {
-      const before = tailnet.stub.tailnet.calls.length;
-      const entries = await listTutorials(page);
-      const entry = entries.find(
-        (item) => item.id === "identity.tailnet.devices.add",
-      );
-      expect(entry).toBeTruthy();
-      await walkOne(page, entry, { phone: width < 600, width, reset: false });
-      const mutations = tailnet.stub.tailnet.calls
-        .slice(before)
-        .filter((call) => call.method !== "GET")
-        .map(({ method, path }) => ({ method, path }));
-      expect(mutations).toEqual([]);
-      check(
-        true,
-        "the paired Add tutorial points at the real control without changes",
-      );
-    });
-  }
   say("  back to the vault");
   await page.goto(`${origin}${base}vault`, { waitUntil: "domcontentloaded" });
   await unlockIfLocked(page);

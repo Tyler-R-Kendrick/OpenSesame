@@ -230,11 +230,14 @@ describe("the curated Connections list", () => {
     }
   });
 
-  it("keeps every provider family complete, including Azure", () => {
+  it("keeps every provider family complete", () => {
     for (const family of API_FAMILIES) {
       expect(apiFamilyFor(family.id)?.id, family.id).toBe(family.id);
       expect(family.members.length, family.id).toBeGreaterThan(1);
     }
+  });
+
+  it("keeps Azure and cloud aliases on their canonical routes", () => {
     const catalog = mergeVercelCatalog(getBundledProviders());
     const azure = apiFamilyFor("azure-sm");
     expect(azure?.members).toEqual([
