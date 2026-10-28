@@ -9,6 +9,10 @@ const expected = [
   ["go/clear-text-logging", ".codeql-native/source/control/controlclient/direct.go", 1527],
 ];
 const category = "/language:go-composed-native-review/";
+// GitHub's alert API removes the trailing slash from the SARIF automation ID.
+const apiCategory = "/language:go-composed-native-review";
+const targetRef = "refs/heads/review/native-ssh-host-key-proof";
+const targetSha = "69e60b69be2348fef8c1bed84f21d853af444148";
 const key = (value) => JSON.stringify(value);
 const ordered = (values) => values.map(key).sort();
 const read = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -33,15 +37,17 @@ if (process.argv[2] === "validate" && process.argv.length === 6) {
 } else if (process.argv[2] === "alerts" && process.argv.length === 5) {
   const pages = read(process.argv[3]);
   if (!Array.isArray(pages) || pages.some((p) => !Array.isArray(p))) fail("Unexpected alert API response");
-  const actual = pages.flat().filter((a) => a.most_recent_instance?.category === category).map((a) => ({
+  const actual = pages.flat().filter((a) => a.most_recent_instance?.category === apiCategory).map((a) => ({
     number: a.number,
     rule: a.rule?.id,
+    ref: a.most_recent_instance?.ref,
+    sha: a.most_recent_instance?.commit_sha,
     path: a.most_recent_instance?.location?.path,
     line: a.most_recent_instance?.location?.start_line,
   }));
   const tuples = actual.map((a) => [a.rule, a.path, a.line]);
-  const matches = key(ordered(tuples)) === key(ordered(expected));
-  const result = { category, count: actual.length, matchesAllSix: matches, alerts: actual };
+  const matches = key(ordered(tuples)) === key(ordered(expected)) && actual.every((a) => a.ref === targetRef && a.sha === targetSha);
+  const result = { category: apiCategory, count: actual.length, matchesAllSix: matches, alerts: actual };
   writeFileSync(process.argv[4], `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result));
   if (!matches) fail("GitHub did not expose the six expected branch alerts");

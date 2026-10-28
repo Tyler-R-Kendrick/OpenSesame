@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: 22
       - name: Test mapper on hosted runner
-        run: node --test controller/scripts/security/map-composed-go-sarif.test.mjs
+        run: node --test controller/scripts/security/map-composed-go-sarif.test.mjs controller/scripts/security/verify-ingest-proof.test.mjs
       - name: Install candidate dependencies
         working-directory: candidate
         run: pnpm install --frozen-lockfile --ignore-scripts
