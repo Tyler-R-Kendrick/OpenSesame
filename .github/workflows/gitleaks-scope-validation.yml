@@ -1,0 +1,146 @@
+name: Reviewed Gitleaks scope validation
+on:
+  push:
+    branches: [review/gitleaks-scan-evidence]
+    paths: [.github/workflows/gitleaks-scope-validation.yml]
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: github.event_name == 'push' && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/gitleaks-scan-evidence'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CANDIDATE_SHA: 95971bcad36e206f877c00ccec7e9913f6af0d68
+      EXPECTED_BASE_SHA: b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout the reviewed candidate and its reachable history
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify candidate identity and the scope of its change
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          EVIDENCE_DIR="$RUNNER_TEMP/gitleaks-scope-evidence"
+          export EVIDENCE_DIR
+          printf 'EVIDENCE_DIR=%s\n' "$EVIDENCE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$EVIDENCE_DIR"
+          [[ "$CANDIDATE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$EXPECTED_BASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$EXPECTED_BASE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
+          python3 - <<'PYTHON'
+          import os,subprocess
+          rows=subprocess.check_output(['git','diff','--name-only',os.environ['EXPECTED_BASE_SHA'],os.environ['CANDIDATE_SHA']],text=True).splitlines()
+          expected={'.gitleaks.toml','.gitleaksignore','scripts/audit/gitleaks-gate.sh','scripts/security/gitleaks-allowlist-scope.test.mjs','scripts/security/gitleaks-working-tree-gate.mjs','scripts/security/gitleaks-working-tree-gate.test.mjs','scripts/security/gitleaks-reviewed-working-tree.json'}
+          if set(rows)!=expected: raise SystemExit('Candidate changed an unexpected path')
+          PYTHON
+          node --test scripts/security/gitleaks-allowlist-scope.test.mjs scripts/security/gitleaks-working-tree-gate.test.mjs
+      - name: Install checksum-pinned Gitleaks 8.30.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$RUNNER_TEMP/gitleaks.tgz"
+          printf '%s  %s\n' '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' "$RUNNER_TEMP/gitleaks.tgz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+          test "$("$RUNNER_TEMP/gitleaks" version)" = '8.30.1'
+      - name: Check that synthetic credentials remain visible
+        env:
+          GITLEAKS_BINARY: ${{ runner.temp }}/gitleaks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - .gitleaks.toml <<'PYTHON'
+          import json, os, pathlib, random, string, subprocess, sys, tempfile
+          binary=os.environ['GITLEAKS_BINARY']
+          config=str(pathlib.Path(sys.argv[1]).resolve())
+          paths=['scripts/test/live-turn/third_party/unreviewed/new_module.go','scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go','crates/pki-core/src/keys.rs','crates/ceremony/src/capture.rs','packages/wallet/src/config.ts','packages/app-core/src/lib/capabilities/keys.ts','scripts/security/unrestricted-control.txt']
+          with tempfile.TemporaryDirectory(prefix='gitleaks-scope-',dir='/tmp') as tmp:
+           root=pathlib.Path(tmp)/'repository';root.mkdir()
+           for p in paths:
+            f=root/p;f.parent.mkdir(parents=True,exist_ok=True);f.write_text('token = "'+'ghp_'+''.join(random.Random(381223).choices(string.ascii_letters+string.digits,k=36))+'"\n')
+           subprocess.run(['git','init','-q',str(root)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+           subprocess.run(['git','-C',str(root),'add','.'],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+           subprocess.run(['git','-C',str(root),'-c','user.name=Scope Test','-c','user.email=scope-test@example.invalid','commit','-qm','controlled fixture'],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+           for mode in ['dir','git']:
+            output=pathlib.Path(tmp)/(mode+'.json')
+            args=[binary,mode,'.','--config',config,'--gitleaks-ignore-path',str(root),'--report-path',str(output),'--report-format','json','--redact=100','--no-banner','--log-level','error','--exit-code','0']
+            if mode=='git':args.extend(['--log-opts','HEAD'])
+            proc=subprocess.run(args,cwd=root,capture_output=True,text=True)
+            if proc.returncode: raise SystemExit('scanner failure: '+str(proc.returncode))
+            rows=json.loads(output.read_text()) if output.exists() and output.stat().st_size else []
+            seen={r['File'] for r in rows if r['RuleID']=='github-pat'}
+            if seen != set(paths): raise RuntimeError('The scanner missed one or more synthetic control paths in '+mode)
+            print(json.dumps({'mode':mode,'detected_count':len(seen),'expected_count':len(paths)}))
+          PYTHON
+      - name: Scan the working tree and all fetched history
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -f "$EVIDENCE_DIR/directory-raw.json" "$EVIDENCE_DIR/history-raw.json" "$EVIDENCE_DIR/directory-scan.log" "$EVIDENCE_DIR/scan-state.json"' EXIT
+          node scripts/security/gitleaks-working-tree-gate.mjs prepare "$GITHUB_WORKSPACE" scripts/security/gitleaks-reviewed-working-tree.json "$EVIDENCE_DIR/scan-state.json"
+          set +e
+          "$RUNNER_TEMP/gitleaks" dir . --config .gitleaks.toml --gitleaks-ignore-path "$GITHUB_WORKSPACE" --report-path "$EVIDENCE_DIR/directory-raw.json" --report-format json --no-banner --log-level error >"$EVIDENCE_DIR/directory-scan.log" 2>&1
+          DIR_STATUS=$?
+          node scripts/security/gitleaks-working-tree-gate.mjs classify "$GITHUB_WORKSPACE" scripts/security/gitleaks-reviewed-working-tree.json "$EVIDENCE_DIR/scan-state.json" "$EVIDENCE_DIR/directory-raw.json" "$EVIDENCE_DIR/directory-dispositions.json" "$DIR_STATUS"
+          DIR_CLASSIFIER_STATUS=$?
+          "$RUNNER_TEMP/gitleaks" git . --config .gitleaks.toml --gitleaks-ignore-path "$GITHUB_WORKSPACE" --report-path "$EVIDENCE_DIR/history-raw.json" --report-format json --redact=100 --no-banner --log-level error
+          HISTORY_STATUS=$?
+          set -e
+          export DIR_STATUS DIR_CLASSIFIER_STATUS HISTORY_STATUS
+          python3 - <<'PYTHON'
+          import hashlib,json,os,pathlib,subprocess,sys,datetime
+          out=pathlib.Path(os.environ['EVIDENCE_DIR'])
+          repo='Tyler-R-Kendrick/OpenSesame'
+          expected=os.environ['EXPECTED_BASE_SHA']
+          r=subprocess.run(['gh','api','repos/'+repo+'/git/ref/heads/main','--jq','.object.sha'],capture_output=True,text=True)
+          if r.returncode: raise RuntimeError('Cannot read main after scan')
+          after=r.stdout.strip()
+          counts={}
+          for name in ('directory','history'):
+           path=out/(name+'-raw.json')
+           if not path.exists(): raise RuntimeError(name+' report is missing')
+           rows=json.loads(path.read_text())
+           if not isinstance(rows,list): raise RuntimeError(name+' report is malformed')
+           findings=[]
+           for row in rows:
+            if not isinstance(row,dict) or not isinstance(row.get('File'),str) or not isinstance(row.get('RuleID'),str): raise RuntimeError('Malformed finding')
+            safe={k:row.get(k) for k in ('Commit','RuleID','StartLine','EndLine','StartColumn','EndColumn')}
+            safe['file_sha256']=hashlib.sha256(row['File'].encode()).hexdigest()
+            safe['is_unknown_pat_path']=row['File']=='apps/pages/src/lib/transport-settings.test.ts'
+            findings.append(safe)
+           counts[name]=findings
+          disposition_path=out/'directory-dispositions.json'
+          if not disposition_path.exists(): raise RuntimeError('Directory classifier evidence is missing')
+          dispositions=json.loads(disposition_path.read_text())
+          if not isinstance(dispositions,list) or len(dispositions)!=len(counts['directory']): raise RuntimeError('Directory classifier evidence is inconsistent')
+          summary={'directory_reviewed':sum(x.get('reviewed') is True for x in dispositions),'directory_unreviewed':sum(x.get('reviewed') is not True for x in dispositions),'directory_dispositions':dispositions,'directory_classifier_status':int(os.environ['DIR_CLASSIFIER_STATUS']),'repository':repo,'source_sha':os.environ['CANDIDATE_SHA'],'base_sha':expected,'main_after':after,'run_id':os.environ['GITHUB_RUN_ID'],'observed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'directory_status':int(os.environ['DIR_STATUS']),'history_status':int(os.environ['HISTORY_STATUS']),'directory_findings':counts['directory'],'history_findings':counts['history']}
+          summary['unknown_pat_visible']=any(x['Commit']=='c9862a0e99b1fc7a8bc3169ec8158dd9abaebf01' and x['is_unknown_pat_path'] and x['RuleID']=='github-pat' and x['StartLine']==42 for x in counts['history'])
+          (out/'metadata.json').write_text(json.dumps(summary,indent=2)+'\n')
+          print(json.dumps({'directory_count':len(counts['directory']),'history_count':len(counts['history']),'unknown_pat_visible':summary['unknown_pat_visible'],'main_unchanged':after==expected}))
+          for name in ('directory','history'): (out/(name+'-raw.json')).unlink()
+          if after!=expected or not summary['unknown_pat_visible'] or summary['directory_status'] not in (0,1) or summary['history_status'] not in (0,1): raise SystemExit('Inventory evidence incomplete or main changed')
+          if summary['directory_classifier_status'] not in (0,1): raise SystemExit('Directory classifier failed')
+          if (summary['directory_classifier_status']==0) != (summary['directory_unreviewed']==0): raise SystemExit('Directory classifier status disagrees with findings')
+          if summary['directory_classifier_status'] or summary['history_status']: raise SystemExit('Security findings remain; review sanitized metadata')
+          PYTHON
+      - name: Retain sanitized metadata only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: gitleaks-scope-evidence
+          path: ${{ runner.temp }}/gitleaks-scope-evidence/metadata.json
+          if-no-files-found: error
+          retention-days: 7
