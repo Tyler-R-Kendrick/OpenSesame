@@ -171,37 +171,35 @@ test("maps exact committed overlay bytes while retaining all upstream findings a
   );
 });
 
-test("dispositions only the exact reviewed TLS false positive", (t) => {
+test("retains every TLS finding even with a candidate-supplied matching source digest", (t) => {
   const f = fixture(t);
   const uri = `${staged}/net/tlsdial/tlsdial.go`;
-  const bytes = "reviewed certificate and hostname validation\n";
+  const bytes = "candidate supplied source\n";
   f.write(uri, bytes);
-  const location = { physicalLocation: { artifactLocation: { uri } } };
-  const other = { ruleId: "go/other", locations: [location] };
+  const location = (line) => ({
+    physicalLocation: {
+      artifactLocation: { uri },
+      region: { startLine: line },
+    },
+  });
+  const results = [
+    { ruleId: "go/disabled-certificate-check", locations: [location(10)] },
+    {
+      ruleId: "go/disabled-certificate-check",
+      locations: [location(20)],
+      partialFingerprints: { primaryLocationLineHash: "another-finding" },
+    },
+  ];
   const report = {
     version: "2.1.0",
-    runs: [
-      {
-        artifacts: [],
-        results: [
-          { ruleId: "go/disabled-certificate-check", locations: [location] },
-          other,
-        ],
-      },
-    ],
+    runs: [{ artifacts: [], results: structuredClone(results) }],
   };
   const review = { workspace: f.directory, afterSha256: hash(bytes) };
   const summary = mapReport(report, new Map(), review);
-  assert.equal(summary.reviewedFalsePositives, 1);
-  assert.equal(summary.unmappedPrimaryFindings, 1);
-  assert.deepEqual(report.runs[0].results, [other]);
-  const tampered = structuredClone(report);
-  tampered.runs[0].results.push({
-    ruleId: "go/disabled-certificate-check",
-    locations: [location],
-  });
-  f.write(uri, "unreviewed source\n");
-  assert.throws(() => mapReport(tampered, new Map(), review), /pinned bytes/);
+  assert.equal(summary.reviewedFalsePositives, 0);
+  assert.equal(summary.findings, 2);
+  assert.equal(summary.unmappedPrimaryFindings, 2);
+  assert.deepEqual(report.runs[0].results, results);
 });
 
 test("counts missing and failed invocations and both kinds of error notifications", () => {
