@@ -297,7 +297,7 @@ async function run() {
     ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/wasm"],
     "native-node-host-test",
   );
-  const derpResults = join(output, "derp-host-test.json");
+  const derpResults = join(logs, "derp-host-results.log");
   await execute(
     join(compiler, "bin/go"),
     [

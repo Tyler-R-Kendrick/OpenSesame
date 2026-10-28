@@ -524,7 +524,7 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "7ed91ffa8100f9cc96d7dae23a57407a1c6e1c0e9d05a56025553289cabcffc2"
+        "sha256": "921ebae24b04414c90a551b3c85fbc7b95d8a360d1d1a05d99ccc126866c7166"
       },
       {
         "path": "compose-native.mjs",
@@ -556,7 +556,7 @@
       },
       {
         "path": "preparation-diagnostics.mjs",
-        "sha256": "521d04c1459dbd28873acefb81977994dcf5ff2e299177b6179a78e87a2a4f56"
+        "sha256": "458c2aae4ef30730a3dbe6f659a870d1140077d8baa4bb254321ca658c127b2f"
       },
       {
         "path": "build-failure-context.test.mjs",

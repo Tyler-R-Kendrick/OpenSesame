@@ -40,6 +40,7 @@ const innerLogs = [
   "native-http-host-test",
   "native-node-host-test",
   "native-derp-host-test",
+  "derp-host-results",
   "disable-remote-logtail",
   "native-node-patch",
   "native-ssh-patch",
