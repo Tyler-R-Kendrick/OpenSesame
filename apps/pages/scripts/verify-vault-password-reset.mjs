@@ -148,9 +148,34 @@ try {
   );
 
   // Path 2: turn the feature on the way a person does, then the same key
-  // reaches readiness and names the missing runtime.
+  // reaches readiness and names the missing runtime. The switch is on when
+  // the plan commits; the readiness seam is installed when the module leaves
+  // "starting". A document load would lock this guest vault, so the item is
+  // opened in place, the way the other walks move.
   await addCapabilities(page, ["Password reset"]);
-  await page.goto(itemUrl);
+  await page.waitForFunction(() => {
+    const found = document.querySelector(
+      '[role="switch"][data-capability-title="Password reset"]',
+    );
+    return (
+      found?.getAttribute("aria-checked") === "true" &&
+      found?.getAttribute("aria-busy") !== "true"
+    );
+  });
+  const starting = page
+    .locator("#feature-password-reset")
+    .getByRole("img", { name: "starting", exact: true });
+  if ((await starting.count()) === 0) {
+    await starting
+      .waitFor({ state: "visible", timeout: 1000 })
+      .catch(() => {});
+  }
+  await starting.waitFor({ state: "hidden", timeout: 15000 });
+  const item = new URL(itemUrl);
+  await page.evaluate((route) => {
+    history.pushState(null, "", route);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, `${item.pathname}${item.search}${item.hash}`);
   const rotationAgain = page.getByRole("region", { name: "Rotation" });
   await rotationAgain.waitFor({ timeout: 15000 });
   await rotationAgain
