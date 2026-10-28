@@ -25,6 +25,7 @@ type nodePeerGET struct {
 	closeBridge func()
 	mu          sync.Mutex
 	routes      map[*nodeHTTP]struct{}
+	sshRoutes   map[*nodeHTTP]struct{}
 }
 
 // The independent server-trust object uses the exact public/operator base fields.
@@ -63,7 +64,7 @@ func (i *jsIPN) bindNativePeerGET(trust js.Value) map[string]any {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	p := &nodePeerGET{node: i, roots: roots.Clone(), ctx: ctx, cancel: cancel, routes: make(map[*nodeHTTP]struct{})}
+	p := &nodePeerGET{node: i, roots: roots.Clone(), ctx: ctx, cancel: cancel, routes: make(map[*nodeHTTP]struct{}), sshRoutes: make(map[*nodeHTTP]struct{})}
 	port, closeBridge, err := nativehttp.BindPeerGETJS(ctx, p.route)
 	if err != nil {
 		cancel()
@@ -136,6 +137,9 @@ func (i *jsIPN) observeNativePeerGET() {
 	p.mu.Lock()
 	routes := make([]*nodeHTTP, 0, len(p.routes))
 	for route := range p.routes {
+		routes = append(routes, route)
+	}
+	for route := range p.sshRoutes {
 		routes = append(routes, route)
 	}
 	p.mu.Unlock()

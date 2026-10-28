@@ -18,6 +18,9 @@ const nodeNames = [
   "nodepeer_test.go",
   "native-extra-dns.go",
   "native-extra-dns_test.go",
+  "native-ssh-keys.go",
+  "native-ssh-keys_test.go",
+  "nodessh_js.go",
 ];
 const patchTargets = [
   "cmd/tsconnect/wasm/wasm_js.go",

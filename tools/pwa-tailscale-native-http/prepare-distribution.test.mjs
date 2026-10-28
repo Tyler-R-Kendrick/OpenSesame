@@ -38,6 +38,10 @@ async function fixture(t) {
     toolchainSelection: { files: [] },
     privateLogging: { files: [] },
     publicTrust: { files: [] },
+    nativeSSH: {
+      patch: { path: "exit-route.patch", sha256: hash(patch) },
+      stagingHelper: { path: "nativehttp.go", sha256: hash(overlay) },
+    },
     composition: { files: [] },
     patch: { sha256: hash(patch) },
   };
