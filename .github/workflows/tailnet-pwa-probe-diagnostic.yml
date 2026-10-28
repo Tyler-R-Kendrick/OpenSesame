@@ -1,0 +1,65 @@
+name: Inspect installed Tailnet PWA probe
+on:
+  push:
+    branches: [review/tailnet-pwa-probe-diagnostic]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: >-
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor_id == '145080887' &&
+      github.ref == 'refs/heads/review/tailnet-pwa-probe-diagnostic'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /OpenSesame/
+    steps:
+      - name: Check out the fixed candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: 1ead5f45b7f4596efa37d11293b9002765f30cc0
+          path: candidate
+          persist-credentials: false
+      - name: Check out the diagnostic controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: controller
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: candidate/pnpm-lock.yaml
+      - name: Verify exact candidate and diagnostic bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = 1ead5f45b7f4596efa37d11293b9002765f30cc0
+          printf '%s  %s\n' 1743c07016b210fdd20af69c8a15b0312b22103364dab39427d491af62d126e7 candidate/apps/pages/scripts/lib/tailscale-installed-pwa-browser.mjs | sha256sum --check
+          printf '%s  %s\n' 9daf53fe391c3844c828a9c845610cb720e9ad397c7999b4eb4a3d3dfb377483 controller/scripts/review/tailnet-installed-pwa-diagnostic.mjs | sha256sum --check
+          cp controller/scripts/review/tailnet-installed-pwa-diagnostic.mjs candidate/apps/pages/scripts/lib/tailscale-installed-pwa-browser.mjs
+      - name: Install
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile
+      - name: Build the declared Tailscale verification profile
+        working-directory: candidate
+        run: pnpm --filter @opensesame/pages build:tailnet-browser-verify
+      - name: Official browser SDK through real Headscale and a native peer
+        working-directory: candidate
+        env:
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/tailnet-browser-node
+        run: pnpm --filter @opensesame/pages verify:tailnet-browser-node
+      - name: Preserve Tailscale browser evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: tailnet-pwa-probe-diagnostic
+          path: ${{ runner.temp }}/tailnet-browser-node/
+          if-no-files-found: warn
