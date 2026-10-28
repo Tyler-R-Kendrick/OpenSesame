@@ -36,6 +36,8 @@ export DEEPSEC_GROK_FILE_WALL_SEC="${DEEPSEC_GROK_FILE_WALL_SEC:-1050}"
 export DEEPSEC_GROK_DEEP_TIMEOUT_SEC="${DEEPSEC_GROK_DEEP_TIMEOUT_SEC:-1800}"
 export DEEPSEC_GROK_USE_COREUTILS_TIMEOUT="${DEEPSEC_GROK_USE_COREUTILS_TIMEOUT:-1}"
 export DEEPSEC_GROK_ORDERED_SKIP_DEEP="${DEEPSEC_GROK_ORDERED_SKIP_DEEP:-1}"
+# Fewer scanner candidates first so shallow+rescue can credit strict before wall-heavy files.
+export DEEPSEC_GROK_MANIFEST_SORT="${DEEPSEC_GROK_MANIFEST_SORT:-candidates}"
 ORDERED_PROCESS_TIMEOUT_SEC="${DEEPSEC_GROK_ORDERED_PROCESS_TIMEOUT_SEC:-$((DEEPSEC_GROK_FILE_WALL_SEC + 300))}"
 unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY
 
@@ -77,7 +79,7 @@ while [[ "$idx" -lt "$TOTAL" ]]; do
     --max-turns "${DEEPSEC_GROK_SHALLOW_MAX_TURNS:-60}" \
     --manifest "$SLICE"; then
     reason="process_exit"
-    if tail -40 "$LOG" 2>/dev/null | grep -qE 'file wall exceeded|after rescue passes \(ordered lane'; then
+    if tail -60 "$LOG" 2>/dev/null | grep -qE 'file wall exceeded|after rescue passes \(ordered lane|deepsec-grok-slice-watchdog: hard cap|grok exited 143|grok investigate timed out'; then
       reason="file_wall_exceeded"
     fi
     node "${ROOT}/scripts/audit/deepsec-wave2-grok-deferred.mjs" path "$ROOT" "$path" "$reason"

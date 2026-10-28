@@ -43,10 +43,14 @@ for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   if (grokDone) continue;
   if (!tierFilter(rec.filePath)) continue;
   if (allDeferred.has(rec.filePath) && !wallRetry.has(rec.filePath)) continue;
+  const candidateCount = Array.isArray(rec.candidates)
+    ? rec.candidates.length
+    : 0;
   entries.push({
     filePath: rec.filePath,
     strict: strictLast && fileHasInvestigateWaveStrict(rec, marker),
     wallRetry: wallRetry.has(rec.filePath),
+    candidateCount,
   });
 }
 
@@ -69,6 +73,10 @@ entries.sort((a, b) => {
   }
   if (sortMode === "path") {
     return a.filePath.localeCompare(b.filePath);
+  }
+  if (sortMode === "candidates") {
+    const candDelta = a.candidateCount - b.candidateCount;
+    if (candDelta !== 0) return candDelta;
   }
   return (
     sourceByteSize(repoRoot, a.filePath) -
