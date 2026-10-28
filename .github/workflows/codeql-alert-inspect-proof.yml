@@ -20,15 +20,25 @@ jobs:
           set -euo pipefail
           actual="$(gh api repos/Tyler-R-Kendrick/OpenSesame/git/ref/heads/review/native-ssh-host-key-proof --jq .object.sha)"
           test "$actual" = 69e60b69be2348fef8c1bed84f21d853af444148
-          gh api --method GET repos/Tyler-R-Kendrick/OpenSesame/code-scanning/alerts -f ref=refs/heads/review/native-ssh-host-key-proof -f state=all -f per_page=100 --paginate --slurp > "$RUNNER_TEMP/alerts.json"
+          for state in open closed dismissed fixed; do
+            gh api --method GET repos/Tyler-R-Kendrick/OpenSesame/code-scanning/alerts -f ref=refs/heads/review/native-ssh-host-key-proof -f state="$state" -f per_page=100 --paginate --slurp > "$RUNNER_TEMP/alerts-$state.json"
+          done
           gh api --method GET repos/Tyler-R-Kendrick/OpenSesame/code-scanning/analyses -f ref=refs/heads/review/native-ssh-host-key-proof -f per_page=100 --paginate --slurp > "$RUNNER_TEMP/analyses.json"
           node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
           import { readFileSync, writeFileSync } from 'node:fs';
           const read = (name) => JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/${name}.json`, 'utf8')).flat();
           const target = '/language:go-composed-native-review/';
           const analyses = read('analyses').filter(a => a.category === target).map(a => ({ id: a.id, category: a.category, ref: a.ref, commit_sha: a.commit_sha, results_count: a.results_count, rules_count: a.rules_count, tool: a.tool?.name, created_at: a.created_at, error: a.error }));
-          const all = read('alerts');
-          const alerts = all.filter(a => a.most_recent_instance?.category === target).map(a => ({ number: a.number, state: a.state, rule: a.rule?.id, category: a.most_recent_instance?.category, path: a.most_recent_instance?.location?.path, line: a.most_recent_instance?.location?.start_line }));
+          const all = [...new Map(['open', 'closed', 'dismissed', 'fixed'].flatMap(s => read(`alerts-${s}`)).map(a => [a.number, a])).values()];
+          const rules = new Set(['go/reflected-xss', 'go/path-injection', 'go/uncontrolled-allocation-size', 'go/disabled-certificate-check', 'go/clear-text-logging']);
+          const relevant = all.filter(a => rules.has(a.rule?.id));
+          if (relevant.length > 100) throw new Error('Too many relevant alerts for bounded instance inspection');
+          const alerts = relevant.map(a => {
+            const raw = execFileSync('gh', ['api', '--method', 'GET', `repos/Tyler-R-Kendrick/OpenSesame/code-scanning/alerts/${a.number}/instances`, '-f', 'ref=refs/heads/review/native-ssh-host-key-proof', '-f', 'per_page=100', '--paginate', '--slurp'], { encoding: 'utf8' });
+            const instances = JSON.parse(raw).flat().map(i => ({ category: i.category, ref: i.ref, commit_sha: i.commit_sha, path: i.location?.path, line: i.location?.start_line }));
+            return { number: a.number, state: a.state, rule: a.rule?.id, instances };
+          });
           const categories = [...new Set(all.map(a => a.most_recent_instance?.category ?? '(missing)'))];
           const evidence = { target, countAllBranchAlerts: all.length, categories, analyses, alerts };
           const value = JSON.stringify(evidence, null, 2);
