@@ -93,6 +93,10 @@ ${failure ? `process.exitCode=${failure === "uncertain" ? 125 : 1};` : `await wr
     toolchainSelection: { files: [] },
     privateLogging: { files: [] },
     publicTrust: { files: [] },
+    nativeSSH: {
+      patch: { path: "exit-route.patch", sha256: hash("fixture patch") },
+      stagingHelper: { path: "build.mjs", sha256: hash(builder) },
+    },
     composition: { files: [] },
     patch: { sha256: hash("fixture patch") },
   };

@@ -151,6 +151,10 @@ test("checks exact source overlays, rejects tampering and rejects overlay traver
     toolchainSelection: { files: [] },
     privateLogging: { files: [] },
     publicTrust: { files: [] },
+    nativeSSH: {
+      patch: { path: "exit-route.patch", sha256: hash(patch) },
+      stagingHelper: { path: "nativehttp.go", sha256: hash(overlay) },
+    },
     composition: { files: [] },
     patch: { sha256: hash(patch) },
   };
@@ -184,6 +188,10 @@ test("cache validation checks peer overlay, patch and staging helper before reus
     toolchainSelection: { files: [] },
     privateLogging: { files: [] },
     publicTrust: { files: [] },
+    nativeSSH: {
+      patch: entry("exit-route.patch"),
+      stagingHelper: entry(names[2]),
+    },
     composition: { files: [] },
     peerGET: {
       files: [entry(names[0])],

@@ -1,0 +1,42 @@
+name: Review native SSH build in the browser node
+on:
+  push:
+    branches: [review/native-ssh-browser-proof]
+permissions:
+  contents: read
+concurrency:
+  group: native-ssh-browser-proof
+  cancel-in-progress: false
+jobs:
+  tailnet-browser-node:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /OpenSesame/
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install exact locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build declared Tailscale browser profile
+        run: pnpm --filter @opensesame/pages build:tailnet-browser-verify
+      - name: Official browser SDK through real Headscale and a native peer
+        env:
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/tailnet-browser-node
+        run: pnpm --filter @opensesame/pages verify:tailnet-browser-node
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-ssh-browser-${{ github.sha }}
+          path: ${{ runner.temp }}/tailnet-browser-node/
+          if-no-files-found: warn

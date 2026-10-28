@@ -292,6 +292,11 @@ async function run() {
     ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/nativehttp"],
     "native-http-host-test",
   );
+  await execute(
+    join(compiler, "bin/go"),
+    ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/wasm"],
+    "native-node-host-test",
+  );
   const baseline = await build("baseline");
   const repeated = await build("baseline-repeat");
   if (baseline.sha256 !== repeated.sha256)
