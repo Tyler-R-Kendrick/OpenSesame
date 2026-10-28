@@ -14,16 +14,16 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: 04db0d2a1fe3727032937c9a13101d49ce83ef24
+          ref: e286055493a4c78ab099323dc03505b6b32061b6
       - name: Verify immutable source and exact patch
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 04db0d2a1fe3727032937c9a13101d49ce83ef24
-          test "$(git rev-parse HEAD^{tree})" = 0df8cf3a8a7f7b91b0232bd64ffe8bb8df5dc6a4
-          test "$(git rev-parse HEAD^)" = 3c8a788946f79771bbe3c82ae63283c49134daf0
+          test "$(git rev-parse HEAD)" = e286055493a4c78ab099323dc03505b6b32061b6
+          test "$(git rev-parse HEAD^{tree})" = 2f9ac0487663e849301e9894ff4e9bb9819ed1b3
+          test "$(git rev-parse HEAD^)" = 04db0d2a1fe3727032937c9a13101d49ce83ef24
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/conformance.patch"
-          printf '%s  %s\n' 3c1a887bf6e119ff7e8240854a212e11bcb815349fb2c07306764eb131761002 "$RUNNER_TEMP/conformance.patch" | sha256sum --check
+          printf '%s  %s\n' d166d4c84ff6637ed2e630faa4146a8f46687b8ea5b49f5508322f3c07174cb4 "$RUNNER_TEMP/conformance.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
@@ -40,7 +40,7 @@ jobs:
           git diff --exit-code -- apps/pages/server/connect-verify-targets.generated.mjs
           pnpm --filter @opensesame/app-core generate:connect
           git diff --exit-code -- packages/app-core/src/lib/connect-presets.generated.ts
-          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-api-higgsfield.test.ts src/lib/native-api-dot-segment.test.ts src/lib/native-api-auth.test.ts src/lib/native-api-verify.test.ts src/lib/connect-presets.test.ts src/lib/generated-json.test.ts
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-api-higgsfield.test.ts src/lib/native-api-obsidian.test.ts src/lib/native-api-fal.test.ts src/lib/native-api-target.test.ts src/lib/native-api-dot-segment.test.ts src/lib/native-api-auth.test.ts src/lib/native-api-verify.test.ts src/lib/connect-presets.test.ts src/lib/generated-json.test.ts
           pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance/connect-conformance.test.ts
           node --test apps/pages/server/test/connect-manage.test.mjs apps/pages/server/test/connect-verify*.test.mjs
       - name: Typecheck and lint the changed contract
@@ -50,13 +50,13 @@ jobs:
           pnpm --filter @opensesame/pages typecheck
           pnpm lint:anti-slop:files apps/pages/scripts/emit-connect-verify-targets.mjs apps/pages/server/connect-verify.mjs apps/pages/server/test/connect-verify*.test.mjs apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
           pnpm exec biome check spec/connectors/relay-verification-presets.json spec/connectors/connect-presets.json spec/connectors/verification-hosts.json apps/pages/scripts/emit-connect-verify-targets.mjs apps/pages/server/connect-verify-targets.generated.mjs apps/pages/server/connect-verify-targets.generated.d.mts apps/pages/server/connect-verify.mjs apps/pages/server/test/connect-verify*.test.mjs apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
-          pnpm lint:anti-slop:files packages/app-core/scripts/connect-verification-policy.mjs packages/app-core/scripts/emit-connect-presets.mjs packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-verify.ts packages/app-core/src/lib/native-api-connectors.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-dot-segment.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-verify.test.ts
-          pnpm exec biome check packages/app-core/scripts/connect-verification-policy.mjs packages/app-core/scripts/emit-connect-presets.mjs packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-verify.ts packages/app-core/src/lib/native-api-connectors.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-dot-segment.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-verify.test.ts
+          pnpm lint:anti-slop:files packages/app-core/scripts/connect-verification-policy.mjs packages/app-core/scripts/emit-connect-presets.mjs packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-verify.ts packages/app-core/src/lib/native-api-connectors.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-obsidian.test.ts packages/app-core/src/lib/native-api-fal.test.ts packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-api-dot-segment.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-verify.test.ts
+          pnpm exec biome check packages/app-core/scripts/connect-verification-policy.mjs packages/app-core/scripts/emit-connect-presets.mjs packages/app-core/src/lib/connect-provider-auth-schema.ts packages/app-core/src/lib/native-api-target.ts packages/app-core/src/lib/native-api-verify.ts packages/app-core/src/lib/native-api-connectors.ts packages/app-core/src/lib/native-api-higgsfield.test.ts packages/app-core/src/lib/native-api-obsidian.test.ts packages/app-core/src/lib/native-api-fal.test.ts packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-api-dot-segment.test.ts packages/app-core/src/lib/native-api-auth.test.ts packages/app-core/src/lib/native-api-verify.test.ts
           pnpm quality:gate
       - name: Check source after tests
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 04db0d2a1fe3727032937c9a13101d49ce83ef24
+          test "$(git rev-parse HEAD)" = e286055493a4c78ab099323dc03505b6b32061b6
           git diff --exit-code
           git diff --cached --exit-code
