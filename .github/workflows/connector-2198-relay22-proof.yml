@@ -14,15 +14,15 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: 60da24c09ac201f5efb16ba1fe132ce431980558
+          ref: 3df654f9ee9d861f564f73588754198e251ae54a
       - name: Verify immutable source and exact patch
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 60da24c09ac201f5efb16ba1fe132ce431980558
-          test "$(git rev-parse HEAD^{tree})" = eec3856c708fc35dfc7b38157cd16f4d8dc0791c
-          test "$(git rev-parse HEAD^)" = 22afed11cd52d41c1618d29ede8d1d366c266417
+          test "$(git rev-parse HEAD)" = 3df654f9ee9d861f564f73588754198e251ae54a
+          test "$(git rev-parse HEAD^{tree})" = 33bf1bf27be49ad721a8c702c1bb94ecfd6d622a
+          test "$(git rev-parse HEAD^)" = 60da24c09ac201f5efb16ba1fe132ce431980558
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/candidate.patch"
-          printf '%s  %s\n' 1c00aad643d49962d868f8f39c4e823a6bf60f67ca7148fc67296d02ef0abfee "$RUNNER_TEMP/candidate.patch" | sha256sum --check
+          printf '%s  %s\n' 51e183d76a64711290bf2eb894bede731ef5b6446a4f003d5ce50df5cb30592a "$RUNNER_TEMP/candidate.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
@@ -54,6 +54,6 @@ jobs:
       - name: Verify source remains unchanged
         if: always()
         run: |
-          test "$(git rev-parse HEAD)" = 60da24c09ac201f5efb16ba1fe132ce431980558
+          test "$(git rev-parse HEAD)" = 3df654f9ee9d861f564f73588754198e251ae54a
           git diff --exit-code
           git diff --cached --exit-code
