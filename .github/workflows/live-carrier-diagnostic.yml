@@ -90,6 +90,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 40607077b8070d0ca52b46fa45ca8612a24e317c
           test "$(git hash-object apps/pages/scripts/lib/live-join-walk.mjs)" = a80730cfbe848349f7e5784ba3edfd2e79aec8a5
+          test "$(git hash-object apps/pages/scripts/lib/live-join-addresses.mjs)" = bf41ab6497af68f28bbe5fd2943d8991c9d87dec
           cp work/evidence-tools/scripts/review/live-carrier-diagnostic.mjs apps/pages/scripts/lib/live-carrier-diagnostic.mjs
           node --input-type=module <<'JS'
           import { readFileSync, writeFileSync } from "node:fs";
@@ -99,6 +100,12 @@ jobs:
           if (source.split(marker).length !== 2) throw Error("Unexpected walk boundary");
           const replacement = `    if (carrier.kind === "nats") await natsChoices(routes, carrier);\n    try {\n      await routes.getByRole("button", { name: "Add the carrier" }).click();\n    } catch (error) {\n      try { await (await import("./live-carrier-diagnostic.mjs")).diagnoseCarrier(routes, carrier); } catch { console.log("Carrier diagnostic unavailable"); }\n      throw error;\n    }`;
           writeFileSync(path, source.replace(marker, replacement));
+          const addressPath = "apps/pages/scripts/lib/live-join-addresses.mjs";
+          const addressSource = readFileSync(addressPath, "utf8");
+          const addressMarker = `    await routes.getByRole("button", { name: "Add the address" }).click();`;
+          if (addressSource.split(addressMarker).length !== 2) throw Error("Unexpected address walk boundary");
+          const addressReplacement = `    try {\n      await routes.getByRole("button", { name: "Add the address" }).click();\n    } catch (error) {\n      try { await (await import("./live-carrier-diagnostic.mjs")).diagnoseAddress(routes, address); } catch { console.log("Address diagnostic unavailable"); }\n      throw error;\n    }`;
+          writeFileSync(addressPath, addressSource.replace(addressMarker, addressReplacement));
           JS
       - name: Join a live session, webkit owner, every joiner
         env:

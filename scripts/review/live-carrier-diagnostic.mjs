@@ -23,6 +23,8 @@ export async function diagnoseCarrier(routes, carrier) {
         ? expected.kind
         : "other",
       urlMatchesExpected: url?.value === expected.url,
+      urlTrackerMatchesExpected: url?._valueTracker?.getValue() === expected.url,
+      urlFocused: root.ownerDocument.activeElement === url,
       urlLength: url?.value.length ?? null,
       urlProtocol: protocol,
       urlBrowserValid: url?.validity.valid ?? null,
@@ -36,4 +38,22 @@ export async function diagnoseCarrier(routes, carrier) {
     };
   }, { kind: carrier.kind, url: carrier.url });
   console.log(`Carrier failure diagnostic: ${JSON.stringify(evidence)}`);
+}
+
+/** The address field shares the same asynchronous submit/reset lifecycle. */
+export async function diagnoseAddress(routes, address) {
+  const evidence = await routes.evaluate((root, expected) => {
+    const input = root.querySelector("#live-address");
+    const submit = root.querySelector('[aria-label="Add the address"]');
+    return {
+      valueMatchesExpected: input?.value === expected,
+      trackerMatchesExpected: input?._valueTracker?.getValue() === expected,
+      valueLength: input?.value.length ?? null,
+      browserValid: input?.validity.valid ?? null,
+      focused: root.ownerDocument.activeElement === input,
+      submitDisabled: submit?.disabled ?? null,
+      invalidAddressMark: Boolean(root.querySelector('[aria-label="Not an IP address"]')),
+    };
+  }, address);
+  console.log(`Address failure diagnostic: ${JSON.stringify(evidence)}`);
 }
