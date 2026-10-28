@@ -1,0 +1,80 @@
+name: Verify live route draft preservation
+on:
+  push:
+    branches: [review/live-draft-race-validation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: >-
+      github.repository == 'Tyler-R-Kendrick/OpenSesame' &&
+      github.actor_id == '145080887' &&
+      github.ref == 'refs/heads/review/live-draft-race-validation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SOURCE_SHA: b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
+    steps:
+      - name: Check out exact baseline
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+      - name: Check out reviewed tests and patch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: work/draft-evidence
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify source and reviewed test bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git hash-object apps/pages/src/modules/sharing.live/LiveRoutesPanel.test.tsx)" = 4dc12a0dce746d10321291d81315910ca174a9ae
+          test "$(git hash-object apps/pages/src/modules/sharing.live/LiveRoutesPanel.tsx)" = f1de978d25292bd3223649823365302bb68d29af
+          test "$(git hash-object apps/pages/src/modules/sharing.live/LiveCarriers.tsx)" = 422ce876cd6391ee1ecf2d421543cca319da09f5
+          cd work/draft-evidence/scripts/review/live-draft
+          printf '%s  %s\n' \
+            60c0d95b845c1c8223d0ecf4eb14e9a6be00602e1d8a7cbe358df53a4e455e4e LiveRoutesPanel.test.tsx \
+            dd4fc74b03bb97abc33124882237e11d25f13b3c3de417f44c66ceb25def7e0f LiveRoutesPanel.tsx \
+            c51738a396d815870bee9d7710c38965b5d777a86256b0c808997138f10e8186 LiveCarriers.tsx | sha256sum --check
+      - name: Reproduce lost drafts on the exact baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp work/draft-evidence/scripts/review/live-draft/LiveRoutesPanel.test.tsx apps/pages/src/modules/sharing.live/LiveRoutesPanel.test.tsx
+          mkdir -p "$RUNNER_TEMP/live-draft-evidence"
+          set +e
+          pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.live/LiveRoutesPanel.test.tsx \
+            --testNamePattern 'keeps (a newer address typed|newer TURN server and credentials|a newer carrier draft)' \
+            --reporter=json --outputFile "$RUNNER_TEMP/live-draft-evidence/before.json"
+          result=$?
+          set -e
+          test "$result" = 1
+          node work/draft-evidence/scripts/review/live-draft/check-results.mjs "$RUNNER_TEMP/live-draft-evidence/before.json" before
+      - name: Test the same three cases with the reviewed fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp work/draft-evidence/scripts/review/live-draft/LiveRoutesPanel.tsx apps/pages/src/modules/sharing.live/LiveRoutesPanel.tsx
+          cp work/draft-evidence/scripts/review/live-draft/LiveCarriers.tsx apps/pages/src/modules/sharing.live/LiveCarriers.tsx
+          pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.live/LiveRoutesPanel.test.tsx \
+            --testNamePattern 'keeps (a newer address typed|newer TURN server and credentials|a newer carrier draft)' \
+            --reporter=json --outputFile "$RUNNER_TEMP/live-draft-evidence/after.json"
+          node work/draft-evidence/scripts/review/live-draft/check-results.mjs "$RUNNER_TEMP/live-draft-evidence/after.json" after
+      - name: Keep the before and after test reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: live-draft-before-after
+          path: ${{ runner.temp }}/live-draft-evidence
+          if-no-files-found: error
