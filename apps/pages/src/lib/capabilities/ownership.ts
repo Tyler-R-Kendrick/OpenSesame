@@ -85,15 +85,20 @@ export const PLANNED_MODULE_ENTRIES: readonly string[] = [
 ].map((id) => runtimeEntry(id).entry);
 
 /** Secondary HTML entries (vite `rollupOptions.input`) and who owns them. */
-export const HTML_ENTRY_OWNERSHIP: Readonly<Record<string, CapabilityId>> =
-  Object.freeze({
-    // MSAL v5 redirect bridge: never emitted without ambient SSO.
-    "auth/redirect.html": "identity.ambient-sso",
-    "auth/linear.html": "connectors.external",
-    "auth/native-connector.html": "connectors.external",
-    "auth/native-implicit.html": "connectors.external",
-    "auth/native-google.html": "connectors.external",
-  });
+export const HTML_ENTRY_OWNERSHIP: Readonly<
+  Record<string, CapabilityId | null>
+> = Object.freeze({
+  "404.html": null,
+  "about.html": null,
+  "contact.html": null,
+  "privacy.html": null,
+  // MSAL v5 redirect bridge: never emitted without ambient SSO.
+  "auth/redirect.html": "identity.ambient-sso",
+  "auth/linear.html": "connectors.external",
+  "auth/native-connector.html": "connectors.external",
+  "auth/native-implicit.html": "connectors.external",
+  "auth/native-google.html": "connectors.external",
+});
 
 /**
  * Files under `public/` and the capability that serves them. `auth.js` and

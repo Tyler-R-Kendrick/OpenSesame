@@ -4,8 +4,9 @@
  * connector through the real relay, Connect (emulated, schema-strict) runs a
  * real authorization-code exchange against a strict provider emulator for a
  * person, and the relay's token proof acquires that person's token and gets
- * the service's own verify call to answer yes — without the token ever
- * reaching the page.
+ * the service's own verify call to answer yes when its destination is bound,
+ * without the token ever reaching the page. Unbound verification hosts are
+ * explicitly refused while token acquisition remains available.
  *
  * `CONNECT_CONFORMANCE_OUT=<file>` writes the per-connector results as
  * evidence.
@@ -40,12 +41,9 @@ import {
   verifyWithToken,
 } from "../../../server/connect-verify.mjs";
 import { handleManage } from "../../../server/manage.mjs";
+import { assertTokenProof } from "./conformance-proof.js";
 import { CONNECT_ORIGIN, ConnectEmulator } from "./connect-emulator.js";
-import {
-  CONFORMANCE_ACCOUNT,
-  ProviderEmulator,
-  type ProviderProfile,
-} from "./provider-emulator.js";
+import { ProviderEmulator, type ProviderProfile } from "./provider-emulator.js";
 import { scenario } from "./scenario.js";
 
 const RELAY = "https://relay.test";
@@ -145,19 +143,6 @@ const cases = connectPlans()
     ([, plan, kind]) => !(kind === "managed" && VERCEL_ONLY.has(plan.id)),
   );
 
-function expectedAccount(
-  plan: ConnectPlan,
-  kind: ConnectMethodKind,
-  profile: ProviderProfile,
-): string {
-  const conditions =
-    kind === "api-key" ? VERIFY_TARGETS[plan.id]?.apiKey?.success : undefined;
-  const condition = conditions?.find(
-    (item) => item.field === profile.verify?.accountField,
-  );
-  return String(condition?.equals ?? CONFORMANCE_ACCOUNT);
-}
-
 describe("every connector acquires a person's token", () => {
   it.each(cases)("%s", async (_label, plan, kind) => {
     const { profile, state } = scenario(plan, kind);
@@ -210,6 +195,7 @@ describe("every connector acquires a person's token", () => {
       `connection=${encodeURIComponent(connection.connectionId)}`,
     );
 
+    const providerCallsBeforeCheck = [...provider.log];
     const check = await checkConnectorToken(connection.connectionId, PERSON);
     const issued = [...provider.issued, ...provider.apiKeys];
     // A truncated SHA-256 fingerprint, only to recognise the same token
@@ -218,16 +204,14 @@ describe("every connector acquires a person's token", () => {
       createHash("sha256").update(token).digest("hex").slice(0, 12),
     );
     expect(fingerprints).toContain(check.fingerprint);
-    if (profile.verify) {
-      expect(check.verified, provider.log.join("\n")).toMatchObject({
-        status: 200,
-        ok: true,
-      });
-      if (profile.verify.accountField)
-        expect(check.verified?.account).toBe(
-          expectedAccount(plan, kind, profile),
-        );
-    }
+    assertTokenProof({
+      plan,
+      kind,
+      profile,
+      provider,
+      providerCallsBeforeCheck,
+      check,
+    });
     rows.push({
       service: plan.id,
       method: kind,

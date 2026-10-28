@@ -16,8 +16,8 @@ import { auditSettings } from "./lib/layout-contract.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
 import { AUDIT, phoneContext, recordStop } from "./lib/mobile-contract.mjs";
 import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
-import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
+import { sectionStops } from "./lib/mobile-sections.mjs";
 import { sizesToWalk } from "./lib/mobile-sizes.mjs";
 import { trustedContactsStops } from "./lib/mobile-trusted-contacts.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
@@ -141,38 +141,6 @@ async function frontDoor(page, stop) {
   }
 }
 
-/** Every section behind the sections drawer, and the tab the Access strip hides. */
-async function sections(page, stop) {
-  for (const [label, name] of [
-    ["connections", "Connections"],
-    ["access", "Access"],
-    ["identity", "Identity"],
-    ["settings", "Settings"],
-  ]) {
-    if (await openTab(page, name)) await audit(page, stop(label));
-  }
-  // Settings is the last stop: a finger has no key to press, so the keymap
-  // it is given is the Gestures tab (ADR 0170), made with real touches.
-  await auditGestures(page, harness, stop, audit);
-  // Access keeps five more tabs in a scrolling strip; the far one has to be
-  // reachable and has to bring itself into view once it is current.
-  if (!(await openTab(page, "Access"))) return;
-  const policies = page
-    .getByRole("treeitem", { name: "Policies", exact: true })
-    .and(page.locator('[aria-level="2"]'));
-  if ((await policies.count()) === 0) {
-    harness.check(
-      false,
-      `${stop("access-policies")}: the Policies tab is missing`,
-    );
-    return;
-  }
-  await policies.scrollIntoViewIfNeeded();
-  await policies.tap();
-  await page.waitForTimeout(500);
-  await audit(page, stop("access-policies"));
-}
-
 /**
  * The editor, then the vault with something in it. An empty vault hides every
  * row, every verb and the pane switch the phone layout turns list and detail
@@ -218,7 +186,7 @@ async function walk(browser, phone) {
   await audit(page, stop("vault"));
   await phonePolish.topbarPromptFits(page, stop, { harness });
 
-  await sections(page, stop);
+  await sectionStops(page, stop, { audit, harness, openTab });
   await settingsFileStops({ page, harness, audit, stop, base });
 
   // The overflow the top bar carries holds what the statusline would: help,

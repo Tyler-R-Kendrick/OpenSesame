@@ -3,14 +3,23 @@ import {
   isJsonObject,
   isString,
 } from "../../../../scripts/lib/json-boundary.mjs";
-import { NATIVE_CONNECT_PLAN_JSON as CONNECT_PLAN_JSON } from "./native-browser-catalog-projection.mjs";
-
+import {
+  NATIVE_CONNECT_PLAN_JSON as CONNECT_PLAN_JSON,
+  NATIVE_API_FAMILIES,
+  NATIVE_CANONICAL_CATALOG_IDS,
+  NATIVE_SHARED_AI_PRESETS,
+} from "./native-browser-catalog-projection.mjs";
+import {
+  DOCUMENTED_PROBE_REPLIES,
+  DOCUMENTED_READS,
+} from "./native-browser-documented-provider-fixtures.mjs";
 import {
   paymentProbeReply,
   paymentReadFixture,
 } from "./native-browser-payment-fixtures.mjs";
 
 const PARAMETER_VALUES = {
+  host: "obsidian.example.test",
   program_host: "program-api.example.test",
   application_id: "contractapp",
   company_domain: "contractcompany",
@@ -19,215 +28,6 @@ const PARAMETER_VALUES = {
   instance: "contractinstance",
   project_id: "contractproject",
   workspace_id: "contractworkspace",
-};
-
-const DOCUMENTED_PROBE_REPLIES = {
-  // https://docs.linqapp.com/api-reference/phone-numbers/list-phone-numbers
-  linq: {
-    phone_numbers: [
-      {
-        id: "550e8400-e29b-41d4-a716-446655440000",
-        phone_number: "+12025551234",
-        line_type: "iMessage",
-        forwarding_number: "+12025559999",
-        reputation: {
-          status: "HEALTHY",
-          doc_url:
-            "https://docs.linqapp.com/channel/imessage/guides/phone-numbers/phone-reputation#healthy",
-        },
-        private_metadata: "private Linq upstream metadata",
-      },
-    ],
-  },
-  // https://docs.agentmail.to/api-reference/inboxes/list
-  agentmail: {
-    count: 1,
-    inboxes: [
-      {
-        inbox_id: "owned-inbox",
-        email: "owned@example.test",
-        display_name: "Protocol authority AgentMail inbox",
-      },
-    ],
-  },
-  algolia: {
-    items: [
-      {
-        name: "products",
-        entries: 1,
-        dataSize: 128,
-        lastBuildTimeS: 1,
-        pendingTask: false,
-        primary: true,
-      },
-    ],
-    nbPages: 1,
-  },
-  anthropic: {
-    data: [
-      {
-        id: "claude-contract",
-        type: "model",
-        display_name: "Protocol authority model",
-        created_at: "2026-01-01T00:00:00Z",
-      },
-    ],
-    has_more: false,
-    first_id: "claude-contract",
-    last_id: "claude-contract",
-  },
-  notion: {
-    object: "user",
-    id: "11111111-1111-4111-8111-111111111111",
-    type: "bot",
-    name: "Protocol authority Notion bot",
-    bot: {
-      owner: { type: "workspace", workspace: true },
-      workspace_name: "Protocol authority workspace",
-    },
-  },
-  resend: {
-    data: [
-      {
-        id: "11111111-1111-4111-8111-111111111111",
-        name: "contract.example.test",
-        status: "verified",
-        region: "us-east-1",
-        created_at: "2026-01-01T00:00:00Z",
-      },
-    ],
-    has_more: false,
-  },
-  postmark: {
-    ID: 42,
-    Name: "Protocol authority Postmark server",
-    ServerLink: "https://account.postmarkapp.com/servers/42",
-    DeliveryType: "Live",
-    ApiTokens: [],
-  },
-  gemini: {
-    models: [
-      {
-        name: "models/gemini-contract",
-        version: "001",
-        displayName: "Protocol authority Gemini model",
-        supportedGenerationMethods: ["generateContent"],
-      },
-    ],
-  },
-};
-
-const DOCUMENTED_READS = {
-  linq: {
-    id: "provider.phone-numbers.read",
-    label: "List messaging lines",
-    method: "GET",
-    url: "https://api.linqapp.com/api/partner/v3/phone_numbers",
-    headers: { Accept: "application/json" },
-    reply: DOCUMENTED_PROBE_REPLIES.linq,
-    result: {
-      label: "Showing 1 of 1 returned messaging lines",
-      items: [
-        {
-          id: "550e8400-e29b-41d4-a716-446655440000",
-          label: "+12025551234 — iMessage — HEALTHY",
-        },
-      ],
-    },
-    excludedText: [
-      "+12025559999",
-      "private Linq upstream metadata",
-      "https://docs.linqapp.com/channel/imessage/guides/phone-numbers/phone-reputation#healthy",
-    ],
-  },
-  datadog: {
-    id: "provider.monitors.read",
-    label: "List monitors",
-    method: "GET",
-    url: "https://api.datadoghq.com/api/v1/monitor?page=0&page_size=20",
-    headers: { "DD-APPLICATION-KEY": "{application_key}" },
-    absentHeaders: ["authorization"],
-    reply: [{ id: 12861, name: "Protocol monitor", query: "private query" }],
-    result: {
-      label: "Showing 1 monitor from first page",
-      items: [{ id: "12861", label: "Protocol monitor" }],
-    },
-    excludedText: ["private query"],
-  },
-  algolia: {
-    id: "provider.indices.read",
-    label: "List indices",
-    method: "GET",
-    url: "https://contractapp-dsn.algolia.net/1/indexes?page=0&hitsPerPage=20",
-    headers: { "X-Algolia-Application-Id": "{application_id}" },
-    absentHeaders: ["authorization"],
-    reply: {
-      items: [
-        {
-          name: "products",
-          entries: 194,
-          privateMetadata: "private index metadata",
-        },
-        { name: "suppliers", entries: 83 },
-      ],
-      nbPages: 7,
-    },
-    result: {
-      label: "Showing 2 indices from first page",
-      items: [
-        { id: "products", label: "products" },
-        { id: "suppliers", label: "suppliers" },
-      ],
-    },
-    excludedText: ["private index metadata"],
-  },
-  postmark: {
-    id: "provider.messages.read",
-    label: "List outbound messages",
-    method: "GET",
-    url: "https://api.postmarkapp.com/messages/outbound?count=20&offset=0&messagestream=outbound",
-    headers: { Accept: "application/json" },
-    absentHeaders: ["authorization", "x-postmark-account-token"],
-    reply: {
-      TotalCount: 194,
-      Messages: [
-        {
-          MessageID: "0ac29aee-e1cd-480d-b08d-4f48548ff48d",
-          MessageStream: "outbound",
-          Subject: "Protocol welcome",
-          Status: "Sent",
-          To: [{ Email: "private-recipient@example.test", Name: null }],
-          Recipients: ["private-recipient@example.test"],
-          From: "private-sender@example.test",
-          Metadata: { private: "private metadata must not render" },
-        },
-        {
-          MessageID: "e30970cd-3901-4cc4-8b52-9e7dd57ce350",
-          MessageStream: "outbound",
-          Subject: "Protocol followup",
-          Status: "Queued",
-        },
-      ],
-    },
-    result: {
-      label: "Showing 2 of 194 messages in outbound stream",
-      items: [
-        {
-          id: "0ac29aee-e1cd-480d-b08d-4f48548ff48d",
-          label: "Protocol welcome — Sent",
-        },
-        {
-          id: "e30970cd-3901-4cc4-8b52-9e7dd57ce350",
-          label: "Protocol followup — Queued",
-        },
-      ],
-    },
-    excludedText: [
-      "private-recipient@example.test",
-      "private-sender@example.test",
-      "private metadata must not render",
-    ],
-  },
 };
 
 export function nativeBrowserPlans() {
@@ -263,21 +63,33 @@ function setField(root, path, value) {
   }
 }
 
-function verificationReply(id, verification) {
-  const payment = paymentProbeReply(id);
-  if (payment) return payment;
-  const documented = DOCUMENTED_PROBE_REPLIES[id];
-  if (id === "linq") return structuredClone(documented);
-  if (
-    !documented &&
+function canUseReadAsVerification(verification) {
+  return (
     !verification.accountField &&
     verification.requiredFields.length === 0 &&
     verification.success.length === 0
-  )
-    return null;
+  );
+}
+
+function verificationReply(id, verification) {
+  const payment = paymentProbeReply(id);
+  if (payment) return payment;
+  const readCanVerify = canUseReadAsVerification(verification);
+  const documented =
+    DOCUMENTED_PROBE_REPLIES[id] ??
+    (readCanVerify ? DOCUMENTED_READS[id]?.reply : undefined);
+  if (id === "linq") return structuredClone(documented);
+  if (!documented && readCanVerify)
+    // Shared-AI form fixtures issue no native verification request.
+    return NATIVE_SHARED_AI_PRESETS.has(id) ? {} : null;
   const reply = documented ? structuredClone(documented) : {};
-  for (const field of verification.requiredFields)
-    setField(reply, field, `contract-${id}-${field.split(".").at(-1)}`);
+  for (const field of verification.requiredFields) {
+    const current = field
+      .split(".")
+      .reduce((value, part) => value?.[part], reply);
+    if (current === undefined)
+      setField(reply, field, `contract-${id}-${field.split(".").at(-1)}`);
+  }
   if (verification.accountField && !documented)
     setField(
       reply,
@@ -294,9 +106,10 @@ function fixtureCredentials(plan, preset, variant) {
   const credentials = { api_key: `browser-protocol-only-${plan.id}` };
   for (const field of preset.templateParams) {
     const value =
-      field.choices?.[0]?.value ??
       PARAMETER_VALUES[field.name] ??
-      `contract-${field.name}`;
+      field.defaultValue ??
+      field.choices?.[0]?.value ??
+      (field.required ? `contract-${field.name}` : "");
     (field.secret ? credentials : parameters)[field.name] = value;
   }
   for (const field of preset.additionalCredentials)
@@ -345,4 +158,21 @@ export const NATIVE_REPRESENTATIVE_API_IDS = [
   "postmark",
   "gemini",
   "linq",
+];
+
+export const NATIVE_VISIBLE_API_IDS = nativeBrowserPlans()
+  .filter((plan) => plan.id !== "linear")
+  .filter((plan) => NATIVE_CANONICAL_CATALOG_IDS.includes(plan.id))
+  .filter((plan) => nativeApiFixture(plan))
+  .map((plan) => plan.id);
+
+export const NATIVE_FAMILY_API_IDS = nativeBrowserPlans()
+  .filter((plan) =>
+    NATIVE_API_FAMILIES.some((family) => family.members.includes(plan.id)),
+  )
+  .filter((plan) => nativeApiFixture(plan))
+  .map((plan) => plan.id);
+
+export const NATIVE_COMPLETE_API_IDS = [
+  ...new Set([...NATIVE_VISIBLE_API_IDS, ...NATIVE_FAMILY_API_IDS]),
 ];

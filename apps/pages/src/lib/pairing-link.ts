@@ -19,14 +19,14 @@ function linkCapture(key: string) {
   let linked = "";
   const listeners = new Set<() => void>();
   return {
-    capture(location: Address, history: History_): void {
+    capture(location: Address, history: History_, fragment = ""): void {
       const at = location.hash.indexOf(key);
       if (at === -1) return;
       const code = location.hash.slice(at + key.length);
       history.replaceState(
         history.state,
         "",
-        location.pathname + location.search,
+        location.pathname + location.search + fragment,
       );
       try {
         linked = decodeURIComponent(code);
@@ -58,8 +58,13 @@ export function captureLinkedPairing(
   location: Address = window.location,
   history: History_ = window.history,
 ): void {
+  const record =
+    location.pathname.endsWith("/identity") &&
+    new URLSearchParams(location.search).get("view") === "devices"
+      ? "#tailnet-devices"
+      : "";
   drive.capture(location, history);
-  tailnet.capture(location, history);
+  tailnet.capture(location, history, record);
 }
 
 /**

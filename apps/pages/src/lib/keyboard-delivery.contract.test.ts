@@ -5,7 +5,9 @@ const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
 
 it("requires a built-page keyboard journey in the existing required CI job", () => {
-  const workflow = read("../../../../.github/workflows/ci.yml");
+  const workflow = read(
+    "../../../../.github/workflows/ci-prerelease-checks.yml",
+  );
   const bundle = workflow.split("  bundle:")[1]?.split("  rust:")[0];
   expect(bundle).toContain("pnpm --filter @opensesame/pages verify:keyboard");
   const manifest = JSON.parse(read("../../package.json"));

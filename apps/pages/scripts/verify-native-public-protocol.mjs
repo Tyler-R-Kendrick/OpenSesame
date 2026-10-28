@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { hashDistribution } from "./lib/build-provenance.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { nativeEnableConnections } from "./lib/native-browser-catalog-journey.mjs";
 import { NATIVE_AUDITED_ADOBE_ADMISSION } from "./lib/native-browser-catalog-projection.mjs";
@@ -14,7 +15,6 @@ import { routeNativeMcpAuthority } from "./lib/native-browser-mcp-authority.mjs"
 import { nativeMcpJourney } from "./lib/native-browser-public-journey.mjs";
 import { sealWithPin } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
-import { walk } from "./lib/verify-dist-checks.mjs";
 import { verifyDist } from "./verify-capability-graph.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -33,17 +33,12 @@ if (!graph.ok)
   throw new Error(
     "Production capability graph must pass before browser protocol verification.",
   );
-const hash = createHash("sha256");
-for (const file of walk(dist).sort())
-  hash
-    .update(path.relative(dist, file))
-    .update("\0")
-    .update(fs.readFileSync(file));
 const provenance = {
+  dist,
   sourceHead: execFileSync("git", ["rev-parse", "HEAD"], {
     encoding: "utf8",
   }).trim(),
-  distSha256: hash.digest("hex"),
+  distSha256: hashDistribution(dist),
   indexSha256: createHash("sha256")
     .update(fs.readFileSync(path.join(dist, "index.html")))
     .digest("hex"),
@@ -136,6 +131,7 @@ const hard = harness.log.filter(
       "console-error",
       "PAGE-ERROR",
       "MISSING-ASSET",
+      "external-request",
     ].includes(entry.kind) &&
     expectedFailures.every((unexpected) => unexpected(entry)),
 );

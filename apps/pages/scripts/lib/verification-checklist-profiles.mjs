@@ -1,9 +1,10 @@
 /**
  * Which checklist profiles to build, and how each dist is produced.
  *
- * Same two steps as `build-profile.mjs`: `security-profile.mjs`, then
- * `vite build` with `VITE_BASE=/OpenSesame/`. A name that has a file in
- * `capability-profiles/` is that fixture (`minimal-local`, `full`).
+ * Stock builds use `security-profile.mjs`, then Vite with
+ * `VITE_BASE=/OpenSesame/`. The Tailnet shard uses `stamped-build.mjs` for
+ * the dedicated origin and restores the tracked profile afterwards. A name
+ * that has a file in `capability-profiles/` is that fixture (`minimal-local`, `full`).
  * `default` and `custom` have none, so both are the stock build.
  * `custom` stays on the stock build: its setup choice is the capabilities
  * ceremony, and there is no `custom.json`. The capability-graph gate is
@@ -11,10 +12,11 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEDICATED_ORIGIN } from "./live-dedicated.mjs";
 
 const require = createRequire(import.meta.url);
 
@@ -76,11 +78,30 @@ function run(appRoot, file, args, env) {
 }
 
 /** Build one dist. Reuses it when `VERIFY_SKIP_BUILD=1` and index.html is there. */
-export function buildDist({ appRoot, scriptsDir, outDir, capabilityProfile }) {
+export function buildDist({
+  appRoot,
+  scriptsDir,
+  outDir,
+  capabilityProfile,
+  dedicated = false,
+}) {
   if (
     process.env.VERIFY_SKIP_BUILD === "1" &&
     existsSync(path.join(outDir, "index.html"))
   ) {
+    if (dedicated) {
+      const stamped = JSON.parse(
+        readFileSync(path.join(outDir, "security-profile.json"), "utf8"),
+      );
+      if (
+        stamped.profile !== "dedicated_origin" ||
+        stamped.canonicalOrigin !== DEDICATED_ORIGIN
+      ) {
+        throw new Error(
+          `${outDir} is not the dedicated-origin build; rerun without VERIFY_SKIP_BUILD`,
+        );
+      }
+    }
     console.error(`[checklist] reuse ${outDir}`);
     return;
   }
@@ -92,12 +113,26 @@ export function buildDist({ appRoot, scriptsDir, outDir, capabilityProfile }) {
   console.error(
     `[checklist] build ${capabilityProfile ?? "stock"} → ${outDir}`,
   );
-  run(appRoot, path.join(scriptsDir, "security-profile.mjs"), [], env);
   const viteBin = path.join(
     path.dirname(require.resolve("vite/package.json")),
     "bin/vite.js",
   );
   mkdirSync(path.dirname(outDir), { recursive: true });
+  if (dedicated) {
+    run(
+      appRoot,
+      path.join(scriptsDir, "stamped-build.mjs"),
+      [`"${viteBin}" build --outDir "${outDir}" --emptyOutDir`],
+      {
+        ...env,
+        PAGES_DEPLOYMENT_PROFILE: "dedicated_origin",
+        PAGES_CANONICAL_ORIGIN: DEDICATED_ORIGIN,
+        PAGES_HEADER_SECURITY: "1",
+      },
+    );
+    return;
+  }
+  run(appRoot, path.join(scriptsDir, "security-profile.mjs"), [], env);
   run(appRoot, viteBin, ["build", "--outDir", outDir, "--emptyOutDir"], env);
 }
 
