@@ -1,0 +1,62 @@
+name: Review pinned DERP TLS caller handshakes
+on:
+  workflow_dispatch:
+  push:
+    branches: [review/tls-derp-caller-proof]
+permissions:
+  contents: read
+jobs:
+  handshakes:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/tls-derp-caller-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout reviewed controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout exact PR candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          path: candidate
+          ref: ed4e1ae01b2b0b64d30b33b28811b20851c8c1b5
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - name: Install frozen build dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Compose pinned production graph
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ed4e1ae01b2b0b64d30b33b28811b20851c8c1b5
+          mkdir -p "$RUNNER_TEMP/native-input"
+          node -e 'const p=require("./tools/pwa-tailscale-native-http/source.json"); if(p.source.commit!=="b31d8a75af155bcf19853d1a66041782d13e56ae" || p.source.archiveSha256!=="2bddc92dbecd97af4f522f4a9ef44013d10b84a176c906d1d0a739e6a40ed630") process.exit(1); for(const x of [p.source,p.compiler]) {if(!/^https:\/\//.test(x.archiveURL)||!/^[0-9a-f]{64}$/.test(x.archiveSha256)) process.exit(1);console.log(x.archiveURL);console.log(x.archiveSha256)}' > "$RUNNER_TEMP/native-input/pins"
+          mapfile -t pins < "$RUNNER_TEMP/native-input/pins"
+          test "${#pins[@]}" = 4
+          for n in 0 2; do
+            i=$((n / 2))
+            curl --fail --show-error --location --proto '=https' --proto-redir '=https' --max-time 120 --max-filesize 1073741824 --output "$RUNNER_TEMP/native-input/$i.tar.gz" -- "${pins[$n]}"
+            printf '%s  %s\n' "${pins[$((n + 1))]}" "$RUNNER_TEMP/native-input/$i.tar.gz" | sha256sum --check
+          done
+          node tools/pwa-tailscale-native-http/build.mjs "$RUNNER_TEMP/native-input/0.tar.gz" "$RUNNER_TEMP/native-input/1.tar.gz" "$GITHUB_WORKSPACE/candidate/.codeql-native" --audit
+      - name: Exercise the actual DERP TLS caller over real handshakes
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$GITHUB_WORKSPACE/candidate/.codeql-native"
+          test ! -e "$out/source/derp/derphttp/codeql_derptls_security_test.go"
+          cp controller/scripts/security/tls-derp-caller-proof_test.go "$out/source/derp/derphttp/codeql_derptls_security_test.go"
+          cd "$out/source"
+          export GOMAXPROCS=2 GOMEMLIMIT=2GiB GOTOOLCHAIN=local GOENV=off GOWORK=off GOTELEMETRY=off
+          export GOCACHE="$out/cache/build" GOMODCACHE="$out/cache/mod" GOPATH="$out/cache/gopath" TMPDIR="$out/tmp"
+          export GOFLAGS="-p=2 -buildvcs=false -mod=readonly -modfile=$out/native.mod"
+          test "$("$out/compiler/bin/go" env GOVERSION)" = go1.27.3
+          "$out/compiler/bin/go" test -v -count=1 -timeout=2m -run '^TestCodeQLDERPActualTLSCaller$' ./derp/derphttp
