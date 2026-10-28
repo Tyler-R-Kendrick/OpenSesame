@@ -51,13 +51,19 @@ func TestCodeQLDERPActualTLSCaller(t *testing.T) {
 	for _, tc := range []struct {
 		name, serverName, certName, leafName string
 		baked, expired, success              bool
+        untrusted, noConfig, insecureForTests bool
 	}{
-		{"empty CertName uses SNI and custom root", "front.example", "", "front.example", false, false, true},
-		{"same CertName preserves custom root", "backend.example", "backend.example", "backend.example", false, false, true},
-		{"different CertName loses custom root", "front.example", "backend.example", "backend.example", false, false, false},
-		{"different CertName uses baked root", "front.example", "backend.example", "backend.example", true, false, true},
-		{"different CertName rejects wrong hostname", "front.example", "backend.example", "other.example", true, false, false},
-		{"different CertName rejects expired cert", "front.example", "backend.example", "backend.example", true, true, false},
+		{"empty CertName uses SNI and custom root", "front.example", "", "front.example", false, false, true, false, false, false},
+		{"same CertName preserves custom root", "backend.example", "backend.example", "backend.example", false, false, true, false, false, false},
+		{"different CertName preserves custom root", "front.example", "backend.example", "backend.example", false, false, true, false, false, false},
+		{"different CertName rejects untrusted root", "front.example", "backend.example", "backend.example", false, false, false, true, false, false},
+		{"different CertName rejects missing custom configuration", "front.example", "backend.example", "backend.example", false, false, false, false, true, false},
+		{"test mode with distinct CertName still verifies", "front.example", "backend.example", "other.example", false, false, false, false, false, true},
+		{"different CertName uses baked root", "front.example", "backend.example", "backend.example", true, false, true, false, false, false},
+		{"different CertName rejects wrong hostname with custom root", "front.example", "backend.example", "other.example", false, false, false, false, false, false},
+		{"different CertName rejects wrong hostname with baked root", "front.example", "backend.example", "other.example", true, false, false, false, false, false},
+		{"different CertName rejects expired cert with custom root", "front.example", "backend.example", "backend.example", false, true, false, false, false, false},
+		{"different CertName rejects expired cert with baked root", "front.example", "backend.example", "backend.example", true, true, false, false, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.baked {
@@ -65,9 +71,16 @@ func TestCodeQLDERPActualTLSCaller(t *testing.T) {
 			}
 			cert := makeServer(t, tc.leafName, tc.expired)
 			roots := x509.NewCertPool()
-			roots.AddCert(ca)
-			dialer := &Client{TLSConfig: &tls.Config{RootCAs: roots}}
-			node := &tailcfg.DERPNode{HostName: tc.serverName, CertName: tc.certName}
+			if !tc.untrusted {
+                roots.AddCert(ca)
+            }
+            var config *tls.Config
+            if !tc.noConfig {
+                config = &tls.Config{RootCAs: roots}
+            }
+			originalRoots := roots.Clone()
+			dialer := &Client{TLSConfig: config}
+			node := &tailcfg.DERPNode{HostName: tc.serverName, CertName: tc.certName, InsecureForTests: tc.insecureForTests}
 			client, server := net.Pipe()
 			defer client.Close()
 			defer server.Close()
@@ -86,6 +99,9 @@ func TestCodeQLDERPActualTLSCaller(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			err := clientTLS.HandshakeContext(ctx)
+			if config != nil && (config.RootCAs != roots || !roots.Equal(originalRoots)) {
+				t.Fatal("caller custom roots were mutated")
+			}
 			if (err == nil) != tc.success {
 				t.Fatalf("handshake error %v; expected success %v", err, tc.success)
 			}

@@ -1,13 +1,13 @@
-name: Review pinned DERP TLS caller handshakes
+name: Review DERP custom-root correction
 on:
   workflow_dispatch:
   push:
-    branches: [review/tls-derp-caller-proof]
+    branches: [review/tls-custom-root-fix-proof]
 permissions:
   contents: read
 jobs:
   handshakes:
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/tls-derp-caller-proof'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/tls-custom-root-fix-proof'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -47,7 +47,7 @@ jobs:
             printf '%s  %s\n' "${pins[$((n + 1))]}" "$RUNNER_TEMP/native-input/$i.tar.gz" | sha256sum --check
           done
           node tools/pwa-tailscale-native-http/build.mjs "$RUNNER_TEMP/native-input/0.tar.gz" "$RUNNER_TEMP/native-input/1.tar.gz" "$GITHUB_WORKSPACE/candidate/.codeql-native" --audit
-      - name: Exercise the actual DERP TLS caller over real handshakes
+      - name: Reproduce and correct the actual DERP TLS caller
         shell: bash
         run: |
           set -euo pipefail
@@ -59,4 +59,16 @@ jobs:
           export GOCACHE="$out/cache/build" GOMODCACHE="$out/cache/mod" GOPATH="$out/cache/gopath" TMPDIR="$out/tmp"
           export GOFLAGS="-p=2 -buildvcs=false -mod=readonly -modfile=$out/native.mod"
           test "$("$out/compiler/bin/go" env GOVERSION)" = go1.27.3
+          # The old graph must exhibit the exact regression; fail for other errors.
+          if "$out/compiler/bin/go" test -v -count=1 -timeout=2m -run '^TestCodeQLDERPActualTLSCaller$/^different_CertName_preserves_custom_root$' ./derp/derphttp > "$RUNNER_TEMP/baseline.log" 2>&1; then
+            echo 'Expected baseline custom-root failure did not occur' >&2
+            exit 1
+          fi
+          grep -F 'expected success true' "$RUNNER_TEMP/baseline.log"
+          grep -F 'certificate signed by unknown authority' "$RUNNER_TEMP/baseline.log"
+          printf '%s  %s\n' 32e6e38145afc4f382bf2b76b9e9d8e9c593be71f22e82a4a90220ec39834506 derp/derphttp/derphttp_client.go | sha256sum --check
+          printf '%s  %s\n' d773b580ede9c6b854b8d415d1233874d7836153027147fc709ddc0832483f89 "$GITHUB_WORKSPACE/controller/scripts/security/derp-custom-root.patch" | sha256sum --check
+          patch --batch --forward --fuzz=0 -p1 < "$GITHUB_WORKSPACE/controller/scripts/security/derp-custom-root.patch"
+          printf '%s  %s\n' c9fb0f090d175d0fa0e3a80d4597cdb24b3f2669d1786e2295c17574948f4903 derp/derphttp/derphttp_client.go | sha256sum --check
+          "$out/compiler/bin/gofmt" -w derp/derphttp/codeql_derptls_security_test.go
           "$out/compiler/bin/go" test -v -count=1 -timeout=2m -run '^TestCodeQLDERPActualTLSCaller$' ./derp/derphttp
