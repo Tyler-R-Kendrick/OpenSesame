@@ -45,6 +45,24 @@ pub(super) fn acquire(file: &File, exclusive: bool) -> Result<(), Option<StoreEr
     Err(Some(StoreError::Io(error)))
 }
 
+#[cfg(unix)]
+pub(super) fn process_id() -> libc::pid_t {
+    // SAFETY: getpid takes no arguments and has no preconditions.
+    unsafe { libc::getpid() }
+}
+
+#[cfg(unix)]
+pub(super) fn release(file: &File) -> std::io::Result<()> {
+    use std::os::fd::AsRawFd;
+
+    // SAFETY: file owns a valid descriptor for the duration of the call.
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) } == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
 // Preserve the historical Windows path opener for this OS-lock correction.
 // This is not a pinned ancestor chain or an owner-private DACL check.
 #[cfg(windows)]

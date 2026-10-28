@@ -15,7 +15,9 @@
 //!   rotation cannot write under the old root after it.
 //!
 //! Unix uses `flock(2)`; Windows uses nonblocking `LockFileEx` on the held File.
-//! Closing the held file, including on process exit, releases the OS lock.
+//! Normal guard drop explicitly releases the lock before closing its handle.
+//! On Unix, a forked child may hold an inherited handle until exec or exit;
+//! after an abrupt owner exit, the lock lasts until all such handles close.
 
 use std::fs::File;
 use std::path::Path;
@@ -46,12 +48,26 @@ const RESERVED_TOP_LEVEL: [&str; 4] = [
     STORE_LOCK_FILE,
 ];
 
-/// A held store lock; released when dropped (or when the process exits).
+/// A held store lock; normally released by its acquiring process on drop.
 pub(crate) struct StoreLock {
+    #[cfg(unix)]
+    owner_pid: libc::pid_t,
     #[cfg(not(windows))]
     _file: File,
     #[cfg(windows)]
     file: File,
+}
+
+#[cfg(unix)]
+impl Drop for StoreLock {
+    fn drop(&mut self) {
+        // A child can inherit the open file description between fork and exec.
+        // Only the acquiring process may unlock it: a child dropping its copy
+        // must not release a lock the parent still holds.
+        if platform::process_id() == self.owner_pid {
+            let _ = platform::release(&self._file);
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -65,6 +81,8 @@ impl Drop for StoreLock {
 impl StoreLock {
     fn held(file: File) -> Self {
         Self {
+            #[cfg(unix)]
+            owner_pid: platform::process_id(),
             #[cfg(not(windows))]
             _file: file,
             #[cfg(windows)]
@@ -91,10 +109,11 @@ impl StoreLock {
         refuse_staging(root)?;
         let file = open_lock_file(root)?;
         acquire(&file, false).map_err(|busy| busy.unwrap_or_else(rotation_in_progress))?;
+        let lock = Self::held(file);
         // A rotation may have created its staging directory between the first
         // check and the lock; with the lock held, look again.
         refuse_staging(root)?;
-        Ok(Self::held(file))
+        Ok(lock)
     }
 
     /// A key-file edit (add, remove or rewrap a protector): exclusive, so two
@@ -135,6 +154,10 @@ impl StoreLock {
         Ok(lock)
     }
 }
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "store_lock_fork_tests.rs"]
+mod fork_tests;
 
 fn rotation_in_progress() -> StoreError {
     StoreError::Other(
