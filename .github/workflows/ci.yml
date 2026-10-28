@@ -1098,17 +1098,24 @@ jobs:
         with:
           path: .cache/mtls-fixtures
           key: mtls-fixtures-${{ hashFiles('scripts/mtls/mtls-fixtures.sh') }}
+      - name: Prepare Linux keychain build dependencies
+        # The real gateway-process interop test compiles the default host CLI.
+        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Fast mTLS suite (unit, contracts, static bundle boundary)
         env:
           VITE_BASE: /OpenSesame/
-        run: pnpm test:mtls
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          pnpm test:mtls
       - name: Real-protocol mTLS suite (pinned nats-server, OpenBao, SPIRE, Caddy; Chromium)
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm test:mtls:integration
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          pnpm test:mtls:integration
       - name: Upload sanitized evidence manifest
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

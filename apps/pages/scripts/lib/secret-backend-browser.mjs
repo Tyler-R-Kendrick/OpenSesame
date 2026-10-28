@@ -11,7 +11,14 @@ import { INFISICAL_CLIENT } from "./secret-backend-infisical-fixture.mjs";
 
 export async function newBackendPage(
   browser,
-  { width, origin, providers, record, serviceWorkers = "block" },
+  {
+    width,
+    origin,
+    providers,
+    record,
+    serviceWorkers = "block",
+    requestFailures,
+  },
 ) {
   const context = await browser.newContext({
     viewport: { width, height: 900 },
@@ -21,6 +28,7 @@ export async function newBackendPage(
   });
   const allowed = new Set([origin, ...providers]);
   context.on("request", (request) => {
+    requestFailures?.observe(request);
     const url = new URL(request.url());
     if (!["blob:", "data:"].includes(url.protocol) && !allowed.has(url.origin))
       record("unexpected-external-request", url.href);
@@ -29,7 +37,9 @@ export async function newBackendPage(
   });
   context.on("requestfailed", (request) => {
     record(
-      "network-failure",
+      requestFailures?.expected(request)
+        ? "expected-offline-app-request"
+        : "network-failure",
       `${request.failure()?.errorText}: ${request.url()}`,
     );
     if (request.url().includes("bitwarden"))

@@ -18,7 +18,7 @@ const clockModule = bundle
   .split("// packages/playwright-core/src/generated/clockSource.ts\n")[1]
   ?.split("\n// packages/playwright-core/")[0];
 const sourceLiteral = clockModule?.match(/^\s+source = ('.*');$/m)?.[1];
-assert.equal(typeof sourceLiteral, "string", "Pinned SDK exports clock source");
+assert.ok(sourceLiteral, "Pinned SDK exports clock source");
 const clockSource = vm.runInNewContext(sourceLiteral, {}, { timeout: 1000 });
 const module = { exports: {} };
 vm.runInNewContext(clockSource, { module, console }, { timeout: 1000 });
