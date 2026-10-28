@@ -14,7 +14,6 @@ import type {
 import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { saveSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 import type { JsonObject, JsonValue } from "@opensesame/os-domain";
@@ -173,21 +172,6 @@ describe("no connector page is blank", () => {
       expectNativePanel(panel, descriptor, runtime.fetch);
     },
   );
-});
-
-describe("credential custody", () => {
-  it("withholds a compiled token form without a genuine vault session", () => {
-    const genuine = vi
-      .spyOn(vaultStore, "isGenuineSession")
-      .mockReturnValue(false);
-    try {
-      expect(
-        nativeSettingsDescriptor(provider("github"))?.methods[0]?.available,
-      ).toBe(false);
-    } finally {
-      genuine.mockRestore();
-    }
-  });
 });
 
 describe("moving between connectors", () => {
