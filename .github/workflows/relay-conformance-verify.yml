@@ -14,16 +14,16 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: b07cecc6f066ca7992f4d0dacc71756155ecf658
+          ref: 52621766e975311be29f96a3af042c6cb4996f3f
       - name: Verify immutable source and exact patch
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = b07cecc6f066ca7992f4d0dacc71756155ecf658
-          test "$(git rev-parse HEAD^{tree})" = 8bf3f1f963821599030d14a47b8ca9519e8ae617
-          test "$(git rev-parse HEAD^)" = 056f19f3cdf9cdea6ce24cb8ecf9551351293c0a
+          test "$(git rev-parse HEAD)" = 52621766e975311be29f96a3af042c6cb4996f3f
+          test "$(git rev-parse HEAD^{tree})" = de11ea35f98bcc20815ba946f8172c33f1db60e8
+          test "$(git rev-parse HEAD^)" = cf1cc69fea7920e8eabd6b92a5f1762354546a9b
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/conformance.patch"
-          printf '%s  %s\n' 4e68b1f8093ef463a2aa0ed7f642cea06d6ff7d9a8514be7042462a140b4d8b5 "$RUNNER_TEMP/conformance.patch" | sha256sum --check
+          printf '%s  %s\n' 48362fbafca57977f7066d91cb934d212ad68a745c82008b1e268956c3c31282 "$RUNNER_TEMP/conformance.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
@@ -40,10 +40,10 @@ jobs:
           git diff --exit-code -- apps/pages/server/connect-verify-targets.generated.mjs
           pnpm --filter @opensesame/app-core generate:connect
           git diff --exit-code -- packages/app-core/src/lib/connect-presets.generated.ts packages/app-core/src/lib/native-google-account-policy.generated.ts
-          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-google-account-policy.test.ts src/lib/native-google-drive-account.test.ts src/lib/native-api-higgsfield.test.ts src/lib/native-api-obsidian.test.ts src/lib/native-api-fal.test.ts src/lib/native-api-target.test.ts src/lib/native-api-dot-segment.test.ts src/lib/native-api-auth.test.ts src/lib/native-api-verify.test.ts src/lib/connect-presets.test.ts src/lib/generated-json.test.ts
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-connector-availability.test.ts src/lib/native-google-account-policy.test.ts src/lib/native-google-drive-account.test.ts src/lib/native-api-higgsfield.test.ts src/lib/native-api-obsidian.test.ts src/lib/native-api-fal.test.ts src/lib/native-api-target.test.ts src/lib/native-api-dot-segment.test.ts src/lib/native-api-auth.test.ts src/lib/native-api-verify.test.ts src/lib/connect-presets.test.ts src/lib/generated-json.test.ts
           pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance/connect-conformance.test.ts
           pnpm exec vitest run scripts/lib/ci-release-kit.test.mjs
-          node --test scripts/release/candidate-policy-scanner.test.mjs scripts/release/release-environment.test.mjs
+          node --test scripts/security/map-composed-go-sarif.test.mjs scripts/release/check-codeql-sarif.test.mjs scripts/release/candidate-policy-scanner.test.mjs scripts/release/release-environment.test.mjs
           node --test apps/pages/server/test/connect-manage.test.mjs apps/pages/server/test/connect-verify*.test.mjs
       - name: Typecheck and lint the changed contract
         run: |
@@ -59,6 +59,6 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = b07cecc6f066ca7992f4d0dacc71756155ecf658
+          test "$(git rev-parse HEAD)" = 52621766e975311be29f96a3af042c6cb4996f3f
           git diff --exit-code
           git diff --cached --exit-code
