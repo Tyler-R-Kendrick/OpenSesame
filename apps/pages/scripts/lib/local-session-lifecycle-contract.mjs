@@ -6,6 +6,8 @@ import {
 
 export async function localSessionLifecycleContract(page, panel, tabTo) {
   async function activate(target) {
+    // Directory actions are disabled until the current seed has settled.
+    await expect(target).toBeEnabled();
     await tabTo(page, target);
     await page.keyboard.press("Enter");
   }
