@@ -23,6 +23,7 @@ import { evaluatePasswordResetReadiness } from "@opensesame/app-core/lib/passwor
 import { createActivation } from "../activation.js";
 import { PasswordResetMailPanel } from "./panel.js";
 import { installPasswordResetRotationRelay } from "./rotation-relay.js";
+import { installPasswordResetVaultUiSeams } from "./vault-ui.js";
 import { createPasswordResetScan } from "./scan.js";
 
 export const CAPABILITY = "ai.password-reset";
@@ -53,6 +54,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "password-reset-mail",
       start: scan.start,
     });
+    activation.onDispose(installPasswordResetVaultUiSeams());
     activation.onDispose(
       installPasswordResetRotationRelay({
         readiness: async () => {

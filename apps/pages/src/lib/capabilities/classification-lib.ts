@@ -330,6 +330,11 @@ export const LIB_RULES = [
   ...each(L, ["ambient-auth-seam"], (p) =>
     core(p, SIGNIN, "the ambient seam core federation calls through"),
   ),
+  core(
+    `${L}password-reset/vault-ui-seam`,
+    "vault.passwords",
+    "rotation chrome seam ItemDetail calls through; ai.password-reset installs",
+  ),
   // The generation fence is storage-only shared infrastructure: core native
   // identity lineage and optional ambient sign-in both stamp in-flight work
   // with it. Only the remaining `ambient-auth/` orchestration is optional.
