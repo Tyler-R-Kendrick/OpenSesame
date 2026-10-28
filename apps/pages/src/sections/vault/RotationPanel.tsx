@@ -1,3 +1,8 @@
+import { pushNotice } from "@opensesame/app-core/lib/notices.js";
+import {
+  subscribeVaultResetRuns,
+  vaultResetRunFor,
+} from "@opensesame/app-core/lib/password-reset/vault-run-tracker.js";
 import {
   accountWebLoginOrigin,
   enqueueManualRotation,
@@ -15,9 +20,12 @@ import {
   itemTypeId,
 } from "@opensesame/vault-core";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { useComposition } from "../../bindings/capabilities.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh } from "../../components/Icons.js";
+import { usePasswordResetReadiness } from "./use-password-reset-readiness.js";
 
 function date(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -62,17 +70,37 @@ function Schedule({
   );
 }
 
+function resetRunHint(
+  phase: "queued" | "in-progress" | "needs-you" | "done" | "failed" | undefined,
+): string | null {
+  switch (phase) {
+    case "queued":
+      return "Password reset queued.";
+    case "in-progress":
+      return "Password reset in progress.";
+    case "needs-you":
+      return "Password reset needs you on the provider site.";
+    case "failed":
+      return "Password reset could not finish.";
+    default:
+      return null;
+  }
+}
+
 function QueueState({
   warning,
   event,
+  runHint,
 }: {
   warning: string | null;
   event: ReturnType<typeof rotationEventFor>;
+  runHint: string | null;
 }) {
-  if (!warning && !event) return null;
+  if (!warning && !event && !runHint) return null;
   return (
     <>
       {warning ? <output className="hint">{warning}</output> : null}
+      {runHint ? <output className="hint">{runHint}</output> : null}
       {event ? (
         <output className="hint">
           {event.state === "out-of-sync"
@@ -107,9 +135,18 @@ export function RotationPanel({
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const resetReadiness = usePasswordResetReadiness();
+  const { plan } = useComposition();
+  const featureOn =
+    plan?.approvedCapabilities.includes("ai.password-reset") === true;
 
   useEffect(
     () => subscribeRotationQueue(() => setRevision((value) => value + 1)),
+    [],
+  );
+  useEffect(
+    () => subscribeVaultResetRuns(() => setRevision((value) => value + 1)),
     [],
   );
 
@@ -126,6 +163,8 @@ export function RotationPanel({
   const schedule =
     mode === "automatic" ? rotationScheduleFor(scope, item.id) : null;
   const event = rotationEventFor(scope, item.id);
+  const run = vaultResetRunFor(scope, item.id);
+  const runHint = resetRunHint(run?.phase);
 
   const toggle = () => {
     if (!schedule) return;
@@ -133,11 +172,46 @@ export function RotationPanel({
     setRotationEnabled(scope, item.id, !schedule.enabled);
   };
 
+  const promptConfigureReset = () => {
+    const reason =
+      resetReadiness?.ok === false ? resetReadiness.reason : "feature-off";
+    const body =
+      reason === "feature-off"
+        ? "Turn on Password reset under Settings › Features, then connect a computer-use runtime under Integrations and choose a model under AI."
+        : reason === "runtime"
+          ? "Connect a computer-use runtime under Settings › Integrations › Password reset."
+          : "Choose a model for password reset under Settings › Features › AI.";
+    pushNotice({
+      kind: "status",
+      tone: "info",
+      title: "Password reset",
+      body,
+      act: {
+        label: "Settings",
+        run: () => {
+          if (reason === "runtime") {
+            navigate("/settings/integrations#integration-password-reset");
+            return;
+          }
+          if (reason === "model") {
+            navigate("/settings/features#feature-ai");
+            return;
+          }
+          navigate("/settings/features#feature-password-reset");
+        },
+      },
+    });
+  };
+
   const rotate = async () => {
     setBusy(true);
     setError(null);
     try {
       if (!scope) throw new Error("The vault is not open.");
+      if (featureOn && resetReadiness && !resetReadiness.ok) {
+        promptConfigureReset();
+        return;
+      }
       if (!enqueueManualRotation(item, scope)) {
         throw new Error("This item type has no generator.");
       }
@@ -154,7 +228,7 @@ export function RotationPanel({
       <h2 className="detail__grouphead">Rotation</h2>
       {schedule ? <Schedule schedule={schedule} onToggle={toggle} /> : null}
 
-      <QueueState warning={warning} event={event} />
+      <QueueState warning={warning} event={event} runHint={runHint} />
 
       <FailureNotice
         id={`rotation:${item.id}`}
@@ -163,7 +237,7 @@ export function RotationPanel({
       />
 
       <IconKey
-        label="Generate now"
+        label="Generate new password"
         disabled={busy}
         aria-busy={busy}
         onClick={() => void rotate()}
