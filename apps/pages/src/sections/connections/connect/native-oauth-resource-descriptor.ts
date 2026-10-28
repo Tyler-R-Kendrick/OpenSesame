@@ -1,6 +1,7 @@
 import type { OauthPreset } from "@opensesame/app-core/lib/connect-plan.js";
 /** Standard configurable OAuth fields are rendered by the existing common connection form. */
 import type { NativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
+import { GOOGLE_ACCOUNT_POLICY } from "@opensesame/app-core/lib/native-google-account-policy.generated.js";
 import type {
   NativeField,
   NativeMethodDescriptor,
@@ -116,13 +117,7 @@ function permittedOAuthFields(
   accountOnly = false,
 ): NativeField[] {
   if (!accountOnly) return fields;
-  const excluded = new Set([
-    "token_relay_url",
-    "resource_protocol",
-    "mcp_endpoint",
-    "mcp_transport",
-    "mcp_post_endpoint",
-  ]);
+  const excluded = new Set(GOOGLE_ACCOUNT_POLICY.forbiddenParameters);
   return fields.filter((field) => !excluded.has(field.id));
 }
 
@@ -215,7 +210,9 @@ export function nativeOAuthResourceDescriptor(
         actor: "user",
         label: "Permissions",
         choices: preset.scopes,
-        requiredScopes: options.accountOnly ? ["openid", "email"] : undefined,
+        requiredScopes: options.accountOnly
+          ? [...GOOGLE_ACCOUNT_POLICY.scopes]
+          : undefined,
       },
     ],
     links: preset.consoleUrl
