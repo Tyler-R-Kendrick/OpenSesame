@@ -51,6 +51,14 @@ client can write. So the Origin allowlist is CORS, never authorization:
 | `POST /api/connect/connector/read`, `POST /api/connect/connector/update` | same |
 | `POST /api/connect/token-check` | same. Proves a token can be acquired for a subject and answers its fingerprint, expiry, scopes and the service's verdict on it — never the token. |
 
+The token-check response uses `verified: null` when a verification endpoint
+has a mutable host without an independently trusted provider-owned suffix or
+issuer binding. This applies to Auth0, Databricks, Okta, Shopify,
+Workday and, when configured, Obsidian. The relay does not send their tokens
+to those hosts. Connector setup and browser-local operation are unchanged;
+fixed provider targets and the existing provider-owned suffixes remain eligible
+for proof. A null verdict means proof is unavailable, not that a token failed.
+
 The key is compared in constant time. With `OPENSESAME_CONNECT_MANAGE_KEY`
 unset (or shorter than 32 characters) every mutation answers 403
 `management_disabled` — the relay fails closed. A missing or wrong key is

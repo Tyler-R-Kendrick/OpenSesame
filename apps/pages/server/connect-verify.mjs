@@ -12,6 +12,7 @@ import {
 } from "./connect-verify-response.mjs";
 import {
   VERIFY_HOSTS,
+  VERIFY_OAUTH_ALIAS_HOSTS,
   VERIFY_TARGETS,
 } from "./connect-verify-targets.generated.mjs";
 import {
@@ -23,6 +24,27 @@ import {
 
 const VERIFY_TIMEOUT_MS = 8000;
 const VERIFY_MAX_BYTES = 64_000;
+const targetPolicy = new WeakMap();
+
+// A dynamic verification host must remain beneath a reviewed provider-owned
+// suffix from the shared spec. Otherwise connector metadata can redirect it.
+function unboundTemplate(template, hostSuffixes) {
+  const authority = /^https:\/\/([^/?#]+)/i.exec(template ?? "")?.[1];
+  if (!authority || authority.includes("@") || authority.includes("\\"))
+    return true;
+  if (!authority.includes("{")) return false;
+  if (authority.includes(":")) return true;
+  const host = authority.toLowerCase();
+  return !hostSuffixes.some((suffix) => host.endsWith(`.${suffix}`));
+}
+
+// Capture policy from the immutable generated templates once, before connector
+// metadata can be resolved. Later writes to public target fields cannot change it.
+for (const targets of Object.values(VERIFY_TARGETS)) {
+  for (const target of Object.values(targets)) {
+    targetPolicy.set(target, unboundTemplate(target.url, target.hostSuffixes));
+  }
+}
 
 const isObject = isJsonObject;
 
@@ -45,12 +67,21 @@ function pick(value, path, token) {
     : account.slice(0, 80);
 }
 
+function oauthAlias(connector) {
+  const named = text(connector?.service, 128);
+  const uid = text(connector?.uid, 512);
+  // Only aliases already bound to this authorization host can refine its target.
+  if (!Object.hasOwn(VERIFY_OAUTH_ALIAS_HOSTS, named)) return undefined;
+  return VERIFY_OAUTH_ALIAS_HOSTS[named].find((id) => uid.startsWith(`${id}/`));
+}
+
 /** Which of the service's verify calls fits this connector. */
 export function verifyTargetFor(connector) {
   const named = text(connector?.service, 128);
   const service = Object.hasOwn(VERIFY_TARGETS, named)
     ? named
-    : (VERIFY_HOSTS[named] ?? "");
+    : (oauthAlias(connector) ??
+      (Object.hasOwn(VERIFY_HOSTS, named) ? VERIFY_HOSTS[named] : ""));
   const targets = VERIFY_TARGETS[service];
   if (!targets) return null;
   const data = isObject(connector.data) ? connector.data : {};
@@ -159,7 +190,7 @@ function fillParams(value, params) {
 export function resolveTarget(target, connector) {
   if (!target) return null;
   const params = recoverParams(target, connector);
-  return {
+  const resolved = {
     ...target,
     url: fillParams(target.url, params),
     headers: Object.fromEntries(
@@ -177,6 +208,8 @@ export function resolveTarget(target, connector) {
         }
       : target.basic,
   };
+  targetPolicy.set(resolved, targetPolicy.get(target) ?? unboundTarget(target));
+  return resolved;
 }
 
 /** True while the target still needs a value only its person knows. */
@@ -284,8 +317,19 @@ async function verdict(target, response, token) {
   };
 }
 
+function unboundTarget(target) {
+  // Structural callers have no generated provider provenance. Never trust
+  // writable policy fields on them; fall back to the original templates.
+  return (
+    unboundTemplate(target.url, []) ||
+    (Array.isArray(target.sources) &&
+      target.sources.some((source) => unboundTemplate(source?.template, [])))
+  );
+}
+
 export async function verifyWithToken(target, token, fetchImpl = fetch) {
   if (!target || openTemplate(target)) return null;
+  if (targetPolicy.get(target) ?? unboundTarget(target)) return null;
   const { url, init } = verifyRequest(target, token);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);

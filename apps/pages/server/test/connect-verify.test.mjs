@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { verifyTargets } from "../../scripts/emit-connect-verify-targets.mjs";
-import { VERIFY_TARGETS } from "../connect-verify-targets.generated.mjs";
+import {
+  verifyAliasHosts,
+  verifyHostBindings,
+  verifyTargets,
+} from "../../scripts/emit-connect-verify-targets.mjs";
+import {
+  VERIFY_OAUTH_ALIAS_HOSTS,
+  VERIFY_TARGETS,
+} from "../connect-verify-targets.generated.mjs";
 import {
   resolveTarget,
   verifyTargetFor,
@@ -122,7 +129,43 @@ describe("where the token goes", () => {
   });
 });
 
+describe("service names that collide with object prototypes", () => {
+  for (const service of ["__proto__", "constructor", "toString"]) {
+    it(`ignores ${service}`, () => {
+      assert.equal(
+        verifyTargetFor({ service, uid: `${service}/x`, type: "oauth" }),
+        null,
+      );
+    });
+  }
+});
+
 describe("generated verify targets", () => {
+  it("keeps aliases and provider-owned host bindings synchronized with the specs", () => {
+    assert.deepEqual(VERIFY_OAUTH_ALIAS_HOSTS, verifyAliasHosts());
+    const providers = verifyHostBindings();
+    for (const [service, binding] of Object.entries(providers)) {
+      for (const target of Object.values(VERIFY_TARGETS[service] ?? {})) {
+        assert.deepEqual(target.hostSuffixes, binding.host_suffixes);
+      }
+    }
+    for (const value of [
+      null,
+      {},
+      { schema_version: 2, providers: {} },
+      {
+        schema_version: 1,
+        providers: { x: { host_suffixes: ["*.example.com"] } },
+      },
+      {
+        schema_version: 1,
+        providers: { x: { host_suffixes: ["example.com", "example.com"] } },
+      },
+      { schema_version: 1, providers: { x: { host_suffixes: [1] } } },
+    ])
+      assert.throws(() => verifyHostBindings(value));
+  });
+
   it("match the specs", () => {
     assert.deepEqual(
       JSON.parse(JSON.stringify(VERIFY_TARGETS)),
