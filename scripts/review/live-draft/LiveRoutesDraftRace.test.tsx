@@ -2,12 +2,12 @@
 import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
-import { transportSeams } from "./live-transport-hooks.js";
 import {
   currentTransport,
   holdNextWrite,
   type,
 } from "./live-route-race.test-support.js";
+import { transportSeams } from "./live-transport-hooks.js";
 
 it("keeps the address draft and reports a refused save", async () => {
   transportSeams.edit = async () => {

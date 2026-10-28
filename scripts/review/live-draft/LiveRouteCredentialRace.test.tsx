@@ -2,12 +2,12 @@
 import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
-import { transportSeams } from "./live-transport-hooks.js";
 import {
   currentTransport,
   holdNextWrite,
   type,
 } from "./live-route-race.test-support.js";
+import { transportSeams } from "./live-transport-hooks.js";
 
 it("clears submitted TURN credentials when only the destination changes", async () => {
   const release = holdNextWrite();
@@ -141,7 +141,9 @@ it("refuses a second TURN submit until the first save clears its old credentials
   expect(button).toHaveProperty("disabled", true);
   // Exercise the synchronous form guard too; a disabled button is not the
   // only possible way for a submit event to arrive.
-  fireEvent.submit(button.closest("form")!);
+  const form = button.closest("form");
+  if (!form) throw new Error("Expected the carrier or server form");
+  fireEvent.submit(form);
   await waitFor(() => expect(edit).toHaveBeenCalledTimes(1));
   await release();
   expect(currentTransport().ice).toHaveLength(1);
@@ -174,7 +176,9 @@ it("refuses a second NATS submit until the first save clears its old signing key
   fireEvent.click(button);
   type(panel, "Server (wss://)", "wss://next.example.com");
   expect(button).toHaveProperty("disabled", true);
-  fireEvent.submit(button.closest("form")!);
+  const form = button.closest("form");
+  if (!form) throw new Error("Expected the carrier or server form");
+  fireEvent.submit(form);
   await waitFor(() => expect(edit).toHaveBeenCalledTimes(1));
   await release();
   expect(currentTransport().carriers).toHaveLength(1);

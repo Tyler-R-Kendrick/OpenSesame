@@ -10,7 +10,7 @@ import {
 } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
-import { act, cleanup, fireEvent, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, type within } from "@testing-library/react";
 import { afterEach, beforeEach } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { liveUiSeams } from "./live-hooks.js";
