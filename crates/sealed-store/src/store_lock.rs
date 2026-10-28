@@ -56,9 +56,9 @@ const RESERVED_TOP_LEVEL: [&str; 4] = [
 pub(crate) struct StoreLock {
     #[cfg(unix)]
     owner: Option<platform::ProcessIdentity>,
-    #[cfg(not(windows))]
+    #[cfg(not(any(unix, windows)))]
     _file: File,
-    #[cfg(windows)]
+    #[cfg(any(unix, windows))]
     file: File,
 }
 
@@ -70,7 +70,7 @@ impl Drop for StoreLock {
         // must not release a lock the parent still holds. If its identity
         // cannot be checked, closing the handle is the safe fallback.
         if platform::same_process(self.owner, platform::process_identity()) {
-            let _ = platform::release(&self._file);
+            let _ = platform::release(&self.file);
         }
     }
 }
@@ -88,9 +88,9 @@ impl StoreLock {
         Self {
             #[cfg(unix)]
             owner: platform::process_identity(),
-            #[cfg(not(windows))]
+            #[cfg(not(any(unix, windows)))]
             _file: file,
-            #[cfg(windows)]
+            #[cfg(any(unix, windows))]
             file,
         }
     }
