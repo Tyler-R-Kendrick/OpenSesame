@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { ProviderVerificationSchema } from "./connect-provider-auth-schema.js";
 import type { NativeApiTarget } from "./native-api-target.js";
-import { providerUrl } from "./native-api-target.js";
+import { providerTemplate, providerUrl } from "./native-api-target.js";
 
-type TargetParameters = { endpoint?: string; tenant?: string };
+type TargetParameters = {
+  endpoint?: string;
+  tenant?: string;
+  first?: string;
+  second?: string;
+};
 
 function target(
   parameters: TargetParameters,
@@ -112,6 +117,35 @@ describe("providerUrl", () => {
           {},
         ),
       ).toThrow("valid provider parameters");
+    }
+  });
+
+  it("checks assembled path segments without restricting query values", () => {
+    expect(() =>
+      providerUrl(
+        "https://api.example.com/v1/{first}{second}/status",
+        target({ first: ".", second: "." }),
+        {},
+      ),
+    ).toThrow("valid provider parameters");
+    expect(() =>
+      providerTemplate("/v1/{tenant}/status", { tenant: ".." }, {}, true),
+    ).toThrow("valid provider parameters");
+    for (const tenant of [".", ".."]) {
+      expect(
+        providerUrl(
+          "https://api.example.com/v1/status?q={tenant}",
+          target({ tenant }),
+          {},
+        ).searchParams.get("q"),
+      ).toBe(tenant);
+      expect(
+        providerUrl(
+          "https://api.example.com/v1/prefix{tenant}/status",
+          target({ tenant }),
+          {},
+        ).pathname,
+      ).toBe(`/v1/prefix${tenant}/status`);
     }
   });
 

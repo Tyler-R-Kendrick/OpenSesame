@@ -149,17 +149,22 @@ export function providerTemplate(
   credentials: Record<string, string>,
   url = false,
 ): string {
-  return value.replace(/\{([a-z_]+)\}/g, (_whole, name: string) => {
+  const filled = value.replace(/\{([a-z_]+)\}/g, (_whole, name: string) => {
     const replacement =
       name === "key"
         ? credentials.api_key
         : (credentials[name] ?? parameters[name]);
     if (replacement === undefined || replacement === "")
       throw new Error("Complete the provider's required configuration");
-    if (url && (replacement === "." || replacement === ".."))
-      throw new Error("Enter valid provider parameters");
     return url ? encodeURIComponent(replacement) : replacement;
   });
+  const path = filled.split(/[?#]/, 1)[0] ?? "";
+  if (
+    url &&
+    path.split("/").some((segment) => segment === "." || segment === "..")
+  )
+    throw new Error("Enter valid provider parameters");
+  return filled;
 }
 
 /** A machine's own loopback address: the one place a non-standard port is the person's. */
