@@ -59,6 +59,9 @@ pub(super) struct ProcessIdentity {
 pub(super) fn process_identity() -> Option<ProcessIdentity> {
     // SAFETY: getpid takes no arguments and has no preconditions.
     let pid = unsafe { libc::getpid() };
+    if pid <= 0 {
+        return None;
+    }
     #[cfg(target_os = "linux")]
     {
         // PID values can coincide in nested PID namespaces. The namespace
