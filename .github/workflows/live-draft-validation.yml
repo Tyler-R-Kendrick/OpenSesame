@@ -47,9 +47,10 @@ jobs:
           printf '%s  %s\n' \
             12e67da99ad09540a96e16a1994c2bb5bc33fb838eff9de0be80a2ecabf8844f LiveRoutesDraftRace.test.tsx \
             a1beda393c1af531790fb9f1b058d4fe104810491ce13b0d142defe526be9b3d LiveRouteCredentialRace.test.tsx \
-            b572ad3de98e180a470e5cc3ffe570b457527fe6060f9a77961b8fc1c9015b65 live-route-race.test-support.ts \
-            64ee4d965e06a11d89ade307826ac3e8373944151c692e33667a295397d6e960 LiveRoutesPanel.tsx \
-            a3ba8cd3bba9bb06b4e4b9208502bc80b251e00066d486d00f3a20c8f347820c LiveCarriers.tsx \
+            12fac778a23291d2fec3c3204404242d3462e726601b2731fe5380b51e1e4e6d LiveRouteRefusalRace.test.tsx \
+            7aabdbc44bd595e085c50150dd1915efbf8edc0fbf40f3366562eff19aa0d50e live-route-race.test-support.ts \
+            3474ba62f3b15f0e6e70a520971eb2700fe8cca4cb6a47685e7d24301bd4aac7 LiveRoutesPanel.tsx \
+            bd44e828f338331b416e37326c46ece8717087925145da9cd25b1a55dce8f6dd LiveCarriers.tsx \
             777d19d1be4fafa6304328b0daed0ff3266a71ed62e4ac221654fc5ec907288f live-route-parts.tsx | sha256sum --check
       - name: Reproduce lost drafts on the exact baseline
         shell: bash
@@ -57,6 +58,7 @@ jobs:
           set -euo pipefail
           cp work/draft-evidence/scripts/review/live-draft/LiveRoutesDraftRace.test.tsx apps/pages/src/modules/sharing.live/LiveRoutesDraftRace.test.tsx
           cp work/draft-evidence/scripts/review/live-draft/LiveRouteCredentialRace.test.tsx apps/pages/src/modules/sharing.live/LiveRouteCredentialRace.test.tsx
+          cp work/draft-evidence/scripts/review/live-draft/LiveRouteRefusalRace.test.tsx apps/pages/src/modules/sharing.live/LiveRouteRefusalRace.test.tsx
           cp work/draft-evidence/scripts/review/live-draft/live-route-race.test-support.ts apps/pages/src/modules/sharing.live/live-route-race.test-support.ts
           mkdir -p "$RUNNER_TEMP/live-draft-evidence"
           set +e
@@ -84,6 +86,7 @@ jobs:
           src/modules/sharing.live/LiveRoutesPanel.test.tsx
           src/modules/sharing.live/LiveRoutesDraftRace.test.tsx
           src/modules/sharing.live/LiveRouteCredentialRace.test.tsx
+          src/modules/sharing.live/LiveRouteRefusalRace.test.tsx
           src/modules/sharing.live/LiveRoutes.test.tsx
           src/modules/sharing.live/LiveNatsRoutes.test.tsx
       - name: Typecheck Pages
@@ -98,6 +101,7 @@ jobs:
             apps/pages/src/modules/sharing.live/live-route-parts.tsx
             apps/pages/src/modules/sharing.live/LiveRoutesDraftRace.test.tsx
             apps/pages/src/modules/sharing.live/LiveRouteCredentialRace.test.tsx
+            apps/pages/src/modules/sharing.live/LiveRouteRefusalRace.test.tsx
             apps/pages/src/modules/sharing.live/live-route-race.test-support.ts
           )
           pnpm exec biome check "${files[@]}"

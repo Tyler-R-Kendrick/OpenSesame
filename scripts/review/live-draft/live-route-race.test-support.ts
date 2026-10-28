@@ -97,3 +97,26 @@ export function holdNextWrite() {
     });
   };
 }
+
+/** Hold and then refuse one write after the person edits again. */
+export function holdNextRefusal() {
+  let release!: () => void;
+  let settled!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const refused = new Promise<void>((resolve) => {
+    settled = resolve;
+  });
+  transportSeams.edit = async () => {
+    await waiting;
+    settled();
+    throw new Error("write failed");
+  };
+  return async () => {
+    await act(async () => {
+      release();
+      await refused;
+    });
+  };
+}

@@ -71,6 +71,7 @@ function CarrierAdd({ change }: { change: Change }) {
   const [url, setUrl] = useState("");
   const [nats, setNats] = useState<NatsDraft>(EMPTY_NATS_DRAFT);
   const urlRevision = useRef(0);
+  const kindRevision = useRef(0);
   const natsRevision = useRef<Record<keyof NatsDraft, number>>({
     signIn: 0,
     account: 0,
@@ -91,11 +92,15 @@ function CarrierAdd({ change }: { change: Change }) {
         if (!ready || !save.begin()) return;
         const extra = isNats ? natsDraftFields(nats) : {};
         const submittedURL = urlRevision.current;
+        const submittedKind = kindRevision.current;
         const submittedNats = { ...natsRevision.current };
         void change((now) => withCarrier(now, { kind, url: value, ...extra }))
           .then((refused) => {
-            if (refused !== null) return;
-            if (urlRevision.current === submittedURL) setUrl("");
+            const urlChanged = urlRevision.current !== submittedURL;
+            const kindChanged = kindRevision.current !== submittedKind;
+            const targetChanged = urlChanged || kindChanged;
+            if (refused !== null && !targetChanged) return;
+            if (!urlChanged && (refused === null || kindChanged)) setUrl("");
             // Clear a submitted secret unless this exact field was edited since
             // submit. A different destination alone must not reuse the old key.
             setNats((now) => {
@@ -110,9 +115,10 @@ function CarrierAdd({ change }: { change: Change }) {
                 signingKey: edited("signingKey") ? now.signingKey : "",
                 jwt: edited("jwt") ? now.jwt : "",
                 seed: edited("seed") ? now.seed : "",
-                session: edited("session")
-                  ? now.session
-                  : EMPTY_NATS_DRAFT.session,
+                session:
+                  refused !== null || edited("session")
+                    ? now.session
+                    : EMPTY_NATS_DRAFT.session,
               };
             });
           })
@@ -131,7 +137,10 @@ function CarrierAdd({ change }: { change: Change }) {
             const picked = CARRIER_KINDS.find(
               (entry) => entry === event.target.value,
             );
-            if (picked) setKind(picked);
+            if (picked) {
+              kindRevision.current += 1;
+              setKind(picked);
+            }
           }}
         >
           {CARRIER_KINDS.map((entry) => (
