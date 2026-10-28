@@ -1,5 +1,6 @@
 /** Real socket browser journeys; provider requests remain actual network traffic. */
 import { expect } from "@playwright/test";
+import { observeBitwardenSdkResources } from "./bitwarden-sdk-resource.mjs";
 import { observeHttpFailures } from "./http-failures.mjs";
 import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 import { unlockWithPin } from "./pages-journey.mjs";
@@ -11,7 +12,14 @@ import { INFISICAL_CLIENT } from "./secret-backend-infisical-fixture.mjs";
 
 export async function newBackendPage(
   browser,
-  { width, origin, providers, record, serviceWorkers = "block" },
+  {
+    width,
+    origin,
+    providers,
+    record,
+    serviceWorkers = "block",
+    requestFailures,
+  },
 ) {
   const context = await browser.newContext({
     viewport: { width, height: 900 },
@@ -19,21 +27,21 @@ export async function newBackendPage(
     hasTouch: width === 390,
     serviceWorkers,
   });
+  observeBitwardenSdkResources(context, origin, record);
   const allowed = new Set([origin, ...providers]);
   context.on("request", (request) => {
+    requestFailures?.observe(request);
     const url = new URL(request.url());
     if (!["blob:", "data:"].includes(url.protocol) && !allowed.has(url.origin))
       record("unexpected-external-request", url.href);
-    if (url.origin === origin && url.pathname.includes("bitwarden"))
-      record("bws-sdk-resource", url.pathname);
   });
   context.on("requestfailed", (request) => {
     record(
-      "network-failure",
+      requestFailures?.expected(request)
+        ? "expected-offline-app-request"
+        : "network-failure",
       `${request.failure()?.errorText}: ${request.url()}`,
     );
-    if (request.url().includes("bitwarden"))
-      record("worker-network-error", request.url());
   });
   const page = await context.newPage();
   observeHttpFailures(page, record);

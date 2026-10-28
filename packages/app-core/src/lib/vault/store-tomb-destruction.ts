@@ -21,8 +21,9 @@ export async function destroyStoredTomb(
           // The header is the tomb's recoverability marker. Delete it last:
           // a failed body or key wipe must leave a header that still says a
           // vault exists, never an empty store a later create can overwrite.
+          // Its shared-index refresh must finish before the wipe deletes it.
+          await discardVaultBody(scope.tomb);
           await Promise.all([
-            discardVaultBody(scope.tomb),
             kvDeleteDurable(scope.attempts),
             wipeTombOnDestroy(scope.tomb),
           ]);

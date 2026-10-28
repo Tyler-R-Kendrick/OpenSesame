@@ -2,6 +2,7 @@ import { vi } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
 import { webLocksDouble } from "../__tests__/web-locks-double.js";
+import { atRestReady } from "../at-rest/key.js";
 import { kvFlush, kvForgetAll } from "../kv.js";
 import { vaultStore } from "../vault/store.js";
 import { vfsFlush } from "../vfs.js";
@@ -87,6 +88,7 @@ export async function runtimeFixture() {
     locks: webLocksDouble(),
   });
   configureHost(createTestHost());
+  await atRestReady();
   vaultStore.loadActiveProjectScope();
   await vaultStore.create(runtimePassword);
   const fetcher = vi.fn<SecretBackendFetch>(async (input) => {

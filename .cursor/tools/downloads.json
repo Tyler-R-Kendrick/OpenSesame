@@ -1,0 +1,36 @@
+{
+  "grok": {
+    "version": "1.0.70",
+    "artifacts": {
+      "linux-x64": {
+        "url": "https://x.ai/cli/grok-1.0.70-linux-x86_64",
+        "sha256": "22d281c5964c5444147328096ba2a221f3f0874c6858e27c825656a80f6e58e9"
+      },
+      "linux-arm64": {
+        "url": "https://x.ai/cli/grok-1.0.70-linux-aarch64",
+        "sha256": "3aa36883574b263088e5addffe241f55430e8daaee1a0c4934b02180007a9761"
+      }
+    }
+  },
+  "cursor": {
+    "version": "2026.10.22-27dcf5f",
+    "artifacts": {
+      "linux-x64": {
+        "url": "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/linux/x64/agent-cli-package.tar.gz",
+        "sha256": "85296944e4600a83c4b764f578d1502bf9c416db200d33a593e8f3ecabfdc294"
+      },
+      "linux-arm64": {
+        "url": "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/linux/arm64/agent-cli-package.tar.gz",
+        "sha256": "22a36df9720830668ccd4d707e5190204ab9c8a0efb2f068cc914895f804d3ec"
+      },
+      "darwin-x64": {
+        "url": "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/x64/agent-cli-package.tar.gz",
+        "sha256": "7a3cfbf0fcfb979b6213feb5f9fd10fbc7cd4e51ab28c3b572bb935e0b114961"
+      },
+      "darwin-arm64": {
+        "url": "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/arm64/agent-cli-package.tar.gz",
+        "sha256": "2f5b0a3dd5fb951cecffac813867d8a08d810e59837d59fd5f12d69b922398d7"
+      }
+    }
+  }
+}

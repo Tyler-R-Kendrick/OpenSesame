@@ -100,9 +100,8 @@ async function topicOf(link) {
 
 export async function direct(browser, owner) {
   setStep("direct");
-  await setRoutes(owner.page, {
-    addresses: directAddresses ?? (await thisMachine()),
-  });
+  const addresses = directAddresses ?? (await thisMachine());
+  await setRoutes(owner.page, { addresses });
   const { panel, code, link } = await startSession(owner.page);
   check(
     !/\.[\w-]{87}\.[\w-]{43}\./.test(link),
@@ -157,7 +156,10 @@ export async function direct(browser, owner) {
     ["owner", owner.page],
     ["joiner", joiner.page],
   ]) {
-    await assertSameMachineSdpPrivacy(page, who, { own });
+    await assertSameMachineSdpPrivacy(page, who, {
+      own,
+      named: new Set(addresses),
+    });
   }
   await joiner.page
     .getByRole("button", { name: "Reveal GitHub Value" })
