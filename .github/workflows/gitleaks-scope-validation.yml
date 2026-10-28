@@ -11,10 +11,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      CANDIDATE_SHA: 2e828f3bb7a64f4038b2661c6f9b46b1fecf4cfb
+      CANDIDATE_SHA: 3deb5d5835fb8f60e314f22a5ed67842278e496b
       EXPECTED_BASE_SHA: b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0
-      EXPECTED_PARENT_SHA: 4990c61a353bce01ec0ad221640026aea7b26c20
-      EXPECTED_GRANDPARENT_SHA: 95971bcad36e206f877c00ccec7e9913f6af0d68
+      EXPECTED_PARENT_SHA: 2e828f3bb7a64f4038b2661c6f9b46b1fecf4cfb
+      EXPECTED_GRANDPARENT_SHA: 4990c61a353bce01ec0ad221640026aea7b26c20
+      EXPECTED_GREAT_GRANDPARENT_SHA: 95971bcad36e206f877c00ccec7e9913f6af0d68
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout the reviewed candidate and its reachable history
@@ -40,6 +41,7 @@ jobs:
           [[ "$EXPECTED_BASE_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$EXPECTED_PARENT_SHA" =~ ^[a-f0-9]{40}$ ]]
           [[ "$EXPECTED_GRANDPARENT_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$EXPECTED_GREAT_GRANDPARENT_SHA" =~ ^[a-f0-9]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           read -r observed_commit observed_parent extra_parent <<< "$(git rev-list --parents -n 1 HEAD)"
           test "$observed_commit" = "$CANDIDATE_SHA"
@@ -49,16 +51,21 @@ jobs:
           test "$observed_parent_commit" = "$EXPECTED_PARENT_SHA"
           test "$observed_grandparent" = "$EXPECTED_GRANDPARENT_SHA"
           test -z "${extra_grandparent:-}"
-          read -r observed_grandparent_commit observed_base extra_base <<< "$(git rev-list --parents -n 1 "$EXPECTED_GRANDPARENT_SHA")"
+          read -r observed_grandparent_commit observed_great_grandparent extra_great_grandparent <<< "$(git rev-list --parents -n 1 "$EXPECTED_GRANDPARENT_SHA")"
           test "$observed_grandparent_commit" = "$EXPECTED_GRANDPARENT_SHA"
+          test "$observed_great_grandparent" = "$EXPECTED_GREAT_GRANDPARENT_SHA"
+          test -z "${extra_great_grandparent:-}"
+          read -r observed_great_grandparent_commit observed_base extra_base <<< "$(git rev-list --parents -n 1 "$EXPECTED_GREAT_GRANDPARENT_SHA")"
+          test "$observed_great_grandparent_commit" = "$EXPECTED_GREAT_GRANDPARENT_SHA"
           test "$observed_base" = "$EXPECTED_BASE_SHA"
           test -z "${extra_base:-}"
+          test "$(git rev-parse 'HEAD^{tree}')" = 38122962c05933415334cb79bbb6e631f44f81dd
           test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$EXPECTED_BASE_SHA"
           test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
           python3 - <<'PYTHON'
           import os,subprocess
           rows=subprocess.check_output(['git','diff','--name-only',os.environ['EXPECTED_BASE_SHA'],os.environ['CANDIDATE_SHA']],text=True).splitlines()
-          expected={'.gitleaks.toml','.gitleaksignore','scripts/audit/gitleaks-gate.sh','scripts/security/gitleaks-allowlist-scope.test.mjs','scripts/security/gitleaks-working-tree-gate.mjs','scripts/security/gitleaks-working-tree-gate.test.mjs','scripts/security/gitleaks-reviewed-working-tree.json'}
+          expected={'.gitleaks.toml','.gitleaksignore','scripts/audit/gitleaks-gate.sh','scripts/security/gitleaks-allowlist-scope.test.mjs','scripts/security/gitleaks-working-tree-gate.mjs','scripts/security/gitleaks-working-tree-gate.test.mjs','scripts/security/gitleaks-reviewed-working-tree.json','apps/pages/src/modules/sharing.trusted-contacts/pending-store.test.ts','crates/bitwarden-server/tests/protocol.rs','crates/invoke-through/src/surrogate_honey_tests.rs','docs/operators/proxied-run-quickstart.md','packages/app-core/src/lib/duress/settings/unlock-secret-collision.test.ts','scripts/lib/mtls-manifest.test.mjs'}
           if set(rows)!=expected: raise SystemExit('Candidate changed an unexpected path')
           PYTHON
           node --test scripts/security/gitleaks-allowlist-scope.test.mjs scripts/security/gitleaks-working-tree-gate.test.mjs

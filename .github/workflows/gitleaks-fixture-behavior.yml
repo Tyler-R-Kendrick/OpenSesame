@@ -1,0 +1,113 @@
+name: Reviewed Gitleaks fixture behavior
+on:
+  push:
+    branches: [review/gitleaks-scan-evidence]
+    paths: [.github/workflows/gitleaks-fixture-behavior.yml]
+permissions:
+  contents: read
+jobs:
+  tests:
+    if: github.event_name == 'push' && github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/gitleaks-scan-evidence'
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [javascript, rust]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CANDIDATE_SHA: 3deb5d5835fb8f60e314f22a5ed67842278e496b
+      EXPECTED_TREE: 38122962c05933415334cb79bbb6e631f44f81dd
+      EXPECTED_PARENT: 2e828f3bb7a64f4038b2661c6f9b46b1fecf4cfb
+      FIXTURE_KIND: ${{ matrix.kind }}
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact candidate and its parent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$EXPECTED_TREE"
+          read -r commit parent extra <<< "$(git rev-list --parents -n 1 HEAD)"
+          test "$commit" = "$CANDIDATE_SHA"
+          test "$parent" = "$EXPECTED_PARENT"
+          test -z "${extra:-}"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        if: matrix.kind == 'javascript'
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        if: matrix.kind == 'javascript'
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        if: matrix.kind == 'rust'
+        with:
+          toolchain: 1.88.0
+      - name: Run focused fixture tests privately
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          private="$(mktemp -d "$RUNNER_TEMP/fixture-tests.XXXXXXXX")"
+          trap 'rm -rf "$private"' EXIT
+          report="$RUNNER_TEMP/fixture-behavior-$FIXTURE_KIND.json"
+          failed=0
+          statuses="$private/status.tsv"
+          : > "$statuses"
+          run_test() {
+            local label="$1" code
+            shift
+            if "$@" >"$private/$label.log" 2>&1; then code=0; else code=$?; fi
+            printf '%s\t%s\n' "$label" "$code" >> "$statuses"
+            if [[ "$code" -ne 0 ]]; then failed=1; fi
+          }
+          if [[ "$FIXTURE_KIND" == javascript ]]; then
+            run_test install pnpm install --frozen-lockfile
+            if [[ "$failed" -eq 0 ]]; then
+              run_test mtls pnpm exec vitest run scripts/lib/mtls-manifest.test.mjs --testTimeout=30000
+              run_test duress pnpm --filter @opensesame/app-core exec vitest run src/lib/duress/settings/unlock-secret-collision.test.ts --testTimeout=60000
+              run_test pending pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.trusted-contacts/pending-store.test.ts --testTimeout=60000
+            fi
+          elif [[ "$FIXTURE_KIND" == rust ]]; then
+            run_test honey cargo test -p opensesame-invoke-through honey_tests
+            run_test protocol cargo test -p opensesame-bitwarden-server --test protocol a_wrong_password_and_an_unknown_email_get_the_same_answer
+            for label in honey protocol; do
+              if ! python3 - "$private/$label.log" <<'PYTHON'
+          import re,sys
+          text=open(sys.argv[1],encoding='utf-8',errors='replace').read()
+          if not any(int(n)>0 for n in re.findall(r'test result: ok\. (\d+) passed;',text)): raise SystemExit(1)
+          PYTHON
+              then
+                printf '%s\t%s\n' "$label-nonzero-tests" 1 >> "$statuses"
+                failed=1
+              fi
+            done
+          else
+            printf 'unexpected-kind\t1\n' >> "$statuses"
+            failed=1
+          fi
+          python3 - "$statuses" "$report" "$CANDIDATE_SHA" "$FIXTURE_KIND" <<'PYTHON'
+          import json,sys
+          rows=[]
+          for line in open(sys.argv[1],encoding='utf-8'):
+           name,code=line.rstrip('\n').split('\t')
+           rows.append({'check':name,'status':int(code)})
+          open(sys.argv[2],'w',encoding='utf-8').write(json.dumps({'candidate_sha':sys.argv[3],'kind':sys.argv[4],'checks':rows},indent=2)+'\n')
+          print('Focused fixture checks:',len(rows),'failed:',sum(row['status']!=0 for row in rows))
+          PYTHON
+          exit "$failed"
+      - name: Retain sanitized test statuses
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: gitleaks-fixture-behavior-${{ matrix.kind }}
+          path: ${{ runner.temp }}/fixture-behavior-${{ matrix.kind }}.json
+          if-no-files-found: error
+          retention-days: 7
