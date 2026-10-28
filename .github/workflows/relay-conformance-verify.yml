@@ -1,0 +1,53 @@
+name: Relay conformance focused verification
+on:
+  push:
+    branches: [review/relay-conformance-verify]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/relay-conformance-verify' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: 2c5759e47ad01c9377b653064578ae59691463e8
+      - name: Verify immutable source and exact patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 2c5759e47ad01c9377b653064578ae59691463e8
+          test "$(git rev-parse HEAD^{tree})" = 1d44ca22f44a13ccfb80c29ed1525b91d02694a1
+          test "$(git rev-parse HEAD^)" = dd98c380a820bd7f696fcfc03347f848256f1fb7
+          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/conformance.patch"
+          printf '%s  %s\n' be3f2643812708abe60ce9ab275c48d13709a23255bda01e296ba188f2cc4a54 "$RUNNER_TEMP/conformance.patch" | sha256sum --check
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check relay and conformance cases
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance/connect-conformance.test.ts
+          node --test apps/pages/server/test/connect-manage.test.mjs apps/pages/server/test/connect-verify-compatibility.test.mjs apps/pages/server/test/connect-verify-predicates.test.mjs apps/pages/server/test/connect-verify-unbound-host.test.mjs apps/pages/server/test/connect-verify.test.mjs
+      - name: Typecheck and lint the changed contract
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/pages typecheck
+          pnpm lint:anti-slop:files apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
+          pnpm exec biome check apps/pages/src/lib/connect-conformance/connect-conformance.test.ts apps/pages/src/lib/connect-conformance/conformance-proof.ts
+          pnpm quality:gate
+      - name: Check source after tests
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 2c5759e47ad01c9377b653064578ae59691463e8
+          git diff --exit-code
+          git diff --cached --exit-code
