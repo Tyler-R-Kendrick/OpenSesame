@@ -2,11 +2,16 @@ import { subscribeDeviceRows } from "./device-connector-records.js";
 /** Configured MCP proves protocol/tool access without fabricating OAuth authorization. */
 import { assertNativeConfigurationPolicy } from "./native-configuration-policy.js";
 import type { NativeConnectorDriver } from "./native-connector-drivers.js";
+import { retryNativeConnectorCleanup } from "./native-connector-lifecycle.js";
 import {
   loadNativeConnectorRecord,
   updateNativeConnector,
 } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
+import {
+  discardActiveConfiguredMcpCredential,
+  discardSupersededConfiguredMcpCredential,
+} from "./native-mcp-configured-cleanup.js";
 import {
   type ConfiguredMcpOwner,
   type ConfiguredMcpParameters,
@@ -15,6 +20,7 @@ import {
   configuredMcpBinding,
   configuredMcpClassification,
   configuredMcpCredentials,
+  configuredMcpCredentialsForWithdrawal,
   configuredMcpFingerprint,
   configuredMcpTarget,
   isConfiguredMcp,
@@ -294,7 +300,10 @@ export function createConfiguredMcpDriver(
           owner,
           (configuration) => admit(owner, configuration),
         );
-        return verify(view.connectionId, owner);
+        const verified = await verify(view.connectionId, owner);
+        if (!recordFor(view.connectionId).privateState.recovery.length)
+          return verified;
+        return retryNativeConnectorCleanup(view.connectionId, owner.transport);
       }),
     verify: (id) => owned((owner) => verify(id, owner)),
     invoke: (id, operation, input, signal) =>
@@ -339,7 +348,7 @@ export function createConfiguredMcpDriver(
           async (owner) => {
             const record = recordFor(id);
             admit(owner, record.configuration);
-            configuredMcpCredentials(
+            configuredMcpCredentialsForWithdrawal(
               record.configuration,
               record.privateState.credentials,
               owner,
@@ -348,17 +357,26 @@ export function createConfiguredMcpDriver(
           undefined,
           original,
         ),
-      cleanup: (_obligation, context) =>
+      finalize: (id, original) =>
         owned(
-          async (owner): Promise<"local-credential-forgotten"> => {
+          async (owner) => {
+            const record = recordFor(id);
+            admit(owner, record.configuration);
+            await discardActiveConfiguredMcpCredential(id, owner);
+          },
+          undefined,
+          original,
+        ),
+      cleanup: (obligation, context) =>
+        owned(
+          async (owner) => {
             const record = recordFor(context.connectionId);
             admit(owner, record.configuration);
-            configuredMcpCredentials(
-              record.configuration,
-              record.privateState.credentials,
+            return discardSupersededConfiguredMcpCredential(
+              obligation,
+              context.connectionId,
               owner,
             );
-            return "local-credential-forgotten";
           },
           undefined,
           context.transport,

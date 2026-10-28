@@ -7,8 +7,12 @@ import type {
   NativeConfiguration,
   NativePending,
 } from "./native-connector-schema.js";
-import { updateNativeConnector } from "./native-connector-store.js";
+import {
+  type NativeConnectorRecord,
+  updateNativeConnector,
+} from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
+import { assertGoogleDriveAccountContract } from "./native-google-drive-account.js";
 import { validateNativeMcpBinding } from "./native-mcp-target.js";
 import { saveNativeOAuthClientConfiguration } from "./native-oauth-client-update.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
@@ -17,8 +21,10 @@ import {
   requireNativeOAuthRecord,
 } from "./native-oauth-session.js";
 import {
+  discardVaultCredentials,
   initializeVaultCredentialCustody,
   readVaultCredentials,
+  readVaultCredentialsForWithdrawal,
 } from "./vault-credential-custody.js";
 
 const secureUrl = z
@@ -38,7 +44,7 @@ export const NativeOAuthClientTarget = z
     authorization_endpoint: secureEndpoint,
     token_endpoint: secureEndpoint,
     token_relay_url: secureUrl.optional(),
-    resource: secureEndpoint.optional(),
+    resource: secureUrl.optional(),
     resource_protocol: z.enum(["json", "mcp"]).optional(),
     resource_parameter: z.enum(["send", "omit"]).optional(),
     mcp_endpoint: secureUrl.optional(),
@@ -99,7 +105,7 @@ const CREDENTIALS = [
 export {
   initializeVaultCredentialCustody as initializeNativeOAuthClientCustody,
 };
-const CLIENT_SECRET = z.string().min(1).max(32768);
+export const CLIENT_SECRET = z.string().min(1).max(32768);
 export const nativeOAuthClientClassification = () => ({
   publicParameters: PARAMETERS,
   privateCredentials: CREDENTIALS,
@@ -155,6 +161,7 @@ export function assertNativeOAuthClientPolicy(
 ) {
   assertNativeOAuthClientOwner(owner);
   const target = nativeOAuthClientTarget(configuration);
+  assertGoogleDriveAccountContract(configuration);
   assertNativeBrowserOAuthPolicy(configuration.providerId, {
     transport: owner.transport,
     tokenEndpoint: target.token_endpoint,
@@ -227,12 +234,11 @@ async function nativeOAuthClientFingerprint(
     .map((value) => value.toString(16).padStart(2, "0"))
     .join("");
 }
-export function readNativeOAuthClientSecret(
-  id: string,
+function readClientCredential(
+  record: NativeConnectorRecord,
   owner: NativeOAuthClientOwner,
-): string | undefined {
+) {
   assertNativeOAuthClientOwner(owner);
-  const record = requireNativeOAuthRecord(id);
   const target = nativeOAuthClientTarget(record.configuration);
   if (target.redirectUri !== callbackUri(owner.redirectUri))
     throw new NativeOAuthError("expired");
@@ -244,11 +250,49 @@ export function readNativeOAuthClientSecret(
     ["clientSecret"],
     owner.tomb,
   );
+  if (target.token_auth_method === "none" && held.fields.size)
+    throw new NativeOAuthError("expired");
+  return { target, held };
+}
+export function readNativeOAuthClientSecret(
+  id: string,
+  owner: NativeOAuthClientOwner,
+): string | undefined {
+  const { target, held } = readClientCredential(
+    requireNativeOAuthRecord(id),
+    owner,
+  );
+  return target.token_auth_method === "none"
+    ? undefined
+    : CLIENT_SECRET.parse(held.fields.get("clientSecret"));
+}
+export async function discardNativeOAuthClientSecret(
+  id: string,
+  owner: NativeOAuthClientOwner,
+): Promise<void> {
+  const record = requireNativeOAuthRecord(id);
+  assertNativeOAuthClientOwner(owner);
+  const target = nativeOAuthClientTarget(record.configuration);
+  if (
+    target.redirectUri !== callbackUri(owner.redirectUri) ||
+    record.privateState.credentials.oauth_client_vault !== owner.tomb
+  )
+    throw new NativeOAuthError("expired");
+  const held = readVaultCredentialsForWithdrawal(
+    record.privateState.credentials.oauth_client_reference ?? "",
+    record.configuration.fingerprint,
+    ["clientSecret"],
+    owner.tomb,
+  );
   if (target.token_auth_method === "none") {
-    if (held.fields.size) throw new NativeOAuthError("expired");
-    return undefined;
+    if (held?.fields.size) throw new NativeOAuthError("expired");
+    return;
   }
-  return CLIENT_SECRET.parse(held.fields.get("clientSecret"));
+  if (!held) return;
+  CLIENT_SECRET.parse(held.fields.get("clientSecret"));
+  await discardVaultCredentials(held, owner.tomb, () =>
+    owner.transport.assertCurrent(),
+  );
 }
 export async function configureNativeOAuthClient(
   input: NativeDriverInput,

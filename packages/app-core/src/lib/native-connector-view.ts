@@ -36,8 +36,9 @@ function authorized(
     !verification ||
     verification.fingerprint !== configuration.fingerprint ||
     verification.verifiedAt !== runtime.verifiedAt ||
-    verification.kind !==
-      (configuration.method === "native-local" ? "browser-local" : "provider")
+    (configuration.method === "native-local"
+      ? !["browser-local", "configuration"].includes(verification.kind)
+      : verification.kind !== "provider")
   )
     return false;
   if (
