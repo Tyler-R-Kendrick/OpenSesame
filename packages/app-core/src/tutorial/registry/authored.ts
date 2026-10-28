@@ -55,6 +55,7 @@ import {
 import {
   TAILNET_DEVICES_GOALS,
   TAILNET_DEVICES_HELP,
+  TAILNET_DEVICES_ROUTES,
   TAILNET_DEVICES_TARGETS,
 } from "./tailnet-devices-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
@@ -182,7 +183,7 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     targets: TAILNET_DEVICES_TARGETS,
     goals: TAILNET_DEVICES_GOALS,
     help: TAILNET_DEVICES_HELP,
-    routes: [],
+    routes: TAILNET_DEVICES_ROUTES,
   },
   {
     capability: "sharing.trusted-contacts",

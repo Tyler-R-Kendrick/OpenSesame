@@ -30,7 +30,8 @@ export function isSelfHostedConnector(connection: Connection | null): boolean {
     readDeviceRows().some(
       (row) =>
         row.connectionId === connection.connectionId &&
-        row.fields[FIELD] !== undefined,
+        row.fields[FIELD] !== undefined &&
+        row.fields[FIELD] !== "native-v1",
     )
   );
 }

@@ -9,6 +9,7 @@
  */
 
 import type { SupportRouteDescription } from "@opensesame/support-agent";
+import { FEATURES } from "../../lib/capabilities/features.js";
 import { contributionsSnapshot } from "../../lib/contributions.js";
 import { SETTINGS_CATEGORIES, settingsPath } from "../../lib/crumbs.js";
 
@@ -167,9 +168,38 @@ export function scopeApplies(
 
 reindex(CORE_GUIDE_ROUTES);
 
+function featureConfigRoute(pathname: string): boolean {
+  for (const feature of FEATURES) {
+    const base = `/settings/features/${feature.id}`;
+    if (pathname === base) return true;
+    if (feature.capabilities.some((id) => pathname === `${base}/${id}`))
+      return true;
+  }
+  return false;
+}
+
+/** The full navigation vocabulary, not the bounded list described to a model. */
+export function navigationGuideRoutes(): readonly GuideRouteDescriptor[] {
+  const routes = [...mergedGuideRoutes()];
+  for (const feature of FEATURES) {
+    const base = `/settings/features/${feature.id}`;
+    if (!routes.some((route) => route.id === base))
+      routes.push({ id: base, title: `Settings — ${feature.title}` });
+    for (const capability of feature.capabilities) {
+      const id = `${base}/${capability}`;
+      if (!routes.some((route) => route.id === id))
+        routes.push({
+          id,
+          title: `Settings — ${feature.title} — ${capability}`,
+        });
+    }
+  }
+  return routes;
+}
+
 export function isKnownGuideRoute(id: GuideRouteId): boolean {
   mergedGuideRoutes();
-  return byId.has(id);
+  return byId.has(id) || featureConfigRoute(id);
 }
 
 export function describeGuideRoutes(): readonly SupportRouteDescription[] {
@@ -200,17 +230,29 @@ export function guideRouteWithin(
 /** `/vault/<id>`: one item's pane. `new` and `health` are screens of their own. */
 const ITEM_PANE = /^\/vault\/(?!new(?:\/|$)|health(?:\/|$))[^/]+\/?$/;
 
+export const TAILNET_DEVICES_ROUTE = "/identity/devices/tailnet";
+
 /**
  * Where the person stands, to the precision a tour needs. A path alone cannot
  * tell the list from an item's pane or from the trash (`/vault?f=trash`), and
  * a tour that points at an item's controls has to wait for the item to be
- * open. A deep path the registry cannot name still reports its section.
+ * open. The Tailnet record is a place too, only while its capability is live.
+ * A deep path the registry cannot name still reports its section.
  */
 export function guideRouteForLocation(
   pathname: string,
   search = "",
+  hash = "",
 ): GuideRouteId {
   const section = guideRouteForPath(pathname);
+  if (
+    section === "/identity" &&
+    hash === "#tailnet-devices" &&
+    new URLSearchParams(search).get("view") === "devices" &&
+    isKnownGuideRoute(TAILNET_DEVICES_ROUTE)
+  ) {
+    return TAILNET_DEVICES_ROUTE;
+  }
   if (section !== "/vault") return section;
   if (pathname === "/vault" || pathname === "/vault/") {
     return new URLSearchParams(search).get("f") === "trash"
@@ -226,6 +268,7 @@ export function guideRouteForLocation(
  * page context stays honest without widening what `navigate` may reach.
  */
 export function guideRouteForPath(pathname: string): GuideRouteId {
+  if (featureConfigRoute(pathname)) return pathname;
   let best = "/vault";
   let bestLength = 0;
   for (const route of mergedGuideRoutes()) {

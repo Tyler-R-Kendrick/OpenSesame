@@ -153,6 +153,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'focus "nav.settings.item-types" "Item types opens the page for installing and configuring the types this vault can hold." side=right',
       'navigate "/settings/item-types"',
       'wait route "/settings/item-types" timeout=15000',
+      'focus "nav.settings.item-types" "Open Item types to install and configure the vault’s item manifests." side=top',
       'focus "settings.item-types" "A type is a JSON manifest, never code. Each built-in type is a switch: turning one on downloads and installs it, and it is not in the app until then. The branch key reads the git repositories you list for more types, each shown field by field before it installs." side=top',
       "end",
     ].join("\n"),

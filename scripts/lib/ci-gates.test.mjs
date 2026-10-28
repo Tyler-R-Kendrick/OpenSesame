@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { repoRootFromHere } from "./ci-changed-areas.mjs";
@@ -238,4 +238,16 @@ it("runs both native production journeys for provider configuration changes", ()
   expect(gatesOf("apps/pages/scripts/verify-secret-backends.mjs")).toEqual([
     "native-public-backends",
   ]);
+});
+
+it("schedules the Origin installation proof in its classified public-protocol gate", () => {
+  const manifest = JSON.parse(
+    readFileSync(join(root, "apps/pages/package.json"), "utf8"),
+  );
+  expect(DRIVER_GATES["verify-origin-app.mjs"]).toEqual([
+    "native-public-protocol",
+  ]);
+  expect(manifest.scripts["verify:native-public-protocol"]).toContain(
+    "&& node scripts/verify-origin-app.mjs",
+  );
 });

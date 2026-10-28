@@ -239,6 +239,25 @@ export function assertVaultCredentials(
     if (itemText(credentialItem(expected.id, tomb)) !== itemText(expected))
       unavailable();
 }
+export function readVaultCredentialsForWithdrawal(
+  rawReference: string,
+  targetBinding: string,
+  allowedFields: readonly string[],
+  tomb: string,
+): VaultCredentialRead | null {
+  const reference = checkedReference(rawReference, allowedFields);
+  const port = currentVault(tomb);
+  const active = reference.entries.some((entry) => {
+    const item = port
+      .getSnapshot()
+      .items.find((candidate) => candidate.id === entry.id);
+    return item && item.deletedAt === null && !isRetired(item);
+  });
+  return active
+    ? readVaultCredentials(rawReference, targetBinding, allowedFields, tomb)
+    : null;
+}
+
 /** Expected bytes are checked again inside the vault's queued sealed mutation. */
 export async function discardVaultCredentials(
   capture: Pick<VaultCredentialCapture, "items">,
@@ -253,4 +272,13 @@ export async function discardVaultCredentials(
   );
   await port.withdrawItems({ items: expected, folderIds: [] });
   check();
+}
+
+export async function discardUnpublishedVaultCredentials(
+  capture: Pick<VaultCredentialCapture, "items">,
+  tomb: string,
+  published: () => boolean,
+  check: () => void,
+): Promise<void> {
+  if (!published()) await discardVaultCredentials(capture, tomb, check);
 }
