@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      CANDIDATE_SHA: 47b08f4068b838c97ed00ee26a6c5e94f2cd541d
+      CANDIDATE_SHA: 651243e0d060682b1627e625d35d091c98ea2172
       EXPECTED_BASE_SHA: bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -39,11 +39,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           read -r observed_commit observed_parent extra_parent <<< "$(git rev-list --parents -n 1 HEAD)"
           test "$observed_commit" = "$CANDIDATE_SHA"
-          test "$observed_parent" = dfa0a72019f94b9596ddd1f1f0225309eb715cf5
+          test "$observed_parent" = 47b08f4068b838c97ed00ee26a6c5e94f2cd541d
+          test "$(git rev-parse 47b08f4068b838c97ed00ee26a6c5e94f2cd541d^1)" = dfa0a72019f94b9596ddd1f1f0225309eb715cf5
+          test "$(git rev-list --parents -n 1 47b08f4068b838c97ed00ee26a6c5e94f2cd541d | wc -w)" -eq 2
           test "$(git rev-parse dfa0a72019f94b9596ddd1f1f0225309eb715cf5^1)" = "$EXPECTED_BASE_SHA"
           test "$(git rev-list --parents -n 1 dfa0a72019f94b9596ddd1f1f0225309eb715cf5 | wc -w)" -eq 2
           test -z "${extra_parent:-}"
-          test "$(git rev-parse 'HEAD^{tree}')" = 5cfdcc47e461e2bb5fbf3af59c603c30b3e94a2c
+          test "$(git rev-parse 'HEAD^{tree}')" = af61439f0c752533b899bc4faf71562a397bd129
           test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$EXPECTED_BASE_SHA"
           test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
           python3 - <<'PYTHON'
