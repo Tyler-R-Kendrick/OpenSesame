@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      EXPECTED_HEAD: 25ca80ec49c5f57df558e0e4ad7c3bd154c67673
+      EXPECTED_HEAD: 67e686184400fb0c6895354653df90f7662e4f51
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -21,14 +21,14 @@ jobs:
     steps:
       - name: Validate immutable source input
         env:
-          SOURCE_SHA: 25ca80ec49c5f57df558e0e4ad7c3bd154c67673
+          SOURCE_SHA: 67e686184400fb0c6895354653df90f7662e4f51
         shell: bash
         run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: 25ca80ec49c5f57df558e0e4ad7c3bd154c67673
+          ref: 67e686184400fb0c6895354653df90f7662e4f51
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -56,12 +56,12 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^{tree})" = 54fe985c23bac0336f104f526eac35945dc4c53b
-          test "$(git rev-parse HEAD^)" = bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
+          test "$(git rev-parse HEAD^{tree})" = 9f029ad638b7f0d4909a28e88e7bf331902056cc
+          test "$(git rev-parse HEAD^)" = f513cd43474894fe1ac5c9f94cf899851b005e72
           git diff --abbrev=9 --no-renames HEAD^ HEAD > "$RUNNER_TEMP/live-reviewed.patch"
-          printf '%s  %s\n' c4bdb597e3e82f4571c7ada5895610a0375a8a5a8620e741509ecb668ee735d7 "$RUNNER_TEMP/live-reviewed.patch" | sha256sum --check
-          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/live-full-index.patch"
-          printf '%s  %s\n' 7c4415400e7142fb260a144c770335ab9d0a80e0abf9f36e4e6241916d61f899 "$RUNNER_TEMP/live-full-index.patch" | sha256sum --check
+          printf '%s  %s\n' 003dba767643e37fa36625d76a16b4c94ffce971bb4af38bde107f532a82e3dc "$RUNNER_TEMP/live-reviewed.patch" | sha256sum --check
+          git diff --binary --full-index --no-renames f8c14fe908aba2e3728bee6979b35f8bbb8815de HEAD > "$RUNNER_TEMP/live-full-index.patch"
+          printf '%s  %s\n' 426d064235479f50aca0e562ad74eb1077542f4fe87414977bb488acb25e8be7 "$RUNNER_TEMP/live-full-index.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
           test -x "$PLAYWRIGHT_CHROMIUM"
@@ -108,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: live-route-complete-verify-25ca80ec49c5f57df558e0e4ad7c3bd154c67673
+          name: live-route-complete-verify-67e686184400fb0c6895354653df90f7662e4f51
           path: |
             ${{ runner.temp }}/opensesame-full-verify/
             tests/visual-contract/output/
