@@ -7,6 +7,7 @@ import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backend
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { expect, it, vi } from "vitest";
 import { catalogConnectorAction } from "./catalog-connector-action.js";
+import { curatedCatalogProviders } from "./catalog-selection.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
 import {
   connectorIntegration,
@@ -21,6 +22,13 @@ function provider(id: string) {
     mergeVercelCatalog(getBundledProviders()).find((row) => row.id === id);
   if (!found) throw new Error(`Provider not listed: ${id}`);
   return found;
+}
+
+function curatedProviders() {
+  return curatedCatalogProviders(mergeVercelCatalog(getBundledProviders()), {
+    includeFeatured: true,
+    includeFamilies: true,
+  });
 }
 
 it("does not offer browser authorization for legacy App or native git configuration routes", () => {
@@ -75,6 +83,33 @@ it("offers Asana and Attio browser routes instead of a lock", () => {
   ).toBe(true);
 });
 
+it("offers every researched API-key connector from its compiled preset", () => {
+  connectorIntegration();
+  for (const id of ["polar", "fal-ai", "higgsfield"]) {
+    const descriptor = nativeSettingsDescriptor(provider(id));
+    expect(
+      descriptor?.methods.find((method) => method.id === "api-key")?.available,
+      id,
+    ).toBe(true);
+    expect(catalogConnectorAction(provider(id), null).kind, id).toBe("connect");
+  }
+});
+
+it("offers the Obsidian plugin's local endpoint from its compiled preset", () => {
+  connectorIntegration();
+  const descriptor = nativeSettingsDescriptor(provider("obsidian"));
+  const apiKey = descriptor?.methods.find((method) => method.id === "api-key");
+  expect(apiKey?.available).toBe(true);
+  expect(
+    apiKey?.fields.some(
+      (field) => field.id === "obsidian_endpoint" && !field.secret,
+    ),
+  ).toBe(true);
+  expect(catalogConnectorAction(provider("obsidian"), null).kind).toBe(
+    "connect",
+  );
+});
+
 it("keeps Attio configurable before the runtime driver finishes activating", () => {
   const attio = provider("attio");
   const descriptor = nativeSettingsDescriptor(attio);
@@ -88,6 +123,26 @@ it("keeps Attio configurable before the runtime driver finishes activating", () 
     kind: "connect",
     glyph: "plus",
   });
+});
+
+it("keeps every compiled contract configurable before the runtime driver finishes activating", () => {
+  // No `connectorIntegration()` here: no runtime driver is registered, so a
+  // lock here would be a flash of "not supported" on the page just mounted.
+  for (const id of ["aws", "gcp", "snowflake", "github", "make", "zapier"]) {
+    const action = catalogConnectorAction(provider(id), null);
+    expect(action.kind, id).not.toBe("unavailable");
+    expect(action.kind, id).not.toBe("native");
+  }
+});
+
+it("offers the Azure family from the secret-store surface a browser can connect", () => {
+  connectorIntegration();
+  const azure = provider("azure-sm");
+  const descriptor = nativeSettingsDescriptor(azure);
+  expect(
+    descriptor?.methods.find((method) => method.id === "api-key")?.available,
+  ).toBe(true);
+  expect(catalogConnectorAction(azure, null).kind).toBe("connect");
 });
 
 it("offers every newly listed provider and family member a real configuration route", () => {
@@ -210,4 +265,19 @@ it("opens the specialized BYO AI route without claiming an unsaved configuration
     glyph: "arrow",
     connectionId: saved.connectionId,
   });
+});
+
+it("draws no lock in the browse catalog, before or after the runtime activates", () => {
+  // Every curated tile must offer a road the device can take: the compiled
+  // contract decides availability, so neither a fresh session (no driver has
+  // activated) nor an active one may show a connector as unusable.
+  const fresh = curatedProviders().filter(
+    (row) => catalogConnectorAction(row, null).kind === "unavailable",
+  );
+  expect(fresh.map((row) => row.id)).toEqual([]);
+  connectorIntegration();
+  const active = curatedProviders().filter(
+    (row) => catalogConnectorAction(row, null).kind === "unavailable",
+  );
+  expect(active.map((row) => row.id)).toEqual([]);
 });

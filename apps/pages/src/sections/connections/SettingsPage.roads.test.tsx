@@ -108,12 +108,16 @@ describe("a connector page that seals in the vault", () => {
 });
 
 describe("API family selection", () => {
-  for (const id of ["aws", "gcp", "azure-kms", "cloudflare"]) {
+  for (const id of ["aws", "gcp", "cloudflare"]) {
     it(`keeps the family selector on the ${id} configuration page`, () => {
       draw(id);
       expect(screen.getByLabelText("API family")).toBeTruthy();
     });
   }
+  it("keeps host-only Azure Keys outside the browser API family", () => {
+    draw("azure-kms");
+    expect(screen.queryByLabelText("API family")).toBeNull();
+  });
 });
 
 describe("a connector page the browser acts on alone", () => {
@@ -123,19 +127,14 @@ describe("a connector page the browser acts on alone", () => {
     expect(screen.getByLabelText(/Remote URL/i)).toBeTruthy();
   });
 
-  it("keeps GitHub unavailable without its browser driver and never offers server-backed App registration", () => {
+  it("offers GitHub's compiled credentials without server-backed App registration", () => {
     draw("github");
     expect(
       screen.queryByRole("button", {
         name: /Create GitHub App for this organization/i,
       }),
     ).toBeNull();
-    expect(
-      screen.getByRole("img", { name: "Not available here" }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText("GitHub personal access token")).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: /Authorize with GitHub/i }),
-    ).toBeNull();
+    expect(screen.getByRole("img", { name: "Not connected" })).toBeTruthy();
+    expect(screen.getByLabelText("GitHub personal access token")).toBeTruthy();
   });
 });

@@ -293,22 +293,23 @@ function docsFor(service, row, oauth, apiKey) {
   );
 }
 
-function categoryFor(id, service, row) {
+function categoryFor(id, service, row, preset) {
   return (
     CATEGORY_OVERRIDE[id] ??
     row?.category ??
+    preset?.category ??
     CATEGORY[service?.categories[0] ?? "other"] ??
     "developer"
   );
 }
 
-function planFor(id, service, row, oauth, apiKey, rule) {
+function planFor(id, service, row, oauth, apiKey, rule, preset) {
   const safeRead = readonlyPaymentContract(id, apiKey);
   const plan = {
     id,
-    name: service?.name ?? row?.display_name ?? id,
+    name: service?.name ?? row?.display_name ?? preset?.display_name ?? id,
     docsUrl: docsFor(service, row, oauth, apiKey),
-    category: categoryFor(id, service, row),
+    category: categoryFor(id, service, row, preset),
     registry: Boolean(service),
     refused: refused(id, row) && !safeRead,
     methods: READONLY_PAYMENT_IDS.has(id)
@@ -345,6 +346,10 @@ export function renderPlanJson(
     }
   }
   const listed = new Map(services.services.map((row) => [row.service, row]));
+  /** Researched rows carry their own name and category when no registry row does. */
+  const presetMeta = new Map(
+    [...presets.api_key, ...presets.oauth].map((row) => [row.service, row]),
+  );
   const ids = [
     ...listed.keys(),
     ...[...oauth.keys(), ...apiKey.keys()].filter((id) => !listed.has(id)),
@@ -357,6 +362,7 @@ export function renderPlanJson(
       oauth.get(id),
       apiKey.get(id),
       mcp.get(id),
+      presetMeta.get(id),
     ),
   );
   return plans.map((plan) => JSON.stringify(plan));
