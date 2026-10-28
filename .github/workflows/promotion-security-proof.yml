@@ -1,0 +1,60 @@
+name: Promotion security policy proof
+on:
+  push:
+    branches: [review/promotion-security-hosted-20261028]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.ref == 'refs/heads/review/promotion-security-hosted-20261028' && github.event_name == 'push' && github.actor_id == '145080887' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      SOURCE_SHA: 1a35284ba3b911683b799bb160aeff366d703654
+      SOURCE_TREE: 3f0e45f0fd0402c22e51eb577258072af68d8746
+      SOURCE_PARENT: 18b80bfa2200fb55768942cc6552729d803933b3
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify immutable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$SOURCE_TREE"
+          test "$(git rev-parse HEAD^)" = "$SOURCE_PARENT"
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify release workflow and protection behavior
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run scripts/lib/ci-release-kit.test.mjs --testTimeout=30000
+          node --test scripts/release/release-environment.test.mjs
+      - name: Check release policy lint
+        run: |
+          set -euo pipefail
+          pnpm exec biome check scripts/lib/ci-release-kit.test.mjs scripts/release/release-environment.test.mjs
+          pnpm lint:anti-slop:files scripts/lib/ci-release-kit.test.mjs scripts/release/release-environment.test.mjs
+      - name: Run complete promotion tests and structural gate
+        run: |
+          set -euo pipefail
+          pnpm test:ci-promotion
+          pnpm quality:gate
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code
+          git diff --cached --exit-code
