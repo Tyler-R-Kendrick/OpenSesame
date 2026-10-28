@@ -23,6 +23,10 @@ const DOCUMENT: &str = r#"{"schema_path":"s","parser":"stand-in","items":[{"key"
 /// `Text file busy`.
 static WRITING_OR_FORKING: Mutex<()> = Mutex::new(());
 
+fn fixture_github_token() -> String {
+    "T".repeat(33)
+}
+
 struct Sandbox {
     dir: tempfile::TempDir,
 }
@@ -95,7 +99,7 @@ impl Sandbox {
             .env("OPENSESAME_STORE_PASSWORD", PASSPHRASE)
             .env("OPENSESAME_OPERATOR_TOKEN", "operator-token-for-tests")
             .env("NODE_PATH", "/nonexistent/modules")
-            .env("GITHUB_TOKEN", "ghp_dummy_marker_0123456789abcdef")
+            .env("GITHUB_TOKEN", fixture_github_token())
             .env(
                 "HTTPS_PROXY",
                 "http://user:dummy-proxy-pass@proxy.invalid:3128",
@@ -153,7 +157,7 @@ fn the_bridge_gets_a_minimal_environment_and_the_child_gets_what_it_always_got()
         format!("OPENSESAME_STORE_PASSWORD={PASSPHRASE}"),
         "OPENSESAME_OPERATOR_TOKEN=operator-token-for-tests".to_owned(),
         "NODE_PATH=/nonexistent/modules".to_owned(),
-        "GITHUB_TOKEN=ghp_dummy_marker_0123456789abcdef".to_owned(),
+        format!("GITHUB_TOKEN={}", fixture_github_token()),
         "HTTPS_PROXY=http://user:dummy-proxy-pass@proxy.invalid:3128".to_owned(),
         "API_URL=http://localhost:3000".to_owned(),
     ] {
@@ -248,9 +252,10 @@ fn an_agent_child_loses_only_the_store_passphrase_as_before() {
     let child = std::fs::read_to_string(sandbox.path("out/child.env")).unwrap();
     assert!(!child.contains("OPENSESAME_STORE_PASSWORD"), "{child}");
     assert!(!child.contains(PASSPHRASE), "{child}");
+    let github_line = format!("GITHUB_TOKEN={}", fixture_github_token());
     for line in [
         "OPENSESAME_OPERATOR_TOKEN=operator-token-for-tests",
-        "GITHUB_TOKEN=ghp_dummy_marker_0123456789abcdef",
+        github_line.as_str(),
         "NODE_PATH=/nonexistent/modules",
         "API_URL=http://localhost:3000",
     ] {

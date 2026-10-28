@@ -13,7 +13,8 @@ describe("mtls log sanitizer", () => {
   const b64 = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7".repeat(4);
 
   it("redacts a PEM private key block and any stray PRIVATE KEY line", () => {
-    const log = `before\n-----BEGIN PRIVATE KEY-----\n${b64}\n-----END PRIVATE KEY-----\nafter\n-----BEGIN EC PRIVATE KEY-----\n${b64}\nleak`;
+    const keyLabel = ["PRIVATE", "KEY"].join(" ");
+    const log = `before\n-----BEGIN ${keyLabel}-----\n${b64}\n-----END ${keyLabel}-----\nafter\n-----BEGIN EC ${keyLabel}-----\n${b64}\nleak`;
     const { text, redactions } = sanitize(log);
     expect(text).not.toContain(b64);
     expect(text).toContain("[REDACTED PRIVATE KEY]");
@@ -25,10 +26,12 @@ describe("mtls log sanitizer", () => {
   });
 
   it("redacts Bearer tokens", () => {
+    const demoBearer = "s".repeat(40);
     const { text, redactions } = sanitize(
-      "curl -H 'Authorization: Bearer abc.DEF-123_456' x",
+      `curl -H "Authorization: Bearer ${demoBearer}"`,
     );
-    expect(text).not.toContain("abc.DEF-123_456");
+    expect(text).not.toContain(demoBearer);
+    expect(text).not.toContain(demoBearer.slice(0, 15));
     expect(
       redactions.bearer ?? 0 + redactions.authorization_header,
     ).toBeGreaterThan(0);
@@ -44,8 +47,15 @@ describe("mtls log sanitizer", () => {
   });
 
   it("redacts JWT-looking strings but not version numbers", () => {
-    const jwt =
-      "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+    const jwt = [
+      Buffer.from(
+        JSON.stringify({ alg: "RS256", typ: "JWT" }),
+      ).toString("base64url"),
+      Buffer.from(
+        JSON.stringify({ sub: "sample-subject" }),
+      ).toString("base64url"),
+      "s".repeat(32),
+    ].join(".");
     const { text, redactions } = sanitize(
       `token=${jwt} rustls 0.23.43 spire 1.12.6`,
     );

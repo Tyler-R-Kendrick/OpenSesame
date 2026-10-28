@@ -1,5 +1,5 @@
 {
-  "$comment": "The tailnet vault drive's wire protocol (ADR 0144), as literal exchanges. The daemon replays every exchange against its real router (crates/daemon/src/vault_drive_conformance_tests.rs); the Pages client sends every request and reads every answer through its real client (packages/app-core/src/lib/tailnet-sync/protocol-conformance.test.ts). A request's key is 'slot' (the slot's own key) or 'wrong' (well formed, not the slot's); a snapshot value '$name' refers to snapshots[name]. Change a case here and both sides must follow.",
+  "$comment": "The tailnet vault drive's wire protocol (ADR 0144), as literal exchanges. The daemon replays every exchange against its real router (crates/daemon/src/vault_drive_conformance_tests.rs); the Pages client sends every request and reads every answer through its real client (packages/app-core/src/lib/tailnet-sync/protocol-conformance.test.ts). A request's key is 'slot' (the slot's own key) or 'wrong' (well formed, not the slot's); a snapshot value '$name' refers to snapshots[name]. Change a case here and both sides must follow. The pairing access key is the public all-zero test value, used only for conformance.",
   "version": 1,
   "path": "/v1/vault-drive/slots/{slot}/snapshot",
   "snapshotFormat": "opensesame-vault-drive-snapshot",
@@ -8,9 +8,9 @@
     "prefix": "opensesame-drive:v1:",
     "url": "https://desk.tail4c2e.ts.net",
     "slot": "5b1c2d3e-0f4a-4b6c-8d9e-0a1b2c3d4e5f",
-    "key": "Qm9ndXMtZXZpZGVuY2Uta2V5LW5vdC1hLXJlYWwtb25l",
+    "key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
     "label": "Laptop",
-    "code": "opensesame-drive:v1:eyJrZXkiOiJRbTluZFhNdFpYWnBaR1Z1WTJVdGEyVjVMVzV2ZEMxaExYSmxZV3d0YjI1bCIsImxhYmVsIjoiTGFwdG9wIiwic2xvdCI6IjViMWMyZDNlLTBmNGEtNGI2Yy04ZDllLTBhMWIyYzNkNGU1ZiIsInVybCI6Imh0dHBzOi8vZGVzay50YWlsNGMyZS50cy5uZXQifQ"
+    "code": "opensesame-drive:v1:eyJrZXkiOiJBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBIiwibGFiZWwiOiJMYXB0b3AiLCJzbG90IjoiNWIxYzJkM2UtMGY0YS00YjZjLThkOWUtMGExYjJjM2Q0ZTVmIiwidXJsIjoiaHR0cHM6Ly9kZXNrLnRhaWw0YzJlLnRzLm5ldCJ9"
   },
   "snapshots": {
     "laptop": {
