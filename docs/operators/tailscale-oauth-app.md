@@ -28,6 +28,12 @@ streaming body limit. A 30-second GET timeout terminates the Worker to cancel
 the underlying operation. This path does
 not claim to execute authenticated vault-drive PUT sync or run a native daemon.
 
+The PWA worker does not offer an SSH command. Consumers using the distributed
+raw WASM client's SSH method can connect only to an authorized direct tailnet
+peer with an advertised SSH host key. SSH fails closed when peer authority or
+the key is unavailable, the key or route changes, an exit node or route-all is
+selected, or the destination is an ordinary unadvertised SSH host.
+
 ## OAuth app device provisioning
 
 The separate registration controls prepare an operator-specific application

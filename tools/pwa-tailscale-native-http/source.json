@@ -178,7 +178,7 @@
       },
       {
         "path": "nodepeer.go",
-        "sha256": "6695ee45938ff9a2113a4f5daf2961d6ed1798e210b6b0a972ae4239f9696633"
+        "sha256": "c43342fc15e333b11ba457cd7ffdcf4ff12ee45f9b8303ff4eda68c61df9ce34"
       },
       {
         "path": "nodepeer_test.go",
@@ -191,11 +191,23 @@
       {
         "path": "native-extra-dns_test.go",
         "sha256": "9181339725c8b6ae955134a5ddcfcf1b8c9b9bdb8b89a589d9dc687a0d3099e0"
+      },
+      {
+        "path": "native-ssh-keys.go",
+        "sha256": "cf7ace7c4ef45d9529837f1bfebb913b6e8f74364b52a3cb3331ca930dbe7033"
+      },
+      {
+        "path": "native-ssh-keys_test.go",
+        "sha256": "7be4148ea553d3d4a3ef1ab4d1f6032a90ecd454e896ea4d5b67a37766635ef7"
+      },
+      {
+        "path": "nodessh_js.go",
+        "sha256": "34a6fdfefa18013e10225115c963c361e710483c7f82059bd380a1752574a71d"
       }
     ],
     "stagingHelper": {
       "path": "stage-native-node.mjs",
-      "sha256": "7ce907501db8356139aaeda6ca3cd548c8f53c674bc4b219047601c32483a0d6"
+      "sha256": "36a8dae55be16fc535d06565673755837d971d0dbd3134aa0b15c0647d51bafd"
     },
     "patchTargets": [
       {
@@ -503,11 +515,11 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "98ad9da606d9dd86a76cb8a614dd5606217b63a08e33b0888cee28e72f583d03"
+        "sha256": "78ca3e97f4c3cc8db9959208ebfdee439f1afdc3b900ca5967541393e5e324b6"
       },
       {
         "path": "compose-native.mjs",
-        "sha256": "d411ea3947d67fd5e9bfc4e6e9c830f7349b4bf78225d486c76171aec2187aa8"
+        "sha256": "efdb50c7bbbebbd3384da92004de4089a5f466386d68078067978c1f05f5d341"
       },
       {
         "path": "native-assets.mjs",
@@ -515,7 +527,7 @@
       },
       {
         "path": "compose-native.test.mjs",
-        "sha256": "87ae31afbb910dd96cf92c2570cae0139df21b9a4ba3184f3865515d98caafe4"
+        "sha256": "625de8be78abcbd6251fb7f167d081fc109f88c207feea9832443e63483352ec"
       },
       {
         "path": "compress-wasm.mjs",
@@ -535,7 +547,7 @@
       },
       {
         "path": "preparation-diagnostics.mjs",
-        "sha256": "b2061c42cdc25a41c2d30809d4da786c8874fb54fb1abc78f07e82f92e630e3c"
+        "sha256": "67961b1a457961b8583e8cdddb76b7d3ea09ac28fe2428130522d55c03292852"
       },
       {
         "path": "build-failure-context.test.mjs",
@@ -547,11 +559,11 @@
       },
       {
         "path": "apply-native-patch.mjs",
-        "sha256": "6578b0352eee24380dd394cfd4822c40474f25a3097152a9502f79a028a3c452"
+        "sha256": "a41e3e7f1828d2d20cd97ca2887b82afd77c7b7b39e76dfcb2af0c442db5b733"
       },
       {
         "path": "apply-native-patch.test.mjs",
-        "sha256": "340cde93b86e89af15c1737859a68faeb5b0359e378147037e5a54156efdde00"
+        "sha256": "7106a3bad31c5efbdc1ee0b5542e71a2bdc997525fa247650ba527fb36b56fc6"
       },
       {
         "path": "compressor-archive.mjs",
@@ -559,7 +571,7 @@
       },
       {
         "path": "compressor-archive.test.mjs",
-        "sha256": "23a33029386f78845e0cbf6559848ee24e0d5f43fac88164ad116d019acd1f75"
+        "sha256": "04864cf6310db43eda9c12c9bbf17fb61647387b0418c4b010a7806d5b5a39a3"
       },
       {
         "path": "pigz-2.8.tar.gz",
@@ -567,7 +579,7 @@
       },
       {
         "path": "distribution-cache.mjs",
-        "sha256": "ea465366556fdb2e322aa12b823d0987a6c67b5e2f4d7c4384da00dc51e5743a"
+        "sha256": "82221f57593ce10270c1b6bc8a60a841225079d6a50a7ed396a82664b252d69e"
       },
       {
         "path": "stage-peer-get.mjs",
@@ -583,7 +595,7 @@
       },
       {
         "path": "distribution-cache.test.mjs",
-        "sha256": "378627b75b9a366f32b2ae1134eb81bf217c921c137c23f2e0a5e756d1161d49"
+        "sha256": "7149da5d9cd58931eaa5d97507909778ac9c81da2ee886e165ef11c2bd78e3a8"
       },
       {
         "path": "native-audit.mjs",
@@ -607,7 +619,7 @@
       },
       {
         "path": "prepare-native-audit.test.mjs",
-        "sha256": "9ea54e0bb228edb543d76de8add90f33e0d48073cc2ebd0463b8e10704f3365d"
+        "sha256": "7eb3252549e079c065b39a3d8c38011a46cf964b00a0023664919fc182021c83"
       },
       {
         "path": "owned-process-group.mjs",
@@ -630,7 +642,17 @@
       "version": "2.8",
       "archiveURL": "https://zlib.net/pigz/pigz-2.8.tar.gz",
       "archiveSha256": "eb872b4f0e1f0ebe59c9f7bd8c506c4204893ba6a8492de31df416f0d5170fd0",
-      "arguments": ["-11", "-I", "3", "-p", "2", "-b", "1024", "-n", "-c"],
+      "arguments": [
+        "-11",
+        "-I",
+        "3",
+        "-p",
+        "2",
+        "-b",
+        "1024",
+        "-n",
+        "-c"
+      ],
       "qualification": "Owned build-only source compilation, not an installed PWA dependency. Each output must decode to the exact complete input bytes; source archive, notices, compiler and executable provenance are retained. No four-phase Go build or runtime feature change."
     },
     "bridgeUnminifiedSha256": "80f09f233d5256ee4d39ecf1df95803d08d4ed4b5220506b619565c984be57b5",
@@ -675,7 +697,7 @@
       },
       {
         "path": "nodepeerget_js.go",
-        "sha256": "3f0dcd0967f66b1434a8ba15cde0319ec1b1af66744271b0b2a73e49bbf0e091"
+        "sha256": "e8b5dbf3fc98065a9275cc6411fb2ef561b6eed7c425a6851a2ece8a77ea9f2f"
       },
       {
         "path": "nodepeerget-tls_js_test.go",
@@ -697,5 +719,18 @@
       "route": "HTTP/HTTPS GET to original selected nonself tailnet peer, original MagicDNS/ExtraRecords/literal; no public DNS/exit/subnet fallback; retain URL hostname for TLS verification/SNI."
     },
     "qualification": "Source plan only. Fresh pinned host/syscall-js/WASM build and matching real UI HTTP/HTTPS/cold/withdrawal tests required; old77/8b41/8f773 are not relabeled."
+  },
+  "nativeSSH": {
+    "patch": {
+      "path": "native-ssh.patch",
+      "sha256": "ed16cfca147a9f775e4dd5f599d4b09ccafbac3dfb3fdfa6cfc72fe1bc2d8f2c",
+      "beforeSha256": "68c659ce00f9dff452bcb7b1c95a7c9d93807c4c6b858a00fcd261b51f16b67b",
+      "afterSha256": "9c86ae8796498a822c345a2713cb16365a5bac65136c081f544bd39a550e48e8"
+    },
+    "stagingHelper": {
+      "path": "stage-native-ssh.mjs",
+      "sha256": "b299aa0433e601e8a02bdaae3f71eb14da800bb8ea631955a13389943460175c"
+    },
+    "scope": "The raw ssh method only connects to a currently authorized direct tailnet peer advertising its host public key. Ordinary SSH, unadvertised keys, exit-node or route-all configurations, unavailable peer authority and changed peer keys fail closed. Original selected peer identity and route must remain current for the session."
   }
 }

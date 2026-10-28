@@ -1,0 +1,61 @@
+name: Review native SSH peer binding
+on:
+  push:
+    branches: [review/native-ssh-host-key-proof]
+permissions:
+  contents: read
+concurrency:
+  group: native-ssh-host-key-proof
+  cancel-in-progress: false
+jobs:
+  native-ssh:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install exact locked build dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify selected source and run staging tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mkdir -m 700 "$RUNNER_TEMP/native-ssh-evidence"
+          cp tools/pwa-tailscale-native-http/source.json "$RUNNER_TEMP/native-ssh-evidence/"
+          sha256sum tools/pwa-tailscale-native-http/source.json > "$RUNNER_TEMP/native-ssh-evidence/source.sha256"
+          node --test tools/pwa-tailscale-native-http/distribution-cache.test.mjs tools/pwa-tailscale-native-http/compressor-archive.test.mjs tools/pwa-tailscale-native-http/prepare-distribution.test.mjs tools/pwa-tailscale-native-http/prepare-native-audit.test.mjs tools/pwa-tailscale-native-http/apply-native-patch.test.mjs 2>&1 | tee "$RUNNER_TEMP/native-ssh-evidence/staging-tests.log"
+      - name: Build original native phases and run real host tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -m 700 "$RUNNER_TEMP/native-ssh-input"
+          node -e 'const p=require("./tools/pwa-tailscale-native-http/source.json"); for(const x of [p.source,p.compiler]) {if(!/^https:\/\//.test(x.archiveURL)||!/^[0-9a-f]{64}$/.test(x.archiveSha256)) process.exit(1);console.log(x.archiveURL);console.log(x.archiveSha256)}' > "$RUNNER_TEMP/native-ssh-input/pins"
+          mapfile -t pins < "$RUNNER_TEMP/native-ssh-input/pins"
+          test "${#pins[@]}" = 4
+          for n in 0 2; do
+            i=$((n / 2))
+            curl --fail --show-error --location --proto '=https' --proto-redir '=https' --max-time 120 --max-filesize 1073741824 --output "$RUNNER_TEMP/native-ssh-input/$i.tar.gz" -- "${pins[$n]}"
+            printf '%s  %s\n' "${pins[$((n + 1))]}" "$RUNNER_TEMP/native-ssh-input/$i.tar.gz" | sha256sum --check
+          done
+          timeout --signal=TERM --kill-after=10s 600s node tools/pwa-tailscale-native-http/build.mjs "$RUNNER_TEMP/native-ssh-input/0.tar.gz" "$RUNNER_TEMP/native-ssh-input/1.tar.gz" "$RUNNER_TEMP/native-ssh-build" 2>&1 | tee "$RUNNER_TEMP/native-ssh-evidence/build.log"
+      - name: Retain exact checks, logs and asset manifest
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-ssh-review-${{ github.sha }}
+          include-hidden-files: true
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/native-ssh-evidence
+            ${{ runner.temp }}/native-ssh-build/logs
+            ${{ runner.temp }}/native-ssh-build/result.json
+            ${{ runner.temp }}/native-ssh-build/artifacts/native-artifacts.json

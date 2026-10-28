@@ -33,6 +33,7 @@ async function fixture(t) {
     toolchainSelection: { files: [] },
     privateLogging: { files: [] },
     publicTrust: { files: [] },
+    nativeSSH: { patch: file, stagingHelper: file },
     composition: {
       files: [
         {

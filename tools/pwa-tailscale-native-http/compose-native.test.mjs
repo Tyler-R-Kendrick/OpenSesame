@@ -107,6 +107,7 @@ test("fixed composition patches actual source while preserving original manifest
     { name: "native-node-patch", status: 0 },
     { name: "disable-remote-logtail", status: 0 },
     { name: "native-peer-get-patch", status: 0 },
+    { name: "native-ssh-patch", status: 0 },
   ]);
   await selected.verify();
   const dnsPath = join(scope.source, "ipn/ipnlocal/native-extra-dns.go");
