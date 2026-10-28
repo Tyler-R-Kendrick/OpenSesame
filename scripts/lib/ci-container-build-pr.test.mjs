@@ -61,7 +61,9 @@ function expectDraftAdmission(source, allowCodeqlCandidate = false) {
       expect(block.split("\n")).toContain(
         "    if: ${{ always() && inputs.source_sha }}",
       );
-      expect(block.split("\n")).toContain("    needs: [analyze, analyze-native-go]");
+      expect(block.split("\n")).toContain(
+        "    needs: [analyze, analyze-native-go]",
+      );
     } else {
       expect(block.split("\n")).toContain(draftGuard);
     }

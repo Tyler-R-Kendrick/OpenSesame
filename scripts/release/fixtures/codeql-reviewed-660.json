@@ -1,1 +1,3111 @@
-[{"ruleId":"js/insufficient-password-hash","rule":{"id":"js/insufficient-password-hash","index":42,"toolComponent":{"index":0}},"message":{"text":"Password from [a call to beginOAuth2Auth](1) is hashed insecurely.\nPassword from [a call to beginOAuth2Auth](2) is hashed insecurely."},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":749,"startColumn":46,"endColumn":53}}}],"partialFingerprints":{"primaryLocationLineHash":"a5832d50e0bcde:1","primaryLocationStartColumnFingerprint":"43"},"codeFlows":[{"threadFlows":[{"locations":[{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":277,"startColumn":25,"endColumn":69}},"message":{"text":"beginOA ... ferred)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":277,"startColumn":19,"endColumn":69}},"message":{"text":"await b ... ferred)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":275,"startColumn":19,"endColumn":48}},"message":{"text":"{ autho ... nding }"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":275,"startColumn":39,"endColumn":46}},"message":{"text":"pending"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":289,"startColumn":29,"endColumn":36}},"message":{"text":"pending"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":753,"startColumn":3,"endColumn":10}},"message":{"text":"pending"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":46,"endColumn":53}},"message":{"text":"pending"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":31,"endColumn":54}},"message":{"text":"JSON.st ... ending)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":19,"endColumn":63}},"message":{"text":"Buffer. ... \"utf8\")"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":19,"endLine":758,"endColumn":4}},"message":{"text":"Buffer. ... l\",\\n  )"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":9,"endColumn":16}},"message":{"text":"payload"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":759,"startColumn":50,"endColumn":57}},"message":{"text":"payload"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":748,"startColumn":27,"endColumn":34}},"message":{"text":"payload"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":749,"startColumn":46,"endColumn":53}},"message":{"text":"payload"}}}]}]},{"threadFlows":[{"locations":[{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":446,"startColumn":19,"endColumn":56}},"message":{"text":"beginOA ... riptor)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":446,"startColumn":13,"endColumn":56}},"message":{"text":"await b ... riptor)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":444,"startColumn":13,"endColumn":42}},"message":{"text":"{ autho ... nding }"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":444,"startColumn":33,"endColumn":40}},"message":{"text":"pending"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":451,"startColumn":23,"endColumn":30}},"message":{"text":"pending"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":753,"startColumn":3,"endColumn":10}},"message":{"text":"pending"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":46,"endColumn":53}},"message":{"text":"pending"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":31,"endColumn":54}},"message":{"text":"JSON.st ... ending)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":19,"endColumn":63}},"message":{"text":"Buffer. ... \"utf8\")"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":19,"endLine":758,"endColumn":4}},"message":{"text":"Buffer. ... l\",\\n  )"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":756,"startColumn":9,"endColumn":16}},"message":{"text":"payload"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":759,"startColumn":50,"endColumn":57}},"message":{"text":"payload"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":748,"startColumn":27,"endColumn":34}},"message":{"text":"payload"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/interactions/federated.ts","uriBaseId":"%SRCROOT%","index":0},"region":{"startLine":749,"startColumn":46,"endColumn":53}},"message":{"text":"payload"}}}]}]}],"relatedLocations":[{"id":1,"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":277,"startColumn":25,"endColumn":69}},"message":{"text":"a call to beginOAuth2Auth"}},{"id":2,"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":446,"startColumn":19,"endColumn":56}},"message":{"text":"a call to beginOAuth2Auth"}},{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":277,"startColumn":25,"endColumn":69}}},{"physicalLocation":{"artifactLocation":{"uri":"packages/control-plane/src/routes/interactions.ts","uriBaseId":"%SRCROOT%","index":1},"region":{"startLine":446,"startColumn":19,"endColumn":56}}}]},{"ruleId":"js/insufficient-password-hash","rule":{"id":"js/insufficient-password-hash","index":42,"toolComponent":{"index":0}},"message":{"text":"Password from [a call to parsePasswordReset](1) is hashed insecurely."},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":168,"startColumn":48,"endColumn":53}}}],"partialFingerprints":{"primaryLocationLineHash":"a8b827c4dbe37729:1","primaryLocationStartColumnFingerprint":"41"},"codeFlows":[{"threadFlows":[{"locations":[{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/parse.ts","uriBaseId":"%SRCROOT%","index":3},"region":{"startLine":193,"startColumn":40,"endColumn":71}},"message":{"text":"parsePa ...  flags)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":197,"startColumn":15,"endColumn":30}},"message":{"text":"parseArgs(argv)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":197,"startColumn":5,"endColumn":12}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":215,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":224,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":253,"startColumn":36,"endColumn":43}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-dispatch.ts","uriBaseId":"%SRCROOT%","index":5},"region":{"startLine":5,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-dispatch.ts","uriBaseId":"%SRCROOT%","index":5},"region":{"startLine":9,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":65,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":70,"startColumn":31,"endColumn":38}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":89,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":94,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":108,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":25,"endColumn":32}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":164,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":171,"startColumn":5,"endColumn":12}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":170,"startColumn":10,"endLine":172,"endColumn":4}},"message":{"text":"(\\n    c ... )()\\n  )"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":14,"endColumn":47}},"message":{"text":"resetRu ... , deps)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":9,"endColumn":11}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":135,"startColumn":57,"endColumn":59}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":278,"startColumn":3,"endColumn":5}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":282,"startColumn":31,"endColumn":33}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":133,"startColumn":16,"endColumn":21}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":134,"startColumn":35,"endColumn":40}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":49,"startColumn":14,"endColumn":19}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":51,"startColumn":29,"endColumn":34}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":109,"startColumn":22,"endColumn":27}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":112,"startColumn":43,"endColumn":48}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":165,"startColumn":20,"endColumn":25}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":168,"startColumn":48,"endColumn":53}},"message":{"text":"runId"}}}]}]},{"threadFlows":[{"locations":[{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/parse.ts","uriBaseId":"%SRCROOT%","index":3},"region":{"startLine":193,"startColumn":40,"endColumn":71}},"message":{"text":"parsePa ...  flags)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":197,"startColumn":15,"endColumn":30}},"message":{"text":"parseArgs(argv)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":197,"startColumn":5,"endColumn":12}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":215,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":224,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":253,"startColumn":36,"endColumn":43}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-dispatch.ts","uriBaseId":"%SRCROOT%","index":5},"region":{"startLine":5,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-dispatch.ts","uriBaseId":"%SRCROOT%","index":5},"region":{"startLine":9,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":65,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":70,"startColumn":31,"endColumn":38}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":89,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":94,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":108,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":25,"endColumn":32}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":164,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":169,"startColumn":21,"endColumn":28}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":169,"startColumn":21,"endColumn":57}},"message":{"text":"command ... g.runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":346,"startColumn":19,"endColumn":24}},"message":{"text":"value"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":348,"startColumn":10,"endColumn":15}},"message":{"text":"value"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":169,"startColumn":12,"endColumn":68}},"message":{"text":"require ... un id\")"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":14,"endColumn":47}},"message":{"text":"resetRu ... , deps)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":9,"endColumn":11}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":135,"startColumn":57,"endColumn":59}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":278,"startColumn":3,"endColumn":5}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":284,"startColumn":20,"endColumn":22}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":253,"startColumn":3,"endColumn":5}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":260,"startColumn":5,"endColumn":7}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":259,"startColumn":10,"endLine":270,"endColumn":4}},"message":{"text":"{\\n    i ... (),\\n  } [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":284,"startColumn":12,"endColumn":44}},"message":{"text":"baseRun ... d, now) [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":135,"startColumn":15,"endColumn":60}},"message":{"text":"prepare ... ow, id) [PromiseValue, id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":135,"startColumn":9,"endColumn":60}},"message":{"text":"await p ... ow, id) [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":135,"startColumn":3,"endColumn":6}},"message":{"text":"run [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":159,"startColumn":56,"endColumn":59}},"message":{"text":"run [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":337,"startColumn":3,"endColumn":6}},"message":{"text":"run [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":339,"startColumn":45,"endColumn":48}},"message":{"text":"run [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/runner.ts","uriBaseId":"%SRCROOT%","index":8},"region":{"startLine":25,"startColumn":15,"endColumn":18}},"message":{"text":"run [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/runner.ts","uriBaseId":"%SRCROOT%","index":8},"region":{"startLine":26,"startColumn":35,"endColumn":38}},"message":{"text":"run [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/runner.ts","uriBaseId":"%SRCROOT%","index":8},"region":{"startLine":26,"startColumn":35,"endColumn":41}},"message":{"text":"run.id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":113,"startColumn":22,"endColumn":27}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":124,"startColumn":38,"endColumn":43}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":54,"startColumn":22,"endColumn":27}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":61,"startColumn":34,"endColumn":39}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":172,"startColumn":20,"endColumn":25}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":173,"startColumn":29,"endColumn":34}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":165,"startColumn":20,"endColumn":25}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":168,"startColumn":48,"endColumn":53}},"message":{"text":"runId"}}}]}]},{"threadFlows":[{"locations":[{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/parse.ts","uriBaseId":"%SRCROOT%","index":3},"region":{"startLine":193,"startColumn":40,"endColumn":71}},"message":{"text":"parsePa ...  flags)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":197,"startColumn":15,"endColumn":30}},"message":{"text":"parseArgs(argv)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":197,"startColumn":5,"endColumn":12}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":215,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":224,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":253,"startColumn":36,"endColumn":43}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-dispatch.ts","uriBaseId":"%SRCROOT%","index":5},"region":{"startLine":5,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-dispatch.ts","uriBaseId":"%SRCROOT%","index":5},"region":{"startLine":9,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":65,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":70,"startColumn":31,"endColumn":38}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":89,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":94,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":108,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":25,"endColumn":32}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":164,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":171,"startColumn":5,"endColumn":12}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":170,"startColumn":10,"endLine":172,"endColumn":4}},"message":{"text":"(\\n    c ... )()\\n  )"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":14,"endColumn":47}},"message":{"text":"resetRu ... , deps)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":9,"endColumn":11}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":135,"startColumn":57,"endColumn":59}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":278,"startColumn":3,"endColumn":5}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":286,"startColumn":42,"endColumn":44}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":165,"startColumn":17,"endColumn":22}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":166,"startColumn":48,"endColumn":53}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":133,"startColumn":16,"endColumn":21}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":134,"startColumn":35,"endColumn":40}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":49,"startColumn":14,"endColumn":19}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":51,"startColumn":29,"endColumn":34}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":109,"startColumn":22,"endColumn":27}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":112,"startColumn":43,"endColumn":48}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":165,"startColumn":20,"endColumn":25}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":168,"startColumn":48,"endColumn":53}},"message":{"text":"runId"}}}]}]},{"threadFlows":[{"locations":[{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/parse.ts","uriBaseId":"%SRCROOT%","index":3},"region":{"startLine":193,"startColumn":40,"endColumn":71}},"message":{"text":"parsePa ...  flags)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":197,"startColumn":15,"endColumn":30}},"message":{"text":"parseArgs(argv)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":197,"startColumn":5,"endColumn":12}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":215,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":224,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/run.ts","uriBaseId":"%SRCROOT%","index":4},"region":{"startLine":253,"startColumn":36,"endColumn":43}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-dispatch.ts","uriBaseId":"%SRCROOT%","index":5},"region":{"startLine":5,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-dispatch.ts","uriBaseId":"%SRCROOT%","index":5},"region":{"startLine":9,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":65,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":70,"startColumn":31,"endColumn":38}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":89,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":94,"startColumn":27,"endColumn":34}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":108,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":25,"endColumn":32}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":164,"startColumn":3,"endColumn":10}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":171,"startColumn":5,"endColumn":12}},"message":{"text":"command"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":170,"startColumn":10,"endLine":172,"endColumn":4}},"message":{"text":"(\\n    c ... )()\\n  )"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":14,"endColumn":47}},"message":{"text":"resetRu ... , deps)"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":118,"startColumn":9,"endColumn":11}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":135,"startColumn":57,"endColumn":59}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":278,"startColumn":3,"endColumn":5}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":284,"startColumn":20,"endColumn":22}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":253,"startColumn":3,"endColumn":5}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":260,"startColumn":5,"endColumn":7}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":259,"startColumn":10,"endLine":270,"endColumn":4}},"message":{"text":"{\\n    i ... (),\\n  } [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":284,"startColumn":12,"endColumn":44}},"message":{"text":"baseRun ... d, now) [id]"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":278,"startColumn":3,"endColumn":5}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/password-reset-command.ts","uriBaseId":"%SRCROOT%","index":6},"region":{"startLine":282,"startColumn":31,"endColumn":33}},"message":{"text":"id"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":133,"startColumn":16,"endColumn":21}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/journal.ts","uriBaseId":"%SRCROOT%","index":7},"region":{"startLine":134,"startColumn":35,"endColumn":40}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":49,"startColumn":14,"endColumn":19}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":51,"startColumn":29,"endColumn":34}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":109,"startColumn":22,"endColumn":27}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":112,"startColumn":43,"endColumn":48}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":165,"startColumn":20,"endColumn":25}},"message":{"text":"runId"}}},{"location":{"physicalLocation":{"artifactLocation":{"uri":"packages/cua-password-reset/src/file-journal.ts","uriBaseId":"%SRCROOT%","index":2},"region":{"startLine":168,"startColumn":48,"endColumn":53}},"message":{"text":"runId"}}}]}]}],"relatedLocations":[{"id":1,"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/parse.ts","uriBaseId":"%SRCROOT%","index":3},"region":{"startLine":193,"startColumn":40,"endColumn":71}},"message":{"text":"a call to parsePasswordReset"}},{"physicalLocation":{"artifactLocation":{"uri":"packages/cli/src/parse.ts","uriBaseId":"%SRCROOT%","index":3},"region":{"startLine":193,"startColumn":40,"endColumn":71}}}]}]
+[
+  {
+    "ruleId": "js/insufficient-password-hash",
+    "rule": {
+      "id": "js/insufficient-password-hash",
+      "index": 42,
+      "toolComponent": { "index": 0 }
+    },
+    "message": {
+      "text": "Password from [a call to beginOAuth2Auth](1) is hashed insecurely.\nPassword from [a call to beginOAuth2Auth](2) is hashed insecurely."
+    },
+    "locations": [
+      {
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "packages/control-plane/src/interactions/federated.ts",
+            "uriBaseId": "%SRCROOT%",
+            "index": 0
+          },
+          "region": { "startLine": 749, "startColumn": 46, "endColumn": 53 }
+        }
+      }
+    ],
+    "partialFingerprints": {
+      "primaryLocationLineHash": "a5832d50e0bcde:1",
+      "primaryLocationStartColumnFingerprint": "43"
+    },
+    "codeFlows": [
+      {
+        "threadFlows": [
+          {
+            "locations": [
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 277,
+                      "startColumn": 25,
+                      "endColumn": 69
+                    }
+                  },
+                  "message": { "text": "beginOA ... ferred)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 277,
+                      "startColumn": 19,
+                      "endColumn": 69
+                    }
+                  },
+                  "message": { "text": "await b ... ferred)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 275,
+                      "startColumn": 19,
+                      "endColumn": 48
+                    }
+                  },
+                  "message": { "text": "{ autho ... nding }" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 275,
+                      "startColumn": 39,
+                      "endColumn": 46
+                    }
+                  },
+                  "message": { "text": "pending" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 289,
+                      "startColumn": 29,
+                      "endColumn": 36
+                    }
+                  },
+                  "message": { "text": "pending" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 753,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "pending" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 46,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "pending" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 31,
+                      "endColumn": 54
+                    }
+                  },
+                  "message": { "text": "JSON.st ... ending)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 19,
+                      "endColumn": 63
+                    }
+                  },
+                  "message": { "text": "Buffer. ... \"utf8\")" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 19,
+                      "endLine": 758,
+                      "endColumn": 4
+                    }
+                  },
+                  "message": { "text": "Buffer. ... l\",\\n  )" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 9,
+                      "endColumn": 16
+                    }
+                  },
+                  "message": { "text": "payload" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 759,
+                      "startColumn": 50,
+                      "endColumn": 57
+                    }
+                  },
+                  "message": { "text": "payload" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 748,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "payload" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 749,
+                      "startColumn": 46,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "payload" }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "threadFlows": [
+          {
+            "locations": [
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 446,
+                      "startColumn": 19,
+                      "endColumn": 56
+                    }
+                  },
+                  "message": { "text": "beginOA ... riptor)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 446,
+                      "startColumn": 13,
+                      "endColumn": 56
+                    }
+                  },
+                  "message": { "text": "await b ... riptor)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 444,
+                      "startColumn": 13,
+                      "endColumn": 42
+                    }
+                  },
+                  "message": { "text": "{ autho ... nding }" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 444,
+                      "startColumn": 33,
+                      "endColumn": 40
+                    }
+                  },
+                  "message": { "text": "pending" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/routes/interactions.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 1
+                    },
+                    "region": {
+                      "startLine": 451,
+                      "startColumn": 23,
+                      "endColumn": 30
+                    }
+                  },
+                  "message": { "text": "pending" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 753,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "pending" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 46,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "pending" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 31,
+                      "endColumn": 54
+                    }
+                  },
+                  "message": { "text": "JSON.st ... ending)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 19,
+                      "endColumn": 63
+                    }
+                  },
+                  "message": { "text": "Buffer. ... \"utf8\")" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 19,
+                      "endLine": 758,
+                      "endColumn": 4
+                    }
+                  },
+                  "message": { "text": "Buffer. ... l\",\\n  )" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 756,
+                      "startColumn": 9,
+                      "endColumn": 16
+                    }
+                  },
+                  "message": { "text": "payload" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 759,
+                      "startColumn": 50,
+                      "endColumn": 57
+                    }
+                  },
+                  "message": { "text": "payload" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 748,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "payload" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/control-plane/src/interactions/federated.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 0
+                    },
+                    "region": {
+                      "startLine": 749,
+                      "startColumn": 46,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "payload" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "relatedLocations": [
+      {
+        "id": 1,
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "packages/control-plane/src/routes/interactions.ts",
+            "uriBaseId": "%SRCROOT%",
+            "index": 1
+          },
+          "region": { "startLine": 277, "startColumn": 25, "endColumn": 69 }
+        },
+        "message": { "text": "a call to beginOAuth2Auth" }
+      },
+      {
+        "id": 2,
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "packages/control-plane/src/routes/interactions.ts",
+            "uriBaseId": "%SRCROOT%",
+            "index": 1
+          },
+          "region": { "startLine": 446, "startColumn": 19, "endColumn": 56 }
+        },
+        "message": { "text": "a call to beginOAuth2Auth" }
+      },
+      {
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "packages/control-plane/src/routes/interactions.ts",
+            "uriBaseId": "%SRCROOT%",
+            "index": 1
+          },
+          "region": { "startLine": 277, "startColumn": 25, "endColumn": 69 }
+        }
+      },
+      {
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "packages/control-plane/src/routes/interactions.ts",
+            "uriBaseId": "%SRCROOT%",
+            "index": 1
+          },
+          "region": { "startLine": 446, "startColumn": 19, "endColumn": 56 }
+        }
+      }
+    ]
+  },
+  {
+    "ruleId": "js/insufficient-password-hash",
+    "rule": {
+      "id": "js/insufficient-password-hash",
+      "index": 42,
+      "toolComponent": { "index": 0 }
+    },
+    "message": {
+      "text": "Password from [a call to parsePasswordReset](1) is hashed insecurely."
+    },
+    "locations": [
+      {
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "packages/cua-password-reset/src/file-journal.ts",
+            "uriBaseId": "%SRCROOT%",
+            "index": 2
+          },
+          "region": { "startLine": 168, "startColumn": 48, "endColumn": 53 }
+        }
+      }
+    ],
+    "partialFingerprints": {
+      "primaryLocationLineHash": "a8b827c4dbe37729:1",
+      "primaryLocationStartColumnFingerprint": "41"
+    },
+    "codeFlows": [
+      {
+        "threadFlows": [
+          {
+            "locations": [
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/parse.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 3
+                    },
+                    "region": {
+                      "startLine": 193,
+                      "startColumn": 40,
+                      "endColumn": 71
+                    }
+                  },
+                  "message": { "text": "parsePa ...  flags)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 197,
+                      "startColumn": 15,
+                      "endColumn": 30
+                    }
+                  },
+                  "message": { "text": "parseArgs(argv)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 197,
+                      "startColumn": 5,
+                      "endColumn": 12
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 215,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 224,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 253,
+                      "startColumn": 36,
+                      "endColumn": 43
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-dispatch.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 5
+                    },
+                    "region": {
+                      "startLine": 5,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-dispatch.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 5
+                    },
+                    "region": {
+                      "startLine": 9,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 65,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 70,
+                      "startColumn": 31,
+                      "endColumn": 38
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 89,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 94,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 108,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 25,
+                      "endColumn": 32
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 164,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 171,
+                      "startColumn": 5,
+                      "endColumn": 12
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 170,
+                      "startColumn": 10,
+                      "endLine": 172,
+                      "endColumn": 4
+                    }
+                  },
+                  "message": { "text": "(\\n    c ... )()\\n  )" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 14,
+                      "endColumn": 47
+                    }
+                  },
+                  "message": { "text": "resetRu ... , deps)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 9,
+                      "endColumn": 11
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 135,
+                      "startColumn": 57,
+                      "endColumn": 59
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 278,
+                      "startColumn": 3,
+                      "endColumn": 5
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 282,
+                      "startColumn": 31,
+                      "endColumn": 33
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 133,
+                      "startColumn": 16,
+                      "endColumn": 21
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 134,
+                      "startColumn": 35,
+                      "endColumn": 40
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 49,
+                      "startColumn": 14,
+                      "endColumn": 19
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 51,
+                      "startColumn": 29,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 109,
+                      "startColumn": 22,
+                      "endColumn": 27
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 112,
+                      "startColumn": 43,
+                      "endColumn": 48
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 165,
+                      "startColumn": 20,
+                      "endColumn": 25
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 168,
+                      "startColumn": 48,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "threadFlows": [
+          {
+            "locations": [
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/parse.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 3
+                    },
+                    "region": {
+                      "startLine": 193,
+                      "startColumn": 40,
+                      "endColumn": 71
+                    }
+                  },
+                  "message": { "text": "parsePa ...  flags)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 197,
+                      "startColumn": 15,
+                      "endColumn": 30
+                    }
+                  },
+                  "message": { "text": "parseArgs(argv)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 197,
+                      "startColumn": 5,
+                      "endColumn": 12
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 215,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 224,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 253,
+                      "startColumn": 36,
+                      "endColumn": 43
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-dispatch.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 5
+                    },
+                    "region": {
+                      "startLine": 5,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-dispatch.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 5
+                    },
+                    "region": {
+                      "startLine": 9,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 65,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 70,
+                      "startColumn": 31,
+                      "endColumn": 38
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 89,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 94,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 108,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 25,
+                      "endColumn": 32
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 164,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 169,
+                      "startColumn": 21,
+                      "endColumn": 28
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 169,
+                      "startColumn": 21,
+                      "endColumn": 57
+                    }
+                  },
+                  "message": { "text": "command ... g.runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 346,
+                      "startColumn": 19,
+                      "endColumn": 24
+                    }
+                  },
+                  "message": { "text": "value" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 348,
+                      "startColumn": 10,
+                      "endColumn": 15
+                    }
+                  },
+                  "message": { "text": "value" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 169,
+                      "startColumn": 12,
+                      "endColumn": 68
+                    }
+                  },
+                  "message": { "text": "require ... un id\")" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 14,
+                      "endColumn": 47
+                    }
+                  },
+                  "message": { "text": "resetRu ... , deps)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 9,
+                      "endColumn": 11
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 135,
+                      "startColumn": 57,
+                      "endColumn": 59
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 278,
+                      "startColumn": 3,
+                      "endColumn": 5
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 284,
+                      "startColumn": 20,
+                      "endColumn": 22
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 253,
+                      "startColumn": 3,
+                      "endColumn": 5
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 260,
+                      "startColumn": 5,
+                      "endColumn": 7
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 259,
+                      "startColumn": 10,
+                      "endLine": 270,
+                      "endColumn": 4
+                    }
+                  },
+                  "message": { "text": "{\\n    i ... (),\\n  } [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 284,
+                      "startColumn": 12,
+                      "endColumn": 44
+                    }
+                  },
+                  "message": { "text": "baseRun ... d, now) [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 135,
+                      "startColumn": 15,
+                      "endColumn": 60
+                    }
+                  },
+                  "message": {
+                    "text": "prepare ... ow, id) [PromiseValue, id]"
+                  }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 135,
+                      "startColumn": 9,
+                      "endColumn": 60
+                    }
+                  },
+                  "message": { "text": "await p ... ow, id) [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 135,
+                      "startColumn": 3,
+                      "endColumn": 6
+                    }
+                  },
+                  "message": { "text": "run [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 159,
+                      "startColumn": 56,
+                      "endColumn": 59
+                    }
+                  },
+                  "message": { "text": "run [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 337,
+                      "startColumn": 3,
+                      "endColumn": 6
+                    }
+                  },
+                  "message": { "text": "run [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 339,
+                      "startColumn": 45,
+                      "endColumn": 48
+                    }
+                  },
+                  "message": { "text": "run [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/runner.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 8
+                    },
+                    "region": {
+                      "startLine": 25,
+                      "startColumn": 15,
+                      "endColumn": 18
+                    }
+                  },
+                  "message": { "text": "run [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/runner.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 8
+                    },
+                    "region": {
+                      "startLine": 26,
+                      "startColumn": 35,
+                      "endColumn": 38
+                    }
+                  },
+                  "message": { "text": "run [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/runner.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 8
+                    },
+                    "region": {
+                      "startLine": 26,
+                      "startColumn": 35,
+                      "endColumn": 41
+                    }
+                  },
+                  "message": { "text": "run.id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 113,
+                      "startColumn": 22,
+                      "endColumn": 27
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 124,
+                      "startColumn": 38,
+                      "endColumn": 43
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 54,
+                      "startColumn": 22,
+                      "endColumn": 27
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 61,
+                      "startColumn": 34,
+                      "endColumn": 39
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 172,
+                      "startColumn": 20,
+                      "endColumn": 25
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 173,
+                      "startColumn": 29,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 165,
+                      "startColumn": 20,
+                      "endColumn": 25
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 168,
+                      "startColumn": 48,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "threadFlows": [
+          {
+            "locations": [
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/parse.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 3
+                    },
+                    "region": {
+                      "startLine": 193,
+                      "startColumn": 40,
+                      "endColumn": 71
+                    }
+                  },
+                  "message": { "text": "parsePa ...  flags)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 197,
+                      "startColumn": 15,
+                      "endColumn": 30
+                    }
+                  },
+                  "message": { "text": "parseArgs(argv)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 197,
+                      "startColumn": 5,
+                      "endColumn": 12
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 215,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 224,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 253,
+                      "startColumn": 36,
+                      "endColumn": 43
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-dispatch.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 5
+                    },
+                    "region": {
+                      "startLine": 5,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-dispatch.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 5
+                    },
+                    "region": {
+                      "startLine": 9,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 65,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 70,
+                      "startColumn": 31,
+                      "endColumn": 38
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 89,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 94,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 108,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 25,
+                      "endColumn": 32
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 164,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 171,
+                      "startColumn": 5,
+                      "endColumn": 12
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 170,
+                      "startColumn": 10,
+                      "endLine": 172,
+                      "endColumn": 4
+                    }
+                  },
+                  "message": { "text": "(\\n    c ... )()\\n  )" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 14,
+                      "endColumn": 47
+                    }
+                  },
+                  "message": { "text": "resetRu ... , deps)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 9,
+                      "endColumn": 11
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 135,
+                      "startColumn": 57,
+                      "endColumn": 59
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 278,
+                      "startColumn": 3,
+                      "endColumn": 5
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 286,
+                      "startColumn": 42,
+                      "endColumn": 44
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 165,
+                      "startColumn": 17,
+                      "endColumn": 22
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 166,
+                      "startColumn": 48,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 133,
+                      "startColumn": 16,
+                      "endColumn": 21
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 134,
+                      "startColumn": 35,
+                      "endColumn": 40
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 49,
+                      "startColumn": 14,
+                      "endColumn": 19
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 51,
+                      "startColumn": 29,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 109,
+                      "startColumn": 22,
+                      "endColumn": 27
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 112,
+                      "startColumn": 43,
+                      "endColumn": 48
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 165,
+                      "startColumn": 20,
+                      "endColumn": 25
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 168,
+                      "startColumn": 48,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "threadFlows": [
+          {
+            "locations": [
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/parse.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 3
+                    },
+                    "region": {
+                      "startLine": 193,
+                      "startColumn": 40,
+                      "endColumn": 71
+                    }
+                  },
+                  "message": { "text": "parsePa ...  flags)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 197,
+                      "startColumn": 15,
+                      "endColumn": 30
+                    }
+                  },
+                  "message": { "text": "parseArgs(argv)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 197,
+                      "startColumn": 5,
+                      "endColumn": 12
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 215,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 224,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/run.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 4
+                    },
+                    "region": {
+                      "startLine": 253,
+                      "startColumn": 36,
+                      "endColumn": 43
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-dispatch.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 5
+                    },
+                    "region": {
+                      "startLine": 5,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-dispatch.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 5
+                    },
+                    "region": {
+                      "startLine": 9,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 65,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 70,
+                      "startColumn": 31,
+                      "endColumn": 38
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 89,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 94,
+                      "startColumn": 27,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 108,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 25,
+                      "endColumn": 32
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 164,
+                      "startColumn": 3,
+                      "endColumn": 10
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 171,
+                      "startColumn": 5,
+                      "endColumn": 12
+                    }
+                  },
+                  "message": { "text": "command" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 170,
+                      "startColumn": 10,
+                      "endLine": 172,
+                      "endColumn": 4
+                    }
+                  },
+                  "message": { "text": "(\\n    c ... )()\\n  )" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 14,
+                      "endColumn": 47
+                    }
+                  },
+                  "message": { "text": "resetRu ... , deps)" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 118,
+                      "startColumn": 9,
+                      "endColumn": 11
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 135,
+                      "startColumn": 57,
+                      "endColumn": 59
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 278,
+                      "startColumn": 3,
+                      "endColumn": 5
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 284,
+                      "startColumn": 20,
+                      "endColumn": 22
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 253,
+                      "startColumn": 3,
+                      "endColumn": 5
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 260,
+                      "startColumn": 5,
+                      "endColumn": 7
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 259,
+                      "startColumn": 10,
+                      "endLine": 270,
+                      "endColumn": 4
+                    }
+                  },
+                  "message": { "text": "{\\n    i ... (),\\n  } [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 284,
+                      "startColumn": 12,
+                      "endColumn": 44
+                    }
+                  },
+                  "message": { "text": "baseRun ... d, now) [id]" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 278,
+                      "startColumn": 3,
+                      "endColumn": 5
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cli/src/password-reset-command.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 6
+                    },
+                    "region": {
+                      "startLine": 282,
+                      "startColumn": 31,
+                      "endColumn": 33
+                    }
+                  },
+                  "message": { "text": "id" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 133,
+                      "startColumn": 16,
+                      "endColumn": 21
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 7
+                    },
+                    "region": {
+                      "startLine": 134,
+                      "startColumn": 35,
+                      "endColumn": 40
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 49,
+                      "startColumn": 14,
+                      "endColumn": 19
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 51,
+                      "startColumn": 29,
+                      "endColumn": 34
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 109,
+                      "startColumn": 22,
+                      "endColumn": 27
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 112,
+                      "startColumn": 43,
+                      "endColumn": 48
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 165,
+                      "startColumn": 20,
+                      "endColumn": 25
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              },
+              {
+                "location": {
+                  "physicalLocation": {
+                    "artifactLocation": {
+                      "uri": "packages/cua-password-reset/src/file-journal.ts",
+                      "uriBaseId": "%SRCROOT%",
+                      "index": 2
+                    },
+                    "region": {
+                      "startLine": 168,
+                      "startColumn": 48,
+                      "endColumn": 53
+                    }
+                  },
+                  "message": { "text": "runId" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "relatedLocations": [
+      {
+        "id": 1,
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "packages/cli/src/parse.ts",
+            "uriBaseId": "%SRCROOT%",
+            "index": 3
+          },
+          "region": { "startLine": 193, "startColumn": 40, "endColumn": 71 }
+        },
+        "message": { "text": "a call to parsePasswordReset" }
+      },
+      {
+        "physicalLocation": {
+          "artifactLocation": {
+            "uri": "packages/cli/src/parse.ts",
+            "uriBaseId": "%SRCROOT%",
+            "index": 3
+          },
+          "region": { "startLine": 193, "startColumn": 40, "endColumn": 71 }
+        }
+      }
+    ]
+  }
+]

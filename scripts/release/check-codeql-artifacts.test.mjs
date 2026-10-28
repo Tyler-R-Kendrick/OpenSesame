@@ -88,12 +88,23 @@ test("requires both native Go analyses and refuses their findings or extraction 
   const finding = cleanFor("go-native-wasm");
   finding.runs[0].results.push({ ruleId: "go/example" });
   writeFileSync(f.file("go-native-wasm"), JSON.stringify(finding));
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /unreviewed finding/);
-  writeFileSync(f.file("go-native-wasm"), JSON.stringify(cleanFor("go-native-wasm")));
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha),
+    /unreviewed finding/,
+  );
+  writeFileSync(
+    f.file("go-native-wasm"),
+    JSON.stringify(cleanFor("go-native-wasm")),
+  );
   const error = cleanFor("go-native-host");
-  error.runs[0].invocations[0].toolExecutionNotifications = [{ level: "error" }];
+  error.runs[0].invocations[0].toolExecutionNotifications = [
+    { level: "error" },
+  ];
   writeFileSync(f.file("go-native-host"), JSON.stringify(error));
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /execution or configuration error/);
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha),
+    /execution or configuration error/,
+  );
 });
 
 test("rejects an incorrect source SHA or artifact for a different source", (t) => {
