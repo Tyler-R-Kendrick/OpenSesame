@@ -11,13 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kind: [javascript, rust]
+        kind: [javascript, rust_core, rust_cli]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      CANDIDATE_SHA: 3deb5d5835fb8f60e314f22a5ed67842278e496b
-      EXPECTED_TREE: 38122962c05933415334cb79bbb6e631f44f81dd
-      EXPECTED_PARENT: 2e828f3bb7a64f4038b2661c6f9b46b1fecf4cfb
+      CANDIDATE_SHA: dfa0a72019f94b9596ddd1f1f0225309eb715cf5
+      EXPECTED_TREE: dd5c4604d558a0f00cea86a33aa1e70c49ed735e
+      EXPECTED_PARENT: bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
       FIXTURE_KIND: ${{ matrix.kind }}
       CARGO_BUILD_JOBS: '2'
     steps:
@@ -47,7 +47,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-        if: matrix.kind == 'rust'
+        if: matrix.kind != 'javascript'
         with:
           toolchain: 1.88.0
       - name: Run focused fixture tests privately
@@ -75,10 +75,17 @@ jobs:
               run_test duress pnpm --filter @opensesame/app-core exec vitest run src/lib/duress/settings/unlock-secret-collision.test.ts --testTimeout=60000
               run_test pending pnpm --filter @opensesame/pages exec vitest run src/modules/sharing.trusted-contacts/pending-store.test.ts --testTimeout=60000
             fi
-          elif [[ "$FIXTURE_KIND" == rust ]]; then
-            run_test honey cargo test -p opensesame-invoke-through honey_tests
-            run_test protocol cargo test -p opensesame-bitwarden-server --test protocol a_wrong_password_and_an_unknown_email_get_the_same_answer
-            for label in honey protocol; do
+          elif [[ "$FIXTURE_KIND" == rust_core || "$FIXTURE_KIND" == rust_cli ]]; then
+            if [[ "$FIXTURE_KIND" == rust_core ]]; then
+              run_test honey cargo test -p opensesame-invoke-through honey_tests
+              run_test protocol cargo test -p opensesame-bitwarden-server --test protocol a_wrong_password_and_an_unknown_email_get_the_same_answer
+              labels=(honey protocol)
+            else
+              run_test enterprise cargo test -p opensesame-cli --bin opensesame gh_is_handed_a_ghes_token_and_a_version_managers_home
+              run_test bridge cargo test -p opensesame-cli --test dev_run_bridge_env
+              labels=(enterprise bridge)
+            fi
+            for label in "${labels[@]}"; do
               if ! python3 - "$private/$label.log" <<'PYTHON'
           import re,sys
           text=open(sys.argv[1],encoding='utf-8',errors='replace').read()
