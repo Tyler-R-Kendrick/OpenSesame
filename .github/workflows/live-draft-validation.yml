@@ -88,6 +88,21 @@ jobs:
           src/modules/sharing.live/LiveNatsRoutes.test.tsx
       - name: Typecheck Pages
         run: pnpm --filter @opensesame/pages typecheck
+      - name: Run full-config targeted lint and repository footprint gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            apps/pages/src/modules/sharing.live/LiveCarriers.tsx
+            apps/pages/src/modules/sharing.live/LiveRoutesPanel.tsx
+            apps/pages/src/modules/sharing.live/live-route-parts.tsx
+            apps/pages/src/modules/sharing.live/LiveRoutesDraftRace.test.tsx
+            apps/pages/src/modules/sharing.live/LiveRouteCredentialRace.test.tsx
+            apps/pages/src/modules/sharing.live/live-route-race.test-support.ts
+          )
+          pnpm exec biome check "${files[@]}"
+          pnpm lint:anti-slop:files "${files[@]}"
+          node scripts/quality/repository-size-gate.mjs
       - name: Keep the before and after test reports
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
