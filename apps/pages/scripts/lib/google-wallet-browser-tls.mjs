@@ -55,5 +55,7 @@ export function googleWalletBrowserArguments(port, spki) {
     "--no-proxy-server",
     `--host-resolver-rules=${GOOGLE_WALLET_HOSTS.map((name) => `MAP ${name} 127.0.0.1:${port}`).join(", ")}`,
     `--ignore-certificate-errors-spki-list=${spki}`,
+    // Represent public Google authorities while retaining their TLS and CORS contracts.
+    `--ip-address-space-overrides=127.0.0.1:${port}=public`,
   ];
 }

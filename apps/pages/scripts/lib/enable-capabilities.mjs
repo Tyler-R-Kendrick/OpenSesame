@@ -30,8 +30,11 @@ async function atFeatures(page, url) {
     .catch(() => {});
 }
 
-const OFF_SWITCH =
-  '.capsection__head .capsection__switch[aria-checked="false"]';
+// A partly-on section is completed from its tiles, not by pressing its on subheader.
+const OFF_SWITCH = [
+  '.capsection__head .capsection__switch[aria-checked="false"]',
+  '.capsection__cap .capsection__switch[aria-checked="false"]',
+].join(", ");
 
 /** Presses the first switch that is off; false when none is (or the page is mid-reload). */
 async function switchNextOn(page, round, verbose) {

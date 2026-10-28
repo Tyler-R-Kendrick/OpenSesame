@@ -66,7 +66,7 @@ An Infisical-class authority console that also keeps a human store on the device
 - No localStorage or sessionStorage for vault material (XSS-exfiltrable; enforced by ast-grep).
 - Vault key and master key live in memory only; never persisted.
 - ADR 0017 dual-plane separation preserved.
-- Deploys publish from `main` via GitHub Pages' own Actions deployment (`.github/workflows/deploy-pages.yml`, GitHub-hosted runners only — no custom/self-hosted runners); `scripts/release/deploy-pages.sh` remains the manual fallback.
+- Deploys promote a qualified main-source artifact through `.github/workflows/release-weekly.yml` and `release-publish.yml` using GitHub Pages' Actions deployment on GitHub-hosted runners. Nightly builds are reused unchanged; no main-push or local rebuild-and-push publisher bypasses qualification.
 
 ## Accessibility
 

@@ -263,6 +263,13 @@ function custodyPatterns(preset) {
       /Verification input is transient and is not saved/,
       /API token stays in the owning vault/,
     ];
+  if (preset.family === "stability_sd3")
+    return [
+      /Testing and saving generate an actual PNG/,
+      /prompt and verification image are not saved/,
+      /API key is sealed in the owning vault/,
+      /native Tailscale HTTP transport/,
+    ];
   return [
     /Token credential/,
     /current vault/,
