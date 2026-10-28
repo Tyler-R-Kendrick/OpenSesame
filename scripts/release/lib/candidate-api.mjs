@@ -26,12 +26,15 @@ const SCANNER_CONFIG_NAMES = new Set([
   "deny.toml",
   "osv-scanner.toml",
 ]);
-const REQUIRED_SCANNER_CONFIGS = [
+const REQUIRED_SECURITY_POLICY_FILES = [
   ".github/codeql/codeql-config.yml",
   ".gitleaks.toml",
   ".cargo/audit.toml",
   "deny.toml",
   "osv-scanner.toml",
+  "scripts/lib/dependency-compatibility.test.mjs",
+  "scripts/fuzz/jazzer-gate.sh",
+  "scripts/lib/fuzz-directory.sh",
 ];
 
 function scannerHelper(path, prefix) {
@@ -52,6 +55,9 @@ function scannerPolicyPath(path) {
     (parts.includes(".cargo") &&
       ["audit.toml", "config", "config.toml"].includes(name)) ||
     path === "scripts/lib/audit-directory.sh" ||
+    path === "scripts/lib/dependency-compatibility.test.mjs" ||
+    path === "scripts/fuzz/jazzer-gate.sh" ||
+    path === "scripts/lib/fuzz-directory.sh" ||
     (path.startsWith("scripts/audit/") && !path.includes(".test.")) ||
     scannerHelper(path, "scripts/test/live-turn/") ||
     scannerHelper(path, "tools/pwa-tailscale-native-http/") ||
@@ -211,7 +217,7 @@ export class GitHub {
   async policyEntries() {
     const tree = await this.tree(this.ctx.workflowSha);
     const entries = policyEntriesForTree(tree);
-    for (const path of [...CI_RECIPE, ...REQUIRED_SCANNER_CONFIGS])
+    for (const path of [...CI_RECIPE, ...REQUIRED_SECURITY_POLICY_FILES])
       demand(tree.has(path), `Current policy is incomplete: ${path}`);
     demand(
       entries.length >= 12,

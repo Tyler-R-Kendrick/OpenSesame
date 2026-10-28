@@ -24,6 +24,9 @@ test("scanner configuration, ignores and helpers are part of policy compatibilit
     "sgconfig.yml",
     "apps/sgconfig.yaml",
     "scripts/lib/audit-directory.sh",
+    "scripts/lib/dependency-compatibility.test.mjs",
+    "scripts/fuzz/jazzer-gate.sh",
+    "scripts/lib/fuzz-directory.sh",
     "scripts/security/map-composed-go-sarif.mjs",
     "scripts/audit/native-toolchain-sbom.py",
     "scripts/audit/new-helper.py",
@@ -73,6 +76,9 @@ test("missing required controller scanner configuration fails closed", async () 
     ".cargo/audit.toml",
     "deny.toml",
     "osv-scanner.toml",
+    "scripts/lib/dependency-compatibility.test.mjs",
+    "scripts/fuzz/jazzer-gate.sh",
+    "scripts/lib/fuzz-directory.sh",
   ];
   const controller = new Map(
     [...CI_RECIPE, ...required].map((path) => [path, "blob"]),
