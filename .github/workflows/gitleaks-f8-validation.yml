@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      CANDIDATE_SHA: 71b54e15fb9767fdea7d0852c1880bf6e809ab6b
+      CANDIDATE_SHA: 8260c96124f3550f5624d1dde4826a320a6056e7
       EXPECTED_BASE_SHA: f8c14fe908aba2e3728bee6979b35f8bbb8815de
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -39,9 +39,9 @@ jobs:
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           read -r observed_commit observed_parent extra_parent <<< "$(git rev-list --parents -n 1 HEAD)"
           test "$observed_commit" = "$CANDIDATE_SHA"
-          test "$observed_parent" = "9e215fc9c282a7d329238abb05569efd4825545e"
+          test "$observed_parent" = "71b54e15fb9767fdea7d0852c1880bf6e809ab6b"
           test -z "${extra_parent:-}"
-          test "$(git rev-parse 'HEAD^{tree}')" = e9deb94cfcff9902a94278c97fa3e8768b5ba387
+          test "$(git rev-parse 'HEAD^{tree}')" = 3ca01e6757a8788b67b434c73051ce74fb6231a0
           test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$EXPECTED_BASE_SHA"
           test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA" --jq .commit.verification.verified)" = true
           python3 - <<'PYTHON'
