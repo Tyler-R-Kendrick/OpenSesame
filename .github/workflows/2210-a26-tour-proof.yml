@@ -15,7 +15,7 @@ jobs:
       matrix:
         variant: [unpaired, paired]
     env:
-      SOURCE_SHA: 474a21d74791e636235c3fd9b4d173740fdeedd2
+      SOURCE_SHA: 7db309e9703f882e5b33822ab41c8ce58e98cfbb
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -35,7 +35,7 @@ jobs:
       - name: Verify exact integrated source tree
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          test "$(git rev-parse HEAD^{tree})" = 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
+          test "$(git rev-parse HEAD^{tree})" = 383d353269135ba83a9edbd118c13eada7c7fc34
           git diff --exit-code
           mkdir -p "$TUTORIALS_OUT"
           printf '%s\n' "$SOURCE_SHA" > "$TUTORIALS_OUT/source.txt"
