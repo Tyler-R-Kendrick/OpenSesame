@@ -10,9 +10,11 @@ import type {
 import type { AccountItem } from "@opensesame/vault-core";
 import { z } from "zod";
 import {
+  BUNDLED_LOCAL_MODULE,
   type LoadedResetConfiguration,
   validateResetConfiguration,
 } from "./password-reset-config.js";
+import { createLocalPasswordResetEffects } from "./password-reset-local-runtime.js";
 
 export const RESET_LAUNCH_AUDIENCE = "urn:opensesame:agent:mcp-host" as const;
 
@@ -51,7 +53,14 @@ export const loadResetEffects: ResetEffectsLoader = async (context) => {
     context.loaded.config,
     context.loaded.directory,
   );
-  await context.agent.headers(context.loaded.config.runtime.resource);
+  if (context.loaded.config.runtime.module === BUNDLED_LOCAL_MODULE) {
+    const effects = await createLocalPasswordResetEffects(context);
+    assertEffects(effects);
+    return effects;
+  }
+  const resource = context.loaded.config.runtime.resource;
+  if (!resource) throw new Error("External runtime requires a resource");
+  await context.agent.headers(resource);
   const modulePath = resolve(
     context.loaded.directory,
     context.loaded.config.runtime.module,
