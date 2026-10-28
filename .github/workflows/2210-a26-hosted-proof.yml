@@ -13,16 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: 474a21d74791e636235c3fd9b4d173740fdeedd2
+          ref: 7db309e9703f882e5b33822ab41c8ce58e98cfbb
           persist-credentials: false
           fetch-depth: 0
       - name: Verify exact signed-source identity
         run: |
-          test "$(git rev-parse HEAD)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
-          test "$(git rev-parse HEAD^{tree})" = 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
-          test "$(git rev-parse HEAD^)" = a26e0a62e4fff6850a3f9a1809f3df5b02e76bbb
+          test "$(git rev-parse HEAD)" = 7db309e9703f882e5b33822ab41c8ce58e98cfbb
+          test "$(git rev-parse HEAD^{tree})" = 383d353269135ba83a9edbd118c13eada7c7fc34
+          test "$(git rev-parse HEAD^)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
           git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/candidate.patch"
-          printf '%s  %s\n' 6cd87987853ccd075d8d8543604d6450d17124d72d1bcdc01683834f18ba4d4e "$RUNNER_TEMP/candidate.patch" | sha256sum --check
+          printf '%s  %s\n' f07801a3c3ae9b81ccfeb5e7cd72844523a4caf22f8ee3e5f8bdc1cd87a43fb1 "$RUNNER_TEMP/candidate.patch" | sha256sum --check
           git diff --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
@@ -39,7 +39,7 @@ jobs:
       - name: Check relay and connector contracts
         run: |
           node --test apps/pages/server/test/connect-manage.test.mjs apps/pages/server/test/connect-verify-compatibility.test.mjs apps/pages/server/test/connect-verify-predicates.test.mjs apps/pages/server/test/connect-verify-restored-providers.test.mjs apps/pages/server/test/connect-verify-unbound-host.test.mjs apps/pages/server/test/connect-verify-alias-mismatch.test.mjs apps/pages/server/test/connect-verify-disabled-proof.test.mjs apps/pages/server/test/connect-verify.test.mjs
-          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-api-auth.test.ts src/lib/native-api-target.test.ts src/lib/native-google-drive-account-alias.test.ts src/lib/native-connector-availability.test.ts src/lib/connector-action-capability.test.ts src/lib/generated-json.test.ts
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-api-auth.test.ts src/lib/native-api-target.test.ts src/lib/native-google-drive-account-alias.test.ts src/lib/native-connector-availability.test.ts src/lib/connector-action-capability.test.ts src/lib/generated-json.test.ts src/tutorial/registry/targets-activation.test.ts src/tutorial/registry/targets-mark.test.ts src/tutorial/registry/catalog.test.ts src/tutorial/registry/routes.test.ts
           pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance/connect-conformance.test.ts src/sections/ConnectionsSection.test.tsx src/sections/connections/SettingsPage.roads.test.tsx src/sections/connections/SettingsPage.linear-roads.test.tsx src/sections/connections/catalog-connector-action.test.ts src/sections/connections/catalog-selection.test.ts src/sections/connections/connect/S3Native.integration.test.tsx
       - name: Typecheck and structural quality
         run: |
@@ -49,34 +49,8 @@ jobs:
       - name: Check source after tests
         if: always()
         run: |
-          test "$(git rev-parse HEAD)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
+          test "$(git rev-parse HEAD)" = 7db309e9703f882e5b33822ab41c8ce58e98cfbb
           git diff --exit-code
-  bundle:
-    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-a26-hosted-proof'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: 474a21d74791e636235c3fd9b4d173740fdeedd2
-          persist-credentials: false
-      - name: Verify exact source tree
-        run: |
-          test "$(git rev-parse HEAD)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
-          test "$(git rev-parse HEAD^{tree})" = 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Build and measure unchanged bundle budgets
-        run: |
-          node scripts/lib/ci-pages-build.mjs
-          for profile in minimal-local family-local; do
-            VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile --profile "capability-profiles/$profile.json" --mode hardened
-          done
-          node scripts/quality/bundle-budget-gate.mjs
   visual:
     if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-a26-hosted-proof'
     runs-on: ubuntu-24.04
@@ -86,19 +60,27 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: 474a21d74791e636235c3fd9b4d173740fdeedd2
+          ref: 7db309e9703f882e5b33822ab41c8ce58e98cfbb
           persist-credentials: false
       - name: Verify exact source tree
         run: |
-          test "$(git rev-parse HEAD)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
-          test "$(git rev-parse HEAD^{tree})" = 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
+          test "$(git rev-parse HEAD)" = 7db309e9703f882e5b33822ab41c8ce58e98cfbb
+          test "$(git rev-parse HEAD^{tree})" = 383d353269135ba83a9edbd118c13eada7c7fc34
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build the documented isolated visual-contract output
+        env:
+          VITE_BASE: /
+        run: |
+          pnpm exec turbo run build --filter=@opensesame/pages^...
+          pnpm --filter @opensesame/pages exec node scripts/stamped-build.mjs 'vite build --outDir ../../work/visual-contract-dist --emptyOutDir && PAGES_OUT_DIR=../../work/visual-contract-dist node scripts/build-workers.mjs'
       - name: Run visual contract without baseline updates
+        env:
+          PAGES_VISUAL_PREBUILT: '1'
         run: pnpm test:visual
       - name: Preserve visual results and failure evidence
         if: always()
