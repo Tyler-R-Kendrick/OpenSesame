@@ -51,6 +51,28 @@ client can write. So the Origin allowlist is CORS, never authorization:
 | `POST /api/connect/connector/read`, `POST /api/connect/connector/update` | same |
 | `POST /api/connect/token-check` | same. Proves a token can be acquired for a subject and answers its fingerprint, expiry, scopes and the service's verdict on it — never the token. |
 
+The token-check response uses `verified: null` when a verification endpoint
+has a mutable host without an independently trusted provider-owned suffix or
+issuer binding. This applies to Auth0, Databricks, Okta, Shopify,
+Workday and, when configured, Obsidian. The relay does not send their tokens
+to those hosts. Connector setup and browser-local operation are unchanged;
+fixed provider targets and the existing provider-owned suffixes remain eligible
+for proof. Higgsfield verification also returns `verified: null` until its
+POST endpoint is documented as a safe credential proof; no request is sent.
+A null verdict means proof is unavailable, not that a token failed.
+A connector using a recognized service ID and a different recognized provider
+ID as the prefix of its editable UID also receives a null verdict, even if both
+providers use the same authorization host. Use matching service and UID IDs for
+verification. Unknown or custom UID prefixes retain the existing behavior.
+
+The relay generator reads the shared connector presets and the temporary
+`spec/connectors/relay-verification-presets.json` entries for proof contracts
+that have not yet been promoted to the shared catalog. These entries do not
+create browser connector plans. A service and method may occur in only one
+source: promoting it to the shared presets requires removing its relay-only
+entry in the same change, so a later edit cannot silently leave stale proof
+targets behind. Both sources remain subject to the verification-host policy.
+
 The key is compared in constant time. With `OPENSESAME_CONNECT_MANAGE_KEY`
 unset (or shorter than 32 characters) every mutation answers 403
 `management_disabled` — the relay fails closed. A missing or wrong key is

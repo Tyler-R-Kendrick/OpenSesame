@@ -16,15 +16,29 @@ const DISALLOWED_PARAMETERS = [
   "mcp_post_endpoint",
 ] as const;
 
+export function normalizeGoogleDriveAccountScopes(
+  providerId: string,
+  scopes: readonly string[] | null,
+): string[] | null {
+  if (providerId !== "google-drive" || scopes === null)
+    return scopes === null ? null : [...scopes];
+  return scopes.map((scope) =>
+    scope === "https://www.googleapis.com/auth/userinfo.email"
+      ? "email"
+      : scope,
+  );
+}
+
 export function isGoogleDriveAccountScopeSet(
   providerId: string,
   scopes: readonly string[] | null,
 ): boolean {
+  const normalized = normalizeGoogleDriveAccountScopes(providerId, scopes);
   return (
     providerId !== "google-drive" ||
-    scopes === null ||
-    (scopes.length === ACCOUNT_SCOPES.length &&
-      ACCOUNT_SCOPES.every((scope) => scopes.includes(scope)))
+    normalized === null ||
+    (normalized.length === ACCOUNT_SCOPES.length &&
+      ACCOUNT_SCOPES.every((scope) => normalized.includes(scope)))
   );
 }
 
