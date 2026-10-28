@@ -24,7 +24,12 @@ import {
   natsDraftFields,
   natsDraftReady,
 } from "./LiveNatsFields.js";
-import { type Change, KIND_LABELS, RemoveKey } from "./live-route-parts.js";
+import {
+  type Change,
+  KIND_LABELS,
+  RemoveKey,
+  useRouteSaveGuard,
+} from "./live-route-parts.js";
 import { withCarrier, withoutCarrier } from "./live-transport-edits.js";
 
 export function Carriers({
@@ -65,7 +70,16 @@ function CarrierAdd({ change }: { change: Change }) {
   const [kind, setKind] = useState<CarrierKind>("ntfy");
   const [url, setUrl] = useState("");
   const [nats, setNats] = useState<NatsDraft>(EMPTY_NATS_DRAFT);
-  const draftRevision = useRef(0);
+  const urlRevision = useRef(0);
+  const natsRevision = useRef<Record<keyof NatsDraft, number>>({
+    signIn: 0,
+    account: 0,
+    signingKey: 0,
+    jwt: 0,
+    seed: 0,
+    session: 0,
+  });
+  const save = useRouteSaveGuard();
   const value = kind === "broadcast" ? "" : url.trim();
   const isNats = kind === "nats";
   const ready = isCarrierUrl(kind, value) && (!isNats || natsDraftReady(nats));
@@ -74,17 +88,35 @@ function CarrierAdd({ change }: { change: Change }) {
       className="setup__stack"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!ready) return;
+        if (!ready || !save.begin()) return;
         const extra = isNats ? natsDraftFields(nats) : {};
-        const submittedRevision = draftRevision.current;
-        void change((now) =>
-          withCarrier(now, { kind, url: value, ...extra }),
-        ).then((refused) => {
-          if (refused !== null || draftRevision.current !== submittedRevision)
-            return;
-          setUrl("");
-          setNats(EMPTY_NATS_DRAFT);
-        });
+        const submittedURL = urlRevision.current;
+        const submittedNats = { ...natsRevision.current };
+        void change((now) => withCarrier(now, { kind, url: value, ...extra }))
+          .then((refused) => {
+            if (refused !== null) return;
+            if (urlRevision.current === submittedURL) setUrl("");
+            // Clear a submitted secret unless this exact field was edited since
+            // submit. A different destination alone must not reuse the old key.
+            setNats((now) => {
+              const edited = (field: keyof NatsDraft) =>
+                natsRevision.current[field] !== submittedNats[field];
+              const authEdited = (
+                ["signIn", "account", "signingKey", "jwt", "seed"] as const
+              ).some(edited);
+              return {
+                signIn: authEdited ? now.signIn : EMPTY_NATS_DRAFT.signIn,
+                account: edited("account") ? now.account : "",
+                signingKey: edited("signingKey") ? now.signingKey : "",
+                jwt: edited("jwt") ? now.jwt : "",
+                seed: edited("seed") ? now.seed : "",
+                session: edited("session")
+                  ? now.session
+                  : EMPTY_NATS_DRAFT.session,
+              };
+            });
+          })
+          .finally(save.finish);
       }}
     >
       <div className="sw">
@@ -99,10 +131,7 @@ function CarrierAdd({ change }: { change: Change }) {
             const picked = CARRIER_KINDS.find(
               (entry) => entry === event.target.value,
             );
-            if (picked) {
-              draftRevision.current += 1;
-              setKind(picked);
-            }
+            if (picked) setKind(picked);
           }}
         >
           {CARRIER_KINDS.map((entry) => (
@@ -125,7 +154,7 @@ function CarrierAdd({ change }: { change: Change }) {
           }
           value={url}
           onValueChange={(next) => {
-            draftRevision.current += 1;
+            urlRevision.current += 1;
             setUrl(next);
           }}
           status={
@@ -139,14 +168,15 @@ function CarrierAdd({ change }: { change: Change }) {
         <NatsAddFields
           draft={nats}
           edit={(patch) => {
-            draftRevision.current += 1;
+            for (const field of Object.keys(patch) as (keyof NatsDraft)[])
+              natsRevision.current[field] += 1;
             setNats((now) => ({ ...now, ...patch }));
           }}
         />
       ) : null}
       <FormCommit
         label="Add the carrier"
-        disabled={!ready}
+        disabled={!ready || save.pending}
         icon={<IconPlus size={18} />}
       />
     </form>
