@@ -14,7 +14,7 @@ import { nativeMethodConfigurable } from "./connect/native-connector-ui.js";
 
 function specializedRoute(providerId: string): boolean {
   return (
-    providerId === "linear" ||
+    ["linear", "aws-kms", "gcp-kms"].includes(providerId) ||
     isSecretBackendProvider(providerId) ||
     isAiConnectionProvider(providerId)
   );

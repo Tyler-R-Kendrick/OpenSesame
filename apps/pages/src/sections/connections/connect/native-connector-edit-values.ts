@@ -1,8 +1,10 @@
 /** A verified binding can retain its sealed credential without revealing it. */
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
+import { useState } from "react";
 import {
   nativeDefaults,
   nativeFieldValues,
+  nativeScopeDefaults,
   nativeVerified,
   nativeVisibleFields,
 } from "./native-connector-ui-values.js";
@@ -79,6 +81,41 @@ export function nativeInitialValues(
       defaults[field.id] ?? "",
     ]),
   );
+}
+
+export function useNativeMethodSelection(
+  descriptor: NativeConnectorDescriptor,
+  view: NativeConnectorView | null | undefined,
+  busy: boolean,
+  iconBusy: boolean,
+  setFailure: (text: string) => void,
+) {
+  const available = descriptor.methods.filter(nativeMethodConfigurable);
+  const initial = nativeInitialMethod(descriptor, view);
+  const [methodId, setMethodId] = useState(initial?.id);
+  const [values, setValues] = useState(() =>
+    initial ? nativeInitialValues(initial, view) : {},
+  );
+  const [scopes, setScopes] = useState(() =>
+    initial
+      ? nativeScopeDefaults(initial, view?.configuration.requestedScopes)
+      : {},
+  );
+  function choose(next: NativeMethodDescriptor) {
+    if (view || !nativeMethodConfigurable(next) || busy || iconBusy) return;
+    setMethodId(next.id);
+    setValues(nativeInitialValues(next, view));
+    setScopes(nativeScopeDefaults(next));
+    setFailure("");
+  }
+  return {
+    values,
+    setValues,
+    scopes,
+    setScopes,
+    choose,
+    selectedMethod: available.find((method) => method.id === methodId),
+  };
 }
 
 function nativeMethodInstructions(

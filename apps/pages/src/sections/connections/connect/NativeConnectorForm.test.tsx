@@ -98,6 +98,61 @@ it("keeps provider fields and credentials separate and waits for verified durabl
   });
 });
 
+it("does not claim provider access for a local-only Google Wallet configuration", async () => {
+  const descriptor = {
+    ...nativeUiDescriptor(),
+    providerId: "google-wallet",
+    name: "Google Wallet",
+    methods: [
+      {
+        id: "native-local" as const,
+        label: "Local configuration",
+        available: true,
+        fields: [
+          {
+            id: "issuer_id",
+            label: "Issuer ID",
+            kind: "text" as const,
+            required: true,
+            secret: false,
+          },
+        ],
+        scopeGroups: [],
+      },
+    ],
+  };
+  const saved = nativeUiView();
+  saved.providerId = "google-wallet";
+  saved.configuration = {
+    ...saved.configuration,
+    providerId: "google-wallet",
+    method: "native-local",
+    parameters: { issuer_id: "1234567890" },
+  };
+  const controller = nativeUiController(saved);
+  const onFlash = vi.fn();
+  render(
+    <NativeConnectorForm
+      descriptor={descriptor}
+      controller={controller}
+      onChanged={vi.fn()}
+      onFlash={onFlash}
+    />,
+  );
+  await userEvent.type(screen.getByLabelText("Issuer ID"), "1234567890");
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Verify and save Google Wallet configuration",
+    }),
+  );
+  await waitFor(() =>
+    expect(onFlash).toHaveBeenCalledWith({
+      tone: "ok",
+      text: "Google Wallet configuration verified and saved on this device; provider access was not checked.",
+    }),
+  );
+});
+
 it("retains entered credentials and refreshes recovery state after refusal without echoing secrets", async () => {
   const controller = nativeUiController();
   controller.configure.mockRejectedValue(

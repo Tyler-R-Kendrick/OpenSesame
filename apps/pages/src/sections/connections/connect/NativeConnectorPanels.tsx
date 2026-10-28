@@ -7,9 +7,17 @@ import type {
 } from "@opensesame/app-core/lib/connections.js";
 import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
-import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
+import {
+  compiledApiKeyRoute,
+  compiledOidcRoute,
+} from "@opensesame/app-core/lib/native-connector-availability.js";
+import {
+  hasNativeConnectorDriver,
+  nativeConnectorWithdrawn,
+} from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
+import { supportsConfiguredMcp } from "@opensesame/app-core/lib/native-mcp-configured-config.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
@@ -66,51 +74,50 @@ function discordActions(view: NativeConnectorView) {
   ];
 }
 
-function nativeApiKeyAvailable(provider: Provider): boolean {
-  return (
-    hasNativeConnectorDriver("api-key", provider.id) ||
-    connectPlan(provider.id)?.methods.some(
-      (method) =>
-        method.kind === "api-key" &&
-        !!method.preset &&
-        ((!!method.preset.auth && !!method.preset.verify) ||
-          method.preset.credentialVariants.some(
-            (variant) => !!variant.auth && !!variant.verify,
-          )),
-    ) === true
-  );
-}
-
 function mcpInactiveReason(): string | undefined {
   if (vaultStore.isGenuineSession()) return undefined;
   return "Open your own vault to connect this provider. Guest sessions do not store provider credentials.";
+}
+
+function nativeOAuthAvailability(providerId: string) {
+  const googleBlocked =
+    providerId === "google" && !nativeGoogleBrowserAvailable();
+  return {
+    registeredAvailable:
+      hasNativeConnectorDriver("oauth", providerId) &&
+      supportsNativeOAuthResource(providerId),
+    available:
+      supportsNativeOAuthResource(providerId) &&
+      !nativeConnectorWithdrawn("oauth") &&
+      !googleBlocked,
+    reason: googleBlocked
+      ? "Google consent is unavailable under this deployment's isolation policy."
+      : undefined,
+    profile: nativeBrowserOAuthProfile(providerId) ?? undefined,
+  };
 }
 
 export function nativeSettingsDescriptor(
   provider: Provider,
   savedMethod?: NativeConnectorView["configuration"]["method"],
 ): NativeConnectorDescriptor | null {
+  // The compiled contract decides what this device can configure; a runtime
+  // that was activated and then withdrawn closes its road again (ADR 0142).
+  const closed = nativeConnectorWithdrawn("api-key");
+  const apiAvailable = compiledApiKeyRoute(provider.id) && !closed;
   if (provider.id === "github")
-    return nativeGithubDescriptor(
-      provider,
-      hasNativeConnectorDriver("api-key", provider.id),
-    );
-  if (provider.id === "s3")
-    return nativeS3Descriptor(
-      provider,
-      hasNativeConnectorDriver("api-key", provider.id),
-    );
+    return nativeGithubDescriptor(provider, apiAvailable);
+  if (provider.id === "s3") return nativeS3Descriptor(provider, apiAvailable);
   const keyed = nativeKeyDriverFor(provider.id);
   if (keyed)
-    return nativeKeyDescriptor(
-      provider,
-      hasNativeConnectorDriver("api-key", provider.id),
-      keyed.ui(provider.id),
-    );
+    return nativeKeyDescriptor(provider, apiAvailable, keyed.ui(provider.id));
   const plan = connectPlan(provider.id);
   if (!plan)
     return nativeDeviceProviderDescriptor(provider.id, {
-      has: hasNativeConnectorDriver,
+      has: (method, id) =>
+        method === "oidc"
+          ? compiledOidcRoute(id) && !nativeConnectorWithdrawn(method)
+          : compiledApiKeyRoute(id) && !closed,
     });
   const callbackUrl = new URL(
     `${import.meta.env.BASE_URL}auth/native-connector.html`,
@@ -121,24 +128,17 @@ export function nativeSettingsDescriptor(
     {
       callbackUrl,
       apiKey: {
-        available: nativeApiKeyAvailable(provider),
+        available: apiAvailable,
       },
-      oauth: {
-        registeredAvailable:
-          hasNativeConnectorDriver("oauth", provider.id) &&
-          supportsNativeOAuthResource(provider.id),
-        available:
-          supportsNativeOAuthResource(provider.id) &&
-          (provider.id !== "google" || nativeGoogleBrowserAvailable()),
-        reason: !hasNativeConnectorDriver("oauth", provider.id)
-          ? "Enable External connectors to configure this OAuth application on this device."
-          : provider.id === "google" && !nativeGoogleBrowserAvailable()
-            ? "Google consent is unavailable under this deployment's isolation policy."
-            : undefined,
-        profile: nativeBrowserOAuthProfile(provider.id) ?? undefined,
-      },
+      oauth: nativeOAuthAvailability(provider.id),
       mcp: {
-        available: hasNativeConnectorDriver("mcp", provider.id),
+        // Linear's authorization is its own specialized ceremony: it draws
+        // only when its owner runtime is actually active, never invented.
+        available:
+          (provider.id === "linear"
+            ? hasNativeConnectorDriver("mcp", provider.id)
+            : supportsConfiguredMcp(provider.id)) &&
+          !nativeConnectorWithdrawn("mcp"),
         reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
         inactiveReason: mcpInactiveReason(),
         actor: "user",
@@ -147,8 +147,7 @@ export function nativeSettingsDescriptor(
     },
     savedMethod,
   );
-  // Linear's GraphQL app/key ceremony lives in its existing advanced form.
-  // Existing native records keep their own method and credential custody.
+  // Existing Linear records keep their own method and credential custody.
   return provider.id === "linear"
     ? {
         ...descriptor,
@@ -171,7 +170,15 @@ function primaryActions(
     : nativeApiResourceActions(view.providerId, view.configuration.method);
   const actions = resources.length
     ? resources
-    : [{ id: "provider.read", label: `Check ${name} access` }];
+    : [
+        {
+          id: "provider.read",
+          label:
+            view.configuration.method === "native-local"
+              ? `Review ${name} configuration`
+              : `Check ${name} access`,
+        },
+      ];
   return actions.map((action) => ({
     ...action,
     available: true,

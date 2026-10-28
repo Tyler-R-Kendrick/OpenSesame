@@ -8,6 +8,7 @@ import {
   connectionVerb,
   providerVerb,
 } from "@opensesame/app-core/lib/identity-graph.js";
+import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import {
   STATUS_CHIP,
   type connectorCeremonyRoot,
@@ -88,7 +89,15 @@ export function AuthorizedAccount({
     <li className="conn-service">
       <div className="conn-service__copy">
         <h3>{connection.displayName}</h3>
-        <p>{native?.sentence ?? statusSentence(connection, provider)}</p>
+        <p>
+          {native?.sentence ??
+            statusSentence(
+              connection,
+              provider,
+              readNativeConnector(connection.connectionId)?.configuration
+                .method,
+            )}
+        </p>
       </div>
       <div className="conn-service__actions">
         <StatusMark

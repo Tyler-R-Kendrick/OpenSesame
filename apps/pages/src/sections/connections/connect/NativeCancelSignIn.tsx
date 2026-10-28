@@ -6,6 +6,7 @@ import { IconKey } from "../../../components/IconKey.js";
 import { IconExternal, IconRefresh, IconX } from "../../../components/Icons.js";
 import { nativeSignInRequired } from "./NativeConnectorFormOptions.js";
 import type { NativeAuthorizationTicket } from "./native-connector-controller.js";
+import { nativeVerificationAction } from "./native-connector-ui-values.js";
 import type {
   NativeConnectorController,
   NativeConnectorDescriptor,
@@ -222,7 +223,11 @@ export function NativeAuthorizationControls({
         authorization={authorization === undefined ? undefined : null}
       />
       <IconKey
-        label={`Verify ${descriptor.name} access`}
+        label={
+          view.configuration.method === "native-local"
+            ? `Verify ${descriptor.name} configuration`
+            : nativeVerificationAction(view.providerId, descriptor.name)
+        }
         disabled={busy || !method || view.status === "cleanup"}
         onClick={() =>
           void perform(async () => {

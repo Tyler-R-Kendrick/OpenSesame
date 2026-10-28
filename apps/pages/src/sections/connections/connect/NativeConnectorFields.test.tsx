@@ -1,8 +1,11 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import { afterEach, expect, it } from "vitest";
-import { NativeInputFields } from "./NativeConnectorFields.js";
+import { afterEach, expect, it, vi } from "vitest";
+import {
+  NativeConnectorFields,
+  NativeInputFields,
+} from "./NativeConnectorFields.js";
 import type { NativeField } from "./native-connector-ui.js";
 
 afterEach(cleanup);
@@ -71,3 +74,45 @@ it.each([
     expect(restored.value).toBe(value);
   },
 );
+
+it("keeps repeated evidence labels distinct by URL without duplicate React keys", () => {
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    render(
+      <NativeConnectorFields
+        method={{
+          id: "oauth",
+          label: "OAuth application",
+          available: true,
+          fields: [],
+          scopeGroups: [],
+          links: [
+            {
+              label: "Browser access evidence",
+              url: "https://one.example.test/first",
+            },
+            {
+              label: "Browser access evidence",
+              url: "https://two.example.test/second",
+            },
+          ],
+        }}
+        values={{}}
+        scopes={{}}
+        onValue={vi.fn()}
+        onScopes={vi.fn()}
+      />,
+    );
+    expect(
+      screen
+        .getAllByRole("link", { name: "Browser access evidence" })
+        .map((link) => link.getAttribute("href")),
+    ).toEqual([
+      "https://one.example.test/first",
+      "https://two.example.test/second",
+    ]);
+    expect(errors).not.toHaveBeenCalled();
+  } finally {
+    errors.mockRestore();
+  }
+});

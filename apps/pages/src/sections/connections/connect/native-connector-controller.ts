@@ -189,7 +189,7 @@ function nativeRecoveryControls(
           : nativeVaultRevocationInstructions(view.connectionId, recoveryId);
       }
       return view.configuration.method === "oauth" &&
-        nativeBrowserOAuthRecoverySettings(view.configuration)
+        nativeBrowserOAuthRecoverySettings(view.configuration) !== null
         ? nativeBrowserOAuthRevocationInstructions(
             view.connectionId,
             recoveryId,

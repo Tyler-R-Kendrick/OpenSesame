@@ -27,6 +27,8 @@ export function nativeFormLabel(
   view: NativeConnectorView | null | undefined,
   name: string,
 ): string {
+  if (method.id === "native-local")
+    return `Verify and save ${name} configuration`;
   return nativeSignInRequired(method, view)
     ? `Sign in to ${name}`
     : `Verify and connect ${name}`;
