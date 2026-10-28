@@ -40,8 +40,10 @@ export async function namesSameMachine(routes, addresses = true) {
   for (const address of addresses === true ? [SAME_MACHINE] : addresses) {
     if ((await routes.getByText(address, { exact: true }).count()) > 0)
       continue;
-    await field.fill(address);
-    await routes.getByRole("button", { name: "Add the address" }).click();
+    await field.pressSequentially(address);
+    const add = routes.getByRole("button", { name: "Add the address" });
+    await expect(add).toBeEnabled();
+    await add.click();
     await routes.getByText(address, { exact: true }).waitFor();
     // The Form empties the field once the address is kept: the next one is
     // typed into an empty field, as a person types it.

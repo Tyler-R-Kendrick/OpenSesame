@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
@@ -10,6 +11,22 @@ const root = new URL("../../", import.meta.url);
 const policy = JSON.parse(
   readFileSync(new URL("ops/github/default-branch.json", root), "utf8"),
 );
+
+it("verifies the checked-in Gradle bootstrap against the official wrapper checksum", () => {
+  const wrapper = readFileSync(
+    new URL("gradle/wrapper/gradle-wrapper.jar", root),
+  );
+  // https://services.gradle.org/distributions/gradle-8.13-wrapper.jar.sha256
+  expect(createHash("sha256").update(wrapper).digest("hex")).toBe(
+    "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f",
+  );
+  const properties = readFileSync(
+    new URL("gradle/wrapper/gradle-wrapper.properties", root),
+    "utf8",
+  );
+  expect(properties).toMatch(/^distributionSha256Sum=[a-f0-9]{64}$/m);
+  expect(properties).toContain("gradle-8.13-bin.zip");
+});
 
 describe("repository governance ownership", () => {
   it("updates only the named policy and refuses ambiguous ownership", () => {
@@ -44,12 +61,11 @@ describe("repository governance default-branch rules", () => {
       "required_signatures",
       "pull_request",
       "required_status_checks",
-      "merge_queue",
     ]);
     const checks = policy.rules.find(
       (rule) => rule.type === "required_status_checks",
     ).parameters;
-    expect(checks.strict_required_status_checks_policy).toBe(false);
+    expect(checks.strict_required_status_checks_policy).toBe(true);
     expect(checks.required_status_checks).toEqual([
       { context: "TypeScript", integration_id: 15368 },
       { context: "Bundle budgets", integration_id: 15368 },
@@ -63,19 +79,14 @@ describe("repository governance default-branch rules", () => {
     expect(review.require_code_owner_review).toBe(false);
   });
 
-  it("declares a squash merge queue that supersedes strict up-to-date", () => {
-    const queue = policy.rules.find(
-      (rule) => rule.type === "merge_queue",
-    ).parameters;
-    expect(queue).toEqual({
-      check_response_timeout_minutes: 60,
-      grouping_strategy: "ALLGREEN",
-      max_entries_to_build: 5,
-      max_entries_to_merge: 5,
-      merge_method: "SQUASH",
-      min_entries_to_merge: 1,
-      min_entries_to_merge_wait_minutes: 5,
-    });
+  it("uses strict current-head checks on a personal repository without a merge queue", () => {
+    expect(policy.rules.some((rule) => rule.type === "merge_queue")).toBe(
+      false,
+    );
+    expect(
+      policy.rules.find((rule) => rule.type === "required_status_checks")
+        .parameters.strict_required_status_checks_policy,
+    ).toBe(true);
   });
 });
 
