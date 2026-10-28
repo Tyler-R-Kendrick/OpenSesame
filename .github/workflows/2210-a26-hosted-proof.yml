@@ -1,0 +1,110 @@
+name: Provisional 2210 integrated source verification
+on:
+  push:
+    branches: [review/2210-a26-hosted-proof]
+    paths: [.github/workflows/2210-a26-hosted-proof.yml]
+permissions:
+  contents: read
+jobs:
+  focused:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-a26-hosted-proof'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 474a21d74791e636235c3fd9b4d173740fdeedd2
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify exact signed-source identity
+        run: |
+          test "$(git rev-parse HEAD)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
+          test "$(git rev-parse HEAD^{tree})" = 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
+          test "$(git rev-parse HEAD^)" = a26e0a62e4fff6850a3f9a1809f3df5b02e76bbb
+          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/candidate.patch"
+          printf '%s  %s\n' 6cd87987853ccd075d8d8543604d6450d17124d72d1bcdc01683834f18ba4d4e "$RUNNER_TEMP/candidate.patch" | sha256sum --check
+          git diff --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check generated views
+        run: |
+          node apps/pages/scripts/emit-connect-verify-targets.mjs
+          node packages/app-core/scripts/emit-connect-presets.mjs
+          pnpm exec biome format --write apps/pages/server/connect-verify-targets.generated.mjs packages/app-core/src/lib/connect-presets.generated.ts
+          git diff --exit-code -- apps/pages/server/connect-verify-targets.generated.mjs packages/app-core/src/lib/connect-presets.generated.ts
+      - name: Check relay and connector contracts
+        run: |
+          node --test apps/pages/server/test/connect-manage.test.mjs apps/pages/server/test/connect-verify-compatibility.test.mjs apps/pages/server/test/connect-verify-predicates.test.mjs apps/pages/server/test/connect-verify-restored-providers.test.mjs apps/pages/server/test/connect-verify-unbound-host.test.mjs apps/pages/server/test/connect-verify-alias-mismatch.test.mjs apps/pages/server/test/connect-verify-disabled-proof.test.mjs apps/pages/server/test/connect-verify.test.mjs
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-api-auth.test.ts src/lib/native-api-target.test.ts src/lib/native-google-drive-account-alias.test.ts src/lib/native-connector-availability.test.ts src/lib/connector-action-capability.test.ts src/lib/generated-json.test.ts
+          pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance/connect-conformance.test.ts src/sections/ConnectionsSection.test.tsx src/sections/connections/SettingsPage.roads.test.tsx src/sections/connections/SettingsPage.linear-roads.test.tsx src/sections/connections/catalog-connector-action.test.ts src/sections/connections/catalog-selection.test.ts src/sections/connections/connect/S3Native.integration.test.tsx
+      - name: Typecheck and structural quality
+        run: |
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/pages typecheck
+          pnpm quality:gate
+      - name: Check source after tests
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
+          git diff --exit-code
+  bundle:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-a26-hosted-proof'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 474a21d74791e636235c3fd9b4d173740fdeedd2
+          persist-credentials: false
+      - name: Verify exact source tree
+        run: |
+          test "$(git rev-parse HEAD)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
+          test "$(git rev-parse HEAD^{tree})" = 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build and measure unchanged bundle budgets
+        run: |
+          node scripts/lib/ci-pages-build.mjs
+          for profile in minimal-local family-local; do
+            VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile --profile "capability-profiles/$profile.json" --mode hardened
+          done
+          node scripts/quality/bundle-budget-gate.mjs
+  visual:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2210-a26-hosted-proof'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 474a21d74791e636235c3fd9b4d173740fdeedd2
+          persist-credentials: false
+      - name: Verify exact source tree
+        run: |
+          test "$(git rev-parse HEAD)" = 474a21d74791e636235c3fd9b4d173740fdeedd2
+          test "$(git rev-parse HEAD^{tree})" = 7d5b6ff5122bd1a9d72855cd3e1fa36597f1612d
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run visual contract without baseline updates
+        run: pnpm test:visual
+      - name: Preserve visual results and failure evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: provisional-2210-visual
+          path: tests/visual-contract/output/
+          if-no-files-found: warn
+          retention-days: 7
