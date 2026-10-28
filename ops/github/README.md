@@ -1,13 +1,18 @@
 # Repository governance
 
-This personal-account public repository merges through a merge queue on the
-default branch. The policy routes review with CODEOWNERS without requiring
-the sole owner to approve their own PR. It requires resolved review threads,
-signed commits, squash-only linear history via the queue, and blocks force
-pushes/deletion. There are no bypass actors. GitHub Actions (app ID 15368)
-must report the three named checks on both `pull_request` and `merge_group`;
-a third-party status with the same name cannot satisfy them. "Require branch
-up to date" is off — the queue rebuilds against the tip of main.
+This personal-account public repository requires an up-to-date pull request on
+its default branch. It has no merge queue: GitHub does not support queues for
+this repository configuration. CODEOWNERS routes review without requiring the
+sole owner to approve their own PR. Resolved review threads, signed commits,
+squash-only linear history, blocked force pushes/deletion and all three named
+Actions checks remain required, with no bypass actors. GitHub Actions (app ID
+15368) must report the checks; a third-party status with the same name cannot
+satisfy them.
+
+Copilot review can be requested as an additional independent analysis, but it
+does not supply a second human maintainer or automatically satisfy an approval
+requirement. Add a real eligible reviewer before enabling mandatory approvals;
+do not lock the sole maintainer out or fabricate approval records.
 
 A second ruleset, `opensesame-release-tags` (`release-tags.json`), covers the
 tags that start a release: only a repository admin may create, move or delete a
@@ -20,6 +25,17 @@ able to cut the release. It is the owner's to apply: `--apply` writes it,
 ([release kit](../../docs/operators/release-kit.md)). The workflow's `release`
 environment (a required reviewer, `v*`-only deployments) is configured in
 Settings › Environments and is not managed here.
+
+`release-environment.json` and `release-environment-tags.json` are the concrete
+proposed settings for that environment, not evidence of applied protection.
+They require the repository owner to approve a release, allow the sole owner to
+approve a run they initiated, restrict deployment to `v*` tags and disable admin
+bypass. The owner ID is this repository's public GitHub owner ID. Do not apply
+them to another repository or overwrite an existing environment's reviewers
+without review. Activation requires explicit authorization for these exact
+protections and repository-administration plus environment access. Checked-in
+files do not establish live protection. Some integrations can read settings but
+cannot change them; an HTTP 403 must never be reported as a successful apply.
 
 ```sh
 node ops/github/governance.mjs --dry-run
