@@ -19,19 +19,13 @@ ast-grep scan --inline-rules "$(cat "$RULES")" \
   apps crates packages \
   2>"$OPENSESAME_AUDIT_DIR/ast-grep.err" \
   | tee "$OPENSESAME_AUDIT_DIR/ast-grep.out"
-status=${PIPESTATUS[0]}
+statuses=("${PIPESTATUS[@]}")
 set -e
 
-# ast-grep exits non-zero when error findings exist; also treat any "error[" line as fail
-if rg -q '^error\[' "$OPENSESAME_AUDIT_DIR/ast-grep.out" "$OPENSESAME_AUDIT_DIR/ast-grep.err" 2>/dev/null; then
-  echo "ast-grep gate: FAIL (error-level findings)" >&2
-  rg '^error\[' "$OPENSESAME_AUDIT_DIR/ast-grep.out" "$OPENSESAME_AUDIT_DIR/ast-grep.err" || true
-  exit 1
-fi
-
-# Exit 2 from ast-grep can mean parse issues — surface them
-if [[ "$status" -gt 1 ]]; then
-  echo "ast-grep gate: FAIL (scanner status $status)" >&2
+# Findings, parser/configuration errors, and a failed report write all fail.
+# Text formatting or the availability of rg must never change the verdict.
+if [[ "${statuses[0]}" -ne 0 || "${statuses[1]}" -ne 0 ]]; then
+  echo "ast-grep gate: FAIL (scanner ${statuses[0]}, report ${statuses[1]})" >&2
   cat "$OPENSESAME_AUDIT_DIR/ast-grep.err" >&2 || true
   exit 1
 fi

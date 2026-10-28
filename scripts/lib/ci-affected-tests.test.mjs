@@ -179,7 +179,11 @@ describe("workflow wiring", () => {
       join(root, ".github/workflows/ci.yml"),
       "utf8",
     );
-    const bundle = workflow.split("  bundle:")[1]?.split("  rust:")[0];
+    const complete = readFileSync(
+      join(root, ".github/workflows/ci-prerelease-checks.yml"),
+      "utf8",
+    );
+    const bundle = complete.split("  bundle:")[1]?.split("  rust:")[0];
     expect(bundle).toContain("pnpm --filter @opensesame/pages verify:keyboard");
     expect(workflow).toContain("ci-affected-tests.mjs plan");
     expect(workflow).toContain("ci-affected-tests.mjs run-ts");

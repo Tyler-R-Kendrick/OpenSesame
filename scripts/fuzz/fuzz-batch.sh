@@ -9,13 +9,14 @@ source "$ROOT/scripts/lib/fuzz-directory.sh"
 
 SECONDS_PER_TARGET="${FUZZ_SECONDS:-3600}"
 BUDGET="${FUZZ_BATCH_BUDGET:-}"
+TOOLCHAIN="${OPENSESAME_FUZZ_TOOLCHAIN:-nightly}"
 
-if ! cargo +nightly fuzz --version >/dev/null 2>&1; then
+if ! cargo "+$TOOLCHAIN" fuzz --version >/dev/null 2>&1; then
   echo "fuzz-batch: cargo-fuzz is not installed (cargo install cargo-fuzz)" >&2
   exit 1
 fi
 
-cargo +nightly metadata --format-version 1 --manifest-path tests/fuzz/cargo/Cargo.toml --locked --no-deps >/dev/null
+cargo "+$TOOLCHAIN" metadata --format-version 1 --manifest-path tests/fuzz/cargo/Cargo.toml --locked --no-deps >/dev/null
 
 start=$(date +%s)
 fail=0
@@ -24,13 +25,13 @@ for f in tests/fuzz/cargo/fuzz_targets/*.rs; do
   if [[ -n "$BUDGET" ]]; then
     now=$(date +%s)
     if (( now - start >= BUDGET )); then
-      echo "fuzz-batch: budget ${BUDGET}s exhausted after $target"
-      break
+      echo "fuzz-batch: FAIL (budget ${BUDGET}s exhausted before $target; incomplete scope)" >&2
+      exit 1
     fi
   fi
   opensesame_fuzz_corpus "$target"
   echo "==> $target (${SECONDS_PER_TARGET}s)"
-  if ! cargo +nightly fuzz run "$target" --fuzz-dir tests/fuzz/cargo "$corpus" -- \
+  if ! cargo "+$TOOLCHAIN" fuzz run "$target" --fuzz-dir tests/fuzz/cargo "$corpus" -- \
       -max_total_time="$SECONDS_PER_TARGET" \
       -timeout=10 \
       -artifact_prefix="$OPENSESAME_AUDIT_DIR/artifacts/" \

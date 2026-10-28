@@ -35,6 +35,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+LICENSE_FILE=${OPENSESAME_RELEASE_LICENSE:-$ROOT/LICENSE}
 TAG_RE='^v[0-9][0-9A-Za-z._-]*$'
 TARGET_RE='^[a-z0-9_]+-[a-z0-9_]+-[a-z0-9_]+(-[a-z0-9_]+)?$'
 TEST_BUILD=opensesame-surrogate-proxy-TEST-upstream-override
@@ -91,9 +92,9 @@ cmd_pack() {
   done
   mkdir -p "$5"
   out=$(cd "$5" && pwd)
-  archive "opensesame-kit_${tag}_${target}" "$out" "0644:$ROOT/LICENSE" \
+  archive "opensesame-kit_${tag}_${target}" "$out" "0644:$LICENSE_FILE" \
     "0755:$bins/opensesame" "0644:$bridge" "0755:$bins/opensesame-surrogate-proxy"
-  archive "${TEST_BUILD}_${tag}_${target}" "$out" "0644:$ROOT/LICENSE" "0755:$bins/$TEST_BUILD"
+  archive "${TEST_BUILD}_${tag}_${target}" "$out" "0644:$LICENSE_FILE" "0755:$bins/$TEST_BUILD"
 }
 
 cmd_sums() {

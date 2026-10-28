@@ -377,7 +377,7 @@ LIVE_OWNER=chromium LIVE_JOINERS=chromium,firefox,webkit \
 # webkit`; PLAYWRIGHT_CHROMIUM may point Chromium elsewhere). A walk an engine
 # cannot take here prints NOT TAKEN with why (lib/live-engines.mjs). CI runs it
 # as "Live join (<owner> owner)", three shards with every joiner each, folded
-# into the required Bundle budgets check. Needs a second build first: `pnpm --filter @opensesame/pages
+# into the required weekly prerelease gate. Needs a second build first: `pnpm --filter @opensesame/pages
 # build:live-dedicated` (dist-live-dedicated, stamped `dedicated_origin` for
 # https://opensesame.example.test). The carrier and declined walks run on it,
 # because a carrier on loopback or a LAN is local operator authority the shared
@@ -672,8 +672,8 @@ before staging, and review any limit change as a policy change.
   are not regression proof. Include saved-vault reload/unlock and immediate
   movement from empty and populated vaults; guest entry alone is insufficient.
   It also Tabs onto a settings file's textarea and asserts the stage's focus
-  cue shows (`apps/pages/scripts/lib/settings-file-keyboard-contract.mjs`). Keep this gate in the required Bundle budgets
-  job; demonstrate failure before fixing a regression and success afterward.
+  cue shows (`apps/pages/scripts/lib/settings-file-keyboard-contract.mjs`). Keep this gate in the required prerelease browser
+  suite; demonstrate failure before fixing a regression and success afterward.
 - **A phone is not a narrow desktop, and the touch rules are gated on width as
   well as pointer.** The 44px floor, the 16px field floor that keeps iOS from
   zooming a focused field and never zooming back, the single-row statusline,
@@ -683,8 +683,8 @@ before staging, and review any limit change as a policy change.
   the shell, the chrome, any shared control, or any block under
   `(pointer: coarse)` require it. A screenshot is
   not evidence: the gate measures computed geometry in a real touch context
-  and fails closed if that context is lost. Keep it in the required Bundle
-  budgets job. Never satisfy it by clipping a control, hiding a road, or
+  and fails closed if that context is lost. Keep it in the required prerelease browser
+  suite. Never satisfy it by clipping a control, hiding a road, or
   lowering a floor — DESIGN.md § Touch is the contract it enforces.
 - **Browser-local IAM must prove an actual application sign-in.** Changes to
   local identity sessions, application grants, popup transport or consent
@@ -1465,88 +1465,67 @@ pnpm verify   # lint + anti-slop (lint and plugin tests) + quality gates
               #   + ./scripts/test/battle-test.sh
 ```
 
-CI lives in `.github/workflows/`:
+CI lives in `.github/workflows/`. `main` is the integration branch; deployment
+channels do not have separate Git branches. The operating contract is
+[CI and artifact promotion](docs/operators/ci-promotion.md).
 
-- `ci.yml` — runs on `pull_request`, and on every push to `main` and on demand.
-  The required checks stay
-  TypeScript, Bundle budgets, and Rust, and each name reports on every
-  pull request (a skipped required check does not satisfy the ruleset).
-  The suite behind a check runs only when the diff touches that area
-  (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
-  `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
-  and the ones that depend on them: TypeScript typechecks that set and runs
-  the tests the diff reaches (`scripts/lib/ci-scoped-tests.mjs`: `vitest
-  related`, plus every test that reads the filesystem; a package runs whole
-  when a manifest, config or its test setup changed), and Rust runs `cargo
-  test --all-targets -p` for that set on Rust 1.88.0. A root lockfile or
-  manifest tests the whole suite. Bundle budgets builds `apps/pages` and
-  checks `tools/quality/bundle-budgets.json`; its browser gates run as
-  parallel shards of one matrix job (`bundle`: each shard builds Pages once
-  and walks its own gates; `verify:mobile` is split by viewport with
-  `MOBILE_SIZES`). The shard list is `scripts/lib/ci-bundle-shards.json`, and
-  `scripts/lib/ci-gates.mjs` selects the shards and jobs a diff can break
-  ([ADR 0176](docs/adr/0176-ci-runs-what-a-diff-can-reach.md)); a path it does
-  not recognize starts every gate, and a push to `main` runs everything.
-  `scripts/lib/ci-bundle-shards.test.mjs` fails on a gate that runs in no
-  shard or in two, and `ci-gates.test.mjs` on a `verify-*` driver with no gate
-  row. A new gate goes in exactly one shard, not appended to a serial list;
-  "Web Push end to end" (`verify:push`) is its own job that the same check
-  waits for, and runs when the Pages build or the server code it imports changes;
-  so is "Live join" (`verify:live-join`, three shards, one per owner browser,
-  each walking Chromium, Firefox and WebKit joiners), which also runs when a
-  live server's source (`scripts/test/live-turn`, the fixture scripts) changes.
-  The TypeScript check also waits on the signature preflight (the `changes`
-  job), and its tests job runs changed-file lint and `pnpm quality`. The Rust
-  check also waits on the Android and Swift native jobs when a diff touches
-  native mobile code; the `mTLS` job is not a required check. A docs-only diff
-  passes the three checks without those suites. An unrecognized path runs
-  every suite.
-  A draft pull request runs no suite and the three checks fail on it until it
-  is marked ready for review. `TypeScript tests` and `Rust tests` run on a
-  self-hosted `[self-hosted, linux, ARM64, os-devbox]` runner only when the
-  repository variable `CI_SELF_HOSTED_ARM64` is `true` and the actor is the
-  owner on a same-repository branch; every browser job stays GitHub-hosted
-  (they pin `/usr/bin/google-chrome`, which has no Linux ARM64 build).
-  The ruleset also requires an up-to-date PR and squash auto-merge; this
-  personal-account repository does not support merge queues. Verify
-  actual settings with `node ops/github/governance.mjs --verify`.
-- `deploy-pages.yml` — on every push to `main`, builds `apps/pages` and
-  publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
-  must be "GitHub Actions"). A release marker and post-deploy HTTPS digest check
-  prove the live HTML/runtime configuration matches the exact source SHA.
-  `scripts/release/deploy-pages.sh` remains as the
-  manual/local fallback publisher.
-- `full-suite.yml` — typechecks and tests every TypeScript package on `main`
-  daily (03:17 UTC) and on demand, so a red that no open diff reaches
-  surfaces within a day. Not a required check.
-- `password-parity.yml` — `pnpm test:2password-parity` (the 2password parity
-  gauntlet) on pull requests that touch the CLI, Pages, the extension, the
-  crates, `app-core`, `vault-core` and the other paths it lists, and on demand.
-  Not a required check.
-- `release-kit.yml` — on a `v*` tag, builds `opensesame` and
-  `opensesame-surrogate-proxy` (shipped features), the plugin's test build
-  (`--features upstream-override`, its own archive named
-  `opensesame-surrogate-proxy-TEST-upstream-override_…`) and the bundled
-  env-spec bridge for x86_64 and aarch64 Linux, packs reproducible archives
-  (`scripts/release/kit-archive.sh`), writes `SHA256SUMS`, attests build
-  provenance and publishes a release that starts as a draft at the verified
-  commit ([ADR 0212](docs/adr/0212-release-kit-binaries.md),
-  `docs/operators/release-kit.md`). Its first job (`scripts/release/tag-check.sh`)
-  refuses a tag that is not the workspace version or not on `main`, and every
-  other job needs it; who may push a `v*` tag is `ops/github/release-tags.json`,
-  applied with `ops/github/governance.mjs`. Run by hand it is a dry run. An edit
-  to it, or to the scripts it runs, runs the TypeScript suite, where
-  `scripts/lib/ci-release-kit.test.mjs` pins it, and no browser gate
-  (`ci-gates.mjs`).
+- `ci.yml` runs on PRs, main pushes, merge groups and demand. The required check
+  names remain **TypeScript**, **Rust**, and **Bundle budgets**. It preserves
+  signatures, approved evidence, repository/skills checks, affected TypeScript
+  packages and Rust crates/dependents, actual default Pages budget measurement,
+  and affected default-build trust journeys. It does not run the broad browser,
+  native-platform, CodeQL, coverage or mutation matrices for every PR. Main's
+  changed scope starts at a verified successful ancestor, covering failed,
+  cancelled and coalesced pushes. Active main runs finish; superseded PR runs
+  cancel. Missing or unexpectedly skipped selected work fails the reporter.
+- `dev-nightly.yml` runs at **00:17 America/Chicago**, or on demand from `main`.
+  It selects successful push-main CI, builds or reuses one complete candidate,
+  and calls `ci-dev-checks.yml`: the full TypeScript/Postgres suite plus browser
+  and native smoke of the stored production artifacts. It records exact
+  candidate/run/attempt/digest qualification evidence.
+- `release-weekly.yml` runs Thursday at **04:17 America/Chicago**, or on demand
+  from `main`. It freezes one dev-qualified candidate; prerelease, mutation,
+  security and publication are one dependency graph. A new main commit cannot
+  replace or cancel that candidate. The `release` and `github-pages`
+  environments protect the actual publishing jobs; environment settings must
+  permit the controller's `main` ref.
+- `ci-prerelease-checks.yml` preserves the complete former 17-job CI suite,
+  all browser profiles/viewport/tutorial/live matrices, Android/Apple, mTLS,
+  complete `pnpm verify`, password parity, actual native platform tests,
+  container build validation, native-Wasm cold validation, measured TS/Rust
+  coverage, autofill-extension browser checks and exact-artifact smoke. Every
+  declared result must succeed.
+- `ci-release-checks.yml` runs the existing scoped TS, duress and Rust mutation
+  gates, then requires the selected security mode's full matrix: OSV/RustSec and
+  dependency policy, structural/Semgrep SAST, secret scans, six-language CodeQL,
+  Kani, Miri, Shuttle and coverage-guided Rust/TS fuzzing. Mutation and security
+  follow prerelease and can run concurrently. Missing tools, scanner errors,
+  incomplete reports, fallback fuzzing and unexpected skips fail qualification.
+  No budget, coverage or mutation threshold is lowered.
+- `candidate-build.yml` stamps Pages and packs the existing x86_64/aarch64 Linux
+  kits once, keeping TEST proxy archives separately named. Original build
+  attestations bind the actual selected source as well as the controller
+  revision. `release-publish.yml` verifies the entire candidate and its chain of
+  qualification receipts, and publishes those bytes without building again.
+  `deploy-pages.yml`, `release-kit.yml`, the old OCI/npm publishers and the local
+  rebuild-and-push script now refuse publication. OCI/npm must first gain
+  candidate-bound producers and qualification before publishing is restored.
+- `security.yml` remains independent repository-history/Scorecard monitoring.
+  `sync-target-security.yml` and `autofill-browser.yml` retain their targeted
+  early authorization regressions.
+  Manual agent investigations remain supplemental; a dashboard upload or model
+  review does not substitute for a required deterministic release check.
 
-CI is the merge gate, not the whole story: the heavier suites
-(`pnpm verify`, integration/e2e, `pnpm audit:*`) stay local — git hooks
-plus the commands above, supplemented by scheduled Claude Code sessions
-documented in `docs/contributing/agent-routines.md`. Run the relevant
-`pnpm audit:*` gates (§3/§6) for changes touching auth, crypto, or
-dependency surfaces. Host the work itself as §9 describes: a copy-on-write
-worktree, a workflow swarm, stacked pull requests, a disk check after every
-commit, then self-review and squash-merge.
+The integration check names describe their fast scope. References elsewhere in
+this document to built browser matrices refer to mandatory prerelease coverage;
+authors still run the focused local journeys for behavior they change. A draft
+PR runs no heavy suite and its required reporters fail. Existing owner-only
+self-hosted selection is retained for eligible fast TS/Rust work; production
+candidate builds and all publication stay GitHub-hosted.
+
+A green integration PR can merge without waiting for the weekly release. A failed
+release gate blocks publication, not ongoing integration. Keep the work hosted
+as §9 describes and do not bypass signatures or required checks.
 
 ## 9. Starting, parallelizing, and shipping a task
 

@@ -10,6 +10,7 @@ export async function stageNativeSSH({
 }) {
   const spec = pins.nativeSSH;
   const target = join(source, "cmd/tsconnect/wasm/wasm_js.go");
+  const tlsTarget = join(source, spec.tlsVerification.path);
   const patch = join(here, "native-ssh.patch");
   if (
     spec.patch.path !== "native-ssh.patch" ||
@@ -25,6 +26,7 @@ export async function stageNativeSSH({
   };
   await verify();
   await requireHash(target, spec.patch.beforeSha256);
+  await requireHash(tlsTarget, spec.tlsVerification.beforeSha256);
   await execute(
     "patch",
     ["--batch", "--forward", "-p1", "-i", patch],
@@ -33,5 +35,6 @@ export async function stageNativeSSH({
   );
   await verify();
   await requireHash(target, spec.patch.afterSha256);
+  await requireHash(tlsTarget, spec.tlsVerification.afterSha256);
   return verify;
 }
