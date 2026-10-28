@@ -27,7 +27,7 @@
     "@types/node": "22.15.29",
     "@types/react": "19.2.7",
     "@types/whatwg-url": "13.0.0",
-    "better-auth": "1.6.26",
+    "better-auth": "1.7.7",
     "esbuild": "0.25.12",
     "fake-indexeddb": "6.2.5",
     "fast-check": "4.9.0",
