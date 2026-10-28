@@ -1,0 +1,105 @@
+name: Inspect inherited store locks
+on:
+  push:
+    branches: [review/rotation-lock-proof]
+permissions:
+  contents: read
+jobs:
+  proof:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/rotation-lock-proof' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          path: controller
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: 25ca80ec49c5f57df558e0e4ad7c3bd154c67673
+          persist-credentials: false
+          fetch-depth: 0
+          path: candidate
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+      - name: Verify immutable input and isolated fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = 25ca80ec49c5f57df558e0e4ad7c3bd154c67673
+          test "$(git -C candidate rev-parse HEAD^{tree})" = 54fe985c23bac0336f104f526eac35945dc4c53b
+          test "$(git -C candidate rev-parse HEAD^)" = bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
+          printf '%s  %s\n' 352a92cebeef5409135c8cb22f5c93b1a8aec3603832c3ad04f1a1ec8ec5db55 controller/scripts/review/lock-inherited-fd-test.rs | sha256sum --check
+          git -C candidate diff --exit-code
+      - name: Prepare normal Linux build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
+      - name: Reproduce inherited lock and protect parent lock
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ../controller/scripts/review/lock-inherited-fd-test.rs >> crates/sealed-store/src/store_lock_platform_tests.rs
+          set +e
+          cargo test --locked -p opensesame-sealed-store --lib inherited_description_cannot_keep_released_store_guard_locked -- --nocapture > "$RUNNER_TEMP/lock-before.log" 2>&1
+          result=$?
+          set -e
+          cat "$RUNNER_TEMP/lock-before.log"
+          test "$result" -eq 101
+          grep -F 'test store_lock::platform::tests::inherited_description_cannot_keep_released_store_guard_locked ... FAILED' "$RUNNER_TEMP/lock-before.log"
+          grep -F 'test result: FAILED. 0 passed; 1 failed' "$RUNNER_TEMP/lock-before.log"
+          grep -F 'LOCK_INHERITANCE_REGRESSION: dropped guard remains locked by forked child' "$RUNNER_TEMP/lock-before.log"
+          cargo test --locked -p opensesame-sealed-store --lib forked_child_drop_must_not_unlock_parent_store_guard -- --nocapture
+      - name: Apply PID-bound explicit unlock only to disposable checkout
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('crates/sealed-store/src/store_lock.rs')
+          s = p.read_text()
+          old = 'pub(crate) struct StoreLock {\n'
+          new = old + '    #[cfg(unix)]\n    owner_pid: libc::pid_t,\n'
+          assert s.count(old) == 1
+          s = s.replace(old, new, 1)
+          old = '#[cfg(windows)]\nimpl Drop for StoreLock {'
+          new = '''#[cfg(unix)]
+          impl Drop for StoreLock {
+              fn drop(&mut self) {
+                  use std::os::fd::AsRawFd;
+                  // Do not unlock the parent's inherited open file description
+                  // when this guard is dropped in a forked child.
+                  if unsafe { libc::getpid() } == self.owner_pid {
+                      let _ = unsafe { libc::flock(self._file.as_raw_fd(), libc::LOCK_UN) };
+                  }
+              }
+          }
+
+          ''' + old
+          assert s.count(old) == 1
+          s = s.replace(old, new, 1)
+          old = '        Self {\n            #[cfg(not(windows))]\n'
+          new = '        Self {\n            #[cfg(unix)]\n            owner_pid: unsafe { libc::getpid() },\n            #[cfg(not(windows))]\n'
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Verify both inheritance directions and existing OS locks
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked -p opensesame-sealed-store --lib store_lock::platform::tests -- --nocapture
+          cargo test --locked -p opensesame-sealed-store --lib rotation::tests::rotation_reencrypts_entries_and_attachments_under_the_new_root -- --exact --nocapture
+      - name: Verify sealed-store library suite with the candidate fix
+        working-directory: candidate
+        run: cargo test --locked -p opensesame-sealed-store --lib
