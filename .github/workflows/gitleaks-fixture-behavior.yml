@@ -81,9 +81,15 @@ jobs:
               run_test protocol cargo test -p opensesame-bitwarden-server --test protocol a_wrong_password_and_an_unknown_email_get_the_same_answer
               labels=(honey protocol)
             else
-              run_test enterprise cargo test -p opensesame-cli --bin opensesame gh_is_handed_a_ghes_token_and_a_version_managers_home
-              run_test bridge cargo test -p opensesame-cli --test dev_run_bridge_env
-              labels=(enterprise bridge)
+              run_test dbus bash scripts/ci/prepare-dbus.sh "$private/dbus"
+              if [[ "$failed" -eq 0 ]]; then
+                source "$private/dbus/env.sh"
+                run_test enterprise cargo test --message-format=json -p opensesame-cli --bin opensesame gh_is_handed_a_ghes_token_and_a_version_managers_home
+                run_test bridge cargo test --message-format=json -p opensesame-cli --test dev_run_bridge_env
+                labels=(enterprise bridge)
+              else
+                labels=()
+              fi
             fi
             for label in "${labels[@]}"; do
               if ! python3 - "$private/$label.log" <<'PYTHON'
@@ -100,13 +106,33 @@ jobs:
             printf 'unexpected-kind\t1\n' >> "$statuses"
             failed=1
           fi
-          python3 - "$statuses" "$report" "$CANDIDATE_SHA" "$FIXTURE_KIND" <<'PYTHON'
-          import json,sys
+          python3 - "$statuses" "$report" "$CANDIDATE_SHA" "$FIXTURE_KIND" "$private" <<'PYTHON'
+          import hashlib,json,pathlib,re,sys
           rows=[]
           for line in open(sys.argv[1],encoding='utf-8'):
            name,code=line.rstrip('\n').split('\t')
            rows.append({'check':name,'status':int(code)})
-          open(sys.argv[2],'w',encoding='utf-8').write(json.dumps({'candidate_sha':sys.argv[3],'kind':sys.argv[4],'checks':rows},indent=2)+'\n')
+          diagnostics=[]
+          categories=set()
+          flags={'missing_dbus':'dbus-1 was not found', 'pkg_config_failure':'pkg-config exited with status', 'missing_library':'could not find system library', 'linker_failure':'linking with `cc` failed', 'disk_exhausted':'No space left on device', 'custom_build_failure':'failed to run custom build command', 'test_failure':'test failed'}
+          for label in ('dbus','enterprise','bridge'):
+           path=pathlib.Path(sys.argv[5])/(label+'.log')
+           if not path.exists(): continue
+           for line in path.read_text(encoding='utf-8',errors='replace').splitlines():
+            for category,needle in flags.items():
+             if needle.lower() in line.lower(): categories.add(category)
+            try: event=json.loads(line)
+            except json.JSONDecodeError: continue
+            message=event.get('message',{}) if isinstance(event,dict) and event.get('reason')=='compiler-message' else {}
+            if not isinstance(message,dict) or message.get('level')!='error': continue
+            code=message.get('code');code=code.get('code') if isinstance(code,dict) else None
+            if code is not None and (not isinstance(code,str) or not re.fullmatch(r'E[0-9]{4}',code)): code=None
+            spans=[]
+            for span in message.get('spans',[]):
+             if isinstance(span,dict) and span.get('is_primary') and isinstance(span.get('file_name'),str):
+              spans.append({'path_sha256':hashlib.sha256(span['file_name'].encode()).hexdigest(),'line':span.get('line_start'),'column':span.get('column_start')})
+            diagnostics.append({'code':code,'primary_spans':spans})
+          open(sys.argv[2],'w',encoding='utf-8').write(json.dumps({'candidate_sha':sys.argv[3],'kind':sys.argv[4],'checks':rows,'diagnostic_categories':sorted(categories),'compiler_errors':diagnostics},indent=2)+'\n')
           print('Focused fixture checks:',len(rows),'failed:',sum(row['status']!=0 for row in rows))
           PYTHON
           exit "$failed"
