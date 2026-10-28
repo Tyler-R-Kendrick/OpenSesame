@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      EXPECTED_HEAD: 1aa84fb126bc47cb0fdaef81b5c4a3e4709f45c9
+      EXPECTED_HEAD: 25ca80ec49c5f57df558e0e4ad7c3bd154c67673
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -21,14 +21,14 @@ jobs:
     steps:
       - name: Validate immutable source input
         env:
-          SOURCE_SHA: 1aa84fb126bc47cb0fdaef81b5c4a3e4709f45c9
+          SOURCE_SHA: 25ca80ec49c5f57df558e0e4ad7c3bd154c67673
         shell: bash
         run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: 1aa84fb126bc47cb0fdaef81b5c4a3e4709f45c9
+          ref: 25ca80ec49c5f57df558e0e4ad7c3bd154c67673
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -56,12 +56,12 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^{tree})" = e4190dfd3df196f7f26194828b977c9524f0c15d
-          test "$(git rev-parse HEAD^)" = 8592bebb501adf40acb08c9310ff451d9379ad16
-          git diff --abbrev=9 --no-renames b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0 HEAD > "$RUNNER_TEMP/live-reviewed.patch"
-          printf '%s  %s\n' 78c8373fe9e1fe56296f12c1c59fdd83863d1a28e9b8be286b349e7ef69b5b21 "$RUNNER_TEMP/live-reviewed.patch" | sha256sum --check
-          git diff --binary --full-index --no-renames b7f7a85a6bcc25870dc8f115ef7f9a876946b3c0 HEAD > "$RUNNER_TEMP/live-full-index.patch"
-          printf '%s  %s\n' 703deb706fb9bcfa61e6d099a8670093b4f8f28253372294c9e24c6f3e2e86f2 "$RUNNER_TEMP/live-full-index.patch" | sha256sum --check
+          test "$(git rev-parse HEAD^{tree})" = 54fe985c23bac0336f104f526eac35945dc4c53b
+          test "$(git rev-parse HEAD^)" = bcd5fe45a4b10c4774033ab5d5f30af0dc13ff0a
+          git diff --abbrev=9 --no-renames HEAD^ HEAD > "$RUNNER_TEMP/live-reviewed.patch"
+          printf '%s  %s\n' c4bdb597e3e82f4571c7ada5895610a0375a8a5a8620e741509ecb668ee735d7 "$RUNNER_TEMP/live-reviewed.patch" | sha256sum --check
+          git diff --binary --full-index --no-renames HEAD^ HEAD > "$RUNNER_TEMP/live-full-index.patch"
+          printf '%s  %s\n' 7c4415400e7142fb260a144c770335ab9d0a80e0abf9f36e4e6241916d61f899 "$RUNNER_TEMP/live-full-index.patch" | sha256sum --check
           git diff --exit-code
           git diff --cached --exit-code
           test -x "$PLAYWRIGHT_CHROMIUM"
@@ -108,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: live-route-complete-verify-1aa84fb126bc47cb0fdaef81b5c4a3e4709f45c9
+          name: live-route-complete-verify-25ca80ec49c5f57df558e0e4ad7c3bd154c67673
           path: |
             ${{ runner.temp }}/opensesame-full-verify/
             tests/visual-contract/output/
