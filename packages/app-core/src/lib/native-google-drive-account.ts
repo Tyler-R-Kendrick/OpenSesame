@@ -1,20 +1,6 @@
 import type { NativeConfiguration } from "./native-connector-schema.js";
+import { GOOGLE_ACCOUNT_POLICY } from "./native-google-account-policy.generated.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
-
-const ACCOUNT_SCOPES = ["openid", "email"] as const;
-const ACCOUNT_ENDPOINTS = {
-  issuer: "https://accounts.google.com",
-  authorization_endpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  token_endpoint: "https://oauth2.googleapis.com/token",
-  resource: "https://www.googleapis.com/oauth2/v3/userinfo",
-} as const;
-const DISALLOWED_PARAMETERS = [
-  "token_relay_url",
-  "resource_protocol",
-  "mcp_endpoint",
-  "mcp_transport",
-  "mcp_post_endpoint",
-] as const;
 
 export function normalizeGoogleDriveAccountScopes(
   providerId: string,
@@ -22,11 +8,12 @@ export function normalizeGoogleDriveAccountScopes(
 ): string[] | null {
   if (providerId !== "google-drive" || scopes === null)
     return scopes === null ? null : [...scopes];
-  return scopes.map((scope) =>
-    scope === "https://www.googleapis.com/auth/userinfo.email"
-      ? "email"
-      : scope,
-  );
+  return scopes.map((scope) => {
+    const alias = Object.entries(GOOGLE_ACCOUNT_POLICY.aliases).find(
+      ([name]) => name === scope,
+    );
+    return alias?.[1] ?? scope;
+  });
 }
 
 export function isGoogleDriveAccountScopeSet(
@@ -37,8 +24,8 @@ export function isGoogleDriveAccountScopeSet(
   return (
     providerId !== "google-drive" ||
     normalized === null ||
-    (normalized.length === ACCOUNT_SCOPES.length &&
-      ACCOUNT_SCOPES.every((scope) => normalized.includes(scope)))
+    (normalized.length === GOOGLE_ACCOUNT_POLICY.scopes.length &&
+      GOOGLE_ACCOUNT_POLICY.scopes.every((scope) => normalized.includes(scope)))
   );
 }
 
@@ -60,10 +47,10 @@ export function assertGoogleDriveAccountContract(
     Object.keys(configuration.requestedScopes).some(
       (actor) => actor !== "user",
     ) ||
-    Object.entries(ACCOUNT_ENDPOINTS).some(
+    Object.entries(GOOGLE_ACCOUNT_POLICY.endpoints).some(
       ([key, endpoint]) => configuration.parameters[key] !== endpoint,
     ) ||
-    DISALLOWED_PARAMETERS.some(
+    GOOGLE_ACCOUNT_POLICY.forbiddenParameters.some(
       (key) => configuration.parameters[key] !== undefined,
     )
   )
