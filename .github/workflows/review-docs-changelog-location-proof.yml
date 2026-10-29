@@ -1,0 +1,45 @@
+name: Verify changelog location review
+on:
+  push:
+    branches: [review/docs-changelog-location-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/docs-changelog-location-proof-20261029'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 8de7781cc26a8c9885dcc259967119e85d2924aa
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact candidate and link targets
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 8de7781cc26a8c9885dcc259967119e85d2924aa
+          test "$(git rev-parse HEAD^{tree})" = 89c1f2407c28fe8cec1072bce864ba774db23a08
+          test -f docs/CHANGELOG.md && test ! -e CHANGELOG.md
+          rg -F '](docs/CHANGELOG.md)' README.md
+          rg -F '/blob/main/docs/CHANGELOG.md' apps/pages/src/tutorial/ui/ProjectLinks.tsx apps/pages/src/tutorial/ui/project-links.test.tsx
+          if git grep -n '/blob/main/CHANGELOG.md\|](CHANGELOG.md)'; then exit 1; fi
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify formatting, Pages typecheck and link behavior
+        run: |
+          set -euo pipefail
+          pnpm exec biome check apps/pages/src/tutorial/ui/ProjectLinks.tsx apps/pages/src/tutorial/ui/project-links.test.tsx
+          pnpm --filter @opensesame/pages typecheck
+          pnpm --filter @opensesame/pages exec vitest run src/tutorial/ui/project-links.test.tsx src/screens/unlock/project-navigation.test.tsx
+      - name: Verify source remained unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 89c1f2407c28fe8cec1072bce864ba774db23a08
+          git diff --exit-code
