@@ -8,15 +8,13 @@
  *
  * Boat registration state is the one credential the CLI itself persists:
  * the claim ceremony spans processes (the run stops for a person), so
- * the claim token / identity assertion are kept in a `0600` state file
+ * the claim token / identity assertion are kept in a plaintext `0600` state file
  * beside the reset config and reloaded on the next invocation. It is
  * never printed and never written to the config or journal.
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { realpathSync } from "node:fs";
 import {
-  type BoatProviderState,
   BoatSandboxProvider,
   CloudflareSandboxProvider,
   LocalSandboxProvider,
@@ -25,39 +23,20 @@ import {
   WasmRelayProvider,
   type WasmRelayProviderOptions,
 } from "@opensesame/agent-sandboxes";
-import { z } from "zod";
+import {
+  acquireBoatStateLock,
+  loadBoatProviderState,
+  saveBoatProviderState,
+} from "./boat-provider-state.js";
+export {
+  loadBoatProviderState,
+  saveBoatProviderState,
+} from "./boat-provider-state.js";
 
 export type SandboxProviderFactory = (id: SandboxProviderId) => SandboxProvider;
 
-const boatStateSchema = z
-  .object({
-    claimToken: z.string().min(1).optional(),
-    identityAssertion: z.string().min(1).optional(),
-  })
-  .strict();
-
-const BOAT_STATE_FILE = ".boat-agent-state.json";
-
-export function loadBoatProviderState(directory: string): BoatProviderState {
-  const path = join(directory, BOAT_STATE_FILE);
-  if (!existsSync(path)) return {};
-  const parsed = boatStateSchema.parse(JSON.parse(readFileSync(path, "utf8")));
-  const state: BoatProviderState = {};
-  if (parsed.claimToken) state.claimToken = parsed.claimToken;
-  if (parsed.identityAssertion)
-    state.identityAssertion = parsed.identityAssertion;
-  return state;
-}
-
-export function saveBoatProviderState(
-  directory: string,
-  state: BoatProviderState,
-): void {
-  writeFileSync(join(directory, BOAT_STATE_FILE), JSON.stringify(state), {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-}
+// Keep only providers with an unsaved rotated state across same-process retries.
+const pendingBoatProviders = new Map<string, SandboxProvider>();
 
 export function createSandboxProvider(
   id: SandboxProviderId,
@@ -66,15 +45,44 @@ export function createSandboxProvider(
   switch (id) {
     case "local":
       return new LocalSandboxProvider();
-    case "boat":
-      return new BoatSandboxProvider(
-        directory
-          ? {
-              state: loadBoatProviderState(directory),
-              onStateChange: (state) => saveBoatProviderState(directory, state),
+    case "boat": {
+      if (!directory) return new BoatSandboxProvider();
+      const stateDirectory = realpathSync(directory);
+      const pending = pendingBoatProviders.get(stateDirectory);
+      if (pending) return pending;
+      let provider: BoatSandboxProvider | undefined;
+      let releaseLock: (() => void) | undefined;
+      let busy = false;
+      const wrapper: SandboxProvider = {
+        id: "boat",
+        allocate: async (request) => {
+          if (busy)
+            throw new Error("Boat state allocation is already in progress");
+          busy = true;
+          try {
+            releaseLock ??= acquireBoatStateLock(stateDirectory);
+            provider ??= new BoatSandboxProvider({
+              state: loadBoatProviderState(stateDirectory),
+              onStateChange: (state) =>
+                saveBoatProviderState(stateDirectory, state),
+            });
+            return await provider.allocate(request);
+          } finally {
+            busy = false;
+            if (!provider?.hasUnpersistedState()) {
+              const release = releaseLock;
+              releaseLock = undefined;
+              provider = undefined;
+              release?.();
+              if (pendingBoatProviders.get(stateDirectory) === wrapper)
+                pendingBoatProviders.delete(stateDirectory);
             }
-          : {},
-      );
+          }
+        },
+      };
+      pendingBoatProviders.set(stateDirectory, wrapper);
+      return wrapper;
+    }
     case "cloudflare":
       return new CloudflareSandboxProvider();
     case "wasm-relay": {
