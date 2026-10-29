@@ -1,6 +1,7 @@
 import type { OauthPreset } from "@opensesame/app-core/lib/connect-plan.js";
 /** Standard configurable OAuth fields are rendered by the existing common connection form. */
 import type { NativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
+import { GOOGLE_ACCOUNT_POLICY } from "@opensesame/app-core/lib/native-google-account-policy.generated.js";
 import type {
   NativeField,
   NativeMethodDescriptor,
@@ -44,6 +45,7 @@ export type NativeOAuthResourceOptions = {
   endpoint?: string;
   transport?: "streamable-http" | "sse";
   postEndpoint?: string;
+  accountOnly?: boolean;
 };
 function mcpFields(options: NativeOAuthResourceOptions): NativeField[] {
   const when = { fieldId: "resource_protocol", value: "mcp" };
@@ -96,15 +98,10 @@ function mcpFields(options: NativeOAuthResourceOptions): NativeField[] {
     },
   ];
 }
-export function nativeOAuthResourceDescriptor(
-  preset: OauthPreset,
-  callbackUrl: string,
-  available: boolean,
-  options: NativeOAuthResourceOptions = {},
-): NativeMethodDescriptor {
-  const secret = (
-    method: "client_secret_basic" | "client_secret_post",
-  ): NativeField => ({
+function oauthClientSecretField(
+  method: "client_secret_basic" | "client_secret_post",
+): NativeField {
+  return {
     id: "client_secret",
     label: "OAuth client secret",
     kind: "text",
@@ -112,7 +109,24 @@ export function nativeOAuthResourceDescriptor(
     required: true,
     when: { fieldId: "token_auth_method", value: method },
     help: "Stored as a sealed Token item in your open vault. This operator credential is not a public application secret. Leave blank only when retaining the same saved configuration.",
-  });
+  };
+}
+
+function permittedOAuthFields(
+  fields: NativeField[],
+  accountOnly = false,
+): NativeField[] {
+  if (!accountOnly) return fields;
+  const excluded = new Set(GOOGLE_ACCOUNT_POLICY.forbiddenParameters);
+  return fields.filter((field) => !excluded.has(field.id));
+}
+
+export function nativeOAuthResourceDescriptor(
+  preset: OauthPreset,
+  callbackUrl: string,
+  available: boolean,
+  options: NativeOAuthResourceOptions = {},
+): NativeMethodDescriptor {
   return {
     id: "oauth",
     label: "Bring Your Own OAuth App",
@@ -123,68 +137,83 @@ export function nativeOAuthResourceDescriptor(
       : "Enable External connectors to configure this OAuth application on this device.",
     instructions:
       "Configure your registered OAuth application and exact API resource. Authorization uses PKCE. A connection is verified only after the configured resource returns JSON with its issued access token. Disconnect forgets local authorization; revoke provider access in your application's settings.",
-    fields: [
-      {
-        id: "client_id",
-        label: "OAuth client ID",
-        kind: "text",
-        secret: false,
-        required: true,
-      },
-      {
-        id: "redirect_uri",
-        label: "OAuth callback URL",
-        kind: "url",
-        secret: false,
-        required: false,
-        readOnly: true,
-        displayOnly: true,
-        defaultValue: callbackUrl,
-      },
-      publicEndpoint("issuer", "OAuth issuer URL", preset.serverUrl),
-      publicEndpoint(
-        "authorization_endpoint",
-        "Authorization endpoint",
-        preset.authorizationEndpoint,
-      ),
-      publicEndpoint("token_endpoint", "Token endpoint", preset.tokenEndpoint),
-      {
-        id: "token_relay_url",
-        label: "Token relay URL (optional)",
-        kind: "url",
-        secret: false,
-        required: false,
-        help: "Use a relay you control to keep the client secret off this device. The relay receives the authorization-code form and performs the exchange at the token endpoint.",
-      },
-      publicEndpoint(
-        "resource",
-        "API resource URL",
-        preset.verify?.method === "GET"
-          ? preset.verify.url
-          : preset.userinfoEndpoint,
-      ),
-      {
-        id: "token_auth_method",
-        label: "Token endpoint authentication",
-        kind: "choice",
-        secret: false,
-        required: true,
-        defaultValue: preset.tokenAuth,
-        choices: [
-          { id: "none", label: "Public client (PKCE)" },
-          { id: "client_secret_basic", label: "Client secret in HTTP Basic" },
-          { id: "client_secret_post", label: "Client secret in request body" },
-        ],
-      },
-      ...resourceParameterFields(
-        options.resourceParameter ?? preset.resourceParameter,
-      ),
-      ...mcpFields(options),
-      secret("client_secret_basic"),
-      secret("client_secret_post"),
-    ],
+    fields: permittedOAuthFields(
+      [
+        {
+          id: "client_id",
+          label: "OAuth client ID",
+          kind: "text",
+          secret: false,
+          required: true,
+        },
+        {
+          id: "redirect_uri",
+          label: "OAuth callback URL",
+          kind: "url",
+          secret: false,
+          required: false,
+          readOnly: true,
+          displayOnly: true,
+          defaultValue: callbackUrl,
+        },
+        publicEndpoint("issuer", "OAuth issuer URL", preset.serverUrl),
+        publicEndpoint(
+          "authorization_endpoint",
+          "Authorization endpoint",
+          preset.authorizationEndpoint,
+        ),
+        publicEndpoint(
+          "token_endpoint",
+          "Token endpoint",
+          preset.tokenEndpoint,
+        ),
+        {
+          id: "token_relay_url",
+          label: "Token relay URL (optional)",
+          kind: "url",
+          secret: false,
+          required: false,
+          help: "Use a relay you control to keep the client secret off this device. The relay receives the authorization-code form and performs the exchange at the token endpoint.",
+        },
+        publicEndpoint(
+          "resource",
+          "API resource URL",
+          preset.verify?.method === "GET"
+            ? preset.verify.url
+            : preset.userinfoEndpoint,
+        ),
+        {
+          id: "token_auth_method",
+          label: "Token endpoint authentication",
+          kind: "choice",
+          secret: false,
+          required: true,
+          defaultValue: preset.tokenAuth,
+          choices: [
+            { id: "none", label: "Public client (PKCE)" },
+            { id: "client_secret_basic", label: "Client secret in HTTP Basic" },
+            {
+              id: "client_secret_post",
+              label: "Client secret in request body",
+            },
+          ],
+        },
+        ...resourceParameterFields(options.resourceParameter),
+        ...mcpFields(options),
+        oauthClientSecretField("client_secret_basic"),
+        oauthClientSecretField("client_secret_post"),
+      ],
+      options.accountOnly,
+    ),
     scopeGroups: [
-      { actor: "user", label: "Permissions", choices: preset.scopes },
+      {
+        actor: "user",
+        label: "Permissions",
+        choices: preset.scopes,
+        requiredScopes: options.accountOnly
+          ? [...GOOGLE_ACCOUNT_POLICY.scopes]
+          : undefined,
+      },
     ],
     links: preset.consoleUrl
       ? [{ label: "Register an application", url: preset.consoleUrl }]
