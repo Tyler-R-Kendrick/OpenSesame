@@ -1,0 +1,125 @@
+/** @vitest-environment jsdom */
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { MemoryRouter, NavLink, Route, Routes } from "react-router";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { TakeoverPanel } from "./TakeoverPanel.js";
+import type { TakeoverClient } from "./takeover-client.js";
+
+afterEach(cleanup);
+
+function fakeClient(state: { control: string }) {
+  const run = (id = "run-9") => ({
+    id,
+    job_id: "job-1",
+    origin: "https://mail.example.test",
+    control_state: state.control,
+    driver: state.control === "human_driving" ? "human" : "agent",
+    blocked_reason: "captcha",
+    closed_at: null,
+  });
+  const client = {
+    getRun: vi.fn(async (id: string) => run(id)),
+    listHookRecords: vi.fn(async () => []),
+    requestHandoff: vi.fn(async () => run()),
+    takeControl: vi.fn(async () => {
+      state.control = "human_driving";
+      return run();
+    }),
+    release: vi.fn(async () => {
+      state.control = "resume_requested";
+      return run();
+    }),
+    claimStep: vi.fn(async () => ({
+      run_id: "run-9",
+      seq: 4,
+      request: { step: "submit", selector: "#save" },
+    })),
+    settleStep: vi.fn(async () => {}),
+  } as unknown as TakeoverClient & {
+    takeControl: ReturnType<typeof vi.fn>;
+    release: ReturnType<typeof vi.fn>;
+    settleStep: ReturnType<typeof vi.fn>;
+  };
+  return client;
+}
+
+function renderPanel(client: TakeoverClient) {
+  return render(
+    <MemoryRouter initialEntries={["/runs/run-9"]}>
+      <NavLink to="/runs/run-10">Next run</NavLink>
+      <Routes>
+        <Route
+          path="/runs/:runId"
+          element={<TakeoverPanel client={client} />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+describe("TakeoverPanel", () => {
+  it("takes over a parked run, answers its step, and hands back", async () => {
+    const client = fakeClient({ control: "awaiting_human" });
+    renderPanel(client);
+    const take = await screen.findByRole("button", { name: "Take over" });
+    fireEvent.click(take);
+    await waitFor(() =>
+      expect(client.takeControl).toHaveBeenCalledWith("run-9"),
+    );
+    const check = await screen.findByRole("button", {
+      name: "Check for a step",
+    });
+    fireEvent.click(check);
+    const done = await screen.findByRole("button", { name: "I did this" });
+    fireEvent.click(done);
+    await waitFor(() =>
+      expect(client.settleStep).toHaveBeenCalledWith("run-9", 4, {
+        outcome: "done",
+      }),
+    );
+    const release = await screen.findByRole("button", {
+      name: "Hand back & resume",
+    });
+    fireEvent.click(release);
+    await waitFor(() => expect(client.release).toHaveBeenCalledWith("run-9"));
+  });
+
+  it("shows no controls for a closed run", async () => {
+    const client = fakeClient({ control: "agent_driving" });
+    (client.getRun as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "run-9",
+      control_state: "agent_driving",
+      closed_at: "2026-10-28T00:00:00Z",
+    });
+    renderPanel(client);
+    await screen.findByText(/The agent is driving/u);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("clears the previous run before loading a new route", async () => {
+    const client = fakeClient({ control: "awaiting_human" });
+    (client.getRun as ReturnType<typeof vi.fn>).mockImplementation(
+      async (id: string) => {
+        if (id === "run-10") await new Promise(() => {});
+        return {
+          id,
+          control_state: "awaiting_human",
+          origin: `https://${id}.example.test`,
+          closed_at: null,
+        };
+      },
+    );
+    renderPanel(client);
+    await screen.findByText(/run-9.example.test/u);
+    fireEvent.click(screen.getByRole("link", { name: "Next run" }));
+    await waitFor(() => expect(client.getRun).toHaveBeenCalledWith("run-10"));
+    expect(screen.queryByText(/run-9.example.test/u)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Take over" })).toBeNull();
+  });
+});

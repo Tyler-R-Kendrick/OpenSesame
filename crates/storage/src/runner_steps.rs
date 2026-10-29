@@ -180,7 +180,7 @@ impl Db {
              AND (state = 'pending' OR claim_expires_at <= ?) \
              AND EXISTS (SELECT 1 FROM observation_runs WHERE observation_runs.id=runner_steps.run_id \
                  AND observation_runs.organization_id=runner_steps.organization_id \
-                 AND closed_at IS NULL AND control_state IN ('agent_driving', 'handoff_requested'))",
+                 AND closed_at IS NULL AND control_state IN ('agent_driving', 'handoff_requested', 'human_driving'))",
         )
         .bind(claimant)
         .bind(expires_at)

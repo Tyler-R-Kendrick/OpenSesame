@@ -126,6 +126,49 @@ async fn a_step_nobody_claimed_cannot_be_settled() {
 
 const RUN: &str = "run:1";
 
+#[tokio::test]
+async fn the_human_driver_can_claim_an_outstanding_step() {
+    let f = fixture().await;
+    f.state
+        .db
+        .create_observation_run(&seed(RUN, ALICE, &f.org, "agent_driving"))
+        .await
+        .unwrap();
+    f.state
+        .db
+        .enqueue_runner_step(
+            &f.org,
+            RUN,
+            0,
+            r##"{"step":"submit","selector":"#save"}"##,
+            "2026-08-31T00:00:00+00:00",
+        )
+        .await
+        .unwrap();
+    sqlx::query("UPDATE observation_runs SET control_state='human_driving', lease_holder=?, lease_expires_at='2099-01-01T00:00:00Z' WHERE id=?")
+        .bind(ALICE)
+        .bind(RUN)
+        .execute(f.state.db.pool())
+        .await
+        .unwrap();
+    let (status, claimed) = f
+        .browser
+        .send(&f.app, "POST", "/api/v1/agent/runs/run:1/steps/claim", None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{claimed}");
+    assert_eq!(claimed["seq"], json!(0));
+    let (status, settled) = f
+        .browser
+        .send(
+            &f.app,
+            "POST",
+            "/api/v1/agent/runs/run:1/steps/0/outcome",
+            Some(json!({"outcome": {"outcome": "done"}})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{settled}");
+}
+
 /// A run with one step enqueued and claimed by Alice's browser.
 async fn claimed_step(f: &Fixture) {
     claimed_request(f, r#"{"step":"read_dom_redacted","strip":[]}"#).await;
