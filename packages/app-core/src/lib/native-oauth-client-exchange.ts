@@ -5,7 +5,10 @@ import { z } from "zod";
 import type { NativeGrant } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
-import { isGoogleDriveAccountScopeSet } from "./native-google-drive-account.js";
+import {
+  isGoogleDriveAccountScopeSet,
+  normalizeGoogleDriveAccountScopes,
+} from "./native-google-drive-account.js";
 import {
   type NativeOAuthClientOwner,
   assertNativeOAuthClientOwner,
@@ -84,10 +87,12 @@ export function issued(
   const pair = Pair.safeParse(body);
   if (!pair.success) throw new NativeOAuthError("provider");
   const details = Details.safeParse(body);
-  const scopes =
+  const scopes = normalizeGoogleDriveAccountScopes(
+    pending.providerId,
     details.success && details.data.scope !== undefined
       ? [...new Set(details.data.scope.split(/\s+/).filter(Boolean))]
-      : null;
+      : null,
+  );
   const validScopes =
     scopes === null ||
     (scopes.length <= 256 && scopes.every((scope) => scope.length <= 512));

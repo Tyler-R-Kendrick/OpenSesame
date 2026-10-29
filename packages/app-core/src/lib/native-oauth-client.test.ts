@@ -163,6 +163,26 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
     });
   });
 
+  it("accepts Google's documented URL-form email scope without granting Drive access", async () => {
+    const f = await setup();
+    const pending = requireNativeOAuthRecord(f.saved.connectionId).privateState
+      .pending.user;
+    if (!pending) throw new Error("Missing pending");
+    const receipt = issued(
+      {
+        access_token: "issued-access-1",
+        refresh_token: "issued-refresh-1",
+        token_type: "Bearer",
+        scope:
+          "openid https://www.googleapis.com/auth/userinfo.email",
+      },
+      200,
+      { ...pending, providerId: "google-drive", scopes: ["openid", "email"] },
+    );
+    expect(receipt.valid).toBe(true);
+    expect(receipt.grant.scopes).toEqual(["openid", "email"]);
+  });
+
   it("refuses wrong-client credentials without exposing provider secret text or claiming verification", async () => {
     const f = await setup("client_secret_basic");
     f.state.wrongClient = true;
