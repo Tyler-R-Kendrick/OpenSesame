@@ -1,0 +1,57 @@
+name: Review narrow Hono dependency update
+on:
+  push:
+    branches: [review/2233-narrow-hono-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2233-narrow-hono-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout exact candidate parent
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: 000144c01ee583c8d07c8375b6ed726fd3b4fb8e
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify and apply exact candidate
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 000144c01ee583c8d07c8375b6ed726fd3b4fb8e
+          printf '%s  %s\n' 5e15dc28ff507916bde3c57988c424e519eafad452459e1779114009893caa85 ../controller/.github/verify-inputs/2233-narrow-lock.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2233-narrow-lock.patch
+          test "$(git write-tree)" = 30842cf22fdbf387ae615d0a6971dc0db441875d
+          git diff --exit-code
+          test "$(pnpm --version)" = 9.15.0
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Typecheck and test control plane
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/control-plane typecheck
+          pnpm --filter @opensesame/control-plane test
+      - name: Verify source after test
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 000144c01ee583c8d07c8375b6ed726fd3b4fb8e
+          test "$(git write-tree)" = 30842cf22fdbf387ae615d0a6971dc0db441875d
+          git diff --exit-code
