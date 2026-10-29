@@ -1,5 +1,6 @@
 /** Native Google issuer class proof and an explicit, payload-screened Save-to-Wallet handoff. */
-import { canonicalize } from "@opensesame/os-domain";
+import { canonicalize, isJsonObject, isString } from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import {
   type GoogleWalletEnabled,
   parseGoogleWalletConfig,
@@ -8,6 +9,7 @@ import {
   type GoogleClient,
   createGoogleClient,
 } from "@opensesame/wallet/google-client";
+import { GOOGLE_WALLET_CONFIGURATION_POLICY as WALLET_POLICY } from "@opensesame/wallet/google-wallet-policy";
 import { z } from "zod";
 import { canonicalProviderId } from "./connector-catalog.js";
 import type { NativeApiConfigureInput } from "./native-api-connectors.js";
@@ -21,7 +23,6 @@ import {
   assertNativeConnectorRevision,
 } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
-import { parseGcpServiceAccount } from "./native-gcp-auth.js";
 import { googleWalletTransportFlows } from "./native-google-wallet-transport.js";
 import { googleWalletUi } from "./native-google-wallet-ui.js";
 import { createNativeKeyFlows } from "./native-key-driver.js";
@@ -42,8 +43,30 @@ const tokenReply = z.object({
   token_type: z.literal("Bearer").optional(),
 });
 const accepts = (id: string) => canonicalProviderId(id) === "google-wallet";
+function parseWalletServiceAccount(text: string) {
+  let parsed: BoundaryValue;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("Paste the service account key file, a JSON document");
+  }
+  if (
+    !isJsonObject(parsed) ||
+    parsed.type !== WALLET_POLICY.nativeServiceAccount.type ||
+    !isString(parsed.client_email) ||
+    !new RegExp(WALLET_POLICY.nativeServiceAccount.emailPattern).test(
+      parsed.client_email,
+    ) ||
+    !isString(parsed.private_key) ||
+    !new RegExp(WALLET_POLICY.nativeServiceAccount.keyPemPattern).test(
+      parsed.private_key,
+    )
+  )
+    throw new Error("That is not a service account key file");
+  return { clientEmail: parsed.client_email, privateKey: parsed.private_key };
+}
 function config(target: NativeKeyTarget): GoogleWalletEnabled {
-  const account = parseGcpServiceAccount(
+  const account = parseWalletServiceAccount(
     target.credentials.service_account_json ?? "",
   );
   const result = parseGoogleWalletConfig({
@@ -80,7 +103,10 @@ function parse(
       saved?.privateState.credentials.service_account_json ||
       "",
   };
-  if (credentials.service_account_json.length > 32768)
+  if (
+    credentials.service_account_json.length >
+    WALLET_POLICY.nativeServiceAccount.jsonMaxLength
+  )
     throw new Error("Supply a bounded service-account JSON key");
   const target: Target = {
     providerId: input.providerId,

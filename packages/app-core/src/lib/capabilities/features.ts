@@ -148,13 +148,20 @@ export const FEATURES: readonly Feature[] = [
   section("telemetry", "Telemetry", ["telemetry.external"]),
 ];
 
-/** Whether a section carries a switch: it has an optional capability a switch changes. */
+/** Whether a section carries a switch: it has a surface capability that is active or available to activate. */
 export function isSwitchable(
   feature: Feature,
   plan: EffectivePlan | null = null,
   context?: SurfaceContext,
 ): boolean {
-  return shown(feature, plan, context).capabilities.length > 0;
+  const visible = shown(feature, plan, context);
+  if (plan === null) return visible.capabilities.length > 0;
+  const state = featureState(visible, plan);
+  return (
+    state.approved.length > 0 ||
+    state.available.length > 0 ||
+    visible.capabilities.some((id) => plan.capabilities[id] === undefined)
+  );
 }
 
 export function featureById(id: FeatureId): Feature {

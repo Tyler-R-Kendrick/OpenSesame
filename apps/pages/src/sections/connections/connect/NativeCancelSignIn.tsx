@@ -222,7 +222,11 @@ export function NativeAuthorizationControls({
         authorization={authorization === undefined ? undefined : null}
       />
       <IconKey
-        label={`Verify ${descriptor.name} access`}
+        label={
+          method?.id === "native-local"
+            ? `Verify ${descriptor.name} configuration`
+            : `Verify ${descriptor.name} access`
+        }
         disabled={busy || !method || view.status === "cleanup"}
         onClick={() =>
           void perform(async () => {

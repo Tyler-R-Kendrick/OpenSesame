@@ -16,6 +16,10 @@
     "./config": {
       "types": "./src/config.ts",
       "default": "./src/config.ts"
+    },
+    "./google-wallet-policy": {
+      "types": "./src/google-wallet-policy.ts",
+      "default": "./src/google-wallet-policy.ts"
     }
   },
   "scripts": {

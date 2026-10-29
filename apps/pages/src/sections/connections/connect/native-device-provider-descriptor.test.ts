@@ -4,6 +4,7 @@ import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
+import { nativeCatalogConfiguration } from "@opensesame/app-core/lib/native-catalog-configuration.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import {
   isSecretBackendProvider,
@@ -89,17 +90,34 @@ it("covers every visible bundled provider without a plan or replacing a speciali
     const method = descriptor?.methods.find(
       (method) => method.id === "api-key" || method.id === "native-local",
     );
-    expect(method?.available).toBe(false);
-    expect(method?.fields).toEqual([]);
-    expectHonestReason(method, provider.id, instance);
+    if (nativeCatalogConfiguration(provider.id)) {
+      expect(method).toMatchObject({
+        id: "native-local",
+        available: false,
+        unavailableKind: "runtime-inactive",
+      });
+      expect(method?.fields).toEqual([]);
+    } else {
+      expect(method?.available).toBe(false);
+      expect(method?.fields).toEqual([]);
+      expectHonestReason(method, provider.id, instance);
+    }
     expect(descriptor?.actions).toEqual([]);
   }
-  expect(has.mock.calls.map((call) => call)).toEqual([
-    ["api-key", "vault"],
-    ["oidc", "vault"],
-    ["api-key", "openbao"],
-    ["oidc", "openbao"],
-  ]);
+  expect(has.mock.calls).toEqual(
+    visible
+      .filter((provider) => nativeKeyDriverFor(provider.id) === null)
+      .flatMap((provider) =>
+        ["vault", "openbao"].includes(provider.id)
+          ? [
+              ["api-key", provider.id],
+              ["oidc", provider.id],
+            ]
+          : nativeCatalogConfiguration(provider.id)
+            ? [["native-local", provider.id]]
+            : [],
+      ),
+  );
 });
 
 it.each(["vault", "openbao"])(
@@ -207,13 +225,23 @@ it("records no provider as waiting for a driver: where a browser can reach the A
   ).toEqual([]);
 });
 
-it("does not infer an unimplemented wallet driver from registry availability", () => {
+it("keeps Google Wallet on its specialized verified-key path", () => {
   const has = vi.fn(() => true);
+  expect(nativeKeyDriverFor("google-wallet")).not.toBeNull();
+  expect(nativeDeviceProviderDescriptor("google-wallet", { has })).toBeNull();
+  expect(has).not.toHaveBeenCalled();
+});
+
+it("keeps Apple Wallet under the existing wallet policy", () => {
+  const has = vi.fn(() => false);
   const wallet = nativeDeviceProviderDescriptor("apple-wallet", { has });
-  expect(wallet?.methods[0]?.available).toBe(false);
-  expect(wallet?.methods[0]?.unavailableKind).toBe("policy");
+  expect(wallet?.methods[0]).toMatchObject({
+    id: "native-local",
+    available: false,
+    unavailableKind: "policy",
+  });
   expect(wallet?.methods[0]?.unavailableReason).toContain(
-    "wallet connection policy",
+    "provisioning is unavailable",
   );
   expect(has).not.toHaveBeenCalled();
 });

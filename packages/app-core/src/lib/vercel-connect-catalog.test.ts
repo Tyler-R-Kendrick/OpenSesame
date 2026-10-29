@@ -132,6 +132,86 @@ describe("Vercel Connect browse catalog", () => {
     expect(ids).toEqual(expect.arrayContaining(["discord", "brevo"]));
   });
 
+  it("distinguishes local wallet configuration from a verified specialized key", () => {
+    const wallet = getBundledProviders().find(
+      (provider) => provider.id === "google-wallet",
+    );
+    if (!wallet) throw new Error("Expected Google Wallet");
+    const connection: NonNullable<Parameters<typeof catalogTileNote>[1]> = {
+      connectionId: "local-wallet",
+      connectionRef: "local/connector/local-wallet",
+      logicalName: "local-wallet",
+      displayName: "Local Google Wallet",
+      providerId: "google-wallet",
+      integrationId: null,
+      status: "active",
+      statusDetail: null,
+      organizationId: "local",
+      projectId: null,
+      ownerKind: "user",
+      shareability: "private",
+      requestedScopes: [],
+      grantedScopes: [],
+      accountLabel: null,
+      expiresAt: null,
+      refreshable: false,
+      lastRefreshedAt: null,
+      maxInvokeLevel: 0,
+      egress: { scheme: "none", authorities: [], pathPrefixes: [] },
+      bindings: [],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    expect(catalogTileNote(wallet, connection, "native-local")).toEqual({
+      label: "Configured",
+      tone: "chip--ok",
+    });
+    expect(catalogTileNote(wallet, connection, "api-key")).toEqual({
+      label: "Connected",
+      tone: "chip--ok",
+    });
+    expect(catalogTileNote(wallet, { ...connection, status: "error" })).toEqual(
+      {
+        label: "Broken",
+        tone: "chip--err",
+      },
+    );
+  });
+
+  it("keeps legacy active Google Drive connections labeled connected", () => {
+    // SAFETY: fixture constructed in this test matches the declared contract.
+    const drive = { id: "google-drive" } as Provider;
+    const connection: NonNullable<Parameters<typeof catalogTileNote>[1]> = {
+      connectionId: "legacy-drive",
+      connectionRef: "legacy-drive",
+      logicalName: "legacy-drive",
+      displayName: "Google Drive",
+      providerId: "google-drive",
+      integrationId: "google-drive",
+      status: "active",
+      statusDetail: null,
+      organizationId: "org",
+      projectId: null,
+      ownerKind: "user",
+      shareability: "private",
+      requestedScopes: [],
+      grantedScopes: [],
+      accountLabel: null,
+      expiresAt: null,
+      refreshable: false,
+      lastRefreshedAt: null,
+      maxInvokeLevel: 0,
+      egress: { scheme: "none", authorities: [], pathPrefixes: [] },
+      bindings: [],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    expect(catalogTileNote(drive, connection)).toEqual({
+      label: "Connected",
+      tone: "chip--ok",
+    });
+  });
+
   it("admits fixed readonly issuer routes while retaining their bundled catalog ownership", () => {
     const merged = mergeVercelCatalog(getBundledProviders());
     for (const id of ["privacy", "lithic", "marqeta", "stripe-issuing"]) {

@@ -28,6 +28,13 @@ const STATUS_LABELS = {
   reauthorize: "Provider authorization needs renewal",
   cleanup: "Provider cleanup required",
 };
+const LOCAL_STATUS_LABELS = {
+  configuration: "Local configuration validation pending",
+  authorizing: "Local configuration validation in progress",
+  connected: "Local configuration validation pending",
+  reauthorize: "Local configuration needs validation",
+  cleanup: "Local configuration cleanup required",
+};
 
 function verifiedLabel(view: NativeConnectorView, name: string) {
   const policy = nativeBrowserMethodPolicy(
@@ -39,7 +46,10 @@ function verifiedLabel(view: NativeConnectorView, name: string) {
     return (
       policy.reason ?? "This provider route is unavailable in this browser."
     );
-  if (!nativeVerified(view)) return STATUS_LABELS[view.status];
+  if (!nativeVerified(view))
+    return view.configuration.method === "native-local"
+      ? LOCAL_STATUS_LABELS[view.status]
+      : STATUS_LABELS[view.status];
   if (view.configuration.method === "native-local")
     return `${name} configuration verified`;
   if (!view.identity || view.identity.assurance === "credential-valid")
@@ -220,10 +230,14 @@ function NativeIdentityFacts({
           rows={[
             [
               !verified
-                ? `Previously verified ${view.identity.kind}`
-                : view.identity.assurance === "credential-valid"
-                  ? "Verified access"
-                  : view.identity.kind,
+                ? view.configuration.method === "native-local"
+                  ? "Previously validated configuration"
+                  : `Previously verified ${view.identity.kind}`
+                : view.configuration.method === "native-local"
+                  ? "Configuration"
+                  : view.identity.assurance === "credential-valid"
+                    ? "Verified access"
+                    : view.identity.kind,
               view.identity.label,
             ],
           ]}
@@ -233,7 +247,9 @@ function NativeIdentityFacts({
         <Facts
           rows={[
             [
-              "Last provider verification",
+              view.configuration.method === "native-local"
+                ? "Last local validation"
+                : "Last provider verification",
               new Date(view.verifiedAt).toISOString(),
             ],
           ]}

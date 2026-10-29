@@ -92,6 +92,26 @@ function verifiedHeader(
   }
   return { tone: "ok", label, sentence };
 }
+
+function pendingHeader(
+  view: NativeConnectorView | null,
+  providerDetail?: string | null,
+): NativeHeaderStatus {
+  if (view?.configuration.method === "native-local")
+    return {
+      tone: "warn",
+      label: "Configuration validation pending",
+      sentence:
+        "Validate this configuration locally; provider access is not checked.",
+    };
+  return {
+    tone: "warn",
+    label: "Verification pending",
+    sentence:
+      providerDetail ??
+      "Provider verification is required before using this connection.",
+  };
+}
 export function nativeConnectorHeaderStatus(
   connection: Connection | null,
   provider: Provider,
@@ -125,19 +145,8 @@ export function nativeConnectorHeaderStatus(
       };
   }
   if (connection.status !== "active")
-    return {
-      tone: "warn",
-      label: "Verification pending",
-      sentence:
-        connection.statusDetail ??
-        "Provider verification is required before using this connection.",
-    };
+    return pendingHeader(view, connection.statusDetail);
   if (!view || view.status !== "connected" || view.verifiedAt === null)
-    return {
-      tone: "warn",
-      label: "Verification pending",
-      sentence:
-        "Provider verification is required before using this connection.",
-    };
+    return pendingHeader(view);
   return verifiedHeader(view, provider);
 }
