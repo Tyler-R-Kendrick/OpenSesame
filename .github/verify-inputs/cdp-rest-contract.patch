@@ -113,7 +113,7 @@ index 8800975ce..c3cba23db 100644
    });
  }
 diff --git a/packages/agent-sandboxes/src/cloudflare-client.test.ts b/packages/agent-sandboxes/src/cloudflare-client.test.ts
-index c552da9cf..87713b23a 100644
+index c552da9cf..c08d7d212 100644
 --- a/packages/agent-sandboxes/src/cloudflare-client.test.ts
 +++ b/packages/agent-sandboxes/src/cloudflare-client.test.ts
 @@ -1,96 +1,265 @@
@@ -213,7 +213,7 @@ index c552da9cf..87713b23a 100644
 +  ])(
 +    "rejects and deletes a session with an untrusted socket %s",
 +    async (url) => {
-+      const calls: { url: string; init?: RequestInit }[] = [];
++      const calls: { url: string; init: RequestInit | undefined }[] = [];
 +      const client = new CloudflareBrowserRunClient({
 +        accountId: "acct-1",
 +        apiToken: "token-1",
