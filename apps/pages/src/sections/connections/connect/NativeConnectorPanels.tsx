@@ -1,12 +1,10 @@
 /** Render one native provider contract and its verified connection, never a hosted service form. */
-import { nativeGoogleBrowserAvailable } from "@opensesame/app-core/browser/native-google-oauth.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
-import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import {
   compiledApiKeyRoute,
   compiledOidcRoute,
@@ -24,10 +22,7 @@ import type { Flash } from "@opensesame/app-core/sections/connections/shared.js"
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
-import {
-  nativeOAuthClientConfigured,
-  supportsNativeOAuthResource,
-} from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
+import { nativeOAuthClientConfigured } from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
 import { ConnectorPanel } from "./ConnectorPanel.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
@@ -47,6 +42,10 @@ import {
 } from "./native-key-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 import { nativeS3Descriptor } from "./native-s3-descriptor.js";
+import {
+  mcpInactiveReason,
+  nativeOAuthAvailability,
+} from "./native-session-availability.js";
 import { useNativeAuthorization } from "./useNativeAuthorization.js";
 
 function nativeKeyActionsFor(providerId: string) {
@@ -72,35 +71,6 @@ function discordActions(view: NativeConnectorView) {
       resultOrigins: ["https://discord.com"],
     },
   ];
-}
-
-function mcpInactiveReason(): string | undefined {
-  return vaultStore.isGenuineSession()
-    ? undefined
-    : "Open your own vault to connect this provider. Guest sessions do not store provider credentials.";
-}
-
-function nativeOAuthAvailability(providerId: string) {
-  const genuine = vaultStore.isGenuineSession();
-  const googleBlocked =
-    providerId === "google" && !nativeGoogleBrowserAvailable();
-  return {
-    registeredAvailable:
-      genuine &&
-      hasNativeConnectorDriver("oauth", providerId) &&
-      supportsNativeOAuthResource(providerId),
-    available:
-      genuine &&
-      supportsNativeOAuthResource(providerId) &&
-      !nativeConnectorWithdrawn("oauth") &&
-      !googleBlocked,
-    reason: !genuine
-      ? mcpInactiveReason()
-      : googleBlocked
-        ? "Google consent is unavailable under this deployment's isolation policy."
-        : undefined,
-    profile: nativeBrowserOAuthProfile(providerId) ?? undefined,
-  };
 }
 
 export function nativeSettingsDescriptor(
