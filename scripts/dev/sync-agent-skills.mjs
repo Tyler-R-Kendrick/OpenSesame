@@ -19,6 +19,14 @@ function inside(root, path) {
   if (name.startsWith("..") || isAbsolute(name))
     throw new Error(`Skill path escapes repository: ${path}`);
 }
+function escapesCheckout(root, path) {
+  try {
+    inside(root, path);
+    return false;
+  } catch {
+    return true;
+  }
+}
 function files(root, directory) {
   const result = new Map();
   function visit(path, name) {
@@ -142,6 +150,20 @@ function syncMirror(root, agent, name, check, profiles) {
     throw new Error(`Unexpected skill name: ${name}`);
   const source = resolveCanonical(root, name);
   const mirror = join(root, agent, "skills", name);
+  // A mirror root symlinked outside the checkout (personal skill tree)
+  // must never be deleted or rewritten through: refuse and warn. This
+  // must run before any removal below. A mirror that is itself a symlink
+  // still goes through alias validation further down.
+  if (
+    existsSync(mirror) &&
+    !lstatSync(mirror).isSymbolicLink() &&
+    escapesCheckout(root, mirror)
+  ) {
+    console.error(
+      `agent skills: warning: ${agent}/skills/${name} escapes the checkout; refusing to modify it`,
+    );
+    return [];
+  }
   if (!source) {
     // Optional skills may be uninstalled and must not fail core validation.
     // A stale mirror would stay discoverable forever, so a real sync

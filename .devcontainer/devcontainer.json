@@ -20,9 +20,9 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "rust-lang.rust-analyzer",
-        "tamasfe.even-better-toml",
-        "biomejs.biome"
+        "rust-lang.rust-analyzer@0.4.3100",
+        "tamasfe.even-better-toml@0.21.2",
+        "biomejs.biome@2026.10.241124"
       ],
       "settings": {
         "terminal.integrated.env.linux": {

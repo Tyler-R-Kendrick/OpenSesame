@@ -230,6 +230,25 @@ test("sync prunes dangling mirror links left by an upstream removal", (t) => {
   );
 });
 
+test("sync never deletes through a mirror root escaping the checkout", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  const external = mkdtempSync(join(tmpdir(), "opensesame-external-skills-"));
+  t.after(() => rmSync(external, { recursive: true, force: true }));
+  mkdirSync(join(external, "opt-example"), { recursive: true });
+  writeFileSync(join(external, "opt-example/SKILL.md"), "# Personal\n");
+  mkdirSync(join(f.root, ".claude"), { recursive: true });
+  symlinkSync(external, join(f.root, ".claude/skills"), "dir");
+  syncAgentSkills(f.root);
+  assert.equal(
+    readFileSync(join(external, "opt-example/SKILL.md"), "utf8"),
+    "# Personal\n",
+  );
+});
+
 test("unlisted canonical warns locally and fails in CI", (t) => {
   const f = fixture(t);
   writeProfiles(f, { core: { skills: [] } });
