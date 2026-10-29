@@ -12,6 +12,15 @@ import {
   authorizeHost,
 } from "@opensesame/app-core/lib/host-authorization.js";
 import { hostBase, hostFetch } from "@opensesame/app-core/lib/identity.js";
+import type { JsonValue } from "@opensesame/os-domain";
+import { z } from "zod";
+import {
+  hostAgentRunSchema,
+  hostClaimedStepSchema,
+  hostHandoffReceiptSchema,
+  hostHookRecordSchema,
+  hostHookRecordsSchema,
+} from "./host-run-schemas.js";
 
 export type AgentRun = {
   id: string;
@@ -50,11 +59,11 @@ export type HookRecord = {
   recorded_at: string;
 };
 
-type Reply = { status: number; json: () => Promise<unknown> };
+type Reply = { status: number; json: () => Promise<JsonValue> };
 
 export type TakeoverDeps = {
   get: (path: string) => Promise<Reply>;
-  post: (path: string, body?: unknown) => Promise<Reply>;
+  post: (path: string, body?: JsonValue) => Promise<Reply>;
   authenticate: () => Promise<void>;
   authorize: (
     transition: ControlTransition,
@@ -107,10 +116,12 @@ export function createTakeoverClient(deps: TakeoverDeps) {
   const base = (runId: string) =>
     `/api/v1/agent/runs/${encodeURIComponent(runId)}`;
 
-  async function expectRun(reply: Reply): Promise<AgentRun> {
+  async function expectRun(reply: Reply, runId: string): Promise<AgentRun> {
     if (reply.status < 200 || reply.status >= 300)
       throw new Error("The run could not be reached on the Host.");
-    return (await reply.json()) as AgentRun;
+    const run = hostAgentRunSchema.parse(await reply.json());
+    if (run.id !== runId) throw new Error("The Host returned a different run.");
+    return run;
   }
 
   async function transition(
@@ -120,13 +131,24 @@ export function createTakeoverClient(deps: TakeoverDeps) {
   ): Promise<AgentRun> {
     const elevation = await deps.authorize(kind, runId);
     if (!elevation) throw new Error("Verification did not grant control.");
-    return expectRun(await deps.post(`${base(runId)}/${path}`, { elevation }));
+    return expectRun(
+      await deps.post(`${base(runId)}/${path}`, { elevation }),
+      runId,
+    );
   }
 
   return {
     authenticate: () => deps.authenticate(),
-    getRun: async (runId: string) => expectRun(await deps.get(base(runId))),
-    requestHandoff: (runId: string) => transition(runId, "handoff", "handoff"),
+    getRun: async (runId: string) =>
+      expectRun(await deps.get(base(runId)), runId),
+    requestHandoff: async (runId: string) => {
+      const elevation = await deps.authorize("handoff", runId);
+      if (!elevation) throw new Error("Verification did not grant control.");
+      const reply = await deps.post(`${base(runId)}/handoff`, { elevation });
+      if (reply.status !== 202)
+        throw new Error("The handoff could not be requested on the Host.");
+      return hostHandoffReceiptSchema.parse(await reply.json());
+    },
     takeControl: (runId: string) => transition(runId, "take", "control"),
     release: (runId: string) => transition(runId, "release", "release"),
     claimStep: async (runId: string): Promise<ClaimedStep | null> => {
@@ -134,7 +156,10 @@ export function createTakeoverClient(deps: TakeoverDeps) {
       if (reply.status === 204) return null;
       if (reply.status < 200 || reply.status >= 300)
         throw new Error("No step could be claimed.");
-      return (await reply.json()) as ClaimedStep;
+      const step = hostClaimedStepSchema.parse(await reply.json());
+      if (step.run_id !== runId)
+        throw new Error("The Host returned a step from a different run.");
+      return step;
     },
     settleStep: async (
       runId: string,
@@ -160,16 +185,16 @@ export function createTakeoverClient(deps: TakeoverDeps) {
           `${base(runId)}/hook-records?limit=20${cursor}`,
         );
         if (reply.status < 200 || reply.status >= 300) return records;
-        const body = (await reply.json()) as {
-          records?: HookRecord[];
-          next_after?: number;
-          has_more?: boolean;
-        };
-        if (!Array.isArray(body.records)) return records;
-        records.push(...body.records);
-        if (body.has_more !== true || typeof body.next_after !== "number")
-          return records;
-        after = body.next_after;
+        const parsed = hostHookRecordsSchema.safeParse(await reply.json());
+        if (!parsed.success || parsed.data.run_id !== runId) return records;
+        const body = parsed.data;
+        for (const entry of body.records) {
+          const parsedRecord = hostHookRecordSchema.safeParse(entry);
+          if (parsedRecord.success) records.push(parsedRecord.data);
+        }
+        const next = z.number().safeParse(body.next_after);
+        if (body.has_more !== true || !next.success) return records;
+        after = next.data;
       }
       throw new Error("The run record exceeded the pagination bound.");
     },
@@ -181,17 +206,17 @@ export type TakeoverClient = ReturnType<typeof createTakeoverClient>;
 export function createHostTakeoverClient(): TakeoverClient {
   const wrap =
     (method: string) =>
-    async (path: string, body?: unknown): Promise<Reply> => {
-      const response = await hostFetch(path, {
-        method,
-        ...(body === undefined
-          ? {}
-          : {
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(body),
-            }),
-      });
-      return { status: response.status, json: () => response.json() };
+    async (path: string, body?: JsonValue): Promise<Reply> => {
+      const options: RequestInit = { method };
+      if (body !== undefined) {
+        options.headers = { "content-type": "application/json" };
+        options.body = JSON.stringify(body);
+      }
+      const response = await hostFetch(path, options);
+      return {
+        status: response.status,
+        json: async () => z.json().parse(await response.json()),
+      };
     };
   return createTakeoverClient({
     get: wrap("GET"),

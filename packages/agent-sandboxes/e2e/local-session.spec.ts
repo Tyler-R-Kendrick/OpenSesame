@@ -1,6 +1,10 @@
 import { createServer } from "node:http";
 import { expect, test } from "@playwright/test";
-import { LocalSandboxProvider } from "../src/local-provider.js";
+import { z } from "zod";
+import {
+  type LocalProviderOptions,
+  LocalSandboxProvider,
+} from "../src/local-provider.js";
 
 test("local provider resumes the same browser only under the same policy", async () => {
   const site = createServer((_request, response) => {
@@ -10,16 +14,15 @@ test("local provider resumes the same browser only under the same policy", async
     );
   });
   await new Promise<void>((resolve) => site.listen(0, "127.0.0.1", resolve));
-  const address = site.address();
-  if (!address || typeof address === "string")
-    throw new Error("site failed to bind");
-  const origin = `http://127.0.0.1:${address.port}`;
-  const provider = new LocalSandboxProvider({
+  const address = z.object({ port: z.number() }).safeParse(site.address());
+  if (!address.success) throw new Error("site failed to bind");
+  const origin = `http://127.0.0.1:${address.data.port}`;
+  const options: LocalProviderOptions = {
     executable: process.env.AGENT_BROWSER ?? "agent-browser",
-    ...(process.env.AGENT_BROWSER_CHROME
-      ? { browserExecutable: process.env.AGENT_BROWSER_CHROME }
-      : {}),
-  });
+  };
+  const browserExecutable = process.env.AGENT_BROWSER_CHROME;
+  if (browserExecutable) options.browserExecutable = browserExecutable;
+  const provider = new LocalSandboxProvider(options);
   const original = await provider.allocate({
     origin,
     session: `run-${crypto.randomUUID()}`,
