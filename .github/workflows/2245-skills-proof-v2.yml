@@ -1,0 +1,51 @@
+name: Review pinned skills installer
+on:
+  push:
+    branches: [review/2245-skills-proof-v2-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2245-skills-proof-v2-20261029'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Checkout controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout exact candidate parent
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: a21e79fecdc0496eed3123b784aa27df9d089f82
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Apply and verify exact candidate
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a21e79fecdc0496eed3123b784aa27df9d089f82
+          python3 -c 'import hashlib,pathlib; p=pathlib.Path("../controller/.github/verify-inputs/2245-security.patch"); assert hashlib.sha256(p.read_bytes()).hexdigest()=="62310c2b5c594cd6f176ab29c4d8344150f0d61bab2c7a8fb6dd831a75403fa1"'
+          git apply --index ../controller/.github/verify-inputs/2245-security.patch
+          test "$(git write-tree)" = 085bf757e591c52e985b67af0cef312c5bc692ba
+          git diff --exit-code
+      - name: Test pinned installer and preserved user state
+        working-directory: candidate
+        run: bash scripts/dev/install-agent-skills.test.sh
+      - name: Verify exact source after tests
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a21e79fecdc0496eed3123b784aa27df9d089f82
+          test "$(git write-tree)" = 085bf757e591c52e985b67af0cef312c5bc692ba
+          git diff --exit-code
