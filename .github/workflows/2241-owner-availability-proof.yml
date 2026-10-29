@@ -31,9 +31,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
           test "$(git rev-parse HEAD^{tree})" = a64ca35498944e38f527e68ed70dce5d497f4852
-          printf '%s  %s\n' 0e174cc8551dbcbc03d3bd2ca20182e5fc32074fa72ca5b37c1afc8ec6f581d2 ../controller/.github/verify-inputs/2241-owner-availability.patch | sha256sum --check
+          printf '%s  %s\n' d03a99dcd97fe6a22fad5f032457ecf9a8b55eeaf1d63b2b9272d79ffbf51422 ../controller/.github/verify-inputs/2241-owner-availability.patch | sha256sum --check
           git apply --index ../controller/.github/verify-inputs/2241-owner-availability.patch
-          test "$(git write-tree)" = ffcbc7ccbc191c37fc3288bdf386b2bfc64db22e
+          test "$(git write-tree)" = 65403f81c73073eec30756e63bc46924e01bc8c2
           git diff --exit-code
       - name: Install frozen dependencies
         working-directory: candidate
@@ -56,5 +56,5 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
-          test "$(git write-tree)" = ffcbc7ccbc191c37fc3288bdf386b2bfc64db22e
+          test "$(git write-tree)" = 65403f81c73073eec30756e63bc46924e01bc8c2
           git diff --exit-code

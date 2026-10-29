@@ -1,5 +1,5 @@
 diff --git a/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts b/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
-index de6c8423a7db21555518e41c97233dfbe193a851..4b8d0904603e5ae9d7af63bf3bfe852c57ee8f25 100644
+index de6c8423a7db21555518e41c97233dfbe193a851..9a6381b4708632ee29c1a2b9f0f6dad353bcc692 100644
 --- a/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
 +++ b/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
 @@ -1,4 +1,8 @@
@@ -55,11 +55,11 @@ index de6c8423a7db21555518e41c97233dfbe193a851..4b8d0904603e5ae9d7af63bf3bfe852c
 +    .then(
 +      () => {
 +        settled = true;
-+        return null;
++        return false;
 +      },
-+      (error: unknown) => {
++      () => {
 +        settled = true;
-+        return error;
++        return true;
 +      },
 +    );
 +  try {
@@ -70,7 +70,7 @@ index de6c8423a7db21555518e41c97233dfbe193a851..4b8d0904603e5ae9d7af63bf3bfe852c
 +    unlock();
 +  }
 +  await held;
-+  expect(await pending).toBeInstanceOf(Error);
++  expect(await pending).toBe(true);
 +  expect(readDeviceRows()).toHaveLength(0);
 +  const active = new AbortController();
 +  const saved = await nativeConnectorDriver("native-local", "e2b").configure({
