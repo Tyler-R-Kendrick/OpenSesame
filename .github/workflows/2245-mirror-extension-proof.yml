@@ -1,0 +1,42 @@
+name: Review skill mirror and extension safety
+on:
+  push:
+    branches: [review/2245-mirror-extension-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2245-mirror-extension-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 31d694edf761dc5d6ec65cf453f05f1e37c1f09a
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Check immutable candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 31d694edf761dc5d6ec65cf453f05f1e37c1f09a
+          test "$(git rev-parse HEAD^{tree})" = 107c87881e0ef5c84d77a44aeecfb91164a3a636
+          test "$(git rev-parse HEAD^)" = 394e75efc610689bd90d41f77e07b96bb01cf5dc
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify safety and quality
+        run: |
+          set -euo pipefail
+          pnpm exec biome check scripts/dev/sync-agent-skills.mjs scripts/security/agent-skills.test.mjs .devcontainer/devcontainer.json
+          node scripts/security/agent-skills.test.mjs
+          pnpm quality:gate
+      - name: Verify checkout remains unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 107c87881e0ef5c84d77a44aeecfb91164a3a636
+          git diff --exit-code
