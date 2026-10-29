@@ -11,10 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: e006b3989981250f3f81dd8843458a209d46fe9d
+          ref: bab988874b93af62eff4f9716308f30a787634d1
           persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22
           package-manager-cache: false
-      - run: node --test scripts/security/install-agent-skills.test.mjs
+      - run: node --test scripts/security/install-agent-skills-status.test.mjs
