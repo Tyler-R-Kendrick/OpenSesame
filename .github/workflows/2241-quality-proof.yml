@@ -1,0 +1,100 @@
+name: Connector structural and browser verification
+on:
+  push:
+    branches: [review/2241-quality-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  quality:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-quality-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: f7f92cd7b702b791f2db765bba04c947eaea097b
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = f7f92cd7b702b791f2db765bba04c947eaea097b
+          test "$(git rev-parse HEAD^{tree})" = 58785d469cafd6ea78aa8251f22acf66cb4947ae
+          test "$(git rev-parse HEAD^)" = ba2c9478346a5d7bd871d7e5843b5970c465782e
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Install frozen graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check formatting, strict lint and structural gate
+        run: |
+          set -euo pipefail
+          pnpm exec biome check apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/native-connector-mcp-use.ts
+          pnpm lint:anti-slop:files apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/native-connector-mcp-use.ts
+          pnpm quality:gate
+      - name: Typecheck and exercise connector behavior
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/pages typecheck
+          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/SettingsPage.native-header.test.tsx src/sections/connections/connect/NativeConnectorSummary.test.tsx src/sections/connections/connect/NativeConnectorForm.test.tsx src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx src/sections/connections/connect/native-catalog-configuration-descriptor.test.ts src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts src/sections/connections/connect/NativeConnectorPanels.integration.test.tsx
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 58785d469cafd6ea78aa8251f22acf66cb4947ae
+          git diff --exit-code
+          git diff --cached --exit-code
+  visual:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-quality-proof-20261029'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      EVIDENCE_DIR: ${{ github.workspace }}/work/connector-quality-visual
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: f7f92cd7b702b791f2db765bba04c947eaea097b
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          path: work/connector-quality-tools
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact source and capture code
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = f7f92cd7b702b791f2db765bba04c947eaea097b
+          test "$(git rev-parse HEAD^{tree})" = 58785d469cafd6ea78aa8251f22acf66cb4947ae
+          printf '%s  %s\n' e2adb89f54677bb706da8518a85f33bce4abf2f4d92507147c14a1fd8a23db59 work/connector-quality-tools/scripts/review/2241-local-availability-visual.mjs | sha256sum --check
+          mkdir -p "$EVIDENCE_DIR"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source-commit.txt"
+          git rev-parse HEAD^{tree} > "$EVIDENCE_DIR/source-tree.txt"
+      - name: Install frozen graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build and measure shipped Pages bundle
+        run: |
+          set -euo pipefail
+          node scripts/lib/ci-pages-build.mjs
+          node scripts/quality/bundle-budget-gate.mjs
+      - name: Build rich capability profile for real browser
+        env:
+          OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+        run: pnpm --filter @opensesame/pages exec vite build
+      - name: Exercise and capture real Pages
+        run: node work/connector-quality-tools/scripts/review/2241-local-availability-visual.mjs after "$GITHUB_WORKSPACE" "$EVIDENCE_DIR"
+      - name: Upload unapproved evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: connector-quality-visual
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
