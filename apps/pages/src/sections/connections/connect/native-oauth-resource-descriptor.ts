@@ -47,6 +47,9 @@ export type NativeOAuthResourceOptions = {
   postEndpoint?: string;
   accountOnly?: boolean;
 };
+const googleAccountForbiddenFields = new Set(
+  GOOGLE_ACCOUNT_POLICY.forbiddenParameters,
+);
 function mcpFields(options: NativeOAuthResourceOptions): NativeField[] {
   const when = { fieldId: "resource_protocol", value: "mcp" };
   return [
@@ -117,8 +120,7 @@ function permittedOAuthFields(
   accountOnly = false,
 ): NativeField[] {
   if (!accountOnly) return fields;
-  const excluded = new Set(GOOGLE_ACCOUNT_POLICY.forbiddenParameters);
-  return fields.filter((field) => !excluded.has(field.id));
+  return fields.filter((field) => !googleAccountForbiddenFields.has(field.id));
 }
 
 export function nativeOAuthResourceDescriptor(
@@ -198,7 +200,9 @@ export function nativeOAuthResourceDescriptor(
             },
           ],
         },
-        ...resourceParameterFields(options.resourceParameter),
+        ...resourceParameterFields(
+          options.resourceParameter ?? preset.resourceParameter,
+        ),
         ...mcpFields(options),
         oauthClientSecretField("client_secret_basic"),
         oauthClientSecretField("client_secret_post"),
