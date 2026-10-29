@@ -155,10 +155,11 @@ index abe80a1e8c72b836c8dcfa4f0c399d66e9228f1d..7ccd4c4fe797bfa3b3f96408ebe694ef
 +});
 diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..4922d5b9cccb599a4c7dbe134eece7bc11442b44
+index 0000000000000000000000000000000000000000..8d4d223ecec658d14b3eeaa38440b1871406072c
 --- /dev/null
 +++ b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,44 @@
++import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 +/** @vitest-environment jsdom */
 +import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 +import { render, screen, waitFor } from "@testing-library/react";
@@ -170,7 +171,6 @@ index 0000000000000000000000000000000000000000..4922d5b9cccb599a4c7dbe134eece7bc
 +import {
 +  connectorIntegration,
 +  installConnectorIntegration,
-+  integrationProvider,
 +} from "./native-connector-integration.test-support.js";
 +
 +installConnectorIntegration();
@@ -179,10 +179,12 @@ index 0000000000000000000000000000000000000000..4922d5b9cccb599a4c7dbe134eece7bc
 +  const fixture = connectorIntegration();
 +  bindNativeCatalogConfigurationRuntime(fixture.activation);
 +  const onFlash = vi.fn();
++  const provider = catalogProvider("e2b");
++  if (!provider) throw new Error("Missing E2B catalog row");
 +  render(
 +    <MemoryRouter>
 +      <NativeConnectorPanels
-+        provider={integrationProvider("e2b")}
++        provider={provider}
 +        connection={null}
 +        onFlash={onFlash}
 +        onChanged={() => {}}

@@ -47,7 +47,14 @@ try {
           await page.screenshot({ path: path.join(out, `${phase}-${session}-${label}-${id}.png`), fullPage: true });
           if (expected) {
             await button.click();
-            await page.getByText(`${name} configuration validated locally and saved on this device. Provider access was not checked.`, { exact: true }).waitFor({ state: "visible", timeout: 15000 });
+            try {
+              await page.getByText(`${name} configuration validated locally and saved on this device. Provider access was not checked.`, { exact: true }).waitFor({ state: "visible", timeout: 15000 });
+            } catch (error) {
+              await page.screenshot({ path: path.join(out, `${phase}-${session}-${label}-${id}-failure.png`), fullPage: true });
+              console.log("synthetic fixture settings text:", (await page.locator(".conn-settings").innerText()).slice(0, 4000));
+              console.log("synthetic fixture alerts:", (await page.locator('[role="alert"]').allInnerTexts()).join(" | ").slice(0, 2000));
+              throw error;
+            }
             await page.screenshot({ path: path.join(out, `${phase}-${session}-${label}-${id}-saved.png`), fullPage: true });
           }
           results.push({ phase, session, label, width, height, id, saveAvailable: expected, saved: expected });
