@@ -48,7 +48,9 @@ try {
           if (expected) {
             await button.click();
             try {
-              await page.getByText(`${name} configuration validated locally and saved on this device. Provider access was not checked.`, { exact: true }).waitFor({ state: "visible", timeout: 15000 });
+              await page.getByText("Locally validated configuration", { exact: true }).waitFor({ state: "visible", timeout: 15000 });
+              assert.equal(await page.getByText("Verified access", { exact: true }).count(), 0, `${id}: no provider access claim`);
+              await page.getByRole("button", { name: `Verify ${name} configuration` }).waitFor({ state: "visible", timeout: 15000 });
             } catch (error) {
               await page.screenshot({ path: path.join(out, `${phase}-${session}-${label}-${id}-failure.png`), fullPage: true });
               console.log("synthetic fixture settings text:", (await page.locator(".conn-settings").innerText()).slice(0, 4000));
