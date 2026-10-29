@@ -1,6 +1,11 @@
 import { generateKeyPairSync } from "node:crypto";
+import {
+  readDeviceRows,
+  withDeviceConfigurationLock,
+} from "@opensesame/app-core/lib/device-connector-records.js";
 import { deviceProviderRevokers } from "@opensesame/app-core/lib/device-connectors.js";
 import { modelMemoryBackend } from "@opensesame/app-core/lib/hosted-model.test-support.js";
+import { kvSeams } from "@opensesame/app-core/lib/kv.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -106,5 +111,78 @@ it("refuses to publish a local configuration for a retired form owner", async ()
       targetIds: {},
     }),
   ).rejects.toThrow();
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("does not commit a form retired while its local configuration waits for the storage lock", async () => {
+  // The shared model fixture stubs durable writes without a pre-commit hook.
+  // Restore both real KV operations so this tests the actual publication fence.
+  vi.mocked(kvSeams.kvGet).mockRestore();
+  vi.mocked(kvSeams.kvSetDurable).mockRestore();
+  const fetcher = activate();
+  let unlock = () => {};
+  let lockEntered = () => {};
+  const entered = new Promise<void>((resolve) => {
+    lockEntered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    unlock = resolve;
+  });
+  const held = withDeviceConfigurationLock(async () => {
+    lockEntered();
+    await gate;
+  });
+  await entered;
+  const owner = new AbortController();
+  let ownerChecks = 0;
+  const input = {
+    providerId: "e2b",
+    method: "native-local" as const,
+    displayName: "Local E2B",
+    parameters: {},
+    credentials: {},
+    requestedScopes: {},
+    targetIds: {},
+    owner: {
+      signal: owner.signal,
+      assertCurrent: () => {
+        ownerChecks += 1;
+        owner.signal.throwIfAborted();
+      },
+    },
+  };
+  let settled = false;
+  const pending = nativeConnectorDriver("native-local", "e2b")
+    .configure(input)
+    .then(
+      () => {
+        settled = true;
+        return false;
+      },
+      () => {
+        settled = true;
+        return true;
+      },
+    );
+  try {
+    await vi.waitFor(() => expect(ownerChecks).toBeGreaterThanOrEqual(2));
+    expect(settled).toBe(false);
+    owner.abort();
+  } finally {
+    unlock();
+  }
+  await held;
+  expect(await pending).toBe(true);
+  expect(readDeviceRows()).toHaveLength(0);
+  const active = new AbortController();
+  const saved = await nativeConnectorDriver("native-local", "e2b").configure({
+    ...input,
+    owner: {
+      signal: active.signal,
+      assertCurrent: () => active.signal.throwIfAborted(),
+    },
+  });
+  expect(saved.status).toBe("connected");
+  expect(readDeviceRows()).toHaveLength(1);
   expect(fetcher).not.toHaveBeenCalled();
 });
