@@ -1,0 +1,800 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..9e1d28c2e5ed18d097643829ac5cb27a8880502e
+--- /dev/null
++++ b/CHANGELOG.md
+@@ -0,0 +1,48 @@
++# Changelog
++
++All notable changes to this project are documented here. The format follows
++[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). What a person can do
++in each build — what works, what is still unfinished, and what bites today —
++also appears in the app's release notes.
++
++## [Unreleased]
++
++## [0.1.0]
++
++### Works
++
++- Continue as guest, or sign in with Google — you can start without an account
++- Unlock with a passkey or PIN; optional authenticator code as step 2
++- Store accounts, cards, notes, and secrets on this device
++- Create certificates in the vault without leaving the app
++- Open on the front door: set up your own vault, or join somebody's live session
++- Live sessions pair browsers directly, or through a tunnel address, TURN server or code carrier the owner names
++- Connect services from Connections; GitHub can back up your vault
++- Generate passwords and authenticator codes inside the app
++
++### In progress
++
++- More connectors from the catalog will finish linking the way GitHub does today
++- Sharing access and approvals with people and agents is still being finished
++- Clearing leftover setup screens and wording from older builds
++
++### Known issues
++
++- Some connectors look ready but stop before the link finishes
++- Sign-in may need the popup or follow-up link on this same device
++- Older server-address settings are ignored — use Connections instead
++
++## [0.0.1]
++
++### Works
++
++- Sealed vault on this device
++- Continue as guest from the sign-in screen
++
++### In progress
++
++- Connections and GitHub backup still landing
++
++### Known issues
++
++- Setup still showed leftover wording from older builds
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index f7c71acc6c35cbc91f0f1aa1bd2694c4ee23d325..ab0a8c28d7ed27e236cd6c172d625f54acf2416b 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -21,6 +21,23 @@ code goes.
+ **Cursor Cloud Agents** use the repo-managed environment in `.cursor/` (see
+ [`AGENTS.md`](AGENTS.md) — Cursor Cloud specific instructions).
+ 
++## Report bugs
++
++File bugs in [GitHub Issues](https://github.com/Tyler-R-Kendrick/OpenSesame/issues).
++Never file a public issue carrying exploit details, tokens or claim secrets —
++vulnerabilities go through [SECURITY.md](SECURITY.md) private reporting instead.
++
++## Standards and tests
++
++- Coding standards are enforced by tooling, not convention: Biome (lint +
++  format) and the anti-slop Oxlint preset on TypeScript, rustfmt and Clippy on
++  Rust (the hooks run them; `pnpm lint`, `pnpm audit:clippy`).
++- New functionality includes automated tests that fail without it, beside the
++  existing suites for the plane it touches.
++- Test commands: `pnpm test` (every TypeScript workspace), `pnpm
++  test:integration`, and `cargo +1.88.0 test --workspace --all-targets` for
++  Rust.
++
+ ## Before you push
+ 
+ ```bash
+diff --git a/README.md b/README.md
+index dcc0b9806691e71f3bc08265c17796ce0b591269..28ac64f809c8e75bbdffddf814379bed24d166dd 100644
+--- a/README.md
++++ b/README.md
+@@ -17,6 +17,20 @@ without running a backend.
+ 
+ **Status:** Pre-release / early stage. APIs and behavior may change.
+ 
++<!-- TODO: verify the existing OpenSSF Best Practices assessment and link
++     its public badge once the assessment status and badge ID are confirmed. -->
++
++## Project information
++
++- **Homepage:** [tyler-r-kendrick.github.io/OpenSesame](https://tyler-r-kendrick.github.io/OpenSesame/)
++- **Install / getting started:** [docs/getting-started](docs/getting-started/README.md)
++- **Configuration:** [docs/getting-started](docs/getting-started/README.md) — environment variables follow [`.env.schema`](.env.schema)
++- **How to contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
++- **Report a bug:** [GitHub Issues](https://github.com/Tyler-R-Kendrick/OpenSesame/issues)
++- **Report a vulnerability:** [SECURITY.md](SECURITY.md) · [open a private advisory](https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new)
++- **Changelog:** [CHANGELOG.md](CHANGELOG.md)
++- **License:** MIT — [LICENSE](LICENSE)
++
+ ---
+ 
+ ## The idea in one paragraph
+diff --git a/SECURITY.md b/SECURITY.md
+index 31b70b8e2515c93d92b80bd502848efe99ca0148..c7211f0c712752a51fcca521928c7bf8c483d624 100644
+--- a/SECURITY.md
++++ b/SECURITY.md
+@@ -2,13 +2,15 @@
+ 
+ ## Supported versions
+ 
+-Security fixes target the default branch (`main`). The released Pages deploy tracks `main`. Fixes for older commits are best-effort.
++Security fixes target the default branch (`main`). Published Pages and native artifacts advance through candidate qualification and release approval. Fixes for older commits are best-effort.
+ 
+ ## Reporting
+ 
+ Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new). On this repository, open **Report a vulnerability** under Security Advisories. Do not file public issues that include exploit details, tokens, or claim secrets.
+ 
+-We acknowledge a report within 3 business days and aim for an initial assessment within 10 business days.
++If private reporting is unavailable, contact the maintainer through the GitHub profile [@Tyler-R-Kendrick](https://github.com/Tyler-R-Kendrick).
++
++We acknowledge a report within 3 business days, aim for an initial assessment within 10 business days, and respond to every report within 14 days or less.
+ 
+ ## Scope
+ 
+diff --git a/apps/pages/scripts/lib/mobile-gates.mjs b/apps/pages/scripts/lib/mobile-gates.mjs
+index b27716a387ea1c4e694e75595d21239c31c53be5..5b221045c14d867dfc3e8b56002e0341ccb048f7 100644
+--- a/apps/pages/scripts/lib/mobile-gates.mjs
++++ b/apps/pages/scripts/lib/mobile-gates.mjs
+@@ -41,3 +41,52 @@ export async function doorRoads(page, stop, harness) {
+     );
+   }
+ }
++
++/** Measure project links only in the already-open unlocked Support sheet. */
++export async function projectLinks(page, label, { audit, harness }) {
++  const summary = page.getByText("About this project", { exact: true });
++  let focused = await summary.evaluate(
++    (element) => element === document.activeElement,
++  );
++  for (let i = 0; i < 80 && !focused; i += 1) {
++    await page.keyboard.press("Tab");
++    focused = await summary.evaluate(
++      (element) => element === document.activeElement,
++    );
++  }
++  harness.check(focused, `${label}: keyboard reaches the project disclosure`);
++  if (!focused) throw new Error("Keyboard could not reach project disclosure");
++  await page.keyboard.press("Enter");
++  const links = page.locator(".support__project-links a");
++  await links.first().waitFor({ state: "visible" });
++  harness.check((await links.count()) === 10, `${label}: ten project links`);
++  await audit(page, label);
++  for (const link of await links.all()) {
++    await page.keyboard.press("Tab");
++    harness.check(
++      await link.evaluate((element) => element === document.activeElement),
++      `${label}: keyboard reaches ${await link.textContent()}`,
++    );
++    const box = await link.boundingBox();
++    harness.check(
++      box !== null && box.height >= 44 && box.width >= 44,
++      `${label}: ${await link.textContent()} target is at least 44px`,
++    );
++  }
++}
++
++/** A locked gate keeps project navigation behind the vault. */
++export async function lockedReload(page, stop, { openTab, audit, harness }) {
++  await openTab(page, "Vault");
++  const lock = page.getByRole("button", { name: "Lock vault" }).first();
++  if (await lock.count()) {
++    await lock.tap();
++    await page.waitForTimeout(900);
++    await audit(page, stop("unlock"));
++    harness.check(
++      (await page.getByText("About this project", { exact: true }).count()) ===
++        0,
++      `${stop("unlock")}: project navigation stays behind unlock`,
++    );
++  }
++}
+diff --git a/apps/pages/scripts/verify-mobile.mjs b/apps/pages/scripts/verify-mobile.mjs
+index 4012ce5ad0b5286fe4ec3495184e6727fc1da831..ac613d7902cb91fef09b99dd0774975856d29b8b 100644
+--- a/apps/pages/scripts/verify-mobile.mjs
++++ b/apps/pages/scripts/verify-mobile.mjs
+@@ -15,7 +15,13 @@ import { doorGuest } from "./lib/front-door.mjs";
+ import { auditSettings } from "./lib/layout-contract.mjs";
+ import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
+ import { AUDIT, phoneContext, recordStop } from "./lib/mobile-contract.mjs";
+-import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
++import {
++  doorRoads,
++  helpKey,
++  lockedReload,
++  projectLinks,
++  setupCeremony,
++} from "./lib/mobile-gates.mjs";
+ import { auditGestures } from "./lib/mobile-gestures.mjs";
+ import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
+ import { sizesToWalk } from "./lib/mobile-sizes.mjs";
+@@ -116,6 +122,7 @@ async function openOverflowRow(page, pattern, label) {
+   }
+   await row.tap();
+   await page.waitForTimeout(650);
++  if (pattern.test("Help")) await projectLinks(page, label, { audit, harness });
+   await audit(page, label);
+   await page.keyboard.press("Escape");
+   await page.waitForTimeout(350);
+@@ -243,14 +250,7 @@ async function walk(browser, phone) {
+   await contextMenuTouchContract(page, stop, { harness, openTab, audit });
+   await phonePolish.passwordKeysOneLine(page, stop, { harness, base });
+ 
+-  // A locked reload is the screen most phone sessions actually start on.
+-  await openTab(page, "Vault");
+-  const lock = page.getByRole("button", { name: "Lock vault" }).first();
+-  if (await lock.count()) {
+-    await lock.tap();
+-    await page.waitForTimeout(900);
+-    await audit(page, stop("unlock"));
+-  }
++  await lockedReload(page, stop, { openTab, audit, harness });
+ 
+   await context.close();
+ }
+diff --git a/apps/pages/src/screens/unlock/ReleaseNotes.test.tsx b/apps/pages/src/screens/unlock/ReleaseNotes.test.tsx
+index ea71b889a8ad41a52480c5db67982e8298c62aea..c111c37728d600f5273a5985622d54ccb2e21ee8 100644
+--- a/apps/pages/src/screens/unlock/ReleaseNotes.test.tsx
++++ b/apps/pages/src/screens/unlock/ReleaseNotes.test.tsx
+@@ -110,3 +110,13 @@ it("starts collapsed on a stacked gate, toggles releases, and keeps at most one
+   expect(screen.queryByRole("link")).toBeNull();
+   expect(screen.queryByText(/ADR|Host|Vercel Connect|backend/i)).toBeNull();
+ });
++
++it("keeps project navigation off the gate at every release layout", () => {
++  for (const stacked of [false, true]) {
++    stubViewport(stacked);
++    render(<ReleaseNotes />);
++    expect(screen.queryByText("About this project")).toBeNull();
++    expect(screen.queryByRole("link")).toBeNull();
++    cleanup();
++  }
++});
+diff --git a/apps/pages/src/screens/unlock/project-navigation.test.tsx b/apps/pages/src/screens/unlock/project-navigation.test.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..cc243a12b04388ea9c2c57fc69363d901bb60d7a
+--- /dev/null
++++ b/apps/pages/src/screens/unlock/project-navigation.test.tsx
+@@ -0,0 +1,46 @@
++/** @vitest-environment jsdom */
++import { cleanup, render, screen } from "@testing-library/react";
++import { afterEach, beforeEach, expect, it } from "vitest";
++import { UnlockScreen } from "../UnlockScreen.js";
++import {
++  ANSWERED,
++  resetUnlockHarness,
++  setupHolder,
++  v,
++} from "../unlock-screen-harness.js";
++
++beforeEach(resetUnlockHarness);
++afterEach(cleanup);
++
++it("keeps the front door free of project navigation", () => {
++  v.state = {
++    status: "empty",
++    header: null,
++    lockedOutUntil: null,
++    failedAttempts: 0,
++    durable: true,
++    awaitingSecondStep: false,
++  };
++  render(<UnlockScreen />);
++  expect(screen.getByRole("button", { name: /^Set up your own/ })).toBeTruthy();
++  expect(screen.queryByText("About this project")).toBeNull();
++  expect(screen.queryByRole("link", { name: "Source code" })).toBeNull();
++});
++
++it("keeps a PIN-locked vault free of project navigation", () => {
++  setupHolder.current = ANSWERED;
++  v.state = {
++    status: "locked",
++    header: null,
++    lockedOutUntil: null,
++    failedAttempts: 0,
++    durable: true,
++    awaitingSecondStep: false,
++  };
++  v.methods = ["pin"];
++  v.preferred = "pin";
++  render(<UnlockScreen />);
++  expect(screen.getByLabelText("PIN", { exact: true })).toBeTruthy();
++  expect(screen.queryByText("About this project")).toBeNull();
++  expect(screen.queryByRole("link", { name: "Source code" })).toBeNull();
++});
+diff --git a/apps/pages/src/tutorial/__tests__/a11y/harness.tsx b/apps/pages/src/tutorial/__tests__/a11y/harness.tsx
+index 9a13fd3883a9bf2c1442c95b44f74ec825293998..2165b6ce97fce339d062f6cab372fe1e698b7bd5 100644
+--- a/apps/pages/src/tutorial/__tests__/a11y/harness.tsx
++++ b/apps/pages/src/tutorial/__tests__/a11y/harness.tsx
+@@ -244,16 +244,31 @@ export async function openPanel(user: TestUser): Promise<HTMLElement> {
+ }
+ 
+ /**
+- * Every control the sheet's own focus trap considers reachable — the same
+- * query `useModalFocus` runs, so a test asserts on the trap's real membership
+- * rather than on a list a reader of the JSX guessed at.
++ * Native keyboard targets in the sheet. Closed disclosures expose their
++ * summary, but not their links, to sequential keyboard navigation.
+  */
+ export const TRAPPED =
+-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
++  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
++
++function insideClosedDisclosure(element: HTMLElement): boolean {
++  for (
++    let parent = element.parentElement;
++    parent;
++    parent = parent.parentElement
++  ) {
++    if (
++      parent instanceof HTMLDetailsElement &&
++      !parent.open &&
++      element !== parent.querySelector(":scope > summary")
++    )
++      return true;
++  }
++  return false;
++}
+ 
+ export function reachable(container: HTMLElement): readonly HTMLElement[] {
+   return [...container.querySelectorAll<HTMLElement>(TRAPPED)].filter(
+-    (element) => element.tabIndex >= 0,
++    (element) => element.tabIndex >= 0 && !insideClosedDisclosure(element),
+   );
+ }
+ 
+diff --git a/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx b/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
+index c6b3ed8574f622e89cf5d99014747214efa50fa2..91c845353c2b5e45909d204cf50fde47951f9305 100644
+--- a/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
++++ b/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
+@@ -170,6 +170,25 @@ describe("keyboard operability", () => {
+     );
+   });
+ 
++  it("opens project navigation and reaches each link with keys", async () => {
++    const user = userEvent.setup();
++    mountSupport({ agent: fakeAgentAnswering("Anything.") });
++    const sheet = await openPanel(user);
++    const summary = within(sheet).getByText("About this project");
++    const project = summary.closest("details");
++    if (!project) throw new Error("Project navigation needs a disclosure");
++    expect(project.open).toBe(false);
++    await tabTo(user, summary);
++    await user.keyboard("{Enter}");
++    expect(project.open).toBe(true);
++    const links = within(project).getAllByRole<HTMLAnchorElement>("link");
++    expect(links).toHaveLength(10);
++    for (const link of links) {
++      await user.tab();
++      expect(document.activeElement).toBe(link);
++    }
++  });
++
+   it("offers nothing that only a pointer can use", async () => {
+     const user = userEvent.setup();
+     mountSupport({ agent: fakeAgentAnswering("Anything.") });
+@@ -178,7 +197,29 @@ describe("keyboard operability", () => {
+     // Everything the trap can reach is a control the platform already makes
+     // operable — no `div` wearing an onClick, no `role="button"` stand-in.
+     const kinds = new Set(reachable(sheet).map((element) => element.tagName));
+-    expect([...kinds].sort()).toEqual(["BUTTON", "INPUT"]);
++    expect([...kinds].sort()).toEqual(["BUTTON", "INPUT", "SUMMARY"]);
++    const project = sheet.querySelector("details.support__project");
++    expect(project).toBeInstanceOf(HTMLDetailsElement);
++    if (!(project instanceof HTMLDetailsElement))
++      throw new Error("Project navigation needs a native disclosure");
++    const summary = project.querySelector("summary");
++    expect(project.firstElementChild).toBe(summary);
++    if (!summary) throw new Error("Project disclosure needs its summary");
++    expect(summary.tagName).toBe("SUMMARY");
++    expect(summary?.textContent).toBe("About this project");
++    expect(summary?.getAttribute("tabindex")).toBeNull();
++    expect(project.open).toBe(false);
++    const links = [...project.querySelectorAll<HTMLAnchorElement>("a[href]")];
++    expect(links).toHaveLength(10);
++    expect(
++      reachable(sheet).filter((element) => element.tagName === "A"),
++    ).toEqual([]);
++    for (const link of links) {
++      expect(link.tagName).toBe("A");
++      expect(link.getAttribute("href")).toMatch(/^https:\/\//);
++      expect(link.tabIndex).toBe(0);
++      expect(link.textContent?.trim()).not.toBe("");
++    }
+     expect(sheet.querySelectorAll('[role="button"]')).toHaveLength(0);
+     expect(sheet.querySelectorAll("[onclick]")).toHaveLength(0);
+ 
+diff --git a/apps/pages/src/tutorial/support.css b/apps/pages/src/tutorial/support.css
+index 6897d3873367193766075f0fd49090bced020dbf..993435d9d11167a7eff4a83254a38cad1fab65a5 100644
+--- a/apps/pages/src/tutorial/support.css
++++ b/apps/pages/src/tutorial/support.css
+@@ -461,3 +461,26 @@
+     padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
+   }
+ }
++
++.support__project summary {
++  min-height: 44px;
++  align-content: center;
++  cursor: pointer;
++}
++
++.support__project-links {
++  display: grid;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++
++.support__project-links a {
++  display: flex;
++  align-items: center;
++  min-width: 44px;
++  min-height: 44px;
++  color: var(--ink);
++  text-decoration: underline;
++  text-underline-offset: 0.2em;
++}
+diff --git a/apps/pages/src/tutorial/ui/ProjectLinks.tsx b/apps/pages/src/tutorial/ui/ProjectLinks.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb60c68e2653baed03bd09a49348088ecf26acb3
+--- /dev/null
++++ b/apps/pages/src/tutorial/ui/ProjectLinks.tsx
+@@ -0,0 +1,50 @@
++const REPO_URL = "https://github.com/Tyler-R-Kendrick/OpenSesame";
++
++type AboutLink = {
++  readonly label: string;
++  readonly href: string;
++};
++
++/** Project documentation links for the "About this project" row. */
++const ABOUT_LINKS: readonly AboutLink[] = [
++  { label: "What it is", href: `${REPO_URL}/blob/main/README.md` },
++  {
++    label: "Install / getting started",
++    href: `${REPO_URL}/blob/main/docs/getting-started/README.md`,
++  },
++  {
++    label: "Configure",
++    href: `${REPO_URL}/blob/main/docs/getting-started/README.md`,
++  },
++  { label: "Contribute", href: `${REPO_URL}/blob/main/CONTRIBUTING.md` },
++  {
++    label: "Report a vulnerability",
++    href: `${REPO_URL}/blob/main/SECURITY.md`,
++  },
++  {
++    label: "Open a private advisory",
++    href: `${REPO_URL}/security/advisories/new`,
++  },
++  { label: "Report a bug", href: `${REPO_URL}/issues` },
++  { label: "Changelog", href: `${REPO_URL}/blob/main/CHANGELOG.md` },
++  { label: "License: MIT", href: `${REPO_URL}/blob/main/LICENSE` },
++  { label: "Source code", href: REPO_URL },
++];
++
++/** Project navigation belongs in the unlocked Support sheet, never at a gate. */
++export function ProjectLinks() {
++  return (
++    <details className="support__project">
++      <summary>About this project</summary>
++      <ul className="support__project-links">
++        {ABOUT_LINKS.map((link) => (
++          <li key={link.label}>
++            <a href={link.href} target="_blank" rel="noopener noreferrer">
++              {link.label}
++            </a>
++          </li>
++        ))}
++      </ul>
++    </details>
++  );
++}
+diff --git a/apps/pages/src/tutorial/ui/SupportLauncher.tsx b/apps/pages/src/tutorial/ui/SupportLauncher.tsx
+index 5d99c844b22c48e518f883fc9447ecb738a28e90..9e19b880f6b6b4a7991f963c40f273dc7b58e33c 100644
+--- a/apps/pages/src/tutorial/ui/SupportLauncher.tsx
++++ b/apps/pages/src/tutorial/ui/SupportLauncher.tsx
+@@ -103,7 +103,7 @@ export function SupportLauncher({
+             </div>
+           }
+         >
+-          <SupportPanel />
++          <SupportPanel gate={gate} />
+         </Suspense>
+       ) : null}
+     </>
+diff --git a/apps/pages/src/tutorial/ui/SupportPanel.tsx b/apps/pages/src/tutorial/ui/SupportPanel.tsx
+index 195ce5b350cbf4cda23e0fec54b193a49a845224..5c747839caa081bcf1933ef334b730e0f68bfbdc 100644
+--- a/apps/pages/src/tutorial/ui/SupportPanel.tsx
++++ b/apps/pages/src/tutorial/ui/SupportPanel.tsx
+@@ -27,6 +27,7 @@ import type { SupportEntry } from "../session.js";
+ import { useSupport } from "../session.js";
+ import { SupportComposer } from "./SupportComposer.js";
+ import "../support.css";
++import { ProjectLinks } from "./ProjectLinks.js";
+ import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
+ import { Availability } from "./SupportPanelChrome.js";
+ import {
+@@ -109,7 +110,9 @@ function topicsHere(
+  * untrusted text, and a support answer is exactly where an injected page would
+  * try to spend markup.
+  */
+-export function SupportPanel(): ReactElement {
++export function SupportPanel({
++  gate: atGate = false,
++}: { gate?: boolean }): ReactElement {
+   const { view, support } = useSupport();
+   const sheetRef = useRef<HTMLElement>(null);
+   const closeRef = useRef<HTMLButtonElement>(null);
+@@ -192,6 +195,7 @@ export function SupportPanel(): ReactElement {
+         </div>
+ 
+         <div className="sheet__body support__body">
++          {atGate ? null : <ProjectLinks />}
+           <RemoteSupportPreview warning={view.warning} />
+           <Availability
+             availability={availability}
+diff --git a/apps/pages/src/tutorial/ui/gate-help.test.tsx b/apps/pages/src/tutorial/ui/gate-help.test.tsx
+index 9e53d1d656a47622fd92a9d9c89b344f9175cc29..6003f8576e190761134befa002db910b691fcc60 100644
+--- a/apps/pages/src/tutorial/ui/gate-help.test.tsx
++++ b/apps/pages/src/tutorial/ui/gate-help.test.tsx
+@@ -94,6 +94,8 @@ describe("what the key opens", () => {
+     renderGate([support], { route });
+     await user.click(screen.getByRole("button", { name: "Support" }));
+     const sheet = await screen.findByRole("dialog", { name: "Support" });
++    expect(within(sheet).queryByText("About this project")).toBeNull();
++    expect(sheet.querySelector(".support__project-links")).toBeNull();
+     return { user, sheet };
+   }
+ 
+diff --git a/apps/pages/src/tutorial/ui/project-links.test.tsx b/apps/pages/src/tutorial/ui/project-links.test.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..7a533201418eee10d402b4469e9e32e7c7824599
+--- /dev/null
++++ b/apps/pages/src/tutorial/ui/project-links.test.tsx
+@@ -0,0 +1,43 @@
++/** @vitest-environment jsdom */
++import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
++import { within } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { afterEach, expect, it } from "vitest";
++import { mount, openPanel, resetSupport } from "./support-test-harness.js";
++
++afterEach(resetSupport);
++
++it("offers the ten project documents only from unlocked Support", async () => {
++  const user = userEvent.setup();
++  mount(fakeAgentAlwaysUnavailable("no_local_model"));
++  const { panel } = await openPanel(user);
++  const summary = within(panel).getByText("About this project");
++  expect(summary.closest("details")?.open).toBe(false);
++  await user.click(summary);
++  const links = within(panel).getAllByRole("link");
++  expect(links).toHaveLength(10);
++  for (const link of links) {
++    expect(link.getAttribute("target")).toBe("_blank");
++    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
++    expect(link.getAttribute("href")).toMatch(
++      /^https:\/\/github\.com\/Tyler-R-Kendrick\/OpenSesame/,
++    );
++  }
++  expect(
++    within(panel)
++      .getByRole("link", { name: "What it is" })
++      .getAttribute("href"),
++  ).toBe("https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/README.md");
++  expect(
++    within(panel).getByRole("link", { name: "Changelog" }).getAttribute("href"),
++  ).toBe(
++    "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/CHANGELOG.md",
++  );
++  expect(
++    within(panel)
++      .getByRole("link", { name: "Open a private advisory" })
++      .getAttribute("href"),
++  ).toBe(
++    "https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new",
++  );
++});
+diff --git a/docs/audit/2026-10-provenance.md b/docs/audit/2026-10-provenance.md
+index c256be6450c26fe0239064c2ed789c58f0f788a1..11e6a6cece2b5a9e2c67f255f8ddeb03082047c2 100644
+--- a/docs/audit/2026-10-provenance.md
++++ b/docs/audit/2026-10-provenance.md
+@@ -759,3 +759,13 @@ missing Grok subscription authentication and no Kimi executable; no Grok or Kimi
+ authorship is claimed. Signature, required-check and scanner integrity policies
+ remain enforced. Test results and the authenticated signing prerequisite are
+ recorded in the PR; no hosted qualification or merge is claimed from local tests.
++
++## OpenSSF Best Practices rebase, 2026-10-26
++
++Kimi Code K3.1 (`kimi-code/k3.1`, upstream `k3.1-pro`) rebased
++`docs/openssf-best-practices` onto current `main` and resolved one
++`SECURITY.md` wording conflict by keeping the base's direct advisory link and
++the branch's fallback contact and response commitment. The focused
++`ReleaseNotes.test.tsx` suite passed all three tests. Kimi also restored the
++intended seven-file diff after an unrelated draft stack displaced the branch;
++the displaced commit remains recoverable in the originating repository.
+diff --git a/docs/security/openssf-scorecard.md b/docs/security/openssf-scorecard.md
+index 1287bdbef0f8acfd817cc18774e3182334851b02..bebf430099dbe8d9cd99e9be76f69628f7915d78 100644
+--- a/docs/security/openssf-scorecard.md
++++ b/docs/security/openssf-scorecard.md
+@@ -89,9 +89,10 @@ with truthful answers and evidence. Useful starting evidence is:
+ | Security design and analysis | [Security index](README.md), threat models, audit history and scanner gates |
+ | Build, testing and release integrity | [Contributor verification](../../AGENTS.md#8-verification-expectations), pinned workflows and [release guide](../operators/release-kit.md) |
+ 
+-Verify each criterion, resolve gaps, and add the project's real badge URL
+-only after enrollment. Enrollment is currently deferred; no badge ID or
+-certification is asserted here.
++The authenticated Scorecard run on 2026-10-26 reports an InProgress
++assessment (score 2). Complete each criterion with evidence before claiming
++a passing badge. No passing certification or unverified badge ID is asserted
++here.
+ 
+ ## Other low checks
+ 
+diff --git a/security-insights.yml b/security-insights.yml
+index dad664f97aab25569d5a3026dd72212ff00ad33c..21b7772e69601221d2663d693f9bb626e763b27e 100644
+--- a/security-insights.yml
++++ b/security-insights.yml
+@@ -3,8 +3,8 @@
+ # `header.last-reviewed` when the posture changes, not on a calendar.
+ header:
+   schema-version: 2.2.0
+-  last-updated: '2026-10-23'
+-  last-reviewed: '2026-10-23'
++  last-updated: '2026-10-29'
++  last-reviewed: '2026-10-29'
+   url: https://raw.githubusercontent.com/Tyler-R-Kendrick/OpenSesame/main/security-insights.yml
+   comment: |
+     OpenSesame is an authorization fabric for the agentic era: agents hold
+@@ -50,9 +50,10 @@ project:
+       - denial of service against the Pages origin (static GitHub Pages)
+       - the mock upstream IdP (tools/mock-upstream-idp) — local dev only
+     comment: |
+-      Reports are acknowledged within 3 business days and assessed within 10
+-      (SECURITY.md). Every confirmed finding is recorded as a dated document
+-      under docs/security/audits/ rather than by editing history.
++      Reports are acknowledged within 3 business days. We aim for an initial
++      assessment within 10 business days and respond to every report within
++      14 days or less (SECURITY.md). Dated audit notes are retained under
++      docs/security/audits/; GitHub security findings may also remain open.
+ 
+ repository:
+   url: https://github.com/Tyler-R-Kendrick/OpenSesame
+@@ -77,21 +78,28 @@ repository:
+   release:
+     automated-pipeline: true
+     attestations:
+-      - name: Release kit build provenance
+-        predicate-uri: https://slsa.dev/provenance/v1
++      - name: Candidate build provenance
++        predicate-uri: https://opensesame.dev/attestations/candidate-build/v1
+         location: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
+         comment: |
+-          A pushed v* tag builds the native binaries, publishes them as a
+-          GitHub release with a SHA256SUMS over every file, and issues a
+-          build-provenance attestation for each (ADR 0212). Consumers
+-          verify with --signer-workflow and --source-ref refs/tags/<tag>.
++          The configured candidate builder signs the source identity and
++          payload checksums. Release qualification and environment protection
++          must be satisfied before promotion; a tag push alone does not publish.
++          The release guide documents verification and the previous tag-based
++          contract for older releases.
++      - name: Release promotion evidence
++        predicate-uri: https://opensesame.dev/attestations/release-promotion/v1
++        location: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
++        comment: |
++          The configured publisher signs SHA256SUMS and the qualification
++          evidence separately from the original build attestation.
+     distribution-points:
+       - uri: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
+-        comment: GitHub Releases — release-kit binaries with SHA256SUMS and provenance
++        comment: GitHub Releases — qualified release kits, checksums and provenance
+       - uri: https://ghcr.io/tyler-r-kendrick/opensesame
+-        comment: The host container image, published by publish-containers.yml
++        comment: Host container image location; the previous publisher is retired.
+       - uri: https://tyler-r-kendrick.github.io/OpenSesame/
+-        comment: The offline Pages PWA, deployed from main by deploy-pages.yml
++        comment: The offline Pages PWA; the configured release workflow promotes qualified Pages bytes.
+   security:
+     assessments:
+       self:
+@@ -100,14 +108,8 @@ repository:
+         comment: |
+           The standing self-assessment is the security documentation set:
+           security-boundaries.md (13 numbered separations), threat-model.md
+-          and its per-surface addenda, and key-hierarchy.md.
+-      third-party:
+-        - evidence: https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/docs/security/audits
+-          date: '2026-10-23'
+-          comment: |
+-            The append-only audit record: dated documents, one per found-and-
+-            fixed vulnerability, written by scheduled agent security reviews
+-            and human passes. Each names the gate that caught it.
++          and its per-surface addenda, and key-hierarchy.md. Dated audit notes
++          are retained under docs/security/audits/.
+     champions:
+       - name: Tyler Kendrick
+         primary: true
+@@ -120,15 +122,15 @@ repository:
+           - .github/codeql/codeql-config.yml
+         version: github/codeql-action v4
+         integration:
+-          adhoc: false
++          adhoc: true
+           ci: true
+-          release: false
++          release: true
+         results:
+           ci:
+             name: Code scanning (CodeQL)
+             predicate-uri: https://intoto.SAST
+             location: https://github.com/Tyler-R-Kendrick/OpenSesame/security/code-scanning
+-            comment: Runs on every pull request and weekly on main.
++            comment: Configured for non-draft pull requests, main, weekly runs and release qualification.
+       - name: OSV-Scanner
+         type: SCA
+         rulesets:
+@@ -137,7 +139,7 @@ repository:
+         integration:
+           adhoc: true
+           ci: true
+-          release: false
++          release: true
+         results:
+           ci:
+             name: Security scanning workflow (weekly OSV pass)
+@@ -153,15 +155,16 @@ repository:
+         integration:
+           adhoc: true
+           ci: true
+-          release: false
++          release: true
+         results:
+           ci:
+             name: Security scanning workflow (weekly gitleaks pass)
+             predicate-uri: https://intoto.SCA
+             location: https://github.com/Tyler-R-Kendrick/OpenSesame/security/code-scanning
+             comment: |
+-              Full history weekly in security.yml; the pre-commit hook scans
+-              every commit as it is made.
++              Full history is scheduled weekly in security.yml. The optional
++              pre-commit hook scans when gitleaks is installed; release
++              qualification requires the strict history gate.
+       - name: cargo-audit / cargo-deny
+         type: SCA
+         rulesets:
+@@ -170,7 +173,7 @@ repository:
+         integration:
+           adhoc: true
+           ci: false
+-          release: false
++          release: true
+         results:
+           adhoc:
+             name: RustSec advisory gate
+@@ -184,15 +187,16 @@ repository:
+         integration:
+           adhoc: true
+           ci: false
+-          release: false
++          release: true
+         results:
+           adhoc:
+             name: Coverage-guided fuzz pass
+             predicate-uri: https://intoto.fuzzing
+             location: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/validation/fuzzing.md
+             comment: |
+-              48 libFuzzer targets; pnpm audit:fuzz per change and the
+-              nightly batch routine; enrolled in hosted OSS-Fuzz per ADR 0211.
++              48 libFuzzer targets; pnpm audit:fuzz and the release batch
++              gate. ADR 0211 describes the in-tree OSS-Fuzz submission pack;
++              acceptance into hosted OSS-Fuzz is not asserted here.
+       - name: Jazzer.js
+         type: fuzzing
+         rulesets:
+@@ -200,7 +204,7 @@ repository:
+         integration:
+           adhoc: true
+           ci: false
+-          release: false
++          release: true
+         results:
+           adhoc:
+             name: TypeScript fuzz pass

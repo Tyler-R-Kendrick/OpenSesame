@@ -1,0 +1,74 @@
+name: OpenSSF docs restack review
+on:
+  push:
+    branches: [review/openssf-docs-restack-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/openssf-docs-restack-20261029'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      PAGES_VERIFY_OUT: ${{ runner.temp }}/docs2199-mobile
+    steps:
+      - name: Checkout exact base
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ac9a724c60e970da7a84fa49e7bd02a271194816
+          persist-credentials: false
+      - name: Checkout review controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          path: work/docs2199-controller
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Apply and verify exact reviewed candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          printf '%s  %s\n' ab4d15f456e65ec20a53cb268571a900dbc0182501b1a7a6c72fce64f497a7ca work/docs2199-controller/.github/verify-inputs/docs2199-restack.patch | sha256sum --check
+          git apply --index work/docs2199-controller/.github/verify-inputs/docs2199-restack.patch
+          test "$(git write-tree)" = 04dc5bcd9b16864f44ed111c420a28792aa43017
+          git diff --exit-code
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check formatting, Typescript and support keyboard tests
+        run: |
+          set -euo pipefail
+          pnpm exec biome check apps/pages/scripts/lib/mobile-gates.mjs apps/pages/scripts/verify-mobile.mjs apps/pages/src/screens/unlock/ReleaseNotes.test.tsx apps/pages/src/screens/unlock/project-navigation.test.tsx apps/pages/src/tutorial/__tests__/a11y/harness.tsx apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx apps/pages/src/tutorial/ui/ProjectLinks.tsx apps/pages/src/tutorial/ui/SupportLauncher.tsx apps/pages/src/tutorial/ui/SupportPanel.tsx apps/pages/src/tutorial/ui/gate-help.test.tsx apps/pages/src/tutorial/ui/project-links.test.tsx
+          pnpm --filter @opensesame/pages typecheck
+          pnpm --filter @opensesame/pages exec vitest run src/screens/unlock/ReleaseNotes.test.tsx src/screens/unlock/project-navigation.test.tsx src/tutorial/__tests__/a11y/keyboard-operability.test.tsx src/tutorial/ui/gate-help.test.tsx src/tutorial/ui/project-links.test.tsx
+      - name: Reuse normal pinned native distribution cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Build real Pages distribution
+        run: pnpm --filter @opensesame/pages build
+      - name: Run mobile walk including keyboard and target geometry
+        run: |
+          set -euo pipefail
+          test -z "${MOBILE_SIZES:-}"
+          pnpm --filter @opensesame/pages verify:mobile
+      - name: Verify candidate tree after checks
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          test "$(git write-tree)" = 04dc5bcd9b16864f44ed111c420a28792aa43017
+          git diff --exit-code
+      - name: Retain mobile review evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: openssf-docs-mobile-review
+          path: ${{ env.PAGES_VERIFY_OUT }}
+          retention-days: 14
+          if-no-files-found: warn
