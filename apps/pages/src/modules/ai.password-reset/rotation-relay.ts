@@ -3,12 +3,18 @@ import type { PasswordResetReadiness } from "@opensesame/app-core/lib/password-r
 import { dispatchPasswordResetRotation } from "@opensesame/app-core/lib/password-reset/rotation-handoff.js";
 import { passwordResetHandOffSeams } from "@opensesame/app-core/lib/password-reset/rotation-handoff.js";
 import {
+  type AgentRunView,
+  startResetRunNoticeBridge,
+} from "@opensesame/app-core/lib/password-reset/run-notice-bridge.js";
+import {
   type RotationEvent,
   type RotationRelayResult,
   rotationSeams,
 } from "@opensesame/app-core/lib/vault/rotation-relay.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-async function postRotation(origin: string): Promise<boolean> {
+async function postRotation(
+  origin: string,
+): Promise<{ accepted: boolean; jobId: string | null }> {
   try {
     const response = await hostFetch("/api/v1/rotations", {
       method: "POST",
@@ -18,9 +24,18 @@ async function postRotation(origin: string): Promise<boolean> {
         execute_now: true,
       }),
     });
-    return response.ok;
+    if (!response.ok) return { accepted: false, jobId: null };
+    const body: unknown = await response.json().catch(() => null);
+    const jobId =
+      body !== null &&
+      typeof body === "object" &&
+      "id" in body &&
+      typeof (body as { id: unknown }).id === "string"
+        ? (body as { id: string }).id
+        : null;
+    return { accepted: true, jobId };
   } catch {
-    return false;
+    return { accepted: false, jobId: null };
   }
 }
 
@@ -50,5 +65,47 @@ export function installPasswordResetRotationRelay(
   return () => {
     rotationSeams.relay = previousRelay;
     passwordResetHandOffSeams.handOff = previousHandOff;
+  };
+}
+
+/** Background job: mirror Host run state into the notice tray + toasts. */
+export function createHostResetRunNoticeBridge(): {
+  start(signal: AbortSignal): void;
+} {
+  return {
+    start(signal: AbortSignal): void {
+      const stop = startResetRunNoticeBridge({
+        listAgentRuns: async (): Promise<AgentRunView[]> => {
+          const response = await hostFetch("/api/v1/agent/runs");
+          if (!response.ok) throw new Error("agent runs unavailable");
+          const body: unknown = await response.json();
+          if (
+            body !== null &&
+            typeof body === "object" &&
+            "runs" in body &&
+            Array.isArray((body as { runs: unknown }).runs)
+          ) {
+            return (body as { runs: AgentRunView[] }).runs;
+          }
+          return [];
+        },
+        getRotationJob: async (jobId: string) => {
+          const response = await hostFetch(
+            `/api/v1/rotations/${encodeURIComponent(jobId)}`,
+          );
+          if (!response.ok) return null;
+          const body: unknown = await response.json().catch(() => null);
+          if (body !== null && typeof body === "object" && "id" in body) {
+            return body as { id: string; status?: string };
+          }
+          return null;
+        },
+      });
+      if (signal.aborted) {
+        stop();
+        return;
+      }
+      signal.addEventListener("abort", stop, { once: true });
+    },
   };
 }

@@ -7,12 +7,19 @@ import type { VaultItem } from "@opensesame/vault-core";
 import { accountWebLoginOrigin } from "../vault/rotation-queue.js";
 import type { RotationEvent } from "../vault/rotation-queue.js";
 import type { RotationRelayResult } from "../vault/rotation-relay.js";
+import { resetRotationActive } from "./rotation-handoff-active.js";
 import {
   setVaultResetRunPhase,
   vaultResetRunFor,
 } from "./vault-run-tracker.js";
 
-export type PasswordResetHandOff = (origin: string) => Promise<boolean>;
+export type PasswordResetHandOffResult =
+  | boolean
+  | { accepted: boolean; jobId?: string | null };
+
+export type PasswordResetHandOff = (
+  origin: string,
+) => Promise<PasswordResetHandOffResult>;
 
 export type PasswordResetHandOffSeams = {
   handOff: PasswordResetHandOff | null;
@@ -28,10 +35,10 @@ export async function dispatchPasswordResetRotation(
   now = new Date(),
 ): Promise<RotationRelayResult> {
   const existing = vaultResetRunFor(event.scope, event.itemId);
-  if (existing?.phase === "in-progress") {
+  if (resetRotationActive(existing)) {
     return { ok: false, detail: "A password reset is already running." };
   }
-  setVaultResetRunPhase(event.scope, event.itemId, "queued", null, now);
+  setVaultResetRunPhase(event.scope, event.itemId, "queued", null, now, null);
   const origin = item?.kind === "account" ? accountWebLoginOrigin(item) : null;
   if (!origin) {
     setVaultResetRunPhase(
@@ -57,11 +64,30 @@ export async function dispatchPasswordResetRotation(
       detail: "Password reset is not wired on this device.",
     };
   }
-  setVaultResetRunPhase(event.scope, event.itemId, "in-progress", null, now);
+  setVaultResetRunPhase(
+    event.scope,
+    event.itemId,
+    "in-progress",
+    null,
+    now,
+    null,
+  );
   try {
-    const accepted = await handOff(origin);
+    const result = await handOff(origin);
+    const accepted = typeof result === "boolean" ? result : result.accepted;
+    const jobId = typeof result === "boolean" ? null : (result.jobId ?? null);
     if (accepted) {
-      setVaultResetRunPhase(event.scope, event.itemId, "done", null, now);
+      // Accepted is not done: the ceremony runs on the Host from here. The
+      // queue event is consumed, but the run stays in-progress (with its
+      // job id) until the notice bridge observes the terminal job status.
+      setVaultResetRunPhase(
+        event.scope,
+        event.itemId,
+        "in-progress",
+        null,
+        now,
+        jobId,
+      );
       return { ok: true };
     }
     setVaultResetRunPhase(
