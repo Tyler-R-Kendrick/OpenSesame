@@ -1,0 +1,2753 @@
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorRecovery.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorRecovery.tsx
+index 5de84c723..5c38d6aa2 100644
+--- a/apps/pages/src/sections/connections/connect/NativeConnectorRecovery.tsx
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorRecovery.tsx
+@@ -1,6 +1,6 @@
+ import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
+ import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
+-import { useState } from "react";
++import { useEffect, useState } from "react";
+ import { FormCommit } from "../../../components/FormCommit.js";
+ import { IconKey } from "../../../components/IconKey.js";
+ import { IconRefresh } from "../../../components/Icons.js";
+@@ -9,6 +9,7 @@ import { nativeError, nativePublicUrl } from "./native-connector-ui-values.js";
+ import type {
+   NativeConnectorCallbacks,
+   NativeConnectorController,
++  NativeRevocationGuide,
+ } from "./native-connector-ui.js";
+ 
+ function NativeRevocationConfirmation({
+@@ -16,14 +17,68 @@ function NativeRevocationConfirmation({
+   controller,
+   disabled,
+   onConfirm,
++  revision,
++  attempt,
+ }: {
+   entry: NativeConnectorView["recovery"][number];
+   controller: NativeConnectorController;
+   disabled: boolean;
+-  onConfirm: (id: string) => void;
++  onConfirm: (id: string, guideRevision?: number) => void;
++  revision: number;
++  attempt: number;
+ }) {
+   const [acknowledged, setAcknowledged] = useState(false);
+-  const instructions = controller.revocationInstructions?.(entry.id);
++  const synchronous = controller.revocationInstructions?.(entry.id);
++  const [loaded, setLoaded] = useState<{
++    revision: number;
++    attempt: number;
++    guide: NativeRevocationGuide | null;
++  } | null>(null);
++  const [loadError, setLoadError] = useState(false);
++  const [retry, setRetry] = useState(0);
++  useEffect(() => {
++    setAcknowledged(false);
++    setLoaded(null);
++    setLoadError(false);
++    if (synchronous || !controller.loadRevocationInstructions) return;
++    let current = true;
++    Promise.resolve()
++      .then(() =>
++        current
++          ? (controller.loadRevocationInstructions?.(entry.id) ?? null)
++          : null,
++      )
++      .then((guide) => {
++        if (current) setLoaded({ revision, attempt, guide });
++      })
++      .catch(() => {
++        if (current) setLoadError(true);
++      });
++    return () => {
++      current = false;
++    };
++  }, [controller, entry.id, revision, attempt, retry, !!synchronous]);
++  const instructions =
++    synchronous ??
++    (loaded?.revision === revision && loaded.attempt === attempt
++      ? loaded.guide
++      : null);
++  if (!instructions && loadError)
++    return (
++      <div>
++        <StatusMark
++          tone="warn"
++          label="Provider revocation guide is unavailable. Try again after the authorization operation finishes."
++        />
++        <button
++          type="button"
++          disabled={disabled}
++          onClick={() => setRetry((value) => value + 1)}
++        >
++          Retry provider revocation guide
++        </button>
++      </div>
++    );
+   if (!instructions) return null;
+   const url = nativePublicUrl(instructions.url);
+   if (!url) return null;
+@@ -56,12 +111,12 @@ function NativeRevocationConfirmation({
+           !instructions.canConfirm ||
+           !controller.confirmRevocation
+         }
+-        onClick={() => onConfirm(entry.id)}
++        onClick={() => onConfirm(entry.id, instructions.revision)}
+       />
+       {!instructions.canConfirm ? (
+         <StatusMark
+           tone="warn"
+-          label="A provider authorization operation is still pending. Wait for it to finish, then retry cleanup."
++          label="This provider authorization requires recovery before confirmation. Review the guide and retry cleanup."
+         />
+       ) : null}
+     </fieldset>
+@@ -81,20 +136,22 @@ export function NativeConnectorRecovery({
+ }) {
+   const [busy, setBusy] = useState(false);
+   const [failure, setFailure] = useState("");
+-  async function recover(id: string, confirm = false) {
++  const [attempt, setAttempt] = useState(0);
++  async function recover(id: string, confirm = false, guideRevision?: number) {
+     if (busy || disabled) return;
+     setBusy(true);
+     setFailure("");
+     try {
+       if (confirm) {
+-        if (
+-          !controller.confirmRevocation ||
+-          !controller.revocationInstructions?.(id)?.canConfirm
+-        )
+-          return;
+-        await controller.confirmRevocation(id);
++        if (!controller.confirmRevocation) return;
++        const synchronous = controller.revocationInstructions?.(id);
++        if (synchronous && !synchronous.canConfirm) return;
++        if (guideRevision === undefined && !synchronous?.canConfirm) return;
++        if (guideRevision === undefined) await controller.confirmRevocation(id);
++        else await controller.confirmRevocation(id, guideRevision);
+       } else await controller.retry(id);
+     } catch (error) {
++      if (confirm) setAttempt((value) => value + 1);
+       const text = nativeError(errorText(error), {});
+       setFailure(text);
+       onFlash({ tone: "err", text });
+@@ -124,7 +181,11 @@ export function NativeConnectorRecovery({
+             entry={entry}
+             controller={controller}
+             disabled={busy || disabled}
+-            onConfirm={(id) => void recover(id, true)}
++            revision={view.revision}
++            attempt={attempt}
++            onConfirm={(id, guideRevision) =>
++              void recover(id, true, guideRevision)
++            }
+           />
+         </div>
+       ))}
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorRevocation.test.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorRevocation.test.tsx
+index 78122427f..d76f3cd2c 100644
+--- a/apps/pages/src/sections/connections/connect/NativeConnectorRevocation.test.tsx
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorRevocation.test.tsx
+@@ -1,6 +1,7 @@
+ /** @vitest-environment jsdom */
+ import { cleanup, render, screen, waitFor } from "@testing-library/react";
+ import userEvent from "@testing-library/user-event";
++import { StrictMode } from "react";
+ import { afterEach, expect, it, vi } from "vitest";
+ import { NativeConnectorRecovery } from "./NativeConnectorRecovery.js";
+ import { nativeVerified } from "./native-connector-ui-values.js";
+@@ -174,7 +175,7 @@ it("refuses confirmation while the driver's operation deadline is still live", a
+   expect(controller.confirmRevocation).not.toHaveBeenCalled();
+   expect(
+     screen.getByRole("img", {
+-      name: /A provider authorization operation is still pending/,
++      name: /This provider authorization requires recovery before confirmation/,
+     }),
+   ).toBeTruthy();
+   expect(nativeVerified(view)).toBe(false);
+@@ -205,3 +206,146 @@ it("does not offer attestation through an unsafe external settings URL", () => {
+   ).toBeNull();
+   expect(controller.confirmRevocation).not.toHaveBeenCalled();
+ });
++
++it("waits for the MCP guide and confirms with the revision the user saw", async () => {
++  const { view, controller: base } = revocationContext();
++  view.configuration.method = "mcp";
++  let resolveGuide: (guide: {
++    url: string;
++    message: string;
++    canConfirm: boolean;
++    revision: number;
++  }) => void = () => {};
++  const guide = new Promise<{
++    url: string;
++    message: string;
++    canConfirm: boolean;
++    revision: number;
++  }>((resolve) => {
++    resolveGuide = resolve;
++  });
++  const confirmRevocation = vi.fn(
++    async (_id: string, _revision?: number) => view,
++  );
++  const controller: NativeConnectorController = {
++    ...base,
++    revocationInstructions: () => null,
++    loadRevocationInstructions: () => guide,
++    confirmRevocation,
++  };
++  render(
++    <NativeConnectorRecovery
++      view={view}
++      controller={controller}
++      onChanged={vi.fn()}
++      onFlash={vi.fn()}
++    />,
++  );
++  expect(
++    screen.queryByRole("link", {
++      name: "Open provider revocation instructions",
++    }),
++  ).toBeNull();
++  expect(
++    screen.queryByRole("button", { name: "Confirm provider revocation" }),
++  ).toBeNull();
++  resolveGuide({
++    url: "https://www.spotify.com/account/apps/",
++    message: "Revoke this application before confirming.",
++    canConfirm: true,
++    revision: 37,
++  });
++  const statement = await screen.findByRole("checkbox", {
++    name: "I revoked this application at the provider",
++  });
++  await userEvent.click(statement);
++  await userEvent.click(
++    screen.getByRole("button", { name: "Confirm provider revocation" }),
++  );
++  await waitFor(() =>
++    expect(confirmRevocation).toHaveBeenCalledWith("authorization-1", 37),
++  );
++});
++
++it("clears the acknowledgement after a stale MCP confirmation is refused", async () => {
++  const { view, controller: base } = revocationContext();
++  view.configuration.method = "mcp";
++  let revision = 37;
++  const confirmRevocation = vi.fn(async (_id: string, _revision?: number) => {
++    revision = 38;
++    throw new Error(
++      "Provider authorization changed. Retry provider revocation.",
++    );
++  });
++  const loadRevocationInstructions = vi.fn(async () => ({
++    url: "https://www.spotify.com/account/apps/",
++    message: "Revoke this application before confirming.",
++    canConfirm: true,
++    revision,
++  }));
++  const controller: NativeConnectorController = {
++    ...base,
++    revocationInstructions: () => null,
++    loadRevocationInstructions,
++    confirmRevocation,
++  };
++  render(
++    <NativeConnectorRecovery
++      view={view}
++      controller={controller}
++      onChanged={vi.fn()}
++      onFlash={vi.fn()}
++    />,
++  );
++  await userEvent.click(
++    await screen.findByRole("checkbox", {
++      name: "I revoked this application at the provider",
++    }),
++  );
++  await userEvent.click(
++    screen.getByRole("button", { name: "Confirm provider revocation" }),
++  );
++  await waitFor(() =>
++    expect(confirmRevocation).toHaveBeenCalledWith("authorization-1", 37),
++  );
++  await waitFor(() =>
++    expect(loadRevocationInstructions).toHaveBeenCalledTimes(2),
++  );
++  const freshStatement = await screen.findByRole("checkbox", {
++    name: "I revoked this application at the provider",
++  });
++  expect(freshStatement).toHaveProperty("checked", false);
++  expect(
++    screen.getByRole("button", { name: "Confirm provider revocation" }),
++  ).toHaveProperty("disabled", true);
++  expect(view.recovery).toHaveLength(1);
++});
++
++it("loads one MCP guide under Strict Mode effect replay", async () => {
++  const { view, controller: base } = revocationContext();
++  view.configuration.method = "mcp";
++  const load = vi.fn(async () => ({
++    url: "https://www.spotify.com/account/apps/",
++    message: "Revoke this application before confirming.",
++    canConfirm: true,
++    revision: 37,
++  }));
++  render(
++    <StrictMode>
++      <NativeConnectorRecovery
++        view={view}
++        controller={{
++          ...base,
++          revocationInstructions: () => null,
++          loadRevocationInstructions: load,
++        }}
++        onChanged={vi.fn()}
++        onFlash={vi.fn()}
++      />
++    </StrictMode>,
++  );
++  await screen.findByRole("checkbox", {
++    name: "I revoked this application at the provider",
++  });
++  expect(load).toHaveBeenCalledTimes(1);
++});
+diff --git a/apps/pages/src/sections/connections/connect/native-connector-controller.ts b/apps/pages/src/sections/connections/connect/native-connector-controller.ts
+index 3fe562361..677ced2d6 100644
+--- a/apps/pages/src/sections/connections/connect/native-connector-controller.ts
++++ b/apps/pages/src/sections/connections/connect/native-connector-controller.ts
+@@ -177,8 +177,7 @@ function nativeRecoveryControls(
+       const view = read();
+       const entry = view?.recovery.find((item) => item.id === recoveryId);
+       if (!view || !entry) return null;
+-      if (view.configuration.method === "mcp")
+-        return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
++      if (view.configuration.method === "mcp") return null;
+       if (
+         view.configuration.method === "oidc" &&
+         ["vault", "openbao"].includes(view.providerId)
+@@ -196,12 +195,30 @@ function nativeRecoveryControls(
+           )
+         : null;
+     },
+-    confirmRevocation: async (recoveryId: string) => {
++    loadRevocationInstructions: async (recoveryId: string) => {
++      const view = read();
++      if (
++        view?.configuration.method !== "mcp" ||
++        !view.recovery.some((entry) => entry.id === recoveryId)
++      )
++        return null;
++      return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
++    },
++    confirmRevocation: async (recoveryId: string, guideRevision?: number) => {
+       const view = required();
+-      if (view.configuration.method === "mcp")
++      if (view.configuration.method === "mcp") {
++        if (guideRevision === undefined)
++          throw new Error(
++            "Review the provider revocation guide before confirming",
++          );
+         return retain(
+-          await attestNativeMcpRevocation(view.connectionId, recoveryId),
++          await attestNativeMcpRevocation(
++            view.connectionId,
++            recoveryId,
++            guideRevision,
++          ),
+         );
++      }
+       if (
+         view.configuration.method === "oidc" &&
+         ["vault", "openbao"].includes(view.providerId)
+diff --git a/apps/pages/src/sections/connections/connect/native-connector-ui.ts b/apps/pages/src/sections/connections/connect/native-connector-ui.ts
+index 9a331920d..4d0a92306 100644
+--- a/apps/pages/src/sections/connections/connect/native-connector-ui.ts
++++ b/apps/pages/src/sections/connections/connect/native-connector-ui.ts
+@@ -103,6 +103,14 @@ export type SafeActionResult = {
+   }[];
+ };
+ 
++export type NativeRevocationGuide = {
++  url: string;
++  message: string;
++  canConfirm: boolean;
++  acknowledgementLabel?: string;
++  revision?: number;
++};
++
+ /** The owner pins these operations to one provider and configuration revision. */
+ export type NativeConnectorController = {
+   cancelAuthorization: () => void;
+@@ -119,13 +127,14 @@ export type NativeConnectorController = {
+     signal?: AbortSignal,
+   ) => Promise<SafeActionResult>;
+   retry: (recoveryId: string) => Promise<NativeConnectorView>;
+-  revocationInstructions?: (recoveryId: string) => {
+-    url: string;
+-    message: string;
+-    canConfirm: boolean;
+-    acknowledgementLabel?: string;
+-  } | null;
+-  confirmRevocation?: (recoveryId: string) => Promise<NativeConnectorView>;
++  revocationInstructions?: (recoveryId: string) => NativeRevocationGuide | null;
++  loadRevocationInstructions?: (
++    recoveryId: string,
++  ) => Promise<NativeRevocationGuide | null>;
++  confirmRevocation?: (
++    recoveryId: string,
++    guideRevision?: number,
++  ) => Promise<NativeConnectorView>;
+   remove: () => Promise<void>;
+ };
+ 
+diff --git a/packages/app-core/src/lib/native-mcp-attestation.ts b/packages/app-core/src/lib/native-mcp-attestation.ts
+index db6fe6f4f..13e2b1e46 100644
+--- a/packages/app-core/src/lib/native-mcp-attestation.ts
++++ b/packages/app-core/src/lib/native-mcp-attestation.ts
+@@ -1,7 +1,12 @@
+ /** Human provider-side recovery resolves uncertainty; it never asserts a working connection. */
+ import { connectPlan } from "./connect-plan.js";
+-import { updateNativeConnector } from "./native-connector-store.js";
++import {
++  assertNativeConnectorRevision,
++  updateNativeConnector,
++} from "./native-connector-store.js";
++import { withNativeMcpMutationLock } from "./native-mcp-mutation-lock.js";
+ import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
++import { forgetRetainedNativeMcpPartialRefresh } from "./native-mcp-partial-refresh.js";
+ import {
+   MCP_CLASSIFICATION,
+   nativeMcpProviderMetadata,
+@@ -18,12 +23,10 @@ export type NativeMcpRevocationGuide = {
+   url: string;
+   message: string;
+   canConfirm: boolean;
++  revision: number;
+ };
+ 
+-export function nativeMcpRevocationInstructions(
+-  id: string,
+-  recoveryId: string,
+-): NativeMcpRevocationGuide {
++function buildGuide(id: string, recoveryId: string): NativeMcpRevocationGuide {
+   const record = requireNativeMcpRecord(id);
+   const entry = record.privateState.recovery.find(
+     (candidate) => candidate.id === recoveryId,
+@@ -41,51 +44,66 @@ export function nativeMcpRevocationInstructions(
+   );
+   const registration =
+     metadata.status === "ok" && metadata.registration === "dcr";
+-  const busy =
+-    nativeOAuthMutationInFlight(id, recoveryId) ||
+-    (["registration", "exchange", "refresh"].includes(
+-      entry.credentials?.phase ?? "",
+-    ) &&
+-      Number(entry.credentials?.deadline) > Date.now());
++  const busy = nativeOAuthMutationInFlight(id, recoveryId);
+   const where = plan.docsUrl
+     ? `Open ${plan.name}'s official documentation and authorization settings`
+     : `Open the MCP server address this connection used (no documentation link is known for ${plan.name}) and find its authorization settings in your ${plan.name} account`;
+   return {
+     url: plan.docsUrl ?? metadata.url,
+-    message: `${where}. Revoke application access for this connection${registration ? " and remove its OpenSesame public client registration" : ""}. Confirm only after completing that provider action. This human confirmation clears local authorization; it does not verify provider revocation or a working connection.`,
+-    canConfirm: !busy,
++    message: `${where}. Revoke application access for this connection${registration ? " and remove its OpenSesame public client registration" : ""}. Confirm only after completing that provider action. Uncertain issuance remains in recovery because the provider could still finish a submitted request. Confirmation clears local authorization only for settled obligations; it does not verify provider revocation or a working connection.`,
++    canConfirm:
++      !busy &&
++      !["registration", "exchange", "refresh"].includes(
++        entry.credentials?.phase ?? "",
++      ),
++    revision: record.revision,
+   };
+ }
++export async function nativeMcpRevocationInstructions(
++  id: string,
++  recoveryId: string,
++): Promise<NativeMcpRevocationGuide> {
++  return withNativeMcpMutationLock(id, async () => {
++    const initial = requireNativeMcpRecord(id);
++    await assertNativeConnectorRevision(id, nativeOAuthGuard(initial));
++    return buildGuide(id, recoveryId);
++  });
++}
+ export async function attestNativeMcpRevocation(
+   id: string,
+   recoveryId: string,
++  revision: number,
+ ) {
+-  if (!nativeMcpRevocationInstructions(id, recoveryId).canConfirm)
+-    throw new NativeMcpAuthError("pending");
+-  const initial = requireNativeMcpRecord(id);
+-  const result = await updateNativeConnector(
+-    id,
+-    nativeOAuthGuard(initial),
+-    MCP_CLASSIFICATION,
+-    (record) => {
+-      const entry = record.privateState.recovery.find(
+-        (candidate) => candidate.id === recoveryId,
+-      );
+-      if (!entry || nativeOAuthMutationInFlight(id, recoveryId))
+-        throw new NativeMcpAuthError("pending");
+-      record.privateState.recovery = record.privateState.recovery.filter(
+-        (candidate) => candidate.id !== recoveryId,
+-      );
+-      record.privateState.grants = {};
+-      record.privateState.pending = {};
+-      record.privateState.credentials = {};
+-      record.privateState.verification = null;
+-      record.runtime.verifiedAt = null;
+-      record.runtime.grants = [];
+-      return record;
+-    },
+-  );
+-  forgetRetainedNativeOAuthGrant(id, recoveryId);
+-  forgetRetainedNativeMcpRegistration(id, recoveryId);
+-  return result;
++  return withNativeMcpMutationLock(id, async () => {
++    if (!buildGuide(id, recoveryId).canConfirm)
++      throw new NativeMcpAuthError("pending");
++    const initial = requireNativeMcpRecord(id);
++    if (initial.revision !== revision) throw new NativeMcpAuthError("pending");
++    const result = await updateNativeConnector(
++      id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (record) => {
++        const entry = record.privateState.recovery.find(
++          (candidate) => candidate.id === recoveryId,
++        );
++        if (!entry || nativeOAuthMutationInFlight(id, recoveryId))
++          throw new NativeMcpAuthError("pending");
++        record.privateState.recovery = record.privateState.recovery.filter(
++          (candidate) => candidate.id !== recoveryId,
++        );
++        record.privateState.grants = {};
++        record.privateState.pending = {};
++        record.privateState.credentials = {};
++        record.privateState.verification = null;
++        record.runtime.verifiedAt = null;
++        record.runtime.grants = [];
++        return record;
++      },
++    );
++    forgetRetainedNativeMcpPartialRefresh(id, recoveryId);
++    forgetRetainedNativeOAuthGrant(id, recoveryId);
++    forgetRetainedNativeMcpRegistration(id, recoveryId);
++    return result;
++  });
+ }
+diff --git a/packages/app-core/src/lib/native-mcp-authorization.ts b/packages/app-core/src/lib/native-mcp-authorization.ts
+index 01a3f12a0..5bee32b16 100644
+--- a/packages/app-core/src/lib/native-mcp-authorization.ts
++++ b/packages/app-core/src/lib/native-mcp-authorization.ts
+@@ -10,9 +10,18 @@ import {
+   nativeProviderTransport,
+ } from "./native-connector-transport.js";
+ import { discardNativeConsent } from "./native-consent-cancel.js";
++import { withNativeMcpMutationLock } from "./native-mcp-mutation-lock.js";
+ import type { NativeMcpOAuthTarget } from "./native-mcp-oauth-target.js";
+ import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
+-import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
++import {
++  type NativeMcpOAuthPorts,
++  NativeMcpPublicOAuth,
++} from "./native-mcp-oauth.js";
++import {
++  releaseNativeMcpPartialReservation,
++  reserveNativeMcpPartialRefresh,
++  retainNativeMcpPartialRefresh,
++} from "./native-mcp-partial-refresh.js";
+ import {
+   MCP_CLASSIFICATION,
+   nativeMcpClassification,
+@@ -38,23 +47,32 @@ import {
+ } from "./native-oauth-browser-port.js";
+ import {
+   claimNativeOAuthPending,
++  findNativeOAuthPending,
+   journalNativeOAuthGrant,
+   markNativeOAuthMutationInFlight,
+   nativeOAuthCallbackTarget,
+   nativeOAuthGuard,
++  nativeOAuthObligation,
++  parseNativeOAuthCallback,
+ } from "./native-oauth-session.js";
+ 
+ function oauth(
+   id: string,
+   transport: NativeProviderTransport,
+   browser: NativeOAuthBrowserPort,
++  retainPartialRefresh?: (token: string) => Promise<void>,
+ ): NativeMcpPublicOAuth {
++  const ports: NativeMcpOAuthPorts = {
++    ...transport,
++    signal: new AbortController().signal,
++  };
++  if (retainPartialRefresh) ports.retainPartialRefresh = retainPartialRefresh;
+   return new NativeMcpPublicOAuth(
+     nativeMcpRecordOAuthTarget(
+       requireNativeMcpRecord(id).configuration,
+       browser,
+     ),
+-    { ...transport, signal: new AbortController().signal },
++    ports,
+   );
+ }
+ function randomState(): string {
+@@ -82,7 +100,7 @@ async function sealMcpConsent({
+   protocol,
+   transport,
+   browser,
+-}: McpConsentContext): Promise<void> {
++}: McpConsentContext) {
+   const state = randomState();
+   const consent = await protocol.consent(client, state);
+   const current = requireNativeMcpRecord(id);
+@@ -116,19 +134,11 @@ async function sealMcpConsent({
+     },
+   );
+   transport.assertCurrent();
+-  if (browser.authorize) {
+-    let callback: string;
+-    try {
+-      callback = await browser.authorize(consent.authorizationUrl.href, {
+-        state: pending.state,
+-        expiresAt: pending.expiresAt,
+-      });
+-    } catch (error) {
+-      await discardNativeConsent(id, pending.state, MCP_CLASSIFICATION);
+-      throw error;
+-    }
+-    await finishNativeMcpAuthorization(callback, transport);
+-  } else browser.navigate(consent.authorizationUrl.href);
++  return {
++    url: consent.authorizationUrl.href,
++    state: pending.state,
++    expiresAt: pending.expiresAt,
++  };
+ }
+ 
+ /** Registration is a credential mutation: seal an obligation before sending it. */
+@@ -144,85 +154,91 @@ export async function beginNativeMcpAuthorization(
+   );
+   if (actor !== "user") throw new NativeMcpAuthError("public-client");
+   const browser = nativeOAuthBrowserPort();
+-  await prepareNativeMcpAuthorization(id, transport);
+-  const initial = requireNativeMcpRecord(id);
+-  await assertNativeMcpContract(initial);
+-  if (
+-    Object.keys(initial.privateState.pending).length ||
+-    initial.privateState.grants.user
+-  )
+-    throw new Error(
+-      "Finish existing provider authorization cleanup before starting consent",
+-    );
+-  const target = nativeMcpRecordOAuthTarget(initial.configuration, browser);
+-  const existing = initial.privateState.recovery[0];
+-  const obligation: NativeRecovery = existing ?? {
+-    id: `registration:${crypto.randomUUID()}`,
+-    kind: "registration",
+-    providerId: target.binding.providerId,
+-    actor,
+-    fingerprint: target.binding.fingerprint,
+-    targetId: target.binding.resource,
+-    issuer: target.binding.issuer ?? undefined,
+-    resource: target.binding.resource,
+-    endpoint: target.binding.endpoint,
+-    credentials: {
+-      phase: "registration",
+-      deadline: String(Date.now() + 60_000),
+-    },
+-  };
+-  if (!existing) {
+-    await updateNativeConnector(
+-      id,
+-      nativeOAuthGuard(initial),
+-      MCP_CLASSIFICATION,
+-      (record) => {
+-        transport.assertCurrent();
+-        record.privateState.recovery.push(obligation);
+-        record.privateState.verification = null;
+-        return record;
+-      },
+-    );
+-  }
+-  assertNativeMcpRegistrationCapacity(id);
+-  const release = markNativeOAuthMutationInFlight(id, obligation.id);
+-  try {
+-    const protocol = oauth(id, transport, browser);
+-    const client = initial.privateState.credentials.mcp_client
+-      ? nativeMcpClient(initial)
+-      : await admitNativeMcpRegistration(id, obligation, target, transport);
+-    await sealMcpConsent({
+-      id,
++  const consent = await withNativeMcpMutationLock(id, async () => {
++    await prepareNativeMcpAuthorization(id, transport);
++    const initial = requireNativeMcpRecord(id);
++    await assertNativeMcpContract(initial);
++    if (
++      Object.keys(initial.privateState.pending).length ||
++      initial.privateState.grants.user
++    )
++      throw new Error(
++        "Finish existing provider authorization cleanup before starting consent",
++      );
++    const target = nativeMcpRecordOAuthTarget(initial.configuration, browser);
++    const existing = initial.privateState.recovery[0];
++    const obligation: NativeRecovery = existing ?? {
++      id: `registration:${crypto.randomUUID()}`,
++      kind: "registration",
++      providerId: target.binding.providerId,
+       actor,
+-      obligationId: obligation.id,
+-      client,
+-      target,
+-      protocol,
+-      transport,
+-      browser,
+-    });
+-  } finally {
+-    releaseNativeMcpRegistrationReservation(id, obligation.id);
+-    release();
+-  }
++      fingerprint: target.binding.fingerprint,
++      targetId: target.binding.resource,
++      issuer: target.binding.issuer ?? undefined,
++      resource: target.binding.resource,
++      endpoint: target.binding.endpoint,
++      credentials: {
++        phase: "registration",
++        deadline: String(Date.now() + 60_000),
++      },
++    };
++    assertNativeMcpRegistrationCapacity(id);
++    if (!existing) {
++      await updateNativeConnector(
++        id,
++        nativeOAuthGuard(initial),
++        MCP_CLASSIFICATION,
++        (record) => {
++          transport.assertCurrent();
++          record.privateState.recovery.push(obligation);
++          record.privateState.verification = null;
++          return record;
++        },
++      );
++    }
++    const release = markNativeOAuthMutationInFlight(id, obligation.id);
++    try {
++      const protocol = oauth(id, transport, browser);
++      const client = initial.privateState.credentials.mcp_client
++        ? nativeMcpClient(initial)
++        : await admitNativeMcpRegistration(id, obligation, target, transport);
++      return await sealMcpConsent({
++        id,
++        actor,
++        obligationId: obligation.id,
++        client,
++        target,
++        protocol,
++        transport,
++        browser,
++      });
++    } finally {
++      releaseNativeMcpRegistrationReservation(id, obligation.id);
++      release();
++    }
++  });
++  if (browser.authorize) {
++    let callback: string;
++    try {
++      callback = await browser.authorize(consent.url, {
++        state: consent.state,
++        expiresAt: consent.expiresAt,
++      });
++    } catch (error) {
++      await discardNativeConsent(id, consent.state, MCP_CLASSIFICATION);
++      throw error;
++    }
++    await finishNativeMcpAuthorization(callback, transport);
++  } else browser.navigate(consent.url);
+ }
+ 
+-/** Only the shared sealed-state claim chooses the connector/provider/actor. */
+-export async function finishNativeMcpAuthorization(
+-  search: string,
+-  baseTransport: NativeProviderTransport = nativeProviderTransport(),
++async function validateMcpClaim(
++  claim: Awaited<ReturnType<typeof claimNativeOAuthPending>>,
++  preview: NonNullable<ReturnType<typeof findNativeOAuthPending>>,
++  reservationId: string,
++  browser: NativeOAuthBrowserPort,
+ ) {
+-  const transport = captureNativeAuthorizationTransport(baseTransport);
+-  const browser = nativeOAuthBrowserPort();
+-  transport.assertCurrent();
+-  const callbackTarget = nativeOAuthCallbackTarget(search);
+-  if (callbackTarget?.method !== "mcp") throw new NativeMcpAuthError("pending");
+-  assertNativeBrowserMcpPolicy(callbackTarget.providerId);
+-  const { record, pending, obligation, code } = await claimNativeOAuthPending(
+-    search,
+-    MCP_CLASSIFICATION,
+-  );
+-  browser.scrubCallback();
++  const { record, pending, obligation } = claim;
+   if (record.configuration.method !== "mcp")
+     throw new NativeMcpAuthError("pending");
+   await assertNativeMcpContract(record);
+@@ -234,35 +250,139 @@ export async function finishNativeMcpAuthorization(
+     pending.issuer !== target.binding.issuer ||
+     pending.endpoint !== target.binding.endpoint ||
+     pending.clientId !== client.client_id ||
+-    pending.redirectUri !== target.redirectUri
++    pending.redirectUri !== target.redirectUri ||
++    record.connectionId !== preview.record.connectionId ||
++    pending.fingerprint !== preview.pending.fingerprint ||
++    obligation.id !== reservationId
+   )
+     throw new NativeMcpAuthError("pending");
+-  const release = markNativeOAuthMutationInFlight(
+-    record.connectionId,
+-    obligation.id,
++  return client;
++}
++
++async function discardUnsubmittedExchange(
++  id: string,
++  intentId: string,
++): Promise<void> {
++  const current = requireNativeMcpRecord(id);
++  if (!current.privateState.recovery.some((entry) => entry.id === intentId))
++    return;
++  await updateNativeConnector(
++    id,
++    nativeOAuthGuard(current),
++    MCP_CLASSIFICATION,
++    (record) => {
++      record.privateState.recovery = record.privateState.recovery.filter(
++        (entry) => entry.id !== intentId,
++      );
++      return record;
++    },
+   );
+-  try {
+-    const tokens = await oauth(
+-      record.connectionId,
+-      transport,
+-      browser,
+-    ).exchange(client, code, pending.verifier);
+-    const grant = nativeMcpIssuedGrant(pending, tokens);
+-    await journalNativeOAuthGrant(
+-      record.connectionId,
+-      obligation.id,
+-      grant,
+-      nativeMcpClassification,
+-    );
+-    transport.assertCurrent();
+-    if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
+-    return activateNativeMcpGrant(
+-      record.connectionId,
+-      obligation.id,
+-      grant,
+-      transport,
++}
++function trackExchange(
++  transport: NativeProviderTransport,
++  endpoint: string,
++  submitted: () => void,
++): NativeProviderTransport {
++  const track =
++    (send: typeof fetch): typeof fetch =>
++    async (input, init) => {
++      const request = new Request(input, init);
++      if (request.method === "POST" && request.url === endpoint) submitted();
++      return send(request);
++    };
++  const result = { ...transport, fetch: track(transport.fetch) };
++  if (transport.settleCredentialMutation)
++    result.settleCredentialMutation = track(transport.settleCredentialMutation);
++  return result;
++}
++/** Only the shared sealed-state claim chooses the connector/provider/actor. */
++export async function finishNativeMcpAuthorization(
++  search: string,
++  baseTransport: NativeProviderTransport = nativeProviderTransport(),
++) {
++  const transport = captureNativeAuthorizationTransport(baseTransport);
++  const browser = nativeOAuthBrowserPort();
++  transport.assertCurrent();
++  const callbackTarget = nativeOAuthCallbackTarget(search);
++  if (callbackTarget?.method !== "mcp") throw new NativeMcpAuthError("pending");
++  assertNativeBrowserMcpPolicy(callbackTarget.providerId);
++  const preview = findNativeOAuthPending(
++    parseNativeOAuthCallback(search).state,
++  );
++  if (!preview || preview.record.connectionId !== callbackTarget.connectionId)
++    throw new NativeMcpAuthError("pending");
++  return withNativeMcpMutationLock(preview.record.connectionId, async () => {
++    const reservationId = nativeOAuthObligation(preview.pending).id;
++    reserveNativeMcpPartialRefresh(
++      preview.record.connectionId,
++      reservationId,
++      preview.pending.fingerprint,
+     );
+-  } finally {
+-    release();
+-  }
++    let submitted = false;
++    try {
++      const claim = await claimNativeOAuthPending(search, MCP_CLASSIFICATION);
++      browser.scrubCallback();
++      const client = await validateMcpClaim(
++        claim,
++        preview,
++        reservationId,
++        browser,
++      );
++      const { record, pending, obligation, code } = claim;
++      const release = markNativeOAuthMutationInFlight(
++        record.connectionId,
++        obligation.id,
++      );
++      try {
++        const tokens = await oauth(
++          record.connectionId,
++          trackExchange(
++            transport,
++            nativeMcpRecordOAuthTarget(record.configuration, browser).metadata
++              .tokenEndpoint,
++            () => {
++              submitted = true;
++            },
++          ),
++          browser,
++          (token) =>
++            retainNativeMcpPartialRefresh(
++              record.connectionId,
++              obligation.id,
++              token,
++            ),
++        ).exchange(client, code, pending.verifier);
++        const grant = nativeMcpIssuedGrant(pending, tokens);
++        await journalNativeOAuthGrant(
++          record.connectionId,
++          obligation.id,
++          grant,
++          nativeMcpClassification,
++        );
++        transport.assertCurrent();
++        if (!tokens.protocolValid)
++          throw new NativeMcpAuthError("authorization");
++        return activateNativeMcpGrant(
++          record.connectionId,
++          obligation.id,
++          grant,
++          transport,
++        );
++      } finally {
++        release();
++      }
++    } catch (error) {
++      if (!submitted)
++        await discardUnsubmittedExchange(
++          preview.record.connectionId,
++          reservationId,
++        );
++      throw error;
++    } finally {
++      releaseNativeMcpPartialReservation(
++        preview.record.connectionId,
++        reservationId,
++      );
++    }
++  });
+ }
+diff --git a/packages/app-core/src/lib/native-mcp-cleanup.ts b/packages/app-core/src/lib/native-mcp-cleanup.ts
+index 209c82eb9..e40079412 100644
+--- a/packages/app-core/src/lib/native-mcp-cleanup.ts
++++ b/packages/app-core/src/lib/native-mcp-cleanup.ts
+@@ -10,6 +10,7 @@ import {
+ } from "./native-connector-transport.js";
+ import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
+ import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
++import { retryRetainedNativeMcpPartialRefresh } from "./native-mcp-partial-refresh.js";
+ import {
+   MCP_CLASSIFICATION,
+   nativeMcpClassification,
+@@ -29,31 +30,24 @@ import { deleteNativeMcpRegistration } from "./native-mcp-registration-cleanup.j
+ 
+ import { NativeMcpRegistrationReceiptSchema } from "./native-mcp-registration-receipt.js";
+ 
++function needsCleanup(entry: NativeRecovery): boolean {
++  if (entry.kind !== "configure") return false;
++  if (entry.credentials?.phase === "partial-refresh") return true;
++  return entry.credentials?.phase === "verify" && entry.grant?.kind === "mcp";
++}
+ export async function prepareNativeMcpCleanup(id: string): Promise<void> {
++  await retryRetainedNativeMcpPartialRefresh(id);
+   await retryRetainedNativeOAuthGrants(id);
+   await retryRetainedNativeMcpRegistration(id);
+   const current = requireNativeMcpRecord(id);
+-  if (
+-    !current.privateState.recovery.some(
+-      (entry) =>
+-        entry.kind === "configure" &&
+-        entry.credentials?.phase === "verify" &&
+-        entry.grant?.kind === "mcp",
+-    )
+-  )
+-    return;
++  if (!current.privateState.recovery.some(needsCleanup)) return;
+   await updateNativeConnector(
+     id,
+     nativeOAuthGuard(current),
+     MCP_CLASSIFICATION,
+     (record) => {
+       record.privateState.recovery = record.privateState.recovery.map(
+-        (entry) =>
+-          entry.kind === "configure" &&
+-          entry.credentials?.phase === "verify" &&
+-          entry.grant?.kind === "mcp"
+-            ? { ...entry, kind: "revoke" }
+-            : entry,
++        (entry) => (needsCleanup(entry) ? { ...entry, kind: "revoke" } : entry),
+       );
+       return record;
+     },
+@@ -106,6 +100,65 @@ function cleanupGrant(
+   return grant;
+ }
+ 
++function validPartialToken(partial: string): boolean {
++  return (
++    partial.length > 0 && partial.length <= 32768 && /^[!-~]+$/.test(partial)
++  );
++}
++function validPartialBinding(
++  obligation: NativeRecovery,
++  binding: NativeRecovery | NonNullable<NativeRecovery["grant"]>,
++  target: ReturnType<typeof nativeMcpRecordOAuthTarget>,
++  client: ReturnType<typeof nativeMcpClient>,
++): boolean {
++  const expected = target.binding;
++  return (
++    obligation.kind === "revoke" &&
++    binding.providerId === expected.providerId &&
++    binding.actor === "user" &&
++    binding.fingerprint === expected.fingerprint &&
++    binding.targetId === expected.resource &&
++    binding.issuer === expected.issuer &&
++    binding.resource === expected.resource &&
++    binding.endpoint === expected.endpoint &&
++    binding.clientId === client.client_id
++  );
++}
++function partialRefreshToken(
++  obligation: NativeRecovery,
++  target: ReturnType<typeof nativeMcpRecordOAuthTarget>,
++  client: ReturnType<typeof nativeMcpClient>,
++): string | undefined {
++  const partial =
++    obligation.credentials?.phase === "partial-refresh"
++      ? obligation.credentials.partial_refresh_token
++      : undefined;
++  const binding = obligation.grant ?? obligation;
++  if (
++    partial !== undefined &&
++    (!validPartialBinding(obligation, binding, target, client) ||
++      !validPartialToken(partial))
++  )
++    throw new NativeMcpAuthError("pending");
++  return partial;
++}
++
++async function cleanupRegistration(
++  obligation: NativeRecovery,
++  context: NativeCleanupContext,
++  target: Parameters<typeof removeRegistration>[1],
++  client: Parameters<typeof removeRegistration>[2],
++  transport: NativeProviderTransport,
++) {
++  if (
++    obligation.credentials?.phase !== "registered" ||
++    !(await removeRegistration(context, target, client, transport))
++  )
++    throw new Error(
++      "This MCP provider does not offer registration deletion; finish the retained registration authorization or remove it in provider settings",
++    );
++  return "provider-revoked" as const;
++}
+ async function cleanup(
+   obligation: NativeRecovery,
+   context: NativeCleanupContext,
+@@ -119,17 +172,13 @@ async function cleanup(
+   const client = receipt
+     ? NativeMcpRegistrationReceiptSchema.parse(JSON.parse(receipt))
+     : nativeMcpClient(record);
+-  if (obligation.kind === "registration") {
+-    if (
+-      obligation.credentials?.phase !== "registered" ||
+-      !(await removeRegistration(context, target, client, transport))
+-    )
+-      throw new Error(
+-        "This MCP provider does not offer registration deletion; finish the retained registration authorization or remove it in provider settings",
+-      );
+-    return "provider-revoked" as const;
+-  }
+-  const grant = cleanupGrant(obligation, target, client);
++  if (obligation.kind === "registration")
++    return cleanupRegistration(obligation, context, target, client, transport);
++  const partial = partialRefreshToken(obligation, target, client);
++  const grant = obligation.grant
++    ? cleanupGrant(obligation, target, client)
++    : undefined;
++  if (!partial && !grant) throw new NativeMcpAuthError("pending");
+   if (!target.metadata.revocationEndpoint) {
+     if (await removeRegistration(context, target, client, transport))
+       return "provider-revoked" as const;
+@@ -139,9 +188,12 @@ async function cleanup(
+     ...transport,
+     signal: new AbortController().signal,
+   });
+-  if (grant.refreshToken)
+-    await protocol.revoke(client, grant.refreshToken, "refresh_token");
+-  await protocol.revoke(client, grant.accessToken, "access_token");
++  const refreshTokens = new Set(
++    [partial, grant?.refreshToken].filter((value) => value !== undefined),
++  );
++  for (const token of refreshTokens)
++    await protocol.revoke(client, token, "refresh_token");
++  if (grant) await protocol.revoke(client, grant.accessToken, "access_token");
+   await removeRegistration(context, target, client, transport);
+   return "provider-revoked" as const;
+ }
+diff --git a/packages/app-core/src/lib/native-mcp-connectors.test-support.ts b/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
+index 9b736e26a..ab5beabf1 100644
+--- a/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
++++ b/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
+@@ -51,6 +51,8 @@ export type ConnectorFixtureOptions = {
+   management?: boolean;
+   deleteFailure?: boolean;
+   onRegistration?: () => void;
++  requestedScopes?: string[];
++  token?: JsonObject;
+ };
+ async function oauthFixtureFetch(
+   request: Request,
+@@ -80,6 +82,7 @@ async function oauthFixtureFetch(
+   return fixture(target, {
+     registered,
+     tokenFailure: options.tokenFailure,
++    token: options.token,
+     onToken: options.onToken,
+   }).ports.fetch(request);
+ }
+@@ -189,7 +192,7 @@ export async function mcpConnectorFixture(
+     method: "mcp",
+     parameters: {},
+     credentials: {},
+-    requestedScopes: { user: [] },
++    requestedScopes: { user: options.requestedScopes ?? [] },
+     targetIds: {},
+   };
+   const saved = await configureNativeMcpConnector(draft);
+diff --git a/packages/app-core/src/lib/native-mcp-connectors.test.ts b/packages/app-core/src/lib/native-mcp-connectors.test.ts
+index de23b88fe..75a3daa3b 100644
+--- a/packages/app-core/src/lib/native-mcp-connectors.test.ts
++++ b/packages/app-core/src/lib/native-mcp-connectors.test.ts
+@@ -290,7 +290,7 @@ describe("sealed native MCP connector lifecycle", () => {
+       }),
+     ).rejects.toMatchObject({ code: "response" });
+   });
+-  it("offers explicit provider-side confirmation for an indeterminate exchange after its deadline", async () => {
++  it("keeps an indeterminate exchange after its deadline", async () => {
+     const context = await mcpConnectorFixture({ tokenFailure: true });
+     await beginNativeMcpAuthorization(context.id);
+     await expect(
+@@ -299,10 +299,11 @@ describe("sealed native MCP connector lifecycle", () => {
+     const initial = requireNativeMcpRecord(context.id);
+     const recoveryId = initial.privateState.recovery[0].id;
+     expect(
+-      nativeMcpRevocationInstructions(context.id, recoveryId).canConfirm,
++      (await nativeMcpRevocationInstructions(context.id, recoveryId))
++        .canConfirm,
+     ).toBe(false);
+     await expect(
+-      attestNativeMcpRevocation(context.id, recoveryId),
++      attestNativeMcpRevocation(context.id, recoveryId, initial.revision),
+     ).rejects.toThrow();
+     await updateNativeConnector(
+       context.id,
+@@ -314,21 +315,18 @@ describe("sealed native MCP connector lifecycle", () => {
+         return record;
+       },
+     );
+-    const instructions = nativeMcpRevocationInstructions(
++    const instructions = await nativeMcpRevocationInstructions(
+       context.id,
+       recoveryId,
+     );
+-    expect(instructions.canConfirm).toBe(true);
+-    expect(instructions.message).toContain(
+-      "does not verify provider revocation",
+-    );
+-    const confirmed = await attestNativeMcpRevocation(context.id, recoveryId);
+-    expect(confirmed.status).toBe("configuration");
+-    expect(confirmed.verifiedAt).toBeNull();
+-    expect(confirmed.grants).toEqual([]);
+-    expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
+-      [],
+-    );
++    expect(instructions.canConfirm).toBe(false);
++    expect(instructions.message).toContain("could still finish");
++    await expect(
++      attestNativeMcpRevocation(context.id, recoveryId, instructions.revision),
++    ).rejects.toThrow();
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery,
++    ).toHaveLength(1);
+   });
+   it("refuses human attestation while an already submitted credential mutation remains in flight", async () => {
+     const context = await mcpConnectorFixture({ tokenFailure: true });
+@@ -353,13 +351,14 @@ describe("sealed native MCP connector lifecycle", () => {
+     const release = markNativeOAuthMutationInFlight(context.id, recoveryId);
+     try {
+       await expect(
+-        attestNativeMcpRevocation(context.id, recoveryId),
++        attestNativeMcpRevocation(context.id, recoveryId, initial.revision),
+       ).rejects.toThrow();
+     } finally {
+       release();
+     }
+     expect(
+-      nativeMcpRevocationInstructions(context.id, recoveryId).canConfirm,
+-    ).toBe(true);
++      (await nativeMcpRevocationInstructions(context.id, recoveryId))
++        .canConfirm,
++    ).toBe(false);
+   });
+ });
+diff --git a/packages/app-core/src/lib/native-mcp-mutation-lock.test.ts b/packages/app-core/src/lib/native-mcp-mutation-lock.test.ts
+new file mode 100644
+index 000000000..3d22b3e76
+--- /dev/null
++++ b/packages/app-core/src/lib/native-mcp-mutation-lock.test.ts
+@@ -0,0 +1,153 @@
++import { describe, expect, it } from "vitest";
++import { lockManager } from "../ports.js";
++import { updateNativeConnector } from "./native-connector-store.js";
++import {
++  attestNativeMcpRevocation,
++  nativeMcpRevocationInstructions,
++} from "./native-mcp-attestation.js";
++import {
++  beginNativeMcpAuthorization,
++  finishNativeMcpAuthorization,
++} from "./native-mcp-authorization.js";
++import {
++  installNativeMcpConnectorTests,
++  mcpConnectorFixture,
++} from "./native-mcp-connectors.test-support.js";
++import { withNativeMcpMutationLock } from "./native-mcp-mutation-lock.js";
++import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
++import { requireNativeMcpRecord } from "./native-mcp-records.js";
++import { nativeOAuthGuard } from "./native-oauth-session.js";
++
++installNativeMcpConnectorTests();
++describe("MCP cross-realm credential fencing", () => {
++  it("rejects confirmation rather than queuing behind another realm even after the deadline", async () => {
++    const context = await mcpConnectorFixture({ tokenFailure: true });
++    await beginNativeMcpAuthorization(context.id);
++    const pending = requireNativeMcpRecord(context.id).privateState.pending
++      .user;
++    await expect(
++      finishNativeMcpAuthorization(
++        `?native_state=${pending.state}&native_code=actual-provider-code`,
++      ),
++    ).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    const recoveryId = record.privateState.recovery[0].id;
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(record),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.recovery[0].credentials = {
++          phase: "exchange",
++          deadline: "0",
++        };
++        return current;
++      },
++    );
++    const locks = lockManager();
++    if (!locks) throw new Error("Expected test locks");
++    let unblock = () => {};
++    const blocker = new Promise<void>((resolve) => {
++      unblock = resolve;
++    });
++    let entered = () => {};
++    const acquired = new Promise<void>((resolve) => {
++      entered = resolve;
++    });
++    const held = locks.request(
++      `opensesame:native-mcp-mutation:${context.id}`,
++      async () => {
++        entered();
++        await blocker;
++      },
++    );
++    await acquired;
++    try {
++      await expect(
++        nativeMcpRevocationInstructions(context.id, recoveryId),
++      ).rejects.toThrow();
++      await expect(
++        attestNativeMcpRevocation(context.id, recoveryId, record.revision),
++      ).rejects.toThrow();
++      expect(
++        requireNativeMcpRecord(context.id).privateState.recovery,
++      ).toHaveLength(1);
++    } finally {
++      unblock();
++      await held;
++    }
++    expect(
++      (await nativeMcpRevocationInstructions(context.id, recoveryId))
++        .canConfirm,
++    ).toBe(false);
++  });
++  it("rejects a guide after the durable record changes", async () => {
++    const context = await mcpConnectorFixture({ tokenFailure: true });
++    await beginNativeMcpAuthorization(context.id);
++    const pending = requireNativeMcpRecord(context.id).privateState.pending
++      .user;
++    await expect(
++      finishNativeMcpAuthorization(
++        `?native_state=${pending.state}&native_code=actual-provider-code`,
++      ),
++    ).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    const recoveryId = record.privateState.recovery[0].id;
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(record),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.recovery[0].credentials = { phase: "verify" };
++        return current;
++      },
++    );
++    const guide = await nativeMcpRevocationInstructions(context.id, recoveryId);
++    expect(guide.canConfirm).toBe(true);
++    const next = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(next),
++      MCP_CLASSIFICATION,
++      (current) => current,
++    );
++    await expect(
++      attestNativeMcpRevocation(context.id, recoveryId, guide.revision),
++    ).rejects.toThrow();
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery,
++    ).toHaveLength(1);
++  });
++  it("clears an exchange claim when metadata fails before token submission", async () => {
++    const options = { metadataFailure: false };
++    const context = await mcpConnectorFixture(options);
++    await beginNativeMcpAuthorization(context.id);
++    const pending = requireNativeMcpRecord(context.id).privateState.pending
++      .user;
++    options.metadataFailure = true;
++    await expect(
++      finishNativeMcpAuthorization(
++        `?native_state=${pending.state}&native_code=actual-provider-code`,
++      ),
++    ).rejects.toThrow();
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery,
++    ).toHaveLength(0);
++    expect(
++      context.requests.filter(
++        (request) =>
++          request.method === "POST" && request.url.endsWith("/token"),
++      ),
++    ).toHaveLength(0);
++  });
++  it("releases the fence after a failed operation", async () => {
++    await expect(
++      withNativeMcpMutationLock("test-lock", async () => {
++        throw new Error("failed");
++      }),
++    ).rejects.toThrow("failed");
++    await expect(
++      withNativeMcpMutationLock("test-lock", async () => "settled"),
++    ).resolves.toBe("settled");
++  });
++});
+diff --git a/packages/app-core/src/lib/native-mcp-mutation-lock.ts b/packages/app-core/src/lib/native-mcp-mutation-lock.ts
+new file mode 100644
+index 000000000..014758f95
+--- /dev/null
++++ b/packages/app-core/src/lib/native-mcp-mutation-lock.ts
+@@ -0,0 +1,30 @@
++import { lockManager } from "../ports.js";
++import { kvDurability } from "./kv.js";
++import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
++
++// Never queue confirmation behind issuance: the user's provider-side action
++// must happen after any in-flight mutation has finished.
++const active = new Set<string>();
++export async function withNativeMcpMutationLock<T>(
++  id: string,
++  action: () => Promise<T>,
++): Promise<T> {
++  if (active.has(id)) throw new NativeMcpAuthError("pending");
++  active.add(id);
++  try {
++    const locks = lockManager();
++    if (!locks && kvDurability() === "persistent")
++      throw new NativeMcpAuthError("pending");
++    if (!locks) return await action();
++    return await locks.request(
++      `opensesame:native-mcp-mutation:${id}`,
++      { ifAvailable: true },
++      async (lock) => {
++        if (!lock) throw new NativeMcpAuthError("pending");
++        return action();
++      },
++    );
++  } finally {
++    active.delete(id);
++  }
++}
+diff --git a/packages/app-core/src/lib/native-mcp-oauth.ts b/packages/app-core/src/lib/native-mcp-oauth.ts
+index 4870ddb41..6ac514b6a 100644
+--- a/packages/app-core/src/lib/native-mcp-oauth.ts
++++ b/packages/app-core/src/lib/native-mcp-oauth.ts
+@@ -36,6 +36,8 @@ export type NativeMcpOAuthPorts = {
+   settleCredentialMutation?: typeof fetch;
+   signal: AbortSignal;
+   assertCurrent: () => void;
++  /** Seal an independently valid refresh token before reporting a malformed receipt. */
++  retainPartialRefresh?: (token: string) => Promise<void>;
+ };
+ 
+ function assertPublicClient(
+@@ -236,6 +238,7 @@ export class NativeMcpPublicOAuth {
+         ),
+       this.fetcher,
+       this.target.binding.issuer ?? "",
++      this.ports.retainPartialRefresh,
+     );
+   }
+ 
+@@ -259,6 +262,7 @@ export class NativeMcpPublicOAuth {
+         ),
+       this.fetcher,
+       this.target.binding.issuer ?? "",
++      this.ports.retainPartialRefresh,
+     );
+   }
+ 
+diff --git a/packages/app-core/src/lib/native-mcp-partial-refresh.ts b/packages/app-core/src/lib/native-mcp-partial-refresh.ts
+new file mode 100644
+index 000000000..3078266c7
+--- /dev/null
++++ b/packages/app-core/src/lib/native-mcp-partial-refresh.ts
+@@ -0,0 +1,96 @@
++/** Retain an independently valid refresh token even when its access token is malformed. */
++import { updateNativeConnector } from "./native-connector-store.js";
++import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
++import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
++import { requireNativeMcpRecord } from "./native-mcp-records.js";
++import { nativeOAuthGuard } from "./native-oauth-session.js";
++
++type Retained = { intentId: string; fingerprint: string; token: string | null };
++const retained = new Map<string, Retained>();
++
++export function reserveNativeMcpPartialRefresh(
++  id: string,
++  intentId: string,
++  fingerprint: string,
++): void {
++  if (retained.has(id) || retained.size >= 64)
++    throw new NativeMcpAuthError("storage");
++  retained.set(id, { intentId, fingerprint, token: null });
++}
++
++export function releaseNativeMcpPartialReservation(
++  id: string,
++  intentId: string,
++): void {
++  const entry = retained.get(id);
++  if (entry?.intentId === intentId && entry.token === null) retained.delete(id);
++}
++
++export function forgetRetainedNativeMcpPartialRefresh(
++  id: string,
++  intentId: string,
++): void {
++  if (retained.get(id)?.intentId === intentId) retained.delete(id);
++}
++
++async function seal(id: string, entry: Retained): Promise<void> {
++  if (entry.token === null) throw new NativeMcpAuthError("storage");
++  const token = entry.token;
++  const current = requireNativeMcpRecord(id);
++  await updateNativeConnector(
++    id,
++    nativeOAuthGuard(current),
++    MCP_CLASSIFICATION,
++    (record) => {
++      const intent = record.privateState.recovery.find(
++        (item) => item.id === entry.intentId,
++      );
++      if (
++        !intent ||
++        intent.fingerprint !== entry.fingerprint ||
++        !["exchange", "refresh"].includes(intent.credentials?.phase ?? "")
++      )
++        throw new NativeMcpAuthError("storage");
++      if (intent.credentials?.phase === "refresh") {
++        delete record.privateState.grants[intent.actor];
++        record.runtime.grants = record.runtime.grants.filter(
++          (item) => item.actor !== intent.actor,
++        );
++      }
++      intent.credentials = {
++        ...intent.credentials,
++        phase: "partial-refresh",
++        partial_refresh_token: token,
++      };
++      record.privateState.verification = null;
++      return record;
++    },
++  );
++  retained.delete(id);
++}
++
++export async function retainNativeMcpPartialRefresh(
++  id: string,
++  intentId: string,
++  token: string,
++): Promise<void> {
++  const entry = retained.get(id);
++  if (
++    !entry ||
++    entry.intentId !== intentId ||
++    entry.token !== null ||
++    token.length < 1 ||
++    token.length > 32768 ||
++    !/^[!-~]+$/.test(token)
++  )
++    throw new NativeMcpAuthError("storage");
++  entry.token = token;
++  await seal(id, entry);
++}
++
++export async function retryRetainedNativeMcpPartialRefresh(
++  id: string,
++): Promise<void> {
++  const entry = retained.get(id);
++  if (entry?.token) await seal(id, entry);
++}
+diff --git a/packages/app-core/src/lib/native-mcp-proof.ts b/packages/app-core/src/lib/native-mcp-proof.ts
+index 9502c73af..3d72dfd30 100644
+--- a/packages/app-core/src/lib/native-mcp-proof.ts
++++ b/packages/app-core/src/lib/native-mcp-proof.ts
+@@ -12,7 +12,10 @@ import {
+   nativeMcpRecordBinding,
+ } from "./native-mcp-profile.js";
+ import { requireNativeMcpRecord } from "./native-mcp-records.js";
+-import { nativeMcpRecordSession } from "./native-mcp-session.js";
++import {
++  assertNativeMcpGrantScopes,
++  nativeMcpRecordSession,
++} from "./native-mcp-session.js";
+ import { NativeMcpError } from "./native-mcp-target.js";
+ import { nativeOAuthGuard } from "./native-oauth-session.js";
+ 
+@@ -22,13 +25,7 @@ function verified(
+ ): NativeConnectorRecord {
+   const verifiedAt = Math.max(Date.now(), (record.runtime.verifiedAt ?? 0) + 1);
+   const binding = nativeMcpRecordBinding(record.configuration);
+-  if (
+-    grant?.scopes &&
+-    (record.configuration.requestedScopes.user ?? []).some(
+-      (scope) => !grant.scopes?.includes(scope),
+-    )
+-  )
+-    throw new NativeMcpError("permission");
++  assertNativeMcpGrantScopes(record, grant);
+   record.privateState.grants = grant ? { user: grant } : {};
+   record.privateState.verification = {
+     fingerprint: binding.fingerprint,
+diff --git a/packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts b/packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts
+new file mode 100644
+index 000000000..7d105f58e
+--- /dev/null
++++ b/packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts
+@@ -0,0 +1,369 @@
++import { describe, expect, it, vi } from "vitest";
++import { kvSeams } from "./kv.js";
++import { retryNativeConnectorCleanup } from "./native-connector-lifecycle.js";
++import {
++  readNativeConnector,
++  updateNativeConnector,
++} from "./native-connector-store.js";
++import { nativeMcpRevocationInstructions } from "./native-mcp-attestation.js";
++import {
++  beginNativeMcpAuthorization,
++  finishNativeMcpAuthorization,
++} from "./native-mcp-authorization.js";
++import {
++  installNativeMcpConnectorTests,
++  mcpConnectorFixture,
++} from "./native-mcp-connectors.test-support.js";
++import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
++import { requireNativeMcpRecord } from "./native-mcp-records.js";
++import { verifyNativeMcpConnector } from "./native-mcp-verification.js";
++import { nativeOAuthGuard } from "./native-oauth-session.js";
++
++installNativeMcpConnectorTests();
++function callback(id: string): string {
++  const pending = requireNativeMcpRecord(id).privateState.pending.user;
++  if (!pending) throw new Error("Expected sealed pending consent");
++  return `?native_state=${pending.state}&native_code=actual-provider-code`;
++}
++async function authorized(
++  options: Parameters<typeof mcpConnectorFixture>[0] = {},
++) {
++  const context = await mcpConnectorFixture(options);
++  await beginNativeMcpAuthorization(context.id);
++  await finishNativeMcpAuthorization(callback(context.id));
++  return context;
++}
++
++describe("native MCP refresh recovery", () => {
++  it("retains an under-scoped rotated grant for cleanup without contacting MCP", async () => {
++    const token = {
++      access_token: "initial-access",
++      refresh_token: "initial-refresh",
++      token_type: "Bearer",
++      scope: "openid AdobeID",
++      expires_in: 3600,
++    };
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token,
++    });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    token.access_token = "replacement-access";
++    token.refresh_token = "replacement-refresh";
++    token.scope = "openid";
++    context.methods.splice(0);
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "permission",
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: { phase: "verify" },
++      grant: {
++        accessToken: "replacement-access",
++        refreshToken: "replacement-refresh",
++        scopes: ["openid"],
++      },
++    });
++    expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    expect(context.methods).toEqual([]);
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual(
++      expect.arrayContaining(["replacement-refresh", "replacement-access"]),
++    );
++  });
++
++  it("keeps the old grant and requests reauthorization for invalid refresh", async () => {
++    const options = { tokenFailure: false };
++    const context = await authorized(options);
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    options.tokenFailure = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "authorization",
++      oauthError: "invalid_grant",
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery).toEqual([]);
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "rotated-refresh",
++    );
++    expect(record.runtime.grants[0].needsReauth).toBe(true);
++  });
++
++  it("keeps the old grant after a refresh failure before token issuance", async () => {
++    const options = { metadataFailure: false };
++    const context = await authorized(options);
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    options.metadataFailure = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery).toEqual([]);
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "rotated-refresh",
++    );
++    expect(record.privateState.verification).toBeNull();
++  });
++
++  it("retains a recovery obligation when a refresh response is lost after submission", async () => {
++    let loseResponse = false;
++    const context = await authorized({
++      onToken: () => {
++        if (loseResponse) throw new Error("response lost after issuance");
++      },
++    });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    loseResponse = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery[0]?.credentials?.phase).toBe("refresh");
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "rotated-refresh",
++    );
++    expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    expect(
++      (
++        await nativeMcpRevocationInstructions(
++          context.id,
++          record.privateState.recovery[0].id,
++        )
++      ).canConfirm,
++    ).toBe(false);
++  });
++
++  it("retries sealing a rotated pair after a transient storage failure before cleanup", async () => {
++    const token = {
++      access_token: "initial-access",
++      refresh_token: "initial-refresh",
++      token_type: "Bearer",
++      scope: "openid AdobeID",
++      expires_in: 3600,
++    };
++    let fail = false;
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token,
++      onToken: () => {
++        if (fail)
++          vi.mocked(kvSeams.kvSetDurable).mockRejectedValueOnce(
++            new Error("storage unavailable"),
++          );
++      },
++    });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    token.access_token = "replacement-access";
++    token.refresh_token = "replacement-refresh";
++    fail = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery[0]?.credentials?.phase).toBe("refresh");
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "initial-refresh",
++    );
++    fail = false;
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual(
++      expect.arrayContaining(["replacement-refresh", "replacement-access"]),
++    );
++  });
++
++  it.each(["excess scopes", "invalid refresh token"] as const)(
++    "retains the valid rotated access token on %s without MCP use",
++    async (malformed) => {
++      const token = {
++        access_token: "initial-access",
++        refresh_token: "initial-refresh",
++        token_type: "Bearer",
++        scope: "openid AdobeID",
++        expires_in: 3600,
++      };
++      const context = await authorized({
++        requestedScopes: ["openid", "AdobeID"],
++        token,
++      });
++      const initial = requireNativeMcpRecord(context.id);
++      await updateNativeConnector(
++        context.id,
++        nativeOAuthGuard(initial),
++        MCP_CLASSIFICATION,
++        (current) => {
++          current.privateState.grants.user.expiresAt = 1;
++          current.runtime.grants[0].expiresAt = 1;
++          return current;
++        },
++      );
++      token.access_token = "replacement-access";
++      token.refresh_token =
++        malformed === "invalid refresh token" ? "" : "replacement-refresh";
++      token.scope =
++        malformed === "excess scopes"
++          ? Array.from({ length: 257 }, (_, i) => `scope-${i}`).join(" ")
++          : "openid AdobeID";
++      context.methods.splice(0);
++      await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++        code: "authorization",
++      });
++      const record = requireNativeMcpRecord(context.id);
++      expect(record.privateState.grants).toEqual({});
++      expect(record.privateState.recovery[0]?.grant).toMatchObject({
++        accessToken: "replacement-access",
++        scopes: null,
++      });
++      expect(context.methods).toEqual([]);
++      expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    },
++  );
++
++  it("preserves and revokes both the refresh-only replacement and previously sealed pair", async () => {
++    const token = {
++      access_token: "previous-access",
++      refresh_token: "previous-refresh",
++      token_type: "Bearer",
++      scope: "openid",
++      expires_in: 3600,
++    };
++    const context = await authorized({ requestedScopes: ["openid"], token });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    token.access_token = "";
++    token.refresh_token = "new-partial-refresh";
++    context.methods.splice(0);
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "authorization",
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: {
++        phase: "partial-refresh",
++        partial_refresh_token: "new-partial-refresh",
++      },
++      grant: {
++        accessToken: "previous-access",
++        refreshToken: "previous-refresh",
++      },
++    });
++    expect(context.methods).toEqual([]);
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual(
++      expect.arrayContaining([
++        "new-partial-refresh",
++        "previous-refresh",
++        "previous-access",
++      ]),
++    );
++  });
++
++  it("retries a refresh-only receipt after transient durable sealing failure", async () => {
++    let fail = true;
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid"],
++      token: {
++        access_token: "",
++        refresh_token: "partial-retry-secret",
++        token_type: "Bearer",
++      },
++      onToken: () => {
++        if (fail)
++          vi.mocked(kvSeams.kvSetDurable).mockRejectedValueOnce(
++            new Error("storage unavailable"),
++          );
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toThrow();
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery[0]?.credentials
++        ?.phase,
++    ).toBe("exchange");
++    fail = false;
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual([
++      "partial-retry-secret",
++    ]);
++  });
++});
+diff --git a/packages/app-core/src/lib/native-mcp-refresh.ts b/packages/app-core/src/lib/native-mcp-refresh.ts
+index d2464e1ff..e95bb17a5 100644
+--- a/packages/app-core/src/lib/native-mcp-refresh.ts
++++ b/packages/app-core/src/lib/native-mcp-refresh.ts
+@@ -4,8 +4,18 @@ import type { NativeRecovery } from "./native-connector-schema.js";
+ import type { NativeConnectorRecord } from "./native-connector-store.js";
+ import { updateNativeConnector } from "./native-connector-store.js";
+ import type { NativeProviderTransport } from "./native-connector-transport.js";
++import { withNativeMcpMutationLock } from "./native-mcp-mutation-lock.js";
+ import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
+-import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
++import {
++  type NativeMcpOAuthPorts,
++  NativeMcpPublicOAuth,
++} from "./native-mcp-oauth.js";
++import {
++  releaseNativeMcpPartialReservation,
++  reserveNativeMcpPartialRefresh,
++  retainNativeMcpPartialRefresh,
++} from "./native-mcp-partial-refresh.js";
++
+ import {
+   MCP_CLASSIFICATION,
+   nativeMcpClassification,
+@@ -23,93 +33,146 @@ import {
+   nativeOAuthGuard,
+ } from "./native-oauth-session.js";
+ 
++function refreshProtocol(
++  initial: NativeConnectorRecord,
++  intent: NativeRecovery,
++  transport: NativeProviderTransport,
++  target: ReturnType<typeof nativeMcpRecordOAuthTarget>,
++  onSubmit: () => void,
++): NativeMcpPublicOAuth {
++  const track =
++    (send: typeof fetch): typeof fetch =>
++    async (input, init) => {
++      const request = new Request(input, init);
++      if (
++        request.method === "POST" &&
++        request.url === target.metadata.tokenEndpoint
++      )
++        onSubmit();
++      return send(request);
++    };
++  const ports: NativeMcpOAuthPorts = {
++    ...transport,
++    retainPartialRefresh: (token) =>
++      retainNativeMcpPartialRefresh(initial.connectionId, intent.id, token),
++    fetch: track(transport.fetch),
++    signal: new AbortController().signal,
++  };
++  if (transport.settleCredentialMutation)
++    ports.settleCredentialMutation = track(transport.settleCredentialMutation);
++  return new NativeMcpPublicOAuth(target, ports);
++}
++
++async function recoverFailedRefresh(
++  id: string,
++  intentId: string,
++  invalidGrant: boolean,
++  received: boolean,
++  submitted: boolean,
++): Promise<void> {
++  if (!received && invalidGrant) await markInvalidRefresh(id, intentId);
++  else if (!received && !submitted) await clearRefreshIntent(id, intentId);
++}
++
+ export async function refreshNativeMcpAuthorization(
+   initial: NativeConnectorRecord,
+   transport: NativeProviderTransport,
+ ) {
+-  transport.assertCurrent();
+-  assertNativeBrowserMcpPolicy(initial.configuration.providerId);
+-  const old = initial.privateState.grants.user;
+-  if (
+-    !old?.refreshToken ||
+-    initial.privateState.recovery.length ||
+-    Object.keys(initial.privateState.pending).length
+-  )
+-    throw new NativeMcpAuthError("authorization");
+-  const target = nativeMcpRecordOAuthTarget(initial.configuration);
+-  const targetId = target.binding.resource;
+-  const intent: NativeRecovery = {
+-    id: `mcp-refresh:${crypto.randomUUID()}`,
+-    kind: "configure",
+-    providerId: old.providerId,
+-    actor: old.actor,
+-    fingerprint: old.fingerprint,
+-    targetId,
+-    grant: { ...old, targetId },
+-    credentials: { phase: "refresh", deadline: String(Date.now() + 60_000) },
+-  };
+-  await updateNativeConnector(
+-    initial.connectionId,
+-    nativeOAuthGuard(initial),
+-    MCP_CLASSIFICATION,
+-    (record) => {
+-      transport.assertCurrent();
+-      record.privateState.recovery.push(intent);
+-      record.privateState.verification = null;
+-      return record;
+-    },
+-  );
+-  const release = markNativeOAuthMutationInFlight(
+-    initial.connectionId,
+-    intent.id,
+-  );
+-  let journaled = false;
+-  try {
+-    const protocol = new NativeMcpPublicOAuth(target, {
+-      ...transport,
+-      signal: new AbortController().signal,
+-    });
+-    const tokens = await protocol.refresh(
+-      nativeMcpClient(initial),
+-      old.refreshToken,
+-    );
+-    const grant = nativeMcpIssuedGrant({ ...old, targetId }, tokens);
+-    grant.refreshToken = grant.refreshToken ?? old.refreshToken;
+-    grant.scopes = grant.scopes ?? old.scopes;
+-    await journalNativeOAuthGrant(
++  return withNativeMcpMutationLock(initial.connectionId, async () => {
++    transport.assertCurrent();
++    assertNativeBrowserMcpPolicy(initial.configuration.providerId);
++    const old = initial.privateState.grants.user;
++    if (
++      !old?.refreshToken ||
++      initial.privateState.recovery.length ||
++      Object.keys(initial.privateState.pending).length
++    )
++      throw new NativeMcpAuthError("authorization");
++    const target = nativeMcpRecordOAuthTarget(initial.configuration);
++    const targetId = target.binding.resource;
++    const intent: NativeRecovery = {
++      id: `mcp-refresh:${crypto.randomUUID()}`,
++      kind: "configure",
++      providerId: old.providerId,
++      actor: old.actor,
++      fingerprint: old.fingerprint,
++      targetId,
++      grant: { ...old, targetId },
++      credentials: { phase: "refresh", deadline: String(Date.now() + 60_000) },
++    };
++    await updateNativeConnector(
+       initial.connectionId,
+-      intent.id,
+-      grant,
+-      nativeMcpClassification,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (record) => {
++        transport.assertCurrent();
++        record.privateState.recovery.push(intent);
++        record.privateState.verification = null;
++        return record;
++      },
+     );
+-    journaled = true;
+-    transport.assertCurrent();
+-    if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
+-    return await activateNativeMcpGrant(
++    const release = markNativeOAuthMutationInFlight(
+       initial.connectionId,
+       intent.id,
+-      grant,
+-      transport,
+     );
+-  } catch (error) {
+-    if (
+-      error instanceof NativeMcpAuthError &&
+-      error.oauthError === "invalid_grant"
+-    ) {
+-      await markInvalidRefresh(initial.connectionId, intent.id);
+-    } else if (journaled) {
+-      // The provider may have rotated the refresh token but the replacement
+-      // was not activated; keep the old grant but require consent again.
+-      await markInvalidRefresh(initial.connectionId, intent.id);
+-    } else {
+-      // Network, metadata, 5xx or SDK failure before any replacement was
+-      // journaled: unwinding the intent keeps verify/re-authorize/remove open.
+-      await clearRefreshIntent(initial.connectionId, intent.id);
++    let received = false;
++    let submitted = false;
++    try {
++      reserveNativeMcpPartialRefresh(
++        initial.connectionId,
++        intent.id,
++        intent.fingerprint,
++      );
++      const protocol = refreshProtocol(
++        initial,
++        intent,
++        transport,
++        target,
++        () => {
++          submitted = true;
++        },
++      );
++      const tokens = await protocol.refresh(
++        nativeMcpClient(initial),
++        old.refreshToken,
++      );
++      received = true;
++      const grant = nativeMcpIssuedGrant({ ...old, targetId }, tokens);
++      grant.refreshToken = grant.refreshToken ?? old.refreshToken;
++      if (tokens.protocolValid) grant.scopes = grant.scopes ?? old.scopes;
++      await journalNativeOAuthGrant(
++        initial.connectionId,
++        intent.id,
++        grant,
++        nativeMcpClassification,
++      );
++      transport.assertCurrent();
++      if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
++      return await activateNativeMcpGrant(
++        initial.connectionId,
++        intent.id,
++        grant,
++        transport,
++      );
++    } catch (error) {
++      // Once a token response is captured, retain its recovery obligation.
++      // If sealing failed, the in-memory journal can retry against that intent;
++      // if verification failed, the sealed replacement can be revoked. A lost
++      // response after submission is indeterminate and also needs cleanup.
++      await recoverFailedRefresh(
++        initial.connectionId,
++        intent.id,
++        error instanceof NativeMcpAuthError &&
++          error.oauthError === "invalid_grant",
++        received,
++        submitted,
++      );
++      throw error;
++    } finally {
++      releaseNativeMcpPartialReservation(initial.connectionId, intent.id);
++      release();
+     }
+-    throw error;
+-  } finally {
+-    release();
+-  }
++  });
+ }
+ async function clearRefreshIntent(id: string, intentId: string): Promise<void> {
+   const record = requireNativeMcpRecord(id);
+diff --git a/packages/app-core/src/lib/native-mcp-registration-admission.ts b/packages/app-core/src/lib/native-mcp-registration-admission.ts
+index 758dad1cc..a5b4f3a9f 100644
+--- a/packages/app-core/src/lib/native-mcp-registration-admission.ts
++++ b/packages/app-core/src/lib/native-mcp-registration-admission.ts
+@@ -1,10 +1,7 @@
+ /** Only an attempted DCR mutation creates uncertainty; metadata reads cannot create clients. */
+ import type { NativeRecovery } from "./native-connector-schema.js";
+ import type { NativeProviderTransport } from "./native-connector-transport.js";
+-import {
+-  NativeMcpAuthError,
+-  type NativeMcpOAuthTarget,
+-} from "./native-mcp-oauth-target.js";
++import type { NativeMcpOAuthTarget } from "./native-mcp-oauth-target.js";
+ import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
+ import {
+   discardNativeMcpRegistration,
+@@ -53,12 +50,7 @@ export async function admitNativeMcpRegistration(
+   } catch (error) {
+     // A "storage" failure after submission keeps the obligation and the
+     // retained registration, so a retry seals it instead of minting another.
+-    const fatalReceipt =
+-      submitted &&
+-      error instanceof NativeMcpAuthError &&
+-      error.code === "metadata";
+-    if (!submitted || fatalReceipt)
+-      await discardNativeMcpRegistration(id, obligation.id);
++    if (!submitted) await discardNativeMcpRegistration(id, obligation.id);
+     throw error;
+   }
+ }
+diff --git a/packages/app-core/src/lib/native-mcp-registration-retention.test.ts b/packages/app-core/src/lib/native-mcp-registration-retention.test.ts
+index de64844a6..4aa6441b5 100644
+--- a/packages/app-core/src/lib/native-mcp-registration-retention.test.ts
++++ b/packages/app-core/src/lib/native-mcp-registration-retention.test.ts
+@@ -82,32 +82,21 @@ describe("a retained MCP registration that did not seal", () => {
+     expect(readNativeConnector(context.id)).toBeNull();
+   });
+ 
+-  it("ends a copy whose content the sealed record refuses on retry as a removable metadata refusal", async () => {
++  it("retains the obligation when a minted registration cannot be sealed", async () => {
+     const context = await strandedRegistration();
+     refuseSealedRegistration();
+     await expect(
+       retryRetainedNativeMcpRegistration(context.id),
+     ).rejects.toMatchObject({ code: "metadata" });
+-    expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
+-      [],
+-    );
+-    await expect(
+-      retryRetainedNativeMcpRegistration(context.id),
+-    ).resolves.toBeUndefined();
+-    expect(await removeNativeConnectorWithCleanup(context.id)).toBe(true);
+-    expect(readNativeConnector(context.id)).toBeNull();
+-  });
+-
+-  it("does not wedge removal when cleanup's own retry finds the content refused", async () => {
+-    const context = await strandedRegistration();
+-    refuseSealedRegistration();
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery,
++    ).toHaveLength(1);
+     await expect(removeNativeConnectorWithCleanup(context.id)).rejects.toThrow(
+       "Provider cleanup failed",
+     );
+-    expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
+-      [],
+-    );
+-    expect(await removeNativeConnectorWithCleanup(context.id)).toBe(true);
+-    expect(readNativeConnector(context.id)).toBeNull();
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery,
++    ).toHaveLength(1);
++    expect(readNativeConnector(context.id)).not.toBeNull();
+   });
+ });
+diff --git a/packages/app-core/src/lib/native-mcp-registration.ts b/packages/app-core/src/lib/native-mcp-registration.ts
+index f75f7e425..2814e8b83 100644
+--- a/packages/app-core/src/lib/native-mcp-registration.ts
++++ b/packages/app-core/src/lib/native-mcp-registration.ts
+@@ -37,7 +37,7 @@ export function releaseNativeMcpRegistrationReservation(
+   if (entry?.intentId === intentId && entry.client === null)
+     retained.delete(id);
+ }
+-/** A registration that can never be sealed: clear its obligation so the connector stays removable. */
++/** Discard an obligation only when no registration request was submitted. */
+ export async function discardNativeMcpRegistration(
+   id: string,
+   intentId: string,
+@@ -119,17 +119,11 @@ export async function retainNativeMcpRegistration(
+   retained.set(id, { intentId, fingerprint, client: sealed });
+   await sealRetained(id, intentId, fingerprint, sealed);
+ }
+-/** A later seal: a copy whose content is still refused ends as the removable metadata refusal. */
++/** Retry sealing the retained registration; keep its obligation on failure. */
+ export async function retryRetainedNativeMcpRegistration(
+   id: string,
+ ): Promise<void> {
+   const entry = retained.get(id);
+   if (!entry?.client) return;
+-  try {
+-    await sealRetained(id, entry.intentId, entry.fingerprint, entry.client);
+-  } catch (error) {
+-    if (error instanceof NativeMcpAuthError && error.code === "metadata")
+-      await discardNativeMcpRegistration(id, entry.intentId);
+-    throw error;
+-  }
++  await sealRetained(id, entry.intentId, entry.fingerprint, entry.client);
+ }
+diff --git a/packages/app-core/src/lib/native-mcp-scope-recovery.test.ts b/packages/app-core/src/lib/native-mcp-scope-recovery.test.ts
+new file mode 100644
+index 000000000..7c7a48712
+--- /dev/null
++++ b/packages/app-core/src/lib/native-mcp-scope-recovery.test.ts
+@@ -0,0 +1,293 @@
++import { describe, expect, it } from "vitest";
++import { readDeviceRows } from "./device-connector-records.js";
++import { retryNativeConnectorCleanup } from "./native-connector-lifecycle.js";
++import {
++  readNativeConnector,
++  updateNativeConnector,
++} from "./native-connector-store.js";
++import {
++  beginNativeMcpAuthorization,
++  finishNativeMcpAuthorization,
++} from "./native-mcp-authorization.js";
++import {
++  installNativeMcpConnectorTests,
++  mcpConnectorFixture,
++} from "./native-mcp-connectors.test-support.js";
++import { listNativeMcpTools } from "./native-mcp-operations.js";
++import {
++  releaseNativeMcpPartialReservation,
++  reserveNativeMcpPartialRefresh,
++} from "./native-mcp-partial-refresh.js";
++import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
++import { requireNativeMcpRecord } from "./native-mcp-records.js";
++import { verifyNativeMcpConnector } from "./native-mcp-verification.js";
++import { nativeOAuthGuard } from "./native-oauth-session.js";
++
++installNativeMcpConnectorTests();
++function callback(id: string): string {
++  const pending = requireNativeMcpRecord(id).privateState.pending.user;
++  if (!pending) throw new Error("Expected sealed pending consent");
++  return `?native_state=${pending.state}&native_code=actual-provider-code`;
++}
++async function authorized(
++  options: Parameters<typeof mcpConnectorFixture>[0] = {},
++) {
++  const context = await mcpConnectorFixture(options);
++  await beginNativeMcpAuthorization(context.id);
++  await finishNativeMcpAuthorization(callback(context.id));
++  return context;
++}
++
++describe("native MCP scope and partial authorization recovery", () => {
++  it("does not consume a callback when partial-receipt capacity is unavailable", async () => {
++    const context = await mcpConnectorFixture();
++    await beginNativeMcpAuthorization(context.id);
++    const search = callback(context.id);
++    const before = context.requests.length;
++    for (let index = 0; index < 64; index += 1)
++      reserveNativeMcpPartialRefresh(
++        `reserved-${index}`,
++        `intent-${index}`,
++        "a".repeat(64),
++      );
++    try {
++      await expect(finishNativeMcpAuthorization(search)).rejects.toMatchObject({
++        code: "storage",
++      });
++      expect(
++        requireNativeMcpRecord(context.id).privateState.pending.user,
++      ).toBeDefined();
++      expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
++        [],
++      );
++      expect(context.requests).toHaveLength(before);
++    } finally {
++      for (let index = 0; index < 64; index += 1)
++        releaseNativeMcpPartialReservation(
++          `reserved-${index}`,
++          `intent-${index}`,
++        );
++    }
++    expect((await finishNativeMcpAuthorization(search)).status).toBe(
++      "connected",
++    );
++  });
++  it("retains an under-scoped initial grant without sending it to the MCP resource", async () => {
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid", "AdobeID"],
++      token: {
++        access_token: "under-scoped-access",
++        refresh_token: "under-scoped-refresh",
++        token_type: "Bearer",
++        scope: "openid",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "permission" });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]?.grant).toMatchObject({
++      accessToken: "under-scoped-access",
++      refreshToken: "under-scoped-refresh",
++      scopes: ["openid"],
++    });
++    expect(context.methods).toEqual([]);
++    expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++  });
++
++  it("rejects a previously saved under-scoped grant before MCP verification or use", async () => {
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token: {
++        access_token: "issued-access",
++        refresh_token: "rotated-refresh",
++        token_type: "Bearer",
++        scope: "openid AdobeID",
++      },
++    });
++    const record = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(record),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.scopes = ["openid"];
++        current.runtime.grants[0].grantedScopes = ["openid"];
++        return current;
++      },
++    );
++    context.methods.splice(0);
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "permission",
++    });
++    await expect(listNativeMcpTools(context.id)).rejects.toMatchObject({
++      code: "authorization",
++    });
++    expect(context.methods).toEqual([]);
++    const current = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(current),
++      MCP_CLASSIFICATION,
++      (updated) => {
++        updated.privateState.grants.user.expiresAt = 1;
++        updated.runtime.grants[0].expiresAt = 1;
++        return updated;
++      },
++    );
++    // A refresh may restore the missing permission. It is sent only to the
++    // pinned issuer; the replacement must pass the guard before MCP use.
++    const view = await verifyNativeMcpConnector(context.id);
++    expect(view.status).toBe("connected");
++    expect(context.methods).toContain("initialize");
++  });
++
++  it("accepts provider-managed unknown scopes without inventing granted scopes", async () => {
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token: {
++        access_token: "issued-access",
++        refresh_token: "rotated-refresh",
++        token_type: "Bearer",
++      },
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants.user.scopes).toBeNull();
++    expect(record.runtime.grants[0]).toMatchObject({
++      permissionState: "provider-managed",
++      grantedScopes: [],
++    });
++    expect(context.methods).toContain("initialize");
++  });
++
++  it("rejects an explicitly empty granted scope list before MCP use", async () => {
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid"],
++      token: {
++        access_token: "empty-scope-token",
++        token_type: "Bearer",
++        scope: "",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "permission" });
++    expect(context.methods).toEqual([]);
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery[0]?.grant
++        ?.scopes,
++    ).toEqual([]);
++  });
++
++  it.each(["excess scopes", "invalid refresh token"] as const)(
++    "retains the valid initial access token on %s without MCP use",
++    async (malformed) => {
++      const excessive = Array.from(
++        { length: 257 },
++        (_, i) => `scope-${i}`,
++      ).join(" ");
++      const context = await mcpConnectorFixture({
++        requestedScopes: ["openid"],
++        token: {
++          access_token: "issued-access",
++          refresh_token:
++            malformed === "invalid refresh token" ? "" : "issued-refresh",
++          token_type: "Bearer",
++          scope: malformed === "excess scopes" ? excessive : "openid",
++        },
++      });
++      await beginNativeMcpAuthorization(context.id);
++      await expect(
++        finishNativeMcpAuthorization(callback(context.id)),
++      ).rejects.toMatchObject({ code: "authorization" });
++      const record = requireNativeMcpRecord(context.id);
++      expect(record.privateState.grants).toEqual({});
++      expect(record.privateState.recovery[0]?.grant).toMatchObject({
++        accessToken: "issued-access",
++        scopes: null,
++      });
++      expect(context.methods).toEqual([]);
++      expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    },
++  );
++
++  it("accepts offline consent proved by a refresh token when omitted from access scopes", async () => {
++    const context = await authorized({
++      providerId: "amplitude",
++      requestedScopes: ["mcp:read", "offline_access"],
++      token: {
++        access_token: "issued-access",
++        refresh_token: "rotated-refresh",
++        token_type: "Bearer",
++        scope: "mcp:read",
++      },
++    });
++    expect(readNativeConnector(context.id)?.status).toBe("connected");
++    expect(context.methods).toContain("initialize");
++  });
++
++  it("rejects offline consent without either a refresh token or the returned scope", async () => {
++    const context = await mcpConnectorFixture({
++      providerId: "amplitude",
++      requestedScopes: ["mcp:read", "offline_access"],
++      token: {
++        access_token: "issued-access",
++        token_type: "Bearer",
++        scope: "mcp:read",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "permission" });
++    expect(context.methods).toEqual([]);
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery[0]?.grant
++        ?.accessToken,
++    ).toBe("issued-access");
++  });
++
++  it("seals and revokes a refresh-only initial receipt without fabricating an access token", async () => {
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid"],
++      token: {
++        access_token: "",
++        refresh_token: "partial-refresh-secret",
++        token_type: "Bearer",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "authorization" });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: {
++        phase: "partial-refresh",
++        partial_refresh_token: "partial-refresh-secret",
++      },
++    });
++    expect(record.privateState.recovery[0]?.grant).toBeUndefined();
++    expect(JSON.stringify(readDeviceRows())).not.toContain(
++      "partial-refresh-secret",
++    );
++    expect(context.methods).toEqual([]);
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual([
++      "partial-refresh-secret",
++    ]);
++    expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
++      [],
++    );
++  });
++});
+diff --git a/packages/app-core/src/lib/native-mcp-session.ts b/packages/app-core/src/lib/native-mcp-session.ts
+index 6196d7c8e..f1b491bf2 100644
+--- a/packages/app-core/src/lib/native-mcp-session.ts
++++ b/packages/app-core/src/lib/native-mcp-session.ts
+@@ -16,6 +16,10 @@ import {
+   requireNativeMcpRecord,
+ } from "./native-mcp-records.js";
+ import { NativeMcpError } from "./native-mcp-target.js";
++import {
++  offlineConsentValid,
++  requiredResourceScopes,
++} from "./native-oauth-client-scopes.js";
+ import { nativeOAuthGuard } from "./native-oauth-session.js";
+ 
+ export async function markNativeMcpRefused(
+@@ -35,6 +39,23 @@ export async function markNativeMcpRefused(
+     },
+   );
+ }
++/** Enforce selected permissions before any grant is sent to the MCP resource. */
++export function assertNativeMcpGrantScopes(
++  record: NativeConnectorRecord,
++  grant?: NativeGrant,
++): void {
++  if (!grant) return;
++  const requested = record.configuration.requestedScopes.user ?? [];
++  if (
++    !offlineConsentValid(requested, grant.scopes, grant.refreshToken) ||
++    (grant.scopes !== null &&
++      requiredResourceScopes(requested).some(
++        (scope) => !grant.scopes?.includes(scope),
++      ))
++  )
++    throw new NativeMcpError("permission");
++}
++
+ export async function nativeMcpRecordSession(
+   record: NativeConnectorRecord,
+   transport: NativeProviderTransport,
+@@ -48,6 +69,7 @@ export async function nativeMcpRecordSession(
+   );
+   const binding = nativeMcpRecordBinding(record.configuration);
+   const grant = issuedGrant ?? record.privateState.grants.user;
++  assertNativeMcpGrantScopes(record, grant);
+   if (grant && grant.expiresAt !== null && grant.expiresAt <= Date.now())
+     throw new NativeMcpError("authorization");
+   const assertCurrent = () => {
+diff --git a/packages/app-core/src/lib/native-mcp-token-receipt.ts b/packages/app-core/src/lib/native-mcp-token-receipt.ts
+index 4595de77f..ce8ca14c6 100644
+--- a/packages/app-core/src/lib/native-mcp-token-receipt.ts
++++ b/packages/app-core/src/lib/native-mcp-token-receipt.ts
+@@ -8,10 +8,9 @@ const opaque = z
+   .min(1)
+   .max(32768)
+   .regex(/^[!-~]+$/);
+-const PairSchema = z.object({
+-  access_token: opaque,
+-  refresh_token: opaque.optional(),
+-});
++const AccessSchema = z.object({ access_token: opaque });
++const RefreshSchema = z.object({ refresh_token: opaque });
++const PairSchema = AccessSchema.extend({ refresh_token: opaque.optional() });
+ const DetailsSchema = z.object({
+   token_type: z.string().min(1),
+   expires_in: z
+@@ -23,7 +22,13 @@ const DetailsSchema = z.object({
+   scope: z
+     .string()
+     .max(32768)
+-    .refine((scope) => scope.split(/\s+/).every((value) => value.length <= 512))
++    .refine((scope) => {
++      const values = scope.split(/\s+/).filter(Boolean);
++      return (
++        values.every((value) => value.length <= 512) &&
++        new Set(values).size <= 256
++      );
++    })
+     .optional(),
+ });
+ export type NativeMcpIssuedTokens = OAuthTokens & { protocolValid: boolean };
+@@ -33,24 +38,32 @@ export async function captureNativeMcpTokenReply(
+   action: (fetcher: typeof fetch) => Promise<OAuthTokens>,
+   fetcher: typeof fetch,
+   issuer: string,
++  retainPartialRefresh?: (token: string) => Promise<void>,
+ ): Promise<NativeMcpIssuedTokens> {
+   const capture: TokenCapture = { value: null };
++  let partialRefresh: string | null = null;
+   const admitted: typeof fetch = async (input, init) => {
+     const response = await fetcher(input, init);
+     if (response.ok) {
+       const body = await response.clone().json();
++      const access = AccessSchema.safeParse(body);
+       const pair = PairSchema.safeParse(body);
+-      if (pair.success) {
++      const refresh = RefreshSchema.safeParse(body);
++      if (!access.success && refresh.success)
++        partialRefresh = refresh.data.refresh_token;
++      if (access.success) {
+         const details = DetailsSchema.safeParse(body);
++        const validDetails = pair.success && details.success;
+         capture.value = {
+-          ...pair.data,
+-          token_type: details.success ? details.data.token_type : "",
++          ...access.data,
++          token_type: validDetails ? details.data.token_type : "",
+           issuer,
+           protocolValid:
+-            details.success &&
+-            details.data.token_type.toLowerCase() === "bearer",
++            validDetails && details.data.token_type.toLowerCase() === "bearer",
+         };
+-        if (details.success) {
++        if (pair.success && pair.data.refresh_token)
++          capture.value.refresh_token = pair.data.refresh_token;
++        if (validDetails) {
+           capture.value.expires_in = details.data.expires_in;
+           capture.value.scope = details.data.scope;
+         }
+@@ -61,7 +74,12 @@ export async function captureNativeMcpTokenReply(
+   try {
+     await action(admitted);
+   } catch (error) {
+-    if (!capture.value) throw error;
++    if (!capture.value && !partialRefresh) throw error;
++  }
++  if (!capture.value && partialRefresh) {
++    if (!retainPartialRefresh) throw new NativeMcpAuthError("storage");
++    await retainPartialRefresh(partialRefresh);
++    throw new NativeMcpAuthError("authorization");
+   }
+   if (!capture.value) throw new NativeMcpAuthError("authorization");
+   return capture.value;
