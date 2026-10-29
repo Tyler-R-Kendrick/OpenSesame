@@ -43,12 +43,12 @@ describe("Boat registration state resumption", () => {
           402,
         );
       if (url.pathname === "/api/boat/billing/checkout")
-        return json({ url: "https://checkout.example.test/session" });
+        return json({ url: "https://checkout.stripe.com/session" });
       throw new Error(`unexpected ${url.pathname}`);
     };
     let persisted: BoatProviderState = {};
     const first = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       onStateChange: (state) => {
@@ -63,7 +63,7 @@ describe("Boat registration state resumption", () => {
       identityAssertion: "anonymous",
     });
     const resumed = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       state: persisted,
@@ -89,7 +89,8 @@ describe("Boat registration state resumption", () => {
           claim_token: "claim",
           claim: {
             user_code: "123456",
-            verification_uri: "https://boat.test/claim?token=one",
+            verification_uri:
+              "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=one",
             expires_in: 600,
             interval: 5,
           },
@@ -99,7 +100,7 @@ describe("Boat registration state resumption", () => {
       throw new Error(`unexpected ${url.pathname}`);
     };
     const first = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       onStateChange: (state) => {
@@ -110,17 +111,19 @@ describe("Boat registration state resumption", () => {
     });
     await expect(first.allocate(request)).rejects.toThrow("disk unavailable");
     await expect(first.allocate(request)).rejects.toMatchObject({
-      verificationUri: "https://boat.test/claim?token=one",
+      verificationUri:
+        "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=one",
       userCode: "123456",
     });
     const resumed = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       state: persisted,
     });
     await expect(resumed.allocate(request)).rejects.toMatchObject({
-      verificationUri: "https://boat.test/claim?token=one",
+      verificationUri:
+        "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=one",
       userCode: "123456",
     });
   });
@@ -132,7 +135,8 @@ describe("Boat registration state resumption", () => {
       claimMaterials: {
         claimToken: "old",
         userCode: "111111",
-        verificationUri: "https://boat.test/old",
+        verificationUri:
+          "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=old",
         expiresIn: 1,
         interval: 1,
       },
@@ -146,14 +150,15 @@ describe("Boat registration state resumption", () => {
         return json({
           claim_token: "new",
           user_code: "222222",
-          verification_uri: "https://boat.test/new",
+          verification_uri:
+            "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=new",
           expires_in: 600,
           interval: 5,
         });
       throw new Error(`unexpected ${path}`);
     };
     const withoutEmail = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       state: stale,
@@ -163,7 +168,7 @@ describe("Boat registration state resumption", () => {
       /unavailable or expired/,
     );
     const withEmail = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       state: stale,
@@ -173,7 +178,8 @@ describe("Boat registration state resumption", () => {
       },
     });
     await expect(withEmail.allocate(request)).rejects.toMatchObject({
-      verificationUri: "https://boat.test/new",
+      verificationUri:
+        "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=new",
       userCode: "222222",
     });
     expect(persisted.claimToken).toBe("new");
@@ -184,7 +190,8 @@ describe("Boat registration state resumption", () => {
     const claim = {
       claimToken: "other",
       userCode: "111111",
-      verificationUri: "https://boat.test/old",
+      verificationUri:
+        "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=old",
       expiresIn: 600,
       interval: 1,
     };
@@ -197,7 +204,7 @@ describe("Boat registration state resumption", () => {
     const fetchImpl: typeof fetch = async () =>
       json({ error: "authorization_pending" }, 400);
     const provider = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       claimToken: "override",
@@ -235,11 +242,11 @@ describe("Boat registration state resumption", () => {
           402,
         );
       if (path === "/api/boat/billing/checkout")
-        return json({ url: "https://checkout.example.test/session" });
+        return json({ url: "https://checkout.stripe.com/session" });
       throw new Error(`unexpected ${path}`);
     };
     const provider = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       identityAssertion: "explicit-new",
@@ -273,11 +280,11 @@ describe("Boat registration state resumption", () => {
           402,
         );
       if (path === "/api/boat/billing/checkout")
-        return json({ url: "https://checkout.example.test/session" });
+        return json({ url: "https://checkout.stripe.com/session" });
       throw new Error(`unexpected ${path}`);
     };
     const provider = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       state: { claimToken: "claim" },
@@ -316,11 +323,11 @@ describe("Boat registration state resumption", () => {
           402,
         );
       if (url.pathname === "/api/boat/billing/checkout")
-        return json({ url: "https://checkout.example.test/session" });
+        return json({ url: "https://checkout.stripe.com/session" });
       throw new Error(`unexpected ${url.pathname}`);
     };
     const provider = new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "https://boat.dev",
       fetchImpl,
       agentCommand: "agent",
       state: { identityAssertion: "old" },
