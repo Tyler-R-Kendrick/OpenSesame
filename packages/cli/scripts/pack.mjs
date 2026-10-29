@@ -12,7 +12,7 @@ try {
   await cp(join(root, "README.md"), join(stage, "README.md"));
   await writeFile(
     join(stage, "package.json"),
-    `${JSON.stringify({ name: manifest.name, version: manifest.version, type: "module", description: manifest.description, bin: manifest.bin, exports: manifest.exports, files: ["dist"], engines: { node: ">=22" }, dependencies: { "@types/node": manifest.devDependencies["@types/node"] } }, null, 2)}\n`,
+    `${JSON.stringify({ name: manifest.name, version: manifest.version, type: "module", description: manifest.description, bin: manifest.bin, exports: manifest.exports, files: ["dist"], engines: { node: ">=22" }, dependencies: { "@types/node": manifest.devDependencies["@types/node"], "agent-browser": manifest.dependencies["agent-browser"] } }, null, 2)}\n`,
   );
   execFileSync(
     "npm",

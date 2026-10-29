@@ -334,11 +334,10 @@ export function runtime(
   store: CheckpointJournal = new MemoryCheckpointJournal(),
   withProxy = false,
 ) {
-  return runtimeForDriver(new PlaywrightDriver(page), site, {
+  const options: RuntimeDriverOptions = {
     challenge,
     store,
     withProxy,
-    ...(withProxy ? { proxyPort: proxy(page) } : {}),
     verifyLogin: async (custody) => {
       await page.goto(`${site.origin}/login`);
       await page.locator("input[name='email']").fill("person@example.test");
@@ -351,5 +350,7 @@ export function runtime(
     takeoverResume: async () => {
       await page.locator("form[action='/challenge/clear'] button").click();
     },
-  });
+  };
+  if (withProxy) options.proxyPort = proxy(page);
+  return runtimeForDriver(new PlaywrightDriver(page), site, options);
 }

@@ -7,20 +7,52 @@ import {
   recipeSchema,
 } from "@opensesame/cua-password-reset";
 import { z } from "zod";
-import type { PasswordResetCommand } from "./password-reset-parse.js";
+import {
+  BUNDLED_LOCAL_MODULE,
+  type PasswordResetCommand,
+} from "./password-reset-parse.js";
 
-const https = z.url().refine((value) => new URL(value).protocol === "https:");
+export { BUNDLED_LOCAL_MODULE };
+
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+const https = z.url().refine((value) => {
+  const url = new URL(value);
+  return (
+    url.protocol === "https:" ||
+    (url.protocol === "http:" && LOOPBACK.has(url.hostname))
+  );
+}, "URL must be https (http is loopback-only)");
 const runtimeSchema = z
   .object({
     module: z.string().min(1).max(512),
-    resource: https,
-    model: z.string().min(1).max(200),
-    modelBaseURL: https,
-    modelKeyEnv: z.string().regex(/^[A-Z_][A-Z0-9_]{0,127}$/),
-    browser: z.string().min(1).max(512),
+    resource: https.optional(),
+    model: z.string().min(1).max(200).optional(),
+    modelBaseURL: https.optional(),
+    modelKeyEnv: z
+      .string()
+      .regex(/^[A-Z_][A-Z0-9_]{0,127}$/)
+      .optional(),
+    browser: z.string().min(1).max(512).optional(),
     maxSteps: z.number().int().min(1).max(80),
   })
-  .strict();
+  .strict()
+  .superRefine((runtime, context) => {
+    if (runtime.module === BUNDLED_LOCAL_MODULE) return;
+    for (const key of [
+      "resource",
+      "model",
+      "modelBaseURL",
+      "modelKeyEnv",
+      "browser",
+    ] as const) {
+      if (runtime[key] === undefined)
+        context.addIssue({
+          code: "custom",
+          path: [key],
+          message: `External runtime modules require ${key}`,
+        });
+    }
+  });
 const configSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -53,6 +85,11 @@ export async function validateResetConfiguration(
   config: PasswordResetConfiguration,
   directory: string,
 ): Promise<void> {
+  if (config.runtime.module === BUNDLED_LOCAL_MODULE) {
+    if (config.transport !== "cdp")
+      throw new Error("The bundled local runtime drives CDP transport only");
+    return;
+  }
   const path = resolve(directory, config.runtime.module);
   const adapter: ValidationModule = await import(pathToFileURL(path).href);
   const parsed = configurationValidatorSchema.safeParse(

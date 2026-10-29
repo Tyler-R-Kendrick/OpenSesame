@@ -80,7 +80,7 @@ async function validateResetConfiguration(
   emit(command.flags, "Password reset configuration validated.", {
     ok: true,
     origin: loaded.config.origin,
-    model: loaded.config.runtime.model,
+    model: loaded.config.runtime.model ?? "none (bundled local runtime)",
   });
   return 0;
 }

@@ -19,14 +19,14 @@ function refFor(obs: Observation, kind: string, label: string): string {
 test("agent-browser 0.39 snapshot contract drives the local reset fixture", async () => {
   const site = new MockResetSite();
   await site.start();
-  const browser = new AgentBrowser({
+  const browserConfig: ConstructorParameters<typeof AgentBrowser>[0] = {
     executable: process.env.AGENT_BROWSER ?? "agent-browser",
     session: `cua-contract-${crypto.randomUUID()}`,
     allowedDomains: ["127.0.0.1"],
-    ...(process.env.AGENT_BROWSER_CHROME
-      ? { browserExecutable: process.env.AGENT_BROWSER_CHROME }
-      : {}),
-  });
+  };
+  if (process.env.AGENT_BROWSER_CHROME)
+    browserConfig.browserExecutable = process.env.AGENT_BROWSER_CHROME;
+  const browser = new AgentBrowser(browserConfig);
   try {
     await browser.open(`${site.origin}/reset`);
     const initial = await browser.snapshot();
