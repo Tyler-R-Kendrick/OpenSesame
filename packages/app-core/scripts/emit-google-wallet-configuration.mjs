@@ -63,7 +63,10 @@ function validateSemantics(semantics) {
     semantics.native_storage_stage !== "webcrypto_pkcs8_rsa_import" ||
     semantics.native_input_normalization !==
       "trim_public_fields_preserve_private_before_validation" ||
-    semantics.wallet_env_normalization !== "trim_each_value_and_lowercase_email"
+    semantics.wallet_env_normalization !==
+      "trim_each_value_and_lowercase_email" ||
+    semantics.native_verified_entry_stage !==
+      "service_account_json_then_wallet_config_then_signed_provider_proof"
   )
     throw new Error("Unsupported Google Wallet policy semantics");
 }
@@ -119,11 +122,23 @@ export function googleWalletConfigurationPolicy(
   validateIdentifiers(issuer, walletClass);
   validateEmail(email);
   validateKey(key);
+  const account = policy.native_service_account;
+  if (
+    !isJsonObject(account) ||
+    account.type !== "service_account" ||
+    !isString(account.email_pattern) ||
+    !isString(account.key_pem_pattern) ||
+    !Number.isSafeInteger(account.json_max_length) ||
+    account.json_max_length < 1
+  )
+    throw new Error("Invalid Google Wallet service account policy");
   for (const pattern of [
     issuer.pattern,
     walletClass.suffix_pattern,
     email.pattern,
     key.pem_pattern,
+    account.email_pattern,
+    account.key_pem_pattern,
   ])
     new RegExp(pattern);
   return {
@@ -134,6 +149,12 @@ export function googleWalletConfigurationPolicy(
       issuerSeparator: walletClass.issuer_separator,
     },
     email: { pattern: email.pattern, maxLength: email.max_length },
+    nativeServiceAccount: {
+      type: account.type,
+      emailPattern: account.email_pattern,
+      keyPemPattern: account.key_pem_pattern,
+      jsonMaxLength: account.json_max_length,
+    },
     key: {
       format: key.format,
       algorithm: key.algorithm,

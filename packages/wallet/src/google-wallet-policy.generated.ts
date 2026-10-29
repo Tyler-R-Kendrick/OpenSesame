@@ -11,6 +11,14 @@ export const GOOGLE_WALLET_CONFIGURATION_POLICY = Object.freeze({
     pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
     maxLength: 320,
   }),
+  nativeServiceAccount: Object.freeze({
+    type: "service_account",
+    emailPattern:
+      "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[a-z][a-z0-9-]{3,61}\\.(?:iam\\.)?gserviceaccount\\.com$",
+    keyPemPattern:
+      "^-----BEGIN PRIVATE KEY-----([A-Za-z0-9+/=\\s]{200,8192})-----END PRIVATE KEY-----\\s*$",
+    jsonMaxLength: 32768,
+  }),
   key: Object.freeze({
     format: "pkcs8",
     algorithm: "RSASSA-PKCS1-v1_5",

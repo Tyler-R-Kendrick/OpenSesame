@@ -30,6 +30,13 @@
     "wallet_config_stage": "pem_envelope_only",
     "native_storage_stage": "webcrypto_pkcs8_rsa_import",
     "native_input_normalization": "trim_public_fields_preserve_private_before_validation",
-    "wallet_env_normalization": "trim_each_value_and_lowercase_email"
+    "wallet_env_normalization": "trim_each_value_and_lowercase_email",
+    "native_verified_entry_stage": "service_account_json_then_wallet_config_then_signed_provider_proof"
+  },
+  "native_service_account": {
+    "type": "service_account",
+    "email_pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[a-z][a-z0-9-]{3,61}\\.(?:iam\\.)?gserviceaccount\\.com$",
+    "key_pem_pattern": "^-----BEGIN PRIVATE KEY-----([A-Za-z0-9+/=\\s]{200,8192})-----END PRIVATE KEY-----\\s*$",
+    "json_max_length": 32768
   }
 }
