@@ -35,6 +35,7 @@ import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
 import { NativeVaultBackupControls } from "./NativeS3BackupControls.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
+import { usesMcp } from "./native-connector-mcp-use.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
 import type {
   NativeActionDescriptor,
@@ -297,14 +298,6 @@ function backupControls(
       onFlash={onFlash}
     />
   ) : null;
-}
-
-function usesMcp(view: NativeConnectorView) {
-  return (
-    view.configuration.method === "mcp" ||
-    (nativeOAuthClientConfigured(view.configuration) &&
-      view.configuration.parameters.resource_protocol === "mcp")
-  );
 }
 
 export function NativeConnectorPanels({
