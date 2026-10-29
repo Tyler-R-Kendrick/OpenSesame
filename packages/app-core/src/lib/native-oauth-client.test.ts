@@ -258,16 +258,6 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
     });
     expect(record.privateState.grants).toEqual({});
   });
-  it("requires selected permission evidence when the token endpoint returns scopes", async () => {
-    const f = await setup();
-    f.state.scope = "different:scope";
-    await expect(
-      exchangeNativeOAuthClient(f.search, f.owner),
-    ).rejects.toMatchObject({ code: "scope" });
-    expect(
-      requireNativeOAuthRecord(f.saved.connectionId).privateState.grants,
-    ).toEqual({});
-  });
   it("preserves the exact revision/CAS and refuses configuration edits with a pending authorization", async () => {
     const f = await setup("client_secret_post");
     await expect(

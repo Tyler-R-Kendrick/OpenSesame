@@ -1,0 +1,172 @@
+{
+  "provider_id": "google-wallet",
+  "public_cases": [
+    {
+      "name": "unqualified class",
+      "issuer_id": "123456",
+      "class_id": "travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": true
+    },
+    {
+      "name": "qualified class",
+      "issuer_id": "123456",
+      "class_id": "123456.travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": true
+    },
+    {
+      "name": "wrong issuer",
+      "issuer_id": "123456",
+      "class_id": "654321.travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "short issuer",
+      "issuer_id": "12345",
+      "class_id": "travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "oversized issuer",
+      "issuer_id": "111111111111111111111111111111111",
+      "class_id": "travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "unsafe class",
+      "issuer_id": "123456",
+      "class_id": "pass/../../x",
+      "service_account_email": "service@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "empty suffix",
+      "issuer_id": "123456",
+      "class_id": "123456.",
+      "service_account_email": "service@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "invalid email",
+      "issuer_id": "123456",
+      "class_id": "travel-pass",
+      "service_account_email": "service@@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "oversized email",
+      "issuer_id": "123456",
+      "class_id": "travel-pass",
+      "service_account_email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "qualified class with dotted suffix",
+      "issuer_id": "123456",
+      "class_id": "123456.pass.v1",
+      "service_account_email": "service@example.invalid",
+      "accepted": true
+    },
+    {
+      "name": "dotted unqualified class",
+      "issuer_id": "123456",
+      "class_id": "pass.v1",
+      "service_account_email": "service@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "non-ASCII digits rejected",
+      "issuer_id": "１２３４５６",
+      "class_id": "pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "unicode email accepted",
+      "issuer_id": "123456",
+      "class_id": "pass",
+      "service_account_email": "ümlaut@example.invalid",
+      "accepted": true
+    },
+    {
+      "name": "email astral length counts UTF-16 units",
+      "issuer_id": "123456",
+      "class_id": "pass",
+      "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
+      "accepted": true
+    },
+    {
+      "name": "email astral length over limit",
+      "issuer_id": "123456",
+      "class_id": "pass",
+      "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
+      "accepted": false
+    },
+    {
+      "name": "wallet email case folding can expand length",
+      "issuer_id": "123456",
+      "class_id": "pass",
+      "service_account_email": "İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ@example.invalid",
+      "accepted": true,
+      "wallet_accepted": false
+    },
+    {
+      "name": "entrypoint trims surrounding public whitespace",
+      "issuer_id": " 123456 ",
+      "class_id": " pass ",
+      "service_account_email": " service@example.invalid ",
+      "accepted": false,
+      "native_entry_accepted": true,
+      "wallet_accepted": true
+    }
+  ],
+  "key_cases": [
+    {
+      "name": "valid RSA PKCS8",
+      "value": "generated_pkcs8_rsa",
+      "accepted": true
+    },
+    {
+      "name": "escaped newline PKCS8",
+      "value": "generated_pkcs8_rsa_escaped",
+      "accepted": true
+    },
+    {
+      "name": "PKCS1 RSA",
+      "value": "generated_pkcs1_rsa",
+      "accepted": false
+    },
+    {
+      "name": "invalid key",
+      "value": "not-a-private-key",
+      "accepted": false
+    },
+    {
+      "name": "oversized key",
+      "value": "oversized",
+      "accepted": false
+    },
+    {
+      "name": "malformed DER after valid PEM envelope",
+      "value": "invalid_der",
+      "pem_accepted": true,
+      "accepted": false
+    },
+    {
+      "name": "PKCS8 EC is not RSA",
+      "value": "generated_ec_pkcs8",
+      "pem_accepted": true,
+      "accepted": false
+    },
+    {
+      "name": "misplaced base64 padding",
+      "value": "invalid_padding",
+      "pem_accepted": false,
+      "accepted": false
+    }
+  ]
+}
