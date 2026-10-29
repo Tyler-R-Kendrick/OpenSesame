@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { NativeConnectorRecovery } from "./NativeConnectorRecovery.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
@@ -174,7 +175,7 @@ it("refuses confirmation while the driver's operation deadline is still live", a
   expect(controller.confirmRevocation).not.toHaveBeenCalled();
   expect(
     screen.getByRole("img", {
-      name: /A provider authorization operation is still pending/,
+      name: /This provider authorization requires recovery before confirmation/,
     }),
   ).toBeTruthy();
   expect(nativeVerified(view)).toBe(false);
@@ -204,4 +205,147 @@ it("does not offer attestation through an unsafe external settings URL", () => {
     screen.queryByRole("button", { name: "Confirm provider revocation" }),
   ).toBeNull();
   expect(controller.confirmRevocation).not.toHaveBeenCalled();
+});
+
+it("waits for the MCP guide and confirms with the revision the user saw", async () => {
+  const { view, controller: base } = revocationContext();
+  view.configuration.method = "mcp";
+  let resolveGuide: (guide: {
+    url: string;
+    message: string;
+    canConfirm: boolean;
+    revision: number;
+  }) => void = () => {};
+  const guide = new Promise<{
+    url: string;
+    message: string;
+    canConfirm: boolean;
+    revision: number;
+  }>((resolve) => {
+    resolveGuide = resolve;
+  });
+  const confirmRevocation = vi.fn(
+    async (_id: string, _revision?: number) => view,
+  );
+  const controller: NativeConnectorController = {
+    ...base,
+    revocationInstructions: () => null,
+    loadRevocationInstructions: () => guide,
+    confirmRevocation,
+  };
+  render(
+    <NativeConnectorRecovery
+      view={view}
+      controller={controller}
+      onChanged={vi.fn()}
+      onFlash={vi.fn()}
+    />,
+  );
+  expect(
+    screen.queryByRole("link", {
+      name: "Open provider revocation instructions",
+    }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Confirm provider revocation" }),
+  ).toBeNull();
+  resolveGuide({
+    url: "https://www.spotify.com/account/apps/",
+    message: "Revoke this application before confirming.",
+    canConfirm: true,
+    revision: 37,
+  });
+  const statement = await screen.findByRole("checkbox", {
+    name: "I revoked this application at the provider",
+  });
+  await userEvent.click(statement);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirm provider revocation" }),
+  );
+  await waitFor(() =>
+    expect(confirmRevocation).toHaveBeenCalledWith("authorization-1", 37),
+  );
+});
+
+it("clears the acknowledgement after a stale MCP confirmation is refused", async () => {
+  const { view, controller: base } = revocationContext();
+  view.configuration.method = "mcp";
+  let revision = 37;
+  const confirmRevocation = vi.fn(async (_id: string, _revision?: number) => {
+    revision = 38;
+    throw new Error(
+      "Provider authorization changed. Retry provider revocation.",
+    );
+  });
+  const loadRevocationInstructions = vi.fn(async () => ({
+    url: "https://www.spotify.com/account/apps/",
+    message: "Revoke this application before confirming.",
+    canConfirm: true,
+    revision,
+  }));
+  const controller: NativeConnectorController = {
+    ...base,
+    revocationInstructions: () => null,
+    loadRevocationInstructions,
+    confirmRevocation,
+  };
+  render(
+    <NativeConnectorRecovery
+      view={view}
+      controller={controller}
+      onChanged={vi.fn()}
+      onFlash={vi.fn()}
+    />,
+  );
+  await userEvent.click(
+    await screen.findByRole("checkbox", {
+      name: "I revoked this application at the provider",
+    }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirm provider revocation" }),
+  );
+  await waitFor(() =>
+    expect(confirmRevocation).toHaveBeenCalledWith("authorization-1", 37),
+  );
+  await waitFor(() =>
+    expect(loadRevocationInstructions).toHaveBeenCalledTimes(2),
+  );
+  const freshStatement = await screen.findByRole("checkbox", {
+    name: "I revoked this application at the provider",
+  });
+  expect(freshStatement).toHaveProperty("checked", false);
+  expect(
+    screen.getByRole("button", { name: "Confirm provider revocation" }),
+  ).toHaveProperty("disabled", true);
+  expect(view.recovery).toHaveLength(1);
+});
+
+it("loads one MCP guide under Strict Mode effect replay", async () => {
+  const { view, controller: base } = revocationContext();
+  view.configuration.method = "mcp";
+  const load = vi.fn(async () => ({
+    url: "https://www.spotify.com/account/apps/",
+    message: "Revoke this application before confirming.",
+    canConfirm: true,
+    revision: 37,
+  }));
+  render(
+    <StrictMode>
+      <NativeConnectorRecovery
+        view={view}
+        controller={{
+          ...base,
+          revocationInstructions: () => null,
+          loadRevocationInstructions: load,
+        }}
+        onChanged={vi.fn()}
+        onFlash={vi.fn()}
+      />
+    </StrictMode>,
+  );
+  await screen.findByRole("checkbox", {
+    name: "I revoked this application at the provider",
+  });
+  expect(load).toHaveBeenCalledTimes(1);
 });

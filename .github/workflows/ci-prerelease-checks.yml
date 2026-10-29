@@ -518,6 +518,7 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: |
           pnpm --filter @opensesame/pages verify:native-public-protocol
+          pnpm --filter @opensesame/pages test:mcp-cross-realm
           pnpm --filter @opensesame/pages verify:provider-auth
           pnpm --filter @opensesame/pages build:identity-verify
           pnpm --filter @opensesame/pages verify:identity-connections

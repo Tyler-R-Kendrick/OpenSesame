@@ -25,7 +25,8 @@ import type { NativeConnectorView } from "./native-connector-view.js";
 
 export type NativeCleanupOutcome =
   | "provider-revoked"
-  | "local-credential-forgotten";
+  | "local-credential-forgotten"
+  | "local-registration-forgotten";
 export interface NativeCleanupContext {
   connectionId: string;
   configuration: NativeConfiguration;
@@ -197,11 +198,19 @@ async function cleanupEntry(
   });
   if (
     outcome !== "provider-revoked" &&
-    outcome !== "local-credential-forgotten"
+    outcome !== "local-credential-forgotten" &&
+    outcome !== "local-registration-forgotten"
   )
     throw new Error("Provider cleanup did not complete");
   if (outcome === "local-credential-forgotten" && expected.kind !== "revoke")
     throw new Error("Remote provider configuration requires provider cleanup");
+  if (
+    outcome === "local-registration-forgotten" &&
+    expected.kind !== "registration"
+  )
+    throw new Error(
+      "Local registration cleanup requires a registration obligation",
+    );
   transport?.assertCurrent();
   const current = requiredRecord(connectionId);
   await updateNativeConnector(

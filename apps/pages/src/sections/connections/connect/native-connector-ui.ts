@@ -103,6 +103,14 @@ export type SafeActionResult = {
   }[];
 };
 
+export type NativeRevocationGuide = {
+  url: string;
+  message: string;
+  canConfirm: boolean;
+  acknowledgementLabel?: string;
+  revision?: number;
+};
+
 /** The owner pins these operations to one provider and configuration revision. */
 export type NativeConnectorController = {
   cancelAuthorization: () => void;
@@ -119,13 +127,14 @@ export type NativeConnectorController = {
     signal?: AbortSignal,
   ) => Promise<SafeActionResult>;
   retry: (recoveryId: string) => Promise<NativeConnectorView>;
-  revocationInstructions?: (recoveryId: string) => {
-    url: string;
-    message: string;
-    canConfirm: boolean;
-    acknowledgementLabel?: string;
-  } | null;
-  confirmRevocation?: (recoveryId: string) => Promise<NativeConnectorView>;
+  revocationInstructions?: (recoveryId: string) => NativeRevocationGuide | null;
+  loadRevocationInstructions?: (
+    recoveryId: string,
+  ) => Promise<NativeRevocationGuide | null>;
+  confirmRevocation?: (
+    recoveryId: string,
+    guideRevision?: number,
+  ) => Promise<NativeConnectorView>;
   remove: () => Promise<void>;
 };
 
