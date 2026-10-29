@@ -1,0 +1,88 @@
+diff --git a/docs/operators/ci-promotion.md b/docs/operators/ci-promotion.md
+index 21e600b30..7f648241c 100644
+--- a/docs/operators/ci-promotion.md
++++ b/docs/operators/ci-promotion.md
+@@ -127,18 +127,26 @@ digests, language categories and source inputs are recorded together in
+ tree entry, including mode and object ID, except that review-record file itself.
+ This exception lets a later controller record an independently reviewed source
+ without requiring the record to contain its own digest. The record is part of
+-the compatibility policy and must match the trusted controller. No native TLS result is currently authorized by this record.
+-
+-Any changed input or unrecorded result fails qualification until its complete
+-dataflows, dependencies, analyzer output and source are reviewed. After review,
+-compute the candidate input digest with the trusted controller's
+-`candidateTree` and `candidateSourceDigest` functions, and add only the exact
+-reviewed result digest and language under that input digest in the record.
+-Changing only the record leaves the input digest stable. This process retains
+-and does not dismiss SARIF. Missing evidence, additional findings and
+-analysis/extraction errors also fail. Candidate build processes currently run
+-on the analysis runners; a separate trustworthy analysis provenance boundary
+-is still needed before these reports can establish isolation from such code.
++the compatibility policy and must match the trusted controller. No native TLS
++result is currently authorized by this record. The historical record preserves
++review evidence; it does not make that commit releasable under the current
++controller when its policy inputs differ.
++
++A retained finding qualifies only when its complete result digest, category and
++candidate input digest match the trusted controller's review record and its
++hard-coded eligible-result map. A changed input or unrecorded result therefore
++requires a fresh review if the finding remains; a clean report does not require
++a record for its input digest. After reviewing complete dataflows, dependencies,
++analyzer output and source, compute the candidate input digest with the trusted
++controller's `candidateTree` and `candidateSourceDigest` functions. Update the
++controller-owned eligible-result map and record only for the exact reviewed
++result, category and input digest, as appropriate. Updating the record alone
++cannot authorize a result absent from the eligible-result map. Changing only the
++record leaves the input digest stable. This process retains and does not dismiss
++SARIF. Missing evidence, additional findings and analysis/extraction errors also
++fail. Candidate build processes currently run on the analysis runners; a separate
++trustworthy analysis provenance boundary is still needed before these reports can
++establish isolation from such code.
+ 
+ ## Operating a release
+ 
+diff --git a/scripts/release/check-codeql-sarif.mjs b/scripts/release/check-codeql-sarif.mjs
+index 1adf6b185..214210f4c 100644
+--- a/scripts/release/check-codeql-sarif.mjs
++++ b/scripts/release/check-codeql-sarif.mjs
+@@ -10,7 +10,7 @@ import {
+ 
+ // Each complete result and its full candidate source inputs are pinned.
+ // Updating the controller-owned review record does not change its own input
+-// digest; any other candidate tree change requires a fresh source review.
++// digest; other candidate tree changes require a fresh review for retained findings.
+ // These are keyed HMACs for integrity/opaque filenames, not password hashes.
+ const REVIEWED_RESULTS = new Map([
+   [
+diff --git a/scripts/release/lib/candidate-api.mjs b/scripts/release/lib/candidate-api.mjs
+index 59a110f42..665f299f5 100644
+--- a/scripts/release/lib/candidate-api.mjs
++++ b/scripts/release/lib/candidate-api.mjs
+@@ -97,6 +97,15 @@ function extractionBuildInput(path) {
+   );
+ }
+ 
++function securityHelperPath(path) {
++  return (
++    scannerHelper(path, "scripts/test/live-turn/") ||
++    (path.startsWith("tools/pwa-tailscale-native-http/") &&
++      /\.(?:mjs|cjs|js|sh|py)$/.test(path)) ||
++    (path.startsWith("scripts/security/") && !path.includes(".test."))
++  );
++}
++
+ function scannerPolicyPath(path) {
+   const parts = path.split("/");
+   const name = parts.at(-1);
+@@ -112,10 +121,7 @@ function scannerPolicyPath(path) {
+     path === "scripts/fuzz/jazzer-gate.sh" ||
+     path === "scripts/lib/fuzz-directory.sh" ||
+     (path.startsWith("scripts/audit/") && !path.includes(".test.")) ||
+-    scannerHelper(path, "scripts/test/live-turn/") ||
+-    (path.startsWith("tools/pwa-tailscale-native-http/") &&
+-      /\.(?:mjs|cjs|js|sh|py)$/.test(path)) ||
+-    (path.startsWith("scripts/security/") && !path.includes(".test."))
++    securityHelperPath(path)
+   );
+ }
+ 

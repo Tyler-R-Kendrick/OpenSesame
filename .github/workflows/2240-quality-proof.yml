@@ -1,0 +1,57 @@
+name: Review CodeQL policy quality candidate
+on:
+  push:
+    branches: [review/2240-quality-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2240-quality-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout candidate parent
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: e8df14500ecdad50d7ec8aa4f92772d849a94c90
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Apply and verify exact candidate
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = e8df14500ecdad50d7ec8aa4f92772d849a94c90
+          printf '%s  %s\n' 1f1c3df5605b41c7d95e740849e3a51824a4b09a8d9bf144881a192d17a8ad9e ../controller/.github/verify-inputs/2240-quality.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2240-quality.patch
+          test "$(git write-tree)" = bf0d5c02bed242c5694f08ae81dd2e13aa6f3fc9
+          git diff --exit-code
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Quality and focused security tests
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm exec biome check scripts/release/lib/candidate-api.mjs scripts/release/check-codeql-sarif.mjs
+          pnpm quality:gate
+          node --test scripts/release/candidate-policy-scanner.test.mjs scripts/release/check-codeql-artifacts.test.mjs scripts/release/check-codeql-sarif.test.mjs
+      - name: Verify exact source after tests
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = e8df14500ecdad50d7ec8aa4f92772d849a94c90
+          test "$(git write-tree)" = bf0d5c02bed242c5694f08ae81dd2e13aa6f3fc9
+          git diff --exit-code
