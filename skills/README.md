@@ -6,7 +6,7 @@ matches against. [`.agents/skills/`](../.agents/skills) links to each of these
 for tools that look there; those 8 aliases are the only `.agents/` entries in
 source control. Third-party skills are **install output, not source**: they
 are restored into `.agents/skills/` (plus harness mirrors) by
-`scripts/dev/install-agent-skills.sh` — run at devcontainer creation, or
+`scripts/dev/install-agent-skills.sh` — run at every devcontainer start, or
 `pnpm skills:install` locally — from the pins in
 [`skills-lock.json`](../skills-lock.json), and every harness root is
 gitignored except the repo-built adapters whitelisted in `.gitignore`.

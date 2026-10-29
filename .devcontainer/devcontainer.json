@@ -15,7 +15,8 @@
   "forwardPorts": [8787, 8788, 18790],
   "onCreateCommand": "rustup show active-toolchain || cargo --version",
   "updateContentCommand": "mkdir -p \"$HOME/.local/bin\" && corepack enable --install-directory \"$HOME/.local/bin\" && corepack prepare pnpm@9.15.0 --activate && bash scripts/dev/install-dependencies.sh",
-  "postCreateCommand": "bash scripts/dev/setup-hooks.sh && bash scripts/dev/install-agent-skills.sh",
+  "postCreateCommand": "bash scripts/dev/setup-hooks.sh",
+  "postStartCommand": "bash scripts/dev/install-agent-skills.sh",
   "customizations": {
     "vscode": {
       "extensions": [
