@@ -1,6 +1,6 @@
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconRefresh } from "../../../components/Icons.js";
@@ -9,21 +9,93 @@ import { nativeError, nativePublicUrl } from "./native-connector-ui-values.js";
 import type {
   NativeConnectorCallbacks,
   NativeConnectorController,
+  NativeRevocationGuide,
 } from "./native-connector-ui.js";
+
+function useNativeRevocationGuide(
+  controller: NativeConnectorController,
+  entryId: string,
+  revision: number,
+  attempt: number,
+) {
+  const [acknowledged, setAcknowledged] = useState(false);
+  const synchronous = controller.revocationInstructions?.(entryId);
+  const synchronousAvailable = !!synchronous;
+  const [loaded, setLoaded] = useState<{
+    revision: number;
+    attempt: number;
+    retry: number;
+    guide: NativeRevocationGuide | null;
+  } | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    setAcknowledged(false);
+    setLoaded(null);
+    setLoadError(false);
+    if (synchronousAvailable || !controller.loadRevocationInstructions) return;
+    let current = true;
+    Promise.resolve()
+      .then(() =>
+        current
+          ? (controller.loadRevocationInstructions?.(entryId) ?? null)
+          : null,
+      )
+      .then((guide) => {
+        if (current) setLoaded({ revision, attempt, retry, guide });
+      })
+      .catch(() => {
+        if (current) setLoadError(true);
+      });
+    return () => {
+      current = false;
+    };
+  }, [controller, entryId, revision, attempt, retry, synchronousAvailable]);
+  const instructions =
+    synchronous ??
+    (loaded?.revision === revision &&
+    loaded.attempt === attempt &&
+    loaded.retry === retry
+      ? loaded.guide
+      : null);
+  return {
+    acknowledged,
+    setAcknowledged,
+    instructions,
+    loadError,
+    retryGuide: () => setRetry((value) => value + 1),
+  };
+}
 
 function NativeRevocationConfirmation({
   entry,
   controller,
   disabled,
   onConfirm,
+  revision,
+  attempt,
 }: {
   entry: NativeConnectorView["recovery"][number];
   controller: NativeConnectorController;
   disabled: boolean;
-  onConfirm: (id: string) => void;
+  onConfirm: (id: string, guideRevision?: number) => void;
+  revision: number;
+  attempt: number;
 }) {
-  const [acknowledged, setAcknowledged] = useState(false);
-  const instructions = controller.revocationInstructions?.(entry.id);
+  const { acknowledged, setAcknowledged, instructions, loadError, retryGuide } =
+    useNativeRevocationGuide(controller, entry.id, revision, attempt);
+  if (!instructions && loadError)
+    return (
+      <div>
+        <StatusMark
+          tone="warn"
+          label="Provider revocation guide is unavailable. Try again after the authorization operation finishes."
+        />
+        <button type="button" disabled={disabled} onClick={retryGuide}>
+          Retry provider revocation guide
+        </button>
+      </div>
+    );
   if (!instructions) return null;
   const url = nativePublicUrl(instructions.url);
   if (!url) return null;
@@ -56,12 +128,12 @@ function NativeRevocationConfirmation({
           !instructions.canConfirm ||
           !controller.confirmRevocation
         }
-        onClick={() => onConfirm(entry.id)}
+        onClick={() => onConfirm(entry.id, instructions.revision)}
       />
       {!instructions.canConfirm ? (
         <StatusMark
           tone="warn"
-          label="A provider authorization operation is still pending. Wait for it to finish, then retry cleanup."
+          label="This provider authorization requires recovery before confirmation. Review the guide and retry cleanup."
         />
       ) : null}
     </fieldset>
@@ -81,20 +153,22 @@ export function NativeConnectorRecovery({
 }) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
-  async function recover(id: string, confirm = false) {
+  const [attempt, setAttempt] = useState(0);
+  async function recover(id: string, confirm = false, guideRevision?: number) {
     if (busy || disabled) return;
     setBusy(true);
     setFailure("");
     try {
       if (confirm) {
-        if (
-          !controller.confirmRevocation ||
-          !controller.revocationInstructions?.(id)?.canConfirm
-        )
-          return;
-        await controller.confirmRevocation(id);
+        if (!controller.confirmRevocation) return;
+        const synchronous = controller.revocationInstructions?.(id);
+        if (synchronous && !synchronous.canConfirm) return;
+        if (guideRevision === undefined && !synchronous?.canConfirm) return;
+        if (guideRevision === undefined) await controller.confirmRevocation(id);
+        else await controller.confirmRevocation(id, guideRevision);
       } else await controller.retry(id);
     } catch (error) {
+      if (confirm) setAttempt((value) => value + 1);
       const text = nativeError(errorText(error), {});
       setFailure(text);
       onFlash({ tone: "err", text });
@@ -124,7 +198,11 @@ export function NativeConnectorRecovery({
             entry={entry}
             controller={controller}
             disabled={busy || disabled}
-            onConfirm={(id) => void recover(id, true)}
+            revision={view.revision}
+            attempt={attempt}
+            onConfirm={(id, guideRevision) =>
+              void recover(id, true, guideRevision)
+            }
           />
         </div>
       ))}

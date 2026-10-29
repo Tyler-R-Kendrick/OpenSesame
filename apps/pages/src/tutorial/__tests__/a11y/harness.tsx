@@ -244,16 +244,31 @@ export async function openPanel(user: TestUser): Promise<HTMLElement> {
 }
 
 /**
- * Every control the sheet's own focus trap considers reachable — the same
- * query `useModalFocus` runs, so a test asserts on the trap's real membership
- * rather than on a list a reader of the JSX guessed at.
+ * Native keyboard targets in the sheet. Closed disclosures expose their
+ * summary, but not their links, to sequential keyboard navigation.
  */
 export const TRAPPED =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
+
+function insideClosedDisclosure(element: HTMLElement): boolean {
+  for (
+    let parent = element.parentElement;
+    parent;
+    parent = parent.parentElement
+  ) {
+    if (
+      parent instanceof HTMLDetailsElement &&
+      !parent.open &&
+      element !== parent.querySelector(":scope > summary")
+    )
+      return true;
+  }
+  return false;
+}
 
 export function reachable(container: HTMLElement): readonly HTMLElement[] {
   return [...container.querySelectorAll<HTMLElement>(TRAPPED)].filter(
-    (element) => element.tabIndex >= 0,
+    (element) => element.tabIndex >= 0 && !insideClosedDisclosure(element),
   );
 }
 
