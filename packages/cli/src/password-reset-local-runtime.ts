@@ -2,28 +2,18 @@ import {
   BrowserStepExecutor,
   type BrowserStepPorts,
   type HumanTakeoverPort,
+  type LocalSandbox,
   type MailboxPort,
   type ResetEffects,
+  type ResetRun,
   createLocalSandbox,
 } from "@opensesame/cua-password-reset";
 import { emitStderrLine } from "./output.js";
-import {
-  createLocalLoginVerifier,
-  localAgentBrowserExecutable,
-  resetRecipeHostnames,
-} from "./password-reset-local-verification.js";
 import type { ResetRuntimeContext } from "./password-reset-runtime.js";
 import { readPasswordFromTty } from "./tty-password.js";
 
-export {
-  type LocalSandboxPort,
-  resetRecipeHostnames,
-} from "./password-reset-local-verification.js";
-import type { LocalSandboxPort } from "./password-reset-local-verification.js";
-
 export interface LocalRuntimeOptions {
-  sandbox?: LocalSandboxPort;
-  verificationSandbox?: LocalSandboxPort;
+  sandbox?: LocalSandbox;
   mailbox?: MailboxPort;
   takeover?: HumanTakeoverPort;
   verifyLogin?: () => Promise<boolean | null>;
@@ -45,8 +35,6 @@ export async function createLocalPasswordResetEffects(
   options: LocalRuntimeOptions = {},
 ): Promise<ResetEffects> {
   const { run, candidate, item } = context;
-  if (!run.recipe.verification)
-    throw new Error("The bundled runtime requires verification metadata");
   if (!item.username) throw new Error("The account item has no username");
   const readSecretLine =
     options.readSecretLine ?? ((prompt) => readPasswordFromTty(prompt));
@@ -59,18 +47,13 @@ export async function createLocalPasswordResetEffects(
       // Stable per run so a later `resume` invocation rejoins the same
       // agent-browser session a human was handed.
       session: `cua-${run.id}`,
-      executable: localAgentBrowserExecutable(context),
+      ...(context.loaded.config.runtime.browser
+        ? { executable: context.loaded.config.runtime.browser }
+        : {}),
     });
-  const verifier = createLocalLoginVerifier(context, options, {
-    handoff: async (challenge, current) => {
-      if (options.takeover) return options.takeover.handoff(challenge, current);
-      notify(
-        `Password verification needs you (${challenge}). Complete it in the verification browser, then press Enter.`,
-      );
-    },
-    resume: (challenge, current) => ports.takeover.resume(challenge, current),
-  });
-  const verifyLogin = options.verifyLogin ?? verifier.verifyLogin;
+  const verifyLogin =
+    options.verifyLogin ??
+    (() => probeLogin(sandbox, candidate, item.username, run.origin));
   const ports: BrowserStepPorts = {
     identifier: async () => item.username,
     mailbox: options.mailbox ?? {
@@ -97,7 +80,7 @@ export async function createLocalPasswordResetEffects(
     throw new Error("The approved recipe exceeds the configured step budget");
   const executor = new BrowserStepExecutor(sandbox.browser, ports);
   const closeQuietly = async () => {
-    await Promise.allSettled([sandbox.close(), verifier.close()]);
+    await sandbox.close().catch(() => {});
   };
   return {
     execute: async (step, current, effect) => {
@@ -135,3 +118,46 @@ export async function createLocalPasswordResetEffects(
 export const createPasswordResetEffects = createLocalPasswordResetEffects;
 
 export function validatePasswordResetConfiguration(): void {}
+
+async function probeLogin(
+  sandbox: LocalSandbox,
+  candidate: ResetRuntimeContext["candidate"],
+  username: string,
+  origin: string,
+): Promise<boolean | null> {
+  const browser = sandbox.browser;
+  const login = new URL("/login", origin).href;
+  await browser.open(login);
+  const form = await browser.snapshot();
+  if (form.origin !== new URL(origin).origin) return null;
+  if (browser.pageUrl && (await browser.pageUrl()) !== login) return null;
+  const email = unique(form.fields, ["email", "text"]);
+  const password = unique(form.fields, ["password"]);
+  const button = unique(form.fields, ["button", "link"]);
+  if (!email || !password || !button) return null;
+  await browser.fill(email.ref, username);
+  await candidate.withPassword((value) =>
+    browser.fillSecret(password.ref, value),
+  );
+  await browser.click(button.ref);
+  const after = await browser.snapshot();
+  if (after.origin !== new URL(origin).origin) return null;
+  if (
+    !browser.pageUrl ||
+    (await browser.pageUrl()) !== new URL("/", origin).href
+  )
+    return null;
+  return !after.fields.some((field) => field.kind === "password");
+}
+
+export function resetRecipeHostnames(recipe: ResetRun["recipe"]): string[] {
+  return recipe.allowedOrigins.map((origin) => new URL(origin).hostname);
+}
+
+function unique(
+  fields: { ref: string; kind: string }[],
+  kinds: string[],
+): { ref: string } | null {
+  const matches = fields.filter((field) => kinds.includes(field.kind));
+  return matches.length === 1 ? (matches[0] ?? null) : null;
+}

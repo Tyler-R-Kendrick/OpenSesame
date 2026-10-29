@@ -12,7 +12,13 @@ import {
   vaultResetRunFor,
 } from "./vault-run-tracker.js";
 
-export type PasswordResetHandOff = (origin: string) => Promise<boolean>;
+export type PasswordResetHandOffResult =
+  | boolean
+  | { accepted: boolean; jobId?: string | null };
+
+export type PasswordResetHandOff = (
+  origin: string,
+) => Promise<PasswordResetHandOffResult>;
 
 export type PasswordResetHandOffSeams = {
   handOff: PasswordResetHandOff | null;
@@ -28,7 +34,10 @@ export async function dispatchPasswordResetRotation(
   now = new Date(),
 ): Promise<RotationRelayResult> {
   const existing = vaultResetRunFor(event.scope, event.itemId);
-  if (existing?.phase === "in-progress") {
+  if (
+    existing?.phase === "in-progress" ||
+    (existing?.phase === "needs-you" && existing.runId)
+  ) {
     return { ok: false, detail: "A password reset is already running." };
   }
   setVaultResetRunPhase(event.scope, event.itemId, "queued", null, now);
@@ -59,9 +68,21 @@ export async function dispatchPasswordResetRotation(
   }
   setVaultResetRunPhase(event.scope, event.itemId, "in-progress", null, now);
   try {
-    const accepted = await handOff(origin);
+    const result = await handOff(origin);
+    const accepted = typeof result === "boolean" ? result : result.accepted;
+    const jobId = typeof result === "boolean" ? null : (result.jobId ?? null);
     if (accepted) {
-      setVaultResetRunPhase(event.scope, event.itemId, "done", null, now);
+      // Accepted is not done: the ceremony runs on the Host from here. The
+      // queue event is consumed, but the run stays in-progress (with its
+      // job id) until the notice bridge observes the terminal job status.
+      setVaultResetRunPhase(
+        event.scope,
+        event.itemId,
+        "in-progress",
+        null,
+        now,
+        jobId,
+      );
       return { ok: true };
     }
     setVaultResetRunPhase(

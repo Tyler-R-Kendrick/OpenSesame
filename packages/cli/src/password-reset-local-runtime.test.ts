@@ -1,17 +1,15 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  type BrowserDriver,
+import type {
+  BrowserDriver,
   CandidateCustody,
-  type Observation,
-  type ResetRun,
+  Observation,
+  ResetRun,
 } from "@opensesame/cua-password-reset";
-import type { PasswordMethod } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BUNDLED_LOCAL_MODULE,
-  type PasswordResetConfiguration,
   loadResetConfiguration,
 } from "./password-reset-config.js";
 import {
@@ -20,7 +18,6 @@ import {
 } from "./password-reset-local-runtime.js";
 import type { PasswordResetCommand } from "./password-reset-parse.js";
 import type { ResetRuntimeContext } from "./password-reset-runtime.js";
-import type { ResetVault } from "./password-reset-vault.js";
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -38,12 +35,6 @@ function recipeJson() {
     domain: "127.0.0.1",
     entryPath: "/reset",
     allowedOrigins: [ORIGIN],
-    verification: {
-      path: "/account",
-      expectedLabel: "Sign out",
-      loginPath: "/login",
-      loginLabel: "Sign in",
-    },
     steps: [
       { id: "open", primitive: "navigate", path: "/reset" },
       {
@@ -72,7 +63,7 @@ function recipeJson() {
   });
 }
 
-async function configDir(config: PasswordResetConfiguration) {
+async function configDir(config: unknown) {
   const directory = await mkdtemp(join(tmpdir(), "reset-local-"));
   directories.push(directory);
   await writeFile(join(directory, "recipe.json"), recipeJson());
@@ -80,7 +71,7 @@ async function configDir(config: PasswordResetConfiguration) {
   return directory;
 }
 
-function bundledConfig(): PasswordResetConfiguration {
+function bundledConfig() {
   return {
     schemaVersion: 1,
     origin: ORIGIN,
@@ -137,21 +128,17 @@ describe("bundled local runtime config", () => {
   });
 });
 
-function fieldsFor(path: string): Observation["fields"] {
-  if (path === "/reset/link")
-    return [
-      { ref: "e3", kind: "password", label: "New password" },
-      { ref: "e4", kind: "button", label: "Save password" },
-    ];
-  if (path === "/reset")
-    return [
+function fakeDriver() {
+  const pages: Record<string, Observation["fields"]> = {
+    "/reset": [
       { ref: "e1", kind: "email", label: "Email" },
       { ref: "e2", kind: "button", label: "Send reset link" },
-    ];
-  return [];
-}
-
-function fakeDriver() {
+    ],
+    "/reset/link": [
+      { ref: "e3", kind: "password", label: "New password" },
+      { ref: "e4", kind: "button", label: "Save password" },
+    ],
+  };
   let path = "/reset";
   const driver: BrowserDriver = {
     open: vi.fn(async (url: string) => {
@@ -160,7 +147,7 @@ function fakeDriver() {
     snapshot: vi.fn(async () => ({
       id: crypto.randomUUID(),
       origin: ORIGIN,
-      fields: fieldsFor(path),
+      fields: pages[path] ?? [],
     })),
     click: vi.fn(async () => {}),
     fill: vi.fn(async () => {}),
@@ -171,30 +158,7 @@ function fakeDriver() {
   return driver;
 }
 
-const METHOD: PasswordMethod = {
-  id: "password-1",
-  type: "password",
-  generator: {
-    id: "derived",
-    counter: 1,
-    rules: {
-      length: 24,
-      lower: true,
-      upper: true,
-      digits: true,
-      symbols: true,
-      avoidAmbiguous: false,
-      minDigits: 1,
-      minSymbols: 1,
-    },
-  },
-  pepper: true,
-  pepperAt: "end",
-  secret: Buffer.alloc(32, 7).toString("base64"),
-  changedAt: "2026-10-28T00:00:00.000Z",
-};
-
-function localContext(maxSteps = 40): ResetRuntimeContext {
+function localContext(maxSteps = 40) {
   const config = {
     ...bundledConfig(),
     runtime: { module: BUNDLED_LOCAL_MODULE, maxSteps },
@@ -211,38 +175,27 @@ function localContext(maxSteps = 40): ResetRuntimeContext {
     updatedAt: "2026-10-28T00:00:00.000Z",
     recipe: JSON.parse(recipeJson()),
   };
-  // SAFETY: the local runtime never reads the vault store.
-  const store = {} as ResetVault["store"];
-  // SAFETY: the local runtime reads only the item id and username.
-  const item = {
-    id: "item-1",
-    username: "person@example.test",
-  } as ResetVault["item"];
+  const candidate = {
+    withPassword: async <T>(use: (pw: string) => Promise<T>) =>
+      use("candidate-password"),
+    withSynthetic: async () => {
+      throw new Error("proxy lane unused");
+    },
+  } as unknown as CandidateCustody;
   return {
     run,
-    candidate: new CandidateCustody(
-      METHOD,
-      () => "person-pepper",
-      () => {},
-    ),
-    item,
-    store,
+    candidate,
+    item: { id: "item-1", username: "person@example.test" },
     loaded: { config, directory: "/tmp", recipe: run.recipe },
-    agent: {
-      headers: vi.fn(async () => ({
-        authorization: "Bearer [REDACTED]",
-        "x-opensesame-agent-client": crypto.randomUUID(),
-        "x-opensesame-agent-audience": "urn:opensesame:agent:mcp-host" as const,
-      })),
-      forget: vi.fn(),
-    },
-  };
+  } as unknown as ResetRuntimeContext;
 }
 
 function localSandbox(driver: ReturnType<typeof fakeDriver>) {
   return {
-    browser: driver,
+    browser: driver as never,
     session: "cua-test",
+    allowedDomains: ["127.0.0.1"],
+    origin: ORIGIN,
     close: vi.fn(async () => {}),
   };
 }
@@ -250,13 +203,43 @@ function localSandbox(driver: ReturnType<typeof fakeDriver>) {
 describe("bundled local runtime effects", () => {
   it("drives a full recipe with vault identifier and injected mailbox", async () => {
     const driver = fakeDriver();
-    const context = localContext();
-    const { run } = context;
-    const expectedPassword = await context.candidate.withPassword(
-      async (password) => password,
-    );
+    const candidate = {
+      withPassword: async <T>(use: (pw: string) => Promise<T>) =>
+        use("candidate-password"),
+      withSynthetic: async () => {
+        throw new Error("proxy lane unused");
+      },
+    } as unknown as CandidateCustody;
+    const run: ResetRun = {
+      id: "run-1",
+      domain: "127.0.0.1",
+      origin: ORIGIN,
+      itemId: "item-1",
+      transport: "cdp",
+      grantIds: {},
+      cursor: 0,
+      status: "running",
+      updatedAt: "2026-10-28T00:00:00.000Z",
+      recipe: JSON.parse(recipeJson()),
+    };
+    const context = {
+      run,
+      candidate,
+      item: { id: "item-1", username: "person@example.test" },
+      loaded: {
+        config: bundledConfig(),
+        directory: "/tmp",
+        recipe: run.recipe,
+      },
+    } as unknown as ResetRuntimeContext;
     const effects = await createLocalPasswordResetEffects(context, {
-      sandbox: localSandbox(driver),
+      sandbox: {
+        browser: driver as never,
+        session: "cua-test",
+        allowedDomains: ["127.0.0.1"],
+        origin: ORIGIN,
+        close: async () => {},
+      },
       mailbox: { resetLink: async () => `${ORIGIN}/reset/link?token=x` },
       verifyLogin: async () => true,
     });
@@ -268,7 +251,7 @@ describe("bundled local runtime effects", () => {
       expect(receipt.outcome).toBe("completed");
     }
     expect(driver.fill).toHaveBeenCalledWith("e1", "person@example.test");
-    expect(driver.fillSecret).toHaveBeenCalledWith("e3", expectedPassword);
+    expect(driver.fillSecret).toHaveBeenCalledWith("e3", "candidate-password");
     expect(
       await effects.verifyCandidate(run, { effectId: "v", attempt: 1 }),
     ).toBe("verified");
@@ -328,6 +311,40 @@ describe("bundled local runtime effects", () => {
     ).toBe("unknown");
   });
 
+  it("verifies only after reaching the authenticated landing page", async () => {
+    const driver = fakeDriver();
+    let path = "/login";
+    let submitted = false;
+    driver.open = vi.fn(async (url: string) => {
+      path = new URL(url).pathname;
+    });
+    driver.pageUrl = vi.fn(async () => new URL(path, ORIGIN).href);
+    driver.snapshot = vi.fn(
+      async (): Promise<Observation> => ({
+        id: crypto.randomUUID(),
+        origin: ORIGIN,
+        fields: submitted
+          ? []
+          : [
+              { ref: "e1", kind: "email", label: "Email" },
+              { ref: "e2", kind: "password", label: "Password" },
+              { ref: "e3", kind: "button", label: "Sign in" },
+            ],
+      }),
+    );
+    driver.click = vi.fn(async () => {
+      path = "/";
+      submitted = true;
+    });
+    const context = localContext();
+    const effects = await createLocalPasswordResetEffects(context, {
+      sandbox: localSandbox(driver),
+    });
+    expect(
+      await effects.verifyCandidate(context.run, { effectId: "v", attempt: 1 }),
+    ).toBe("verified");
+  });
+
   it("closes the browser on a terminal pre-submit failure", async () => {
     const driver = fakeDriver();
     const sandbox = localSandbox(driver);
@@ -358,17 +375,5 @@ describe("bundled local runtime effects", () => {
         sandbox: localSandbox(driver),
       }),
     ).rejects.toThrow("step budget");
-  });
-
-  it("refuses to start without approved verification metadata", async () => {
-    const context = localContext();
-    context.run.recipe.verification = undefined;
-    const driver = fakeDriver();
-    await expect(
-      createLocalPasswordResetEffects(context, {
-        sandbox: localSandbox(driver),
-      }),
-    ).rejects.toThrow("requires verification metadata");
-    expect(driver.open).not.toHaveBeenCalled();
   });
 });
