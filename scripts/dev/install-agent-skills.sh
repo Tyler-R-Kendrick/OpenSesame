@@ -33,7 +33,11 @@ missing=$(node -e "
 if [ -n "$missing" ]; then
   printf '%s\n' "$missing" | while IFS="$(printf '\t')" read -r name source; do
     echo "install-agent-skills: adding $name from $source (latest)"
-    timeout 300 npx -y skills add "$source" -s "$name" -a '*' --full-depth -y </dev/null \
+    # Explicit agents only: '*' also writes Universal (./skills/) and
+    # OpenClaw (./agent/) roots this repo does not use. Codex, Copilot,
+    # OpenCode, and Gemini discover .agents/skills natively; Claude Code
+    # and Grok need their mirror symlinks.
+    timeout 300 npx -y skills add "$source" -s "$name" -a claude-code -a grok --full-depth -y </dev/null \
       || warn "could not install optional skill $name"
   done
 fi
