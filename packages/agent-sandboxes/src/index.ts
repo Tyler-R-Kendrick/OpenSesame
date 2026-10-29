@@ -1,3 +1,7 @@
+export * from "./boat-agent.js";
+export * from "./boat-auth.js";
+export * from "./boat-client.js";
+export * from "./boat-provider.js";
 export * from "./cdp-connection.js";
 export * from "./cdp-driver.js";
 export * from "./cdp-node-socket.js";
