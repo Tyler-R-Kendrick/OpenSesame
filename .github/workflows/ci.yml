@@ -201,6 +201,17 @@ jobs:
           BASE_SHA: ${{ needs.changes.outputs.base_sha }}
           HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs run-ts
+      - name: CUA password-reset browser e2e
+        # Real Chromium through agent-browser: kickoff, takeover, and
+        # record -> replay against the mock site. Excluded from unit test
+        # scripts, so it needs this explicit shard.
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/cua-password-reset')
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
+        run: >-
+          AGENT_BROWSER="$(pnpm --filter @opensesame/cua-password-reset exec which agent-browser)"
+          pnpm --filter @opensesame/cua-password-reset test:e2e
       - name: Repository contract on a real Postgres
         # The same suites as the PGlite run, through the production driver.
         # Each suite creates and drops its own database.

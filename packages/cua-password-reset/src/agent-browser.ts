@@ -80,6 +80,29 @@ function endpoint(value: string): URL {
   return url;
 }
 
+const CHALLENGE_TEXT =
+  /captcha|verify you are human|one.time code|mail_code|text message|passkey|security key|two.factor|2fa|authenticator|totp/iu;
+
+// Evidence of a challenge awaiting the person, as opposed to persistent
+// branding ("This site is protected by reCAPTCHA") that stays on the page
+// after any challenge is solved. A bare "captcha" mention is not enough:
+// treating branding as pending would trap the run in takeover forever,
+// because resume requires the challenge to clear.
+const ACTIVE_CAPTCHA =
+  /verify you are human|verify you(?:'|’)re human|prove you(?:'|’)re (?:a )?human|i(?:'|’)m not a robot|not a robot|are you a robot|select all (?:images|squares|tiles)|complete (?:the )?captcha|solve (?:the )?captcha|captcha (?:challenge|required|verification)|enter (?:the )?(?:captcha|characters)|type the characters|human verification|performing security verification|checking your browser/iu;
+
+function challengePhrase(snapshot: string): string | null {
+  if (ACTIVE_CAPTCHA.test(snapshot)) return "CAPTCHA verify you are human";
+  if (/passkey|security key/iu.test(snapshot))
+    return "Passkey security key required";
+  if (/text message/iu.test(snapshot)) return "Text message code required";
+  if (/authenticator|totp/iu.test(snapshot))
+    return "Authenticator TOTP code required";
+  if (/one.time code|code from email|email code/iu.test(snapshot))
+    return "One-time code from email";
+  return null;
+}
+
 export function parseAgentBrowserSnapshot(
   output: string,
   origin: string,
@@ -98,6 +121,22 @@ export function parseAgentBrowserSnapshot(
       return kind ? [{ ref, kind, label: value.name.slice(0, 200) }] : [];
     })
     .slice(0, 100);
+  // Challenge copy is usually static text: it appears in the snapshot
+  // string but never gets an interactive ref, so without this the run
+  // could not tell a person is needed. Surface only the canonical phrase
+  // (never page text) on a synthetic, non-actionable ref.
+  const challenge = challengePhrase(raw.data.snapshot);
+  if (
+    challenge &&
+    !fields.some((field) => CHALLENGE_TEXT.test(field.label)) &&
+    fields.length < 100
+  ) {
+    const maxRef = fields.reduce(
+      (max, field) => Math.max(max, Number(field.ref.slice(1))),
+      0,
+    );
+    fields.push({ ref: `e${maxRef + 1}`, kind: "static", label: challenge });
+  }
   return observationSchema.parse({ id: randomUUID(), origin, fields });
 }
 
@@ -137,7 +176,9 @@ export class AgentBrowser implements BrowserDriver {
     const current = endpoint(await this.currentUrl());
     if (!this.config.allowedDomains.includes(current.hostname))
       throw new Error("Browser page left the approved domains");
-    const output = await this.run(["snapshot", "-i", "--json"]);
+    // Full (not -i) snapshot: refs are the same, but the snapshot text
+    // carries static copy — where challenge prompts live.
+    const output = await this.run(["snapshot", "--json"]);
     return parseAgentBrowserSnapshot(output, current.origin);
   }
 

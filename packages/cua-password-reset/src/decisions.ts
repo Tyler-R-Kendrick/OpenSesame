@@ -67,6 +67,7 @@ export function detectChallenge(
 
 export function legalCandidates(observation: Observation): DecisionCandidate[] {
   const actions = observation.fields.flatMap((field): ResetActionDecision[] => {
+    if (field.kind === "static") return [];
     if (field.kind === "button" || field.kind === "link") {
       const click: ResetActionDecision = {
         kind: "click",

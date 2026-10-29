@@ -32,7 +32,17 @@ export type ResetAction = (typeof RESET_ACTIONS)[number];
 export const fieldSchema = z
   .object({
     ref: z.string().regex(/^e[1-9][0-9]*$/),
-    kind: z.enum(["email", "text", "password", "otp", "button", "link"]),
+    // "static" is observed page copy (e.g. a challenge prompt): evidence
+    // for decisions, never an actionable field.
+    kind: z.enum([
+      "email",
+      "text",
+      "password",
+      "otp",
+      "button",
+      "link",
+      "static",
+    ]),
     label: z.string().max(200),
   })
   .strict();
