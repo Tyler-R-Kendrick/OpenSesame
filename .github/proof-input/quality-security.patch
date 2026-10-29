@@ -1,0 +1,564 @@
+diff --git a/apps/pages/src/modules/ai.password-reset/host-run-schemas.ts b/apps/pages/src/modules/ai.password-reset/host-run-schemas.ts
+new file mode 100644
+index 000000000..7b1039bc6
+--- /dev/null
++++ b/apps/pages/src/modules/ai.password-reset/host-run-schemas.ts
+@@ -0,0 +1,54 @@
++/** Host response contracts used by the password-reset notice and takeover UI. */
++import { z } from "zod";
++
++const nullableText = z.string().nullable().optional();
++
++export const hostAgentRunSchema = z.object({
++  id: z.string(),
++  job_id: nullableText,
++  origin: z.string().optional(),
++  control_state: z.string(),
++  driver: z.string().optional(),
++  blocked_reason: nullableText,
++  lease_expires_at: nullableText,
++  closed_at: nullableText,
++  observation: z.string().optional(),
++});
++
++export const hostAgentRunListSchema = z.object({
++  runs: z.array(z.json()),
++});
++
++export const hostRotationReceiptSchema = z.object({ id: z.string() });
++
++export const hostRotationJobSchema = z.object({
++  id: z.string(),
++  status: z.string().optional(),
++});
++
++export const hostClaimedStepSchema = z.object({
++  run_id: z.string(),
++  seq: z.number(),
++  request: z
++    .object({
++      step: z.string().optional(),
++      selector: z.string().optional(),
++      url: z.string().optional(),
++    })
++    .catchall(z.json()),
++  claim_expires_at: nullableText,
++});
++
++export const hostHookRecordSchema = z.object({
++  sequence: z.number(),
++  interception_point: z.string(),
++  decision: z.string(),
++  reason: nullableText,
++  recorded_at: z.string(),
++});
++
++export const hostHookRecordsSchema = z.object({
++  records: z.array(z.json()),
++  next_after: z.json().optional(),
++  has_more: z.json().optional(),
++});
+diff --git a/apps/pages/src/modules/ai.password-reset/rotation-relay.test.ts b/apps/pages/src/modules/ai.password-reset/rotation-relay.test.ts
+new file mode 100644
+index 000000000..9c85853d6
+--- /dev/null
++++ b/apps/pages/src/modules/ai.password-reset/rotation-relay.test.ts
+@@ -0,0 +1,147 @@
++import { identitySeams } from "@opensesame/app-core/lib/identity.js";
++import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
++import { passwordResetHandOffSeams } from "@opensesame/app-core/lib/password-reset/rotation-handoff.js";
++import {
++  clearVaultResetRunsForTest,
++  setVaultResetRunPhase,
++  vaultResetRunFor,
++} from "@opensesame/app-core/lib/password-reset/vault-run-tracker.js";
++import { expect, it, vi } from "vitest";
++import {
++  createHostResetRunNoticeBridge,
++  installPasswordResetRotationRelay,
++} from "./rotation-relay.js";
++
++it("validates Host rotation receipts while preserving accepted and failed responses", async () => {
++  const fetch = vi
++    .spyOn(identitySeams, "hostFetch")
++    .mockResolvedValueOnce(
++      new Response(JSON.stringify({ id: "job-1", status: "queued" }), {
++        status: 200,
++      }),
++    )
++    .mockResolvedValueOnce(
++      new Response(JSON.stringify({ id: 19 }), { status: 200 }),
++    )
++    .mockResolvedValueOnce(new Response("unavailable", { status: 503 }));
++  const restore = installPasswordResetRotationRelay({
++    readiness: async () => ({ ok: true }),
++  });
++  try {
++    const handOff = passwordResetHandOffSeams.handOff;
++    if (!handOff) throw new Error("Missing installed handoff");
++    await expect(handOff("https://provider.example")).resolves.toEqual({
++      accepted: true,
++      jobId: "job-1",
++    });
++    expect(fetch).toHaveBeenCalledWith("/api/v1/rotations", {
++      method: "POST",
++      headers: { "content-type": "application/json" },
++      body: JSON.stringify({
++        web_login_origin: "https://provider.example",
++        execute_now: true,
++      }),
++    });
++    await expect(handOff("https://provider.example")).resolves.toEqual({
++      accepted: true,
++      jobId: null,
++    });
++    await expect(handOff("https://provider.example")).resolves.toEqual({
++      accepted: false,
++      jobId: null,
++    });
++  } finally {
++    restore();
++    fetch.mockRestore();
++  }
++});
++
++it("handles real run-list shapes and ignores malformed entries before updating notices", async () => {
++  clearVaultResetRunsForTest();
++  clearNotices();
++  setVaultResetRunPhase(
++    "personal",
++    "item-1",
++    "in-progress",
++    null,
++    new Date(),
++    "job-1",
++  );
++  const fetch = vi
++    .spyOn(identitySeams, "hostFetch")
++    .mockImplementation(async (path) => {
++      if (path === "/api/v1/agent/runs")
++        return new Response(
++          JSON.stringify({
++            runs: [
++              { id: 9, job_id: "job-1", control_state: "awaiting_human" },
++              {
++                id: "run-9",
++                job_id: "job-1",
++                control_state: "awaiting_human",
++                blocked_reason: "captcha",
++                closed_at: null,
++              },
++            ],
++            secrets_returned: false,
++          }),
++        );
++      return new Response(JSON.stringify({ id: "job-1", status: "requested" }));
++    });
++  const controller = new AbortController();
++  try {
++    createHostResetRunNoticeBridge().start(controller.signal);
++    await vi.waitFor(() => {
++      expect(vaultResetRunFor("personal", "item-1")?.phase).toBe("needs-you");
++      expect(
++        listNotices().find((notice) => notice.id === "agent-run:job-1")?.open
++          ?.to,
++      ).toBe("/runs/run-9");
++    });
++  } finally {
++    controller.abort();
++    fetch.mockRestore();
++    clearVaultResetRunsForTest();
++    clearNotices();
++  }
++});
++
++it("does not complete the tracked job from a mismatched Host job response", async () => {
++  clearVaultResetRunsForTest();
++  clearNotices();
++  setVaultResetRunPhase(
++    "personal",
++    "item-1",
++    "in-progress",
++    null,
++    new Date(),
++    "job-1",
++  );
++  const receipt = new Response(
++    JSON.stringify({ id: "job-other", status: "succeeded" }),
++  );
++  const readReceipt = vi.spyOn(receipt, "json");
++  const fetch = vi
++    .spyOn(identitySeams, "hostFetch")
++    .mockImplementation(async (path) => {
++      if (path === "/api/v1/agent/runs")
++        return new Response(JSON.stringify({ runs: [] }));
++      return receipt;
++    });
++  const controller = new AbortController();
++  try {
++    createHostResetRunNoticeBridge().start(controller.signal);
++    await vi.waitFor(() => expect(readReceipt).toHaveBeenCalledOnce());
++    const read = readReceipt.mock.results[0];
++    if (!read || read.type !== "return")
++      throw new Error("Missing Host receipt");
++    await read.value;
++    await Promise.resolve();
++    expect(vaultResetRunFor("personal", "item-1")?.phase).toBe("in-progress");
++  } finally {
++    controller.abort();
++    fetch.mockRestore();
++    clearVaultResetRunsForTest();
++    clearNotices();
++  }
++});
+diff --git a/apps/pages/src/modules/ai.password-reset/rotation-relay.ts b/apps/pages/src/modules/ai.password-reset/rotation-relay.ts
+index 4689ae9c0..cc9dcb15c 100644
+--- a/apps/pages/src/modules/ai.password-reset/rotation-relay.ts
++++ b/apps/pages/src/modules/ai.password-reset/rotation-relay.ts
+@@ -2,19 +2,20 @@ import { hostFetch } from "@opensesame/app-core/lib/identity.js";
+ import type { PasswordResetReadiness } from "@opensesame/app-core/lib/password-reset/readiness.js";
+ import { dispatchPasswordResetRotation } from "@opensesame/app-core/lib/password-reset/rotation-handoff.js";
+ import { passwordResetHandOffSeams } from "@opensesame/app-core/lib/password-reset/rotation-handoff.js";
+-import {
+-  type AgentRunView,
+-  startResetRunNoticeBridge,
+-} from "@opensesame/app-core/lib/password-reset/run-notice-bridge.js";
++import { startResetRunNoticeBridge } from "@opensesame/app-core/lib/password-reset/run-notice-bridge.js";
+ import {
+   type RotationEvent,
+   type RotationRelayResult,
+   rotationSeams,
+ } from "@opensesame/app-core/lib/vault/rotation-relay.js";
+ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+-async function postRotation(
+-  origin: string,
+-): Promise<{ accepted: boolean; jobId: string | null }> {
++import {
++  hostAgentRunListSchema,
++  hostAgentRunSchema,
++  hostRotationJobSchema,
++  hostRotationReceiptSchema,
++} from "./host-run-schemas.js";
++async function postRotation(origin: string) {
+   try {
+     const response = await hostFetch("/api/v1/rotations", {
+       method: "POST",
+@@ -25,14 +26,10 @@ async function postRotation(
+       }),
+     });
+     if (!response.ok) return { accepted: false, jobId: null };
+-    const body: unknown = await response.json().catch(() => null);
+-    const jobId =
+-      body !== null &&
+-      typeof body === "object" &&
+-      "id" in body &&
+-      typeof (body as { id: unknown }).id === "string"
+-        ? (body as { id: string }).id
+-        : null;
++    const body = hostRotationReceiptSchema.safeParse(
++      await response.json().catch(() => null),
++    );
++    const jobId = body.success ? body.data.id : null;
+     return { accepted: true, jobId };
+   } catch {
+     return { accepted: false, jobId: null };
+@@ -69,36 +66,30 @@ export function installPasswordResetRotationRelay(
+ }
+ 
+ /** Background job: mirror Host run state into the notice tray + toasts. */
+-export function createHostResetRunNoticeBridge(): {
+-  start(signal: AbortSignal): void;
+-} {
++export function createHostResetRunNoticeBridge() {
+   return {
+     start(signal: AbortSignal): void {
+       const stop = startResetRunNoticeBridge({
+-        listAgentRuns: async (): Promise<AgentRunView[]> => {
++        listAgentRuns: async () => {
+           const response = await hostFetch("/api/v1/agent/runs");
+           if (!response.ok) throw new Error("agent runs unavailable");
+-          const body: unknown = await response.json();
+-          if (
+-            body !== null &&
+-            typeof body === "object" &&
+-            "runs" in body &&
+-            Array.isArray((body as { runs: unknown }).runs)
+-          ) {
+-            return (body as { runs: AgentRunView[] }).runs;
+-          }
+-          return [];
++          const body = hostAgentRunListSchema.safeParse(await response.json());
++          return body.success
++            ? body.data.runs.flatMap((entry) => {
++                const parsed = hostAgentRunSchema.safeParse(entry);
++                return parsed.success ? [parsed.data] : [];
++              })
++            : [];
+         },
+         getRotationJob: async (jobId: string) => {
+           const response = await hostFetch(
+             `/api/v1/rotations/${encodeURIComponent(jobId)}`,
+           );
+           if (!response.ok) return null;
+-          const body: unknown = await response.json().catch(() => null);
+-          if (body !== null && typeof body === "object" && "id" in body) {
+-            return body as { id: string; status?: string };
+-          }
+-          return null;
++          const body = hostRotationJobSchema.safeParse(
++            await response.json().catch(() => null),
++          );
++          return body.success && body.data.id === jobId ? body.data : null;
+         },
+       });
+       if (signal.aborted) {
+diff --git a/apps/pages/src/modules/ai.password-reset/takeover-client.test.ts b/apps/pages/src/modules/ai.password-reset/takeover-client.test.ts
+index 644101f08..4e62ab34d 100644
+--- a/apps/pages/src/modules/ai.password-reset/takeover-client.test.ts
++++ b/apps/pages/src/modules/ai.password-reset/takeover-client.test.ts
+@@ -98,9 +98,10 @@ describe("takeover client", () => {
+       "/api/v1/agent/runs/run-9/steps/4/outcome",
+       { outcome: { outcome: "done" } },
+     );
+-    await expect(
+-      api.settleStep("run-9", 4, { outcome: "dom", text: "x" } as never),
+-    ).rejects.toThrow(/cannot report/u);
++    const unsupported = { outcome: "dom", text: "x" };
++    await expect(api.settleStep("run-9", 4, unsupported)).rejects.toThrow(
++      /cannot report/u,
++    );
+   });
+ 
+   it("claim returns null on 204", async () => {
+@@ -132,7 +133,15 @@ describe("takeover client", () => {
+       .mockResolvedValueOnce({
+         status: 200,
+         json: async () => ({
+-          records: [{ sequence: 1 }],
++          records: [
++            {
++              sequence: 1,
++              interception_point: "pre_tool_call",
++              decision: "allow",
++              reason: null,
++              recorded_at: "2026-10-28T00:00:00Z",
++            },
++          ],
+           next_after: 1,
+           has_more: true,
+         }),
+@@ -140,7 +149,15 @@ describe("takeover client", () => {
+       .mockResolvedValueOnce({
+         status: 200,
+         json: async () => ({
+-          records: [{ sequence: 2 }],
++          records: [
++            {
++              sequence: 2,
++              interception_point: "post_tool_call",
++              decision: "deny",
++              reason: "policy",
++              recorded_at: "2026-10-28T00:00:01Z",
++            },
++          ],
+           next_after: 2,
+           has_more: false,
+         }),
+@@ -153,4 +170,62 @@ describe("takeover client", () => {
+       "/api/v1/agent/runs/run-9/hook-records?limit=20&after=1",
+     );
+   });
++
++  it("rejects malformed run and claimed-step responses", async () => {
++    const { api } = client({
++      get: vi.fn(async () => ({
++        status: 200,
++        json: async () => ({ id: 14, control_state: "human_driving" }),
++      })),
++      post: vi.fn(async () => ({
++        status: 200,
++        json: async () => ({ run_id: "run-9", seq: "4", request: {} }),
++      })),
++    });
++    await expect(api.getRun("run-9")).rejects.toThrow();
++    await expect(api.claimStep("run-9")).rejects.toThrow();
++  });
++
++  it("keeps valid Host hook records while ignoring malformed entries", async () => {
++    const get = vi.fn(async () => ({
++      status: 200,
++      json: async () => ({
++        records: [
++          { sequence: "1", interception_point: "pre_tool_call" },
++          {
++            sequence: 2,
++            interception_point: "post_tool_call",
++            decision: "deny",
++            reason: null,
++            recorded_at: "2026-10-28T00:00:01Z",
++          },
++        ],
++        next_after: 2,
++        has_more: false,
++      }),
++    }));
++    const { api } = client({ get });
++    expect(
++      (await api.listHookRecords("run-9")).map((row) => row.sequence),
++    ).toEqual([2]);
++  });
++
++  it("refuses a different run or a step belonging to another run", async () => {
++    const { api } = client({
++      get: vi.fn(async () => ({
++        status: 200,
++        json: async () => ({ ...RUN, id: "run-other" }),
++      })),
++      post: vi.fn(async () => ({
++        status: 200,
++        json: async () => ({
++          run_id: "run-other",
++          seq: 4,
++          request: { step: "submit", selector: "#save" },
++        }),
++      })),
++    });
++    await expect(api.getRun("run-9")).rejects.toThrow(/different run/u);
++    await expect(api.claimStep("run-9")).rejects.toThrow(/different run/u);
++  });
+ });
+diff --git a/apps/pages/src/modules/ai.password-reset/takeover-client.ts b/apps/pages/src/modules/ai.password-reset/takeover-client.ts
+index e0b6c72a6..25a674d5c 100644
+--- a/apps/pages/src/modules/ai.password-reset/takeover-client.ts
++++ b/apps/pages/src/modules/ai.password-reset/takeover-client.ts
+@@ -12,6 +12,14 @@ import {
+   authorizeHost,
+ } from "@opensesame/app-core/lib/host-authorization.js";
+ import { hostBase, hostFetch } from "@opensesame/app-core/lib/identity.js";
++import type { JsonValue } from "@opensesame/os-domain";
++import { z } from "zod";
++import {
++  hostAgentRunSchema,
++  hostClaimedStepSchema,
++  hostHookRecordSchema,
++  hostHookRecordsSchema,
++} from "./host-run-schemas.js";
+ 
+ export type AgentRun = {
+   id: string;
+@@ -50,11 +58,11 @@ export type HookRecord = {
+   recorded_at: string;
+ };
+ 
+-type Reply = { status: number; json: () => Promise<unknown> };
++type Reply = { status: number; json: () => Promise<JsonValue> };
+ 
+ export type TakeoverDeps = {
+   get: (path: string) => Promise<Reply>;
+-  post: (path: string, body?: unknown) => Promise<Reply>;
++  post: (path: string, body?: JsonValue) => Promise<Reply>;
+   authenticate: () => Promise<void>;
+   authorize: (
+     transition: ControlTransition,
+@@ -107,10 +115,12 @@ export function createTakeoverClient(deps: TakeoverDeps) {
+   const base = (runId: string) =>
+     `/api/v1/agent/runs/${encodeURIComponent(runId)}`;
+ 
+-  async function expectRun(reply: Reply): Promise<AgentRun> {
++  async function expectRun(reply: Reply, runId: string): Promise<AgentRun> {
+     if (reply.status < 200 || reply.status >= 300)
+       throw new Error("The run could not be reached on the Host.");
+-    return (await reply.json()) as AgentRun;
++    const run = hostAgentRunSchema.parse(await reply.json());
++    if (run.id !== runId) throw new Error("The Host returned a different run.");
++    return run;
+   }
+ 
+   async function transition(
+@@ -120,12 +130,16 @@ export function createTakeoverClient(deps: TakeoverDeps) {
+   ): Promise<AgentRun> {
+     const elevation = await deps.authorize(kind, runId);
+     if (!elevation) throw new Error("Verification did not grant control.");
+-    return expectRun(await deps.post(`${base(runId)}/${path}`, { elevation }));
++    return expectRun(
++      await deps.post(`${base(runId)}/${path}`, { elevation }),
++      runId,
++    );
+   }
+ 
+   return {
+     authenticate: () => deps.authenticate(),
+-    getRun: async (runId: string) => expectRun(await deps.get(base(runId))),
++    getRun: async (runId: string) =>
++      expectRun(await deps.get(base(runId)), runId),
+     requestHandoff: (runId: string) => transition(runId, "handoff", "handoff"),
+     takeControl: (runId: string) => transition(runId, "take", "control"),
+     release: (runId: string) => transition(runId, "release", "release"),
+@@ -134,7 +148,10 @@ export function createTakeoverClient(deps: TakeoverDeps) {
+       if (reply.status === 204) return null;
+       if (reply.status < 200 || reply.status >= 300)
+         throw new Error("No step could be claimed.");
+-      return (await reply.json()) as ClaimedStep;
++      const step = hostClaimedStepSchema.parse(await reply.json());
++      if (step.run_id !== runId)
++        throw new Error("The Host returned a step from a different run.");
++      return step;
+     },
+     settleStep: async (
+       runId: string,
+@@ -160,16 +177,16 @@ export function createTakeoverClient(deps: TakeoverDeps) {
+           `${base(runId)}/hook-records?limit=20${cursor}`,
+         );
+         if (reply.status < 200 || reply.status >= 300) return records;
+-        const body = (await reply.json()) as {
+-          records?: HookRecord[];
+-          next_after?: number;
+-          has_more?: boolean;
+-        };
+-        if (!Array.isArray(body.records)) return records;
+-        records.push(...body.records);
+-        if (body.has_more !== true || typeof body.next_after !== "number")
+-          return records;
+-        after = body.next_after;
++        const parsed = hostHookRecordsSchema.safeParse(await reply.json());
++        if (!parsed.success) return records;
++        const body = parsed.data;
++        for (const entry of body.records) {
++          const parsedRecord = hostHookRecordSchema.safeParse(entry);
++          if (parsedRecord.success) records.push(parsedRecord.data);
++        }
++        const next = z.number().safeParse(body.next_after);
++        if (body.has_more !== true || !next.success) return records;
++        after = next.data;
+       }
+       throw new Error("The run record exceeded the pagination bound.");
+     },
+@@ -181,17 +198,17 @@ export type TakeoverClient = ReturnType<typeof createTakeoverClient>;
+ export function createHostTakeoverClient(): TakeoverClient {
+   const wrap =
+     (method: string) =>
+-    async (path: string, body?: unknown): Promise<Reply> => {
+-      const response = await hostFetch(path, {
+-        method,
+-        ...(body === undefined
+-          ? {}
+-          : {
+-              headers: { "content-type": "application/json" },
+-              body: JSON.stringify(body),
+-            }),
+-      });
+-      return { status: response.status, json: () => response.json() };
++    async (path: string, body?: JsonValue): Promise<Reply> => {
++      const options: RequestInit = { method };
++      if (body !== undefined) {
++        options.headers = { "content-type": "application/json" };
++        options.body = JSON.stringify(body);
++      }
++      const response = await hostFetch(path, options);
++      return {
++        status: response.status,
++        json: async () => z.json().parse(await response.json()),
++      };
+     };
+   return createTakeoverClient({
+     get: wrap("GET"),
