@@ -75,6 +75,21 @@ mutants.out.old/
 .github/skills/
 .github/agents/
 .github/hooks/
+# Other agent roots installers may create (OpenClaw etc.): never source here.
+/agent/
+# skills/ holds first-party source only; ignore installer-written entries
+# (the skills CLI "universal" target) so they can never be staged.
+skills/*
+!skills/README.md
+!skills/profiles.json
+!skills/install-anti-slop/
+!skills/local-debug-session/
+!skills/opensesame-apis/
+!skills/opensesame-chrome-extension/
+!skills/opensesame-clis/
+!skills/opensesame-mcps/
+!skills/security-review/
+!skills/visual-evidence/
 .codex/*
 !.codex/config.toml
 !.codex/hooks.json

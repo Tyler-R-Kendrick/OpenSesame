@@ -110,7 +110,8 @@ as the contract for `apps/pages` (`DESIGN.md` wins on any conflict).
 | `stitch-react-native` | Unused stack: React Native conversion. Not used by this app. |
 
 A new first-party skill gets a directory here, a symlink in `.agents/skills/`,
-a row in the skills table in [`AGENTS.md` §7](../AGENTS.md#7-skills), and an
-entry under `core` in `profiles.json`. A new third-party skill gets an entry
+a row in the [skills index](../docs/contributing/skills.md), an entry under
+`core` in `profiles.json`, and whitelist lines in `.gitignore` (both the
+`skills/` and `.agents/skills/` sections — harness roots ignore by default). A new third-party skill gets an entry
 in one optional profile in `profiles.json` (and a `skills-lock.json` pin when
 its updater provides one).
