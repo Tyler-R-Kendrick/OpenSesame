@@ -1,0 +1,60 @@
+name: Local sandbox session quality proof
+on:
+  push:
+    branches: [review/quality-after-connectors-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/quality-after-connectors-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: a4f5f52b63b623b42f32d44ac72367c7638cf8c3
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify immutable source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a4f5f52b63b623b42f32d44ac72367c7638cf8c3
+          test "$(git rev-parse HEAD^{tree})" = e6b33067974bb1df7b07916df357af9bfbae0233
+          test -z "$(git status --porcelain)"
+      - name: Frozen dependency install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Exact anti-slop and format
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/agent-sandboxes/e2e/local-session.spec.ts packages/agent-sandboxes/e2e/cloudflare.spec.ts packages/agent-sandboxes/src/vnet-pinned-fetch.ts packages/agent-sandboxes/src/vnet-server.test.ts packages/agent-sandboxes/src/vnet-server.ts packages/agent-sandboxes/src/vnet.ts packages/agent-sandboxes/src/boat-agent.ts packages/agent-sandboxes/src/close-once.ts packages/agent-sandboxes/src/close-once.test.ts packages/agent-sandboxes/src/cloudflare-client.ts packages/agent-sandboxes/src/cloudflare-client.test.ts packages/agent-sandboxes/src/cloudflare-provider.test.ts packages/agent-sandboxes/src/cloudflare-redirect.test.ts
+          pnpm lint:anti-slop:files packages/agent-sandboxes
+          pnpm lint:anti-slop
+      - name: Validate affected connector policy
+        run: |
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm exec vitest run packages/app-core/src/lib/native-browser-policy.test.ts packages/app-core/src/lib/native-connector-availability.test.ts
+      - name: Typecheck and test sandbox
+        run: |
+          pnpm --filter @opensesame/agent-sandboxes typecheck
+          pnpm --filter @opensesame/agent-sandboxes test
+      - name: Real Chromium session resume
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
+        run: |
+          set -euo pipefail
+          test -x "$AGENT_BROWSER_CHROME"
+          export AGENT_BROWSER="$PWD/packages/cua-password-reset/node_modules/.bin/agent-browser"
+          test -x "$AGENT_BROWSER"
+          pnpm --filter @opensesame/agent-sandboxes test:e2e
+      - name: Verify source unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = a4f5f52b63b623b42f32d44ac72367c7638cf8c3
+          test "$(git rev-parse HEAD^{tree})" = e6b33067974bb1df7b07916df357af9bfbae0233
+          git diff --exit-code
