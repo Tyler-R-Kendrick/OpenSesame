@@ -1,5 +1,5 @@
 import type { BrowserDriver } from "./agent-browser.js";
-import { detectChallenge } from "./decisions.js";
+import { detectChallenge, modelObservation } from "./decisions.js";
 import { resolveStepRef } from "./recipe.js";
 import { type CandidateCustody, assertProxyLane } from "./secrets.js";
 import type {
@@ -110,17 +110,28 @@ export class BrowserStepExecutor {
     attempt: number,
   ): Promise<StepReceipt> {
     const challenge =
-      step.primitive === "enter-TOTP"
+      step.challenge ??
+      (step.primitive === "enter-TOTP"
         ? "totp"
         : step.primitive === "enter-email-code"
           ? "mail_code"
           : step.primitive === "passkey-prompt"
             ? "passkey"
-            : (detectChallenge(await this.browser.snapshot()) ?? "unknown");
+            : (detectChallenge(await this.browser.snapshot()) ?? "unknown"));
     if (attempt > 1) {
       await this.ports.takeover.resume(challenge, run);
-      if (detectChallenge(await this.browser.snapshot()) !== null)
+      const after = await this.browser.snapshot();
+      if (detectChallenge(after) !== null)
         return { stepId: step.id, outcome: "waiting" };
+      if (step.postcondition) {
+        const labels = new Set(
+          modelObservation(after).fields.map((field) => field.label),
+        );
+        if (
+          !step.postcondition.expectedLabels.every((label) => labels.has(label))
+        )
+          return { stepId: step.id, outcome: "waiting" };
+      }
       return { stepId: step.id, outcome: "completed" };
     }
     await this.ports.takeover.handoff(challenge, run);

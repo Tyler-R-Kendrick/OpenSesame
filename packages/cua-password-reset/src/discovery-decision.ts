@@ -40,8 +40,9 @@ export function decisionStep(
       return { id, primitive: "submit", ...target };
     case "passkey-prompt":
       return { id, primitive: "passkey-prompt", ...target };
-    case "await-email-link":
     case "await-human":
+      return { id, primitive: decision.kind, challenge: decision.challenge };
+    case "await-email-link":
     case "verify-login":
       return { id, primitive: decision.kind };
   }

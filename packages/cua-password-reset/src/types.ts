@@ -151,6 +151,18 @@ export const recipeStepSchema = z
       .enum(["identifier", "new-password", "email-code", "totp"])
       .optional(),
     path: z.string().startsWith("/").max(512).optional(),
+    /** Why this step waits for a person, recorded at discovery time. */
+    challenge: challengeSchema.optional(),
+    /**
+     * Labels that must be present after a human segment before the run may
+     * continue — the post-takeover page the recorder actually saw.
+     */
+    postcondition: z
+      .object({
+        expectedLabels: z.array(z.string().max(200)).min(1).max(20),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type RecipeStep = z.infer<typeof recipeStepSchema>;

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BrowserDriver } from "./agent-browser.js";
 import { discoverResetRecipe } from "./discovery.js";
+import { MemoryRecipeStore, recordAndApproveRecipe } from "./recipe-store.js";
 import { ORIGIN, observation } from "./test-support.js";
 import type {
   DecisionCandidate,
@@ -120,13 +121,21 @@ describe("first-run bounded discovery", () => {
 
   it("records human handoffs and requires a recorded verify-login before finishing", async () => {
     const driven = browser();
-    vi.mocked(driven.snapshot).mockResolvedValue({
-      ...observation([
-        ...fields,
-        { ref: "e4", kind: "otp", label: "Authenticator code" },
-      ]),
-      sensitiveValues: ["person@example.test"],
-    });
+    // The human segment is recorded from the challenge page; the segment's
+    // postcondition comes from the first page seen after the person
+    // cleared it (no challenge copy left).
+    vi.mocked(driven.snapshot)
+      .mockResolvedValueOnce({
+        ...observation([
+          ...fields,
+          { ref: "e4", kind: "otp", label: "Authenticator code" },
+        ]),
+        sensitiveValues: ["person@example.test"],
+      })
+      .mockResolvedValue({
+        ...observation(fields),
+        sensitiveValues: ["person@example.test"],
+      });
     const handoff = vi.fn(async () => undefined);
     const verify = vi.fn(async () => true);
     let decision = 0;
@@ -158,6 +167,11 @@ describe("first-run bounded discovery", () => {
       "await-human",
       "verify-login",
     ]);
+    expect(recipe.steps[0]?.challenge).toBe("totp");
+    expect(recipe.steps[0]?.postcondition?.expectedLabels).toHaveLength(3);
+    expect(JSON.stringify(recipe.steps[0]?.postcondition)).not.toContain(
+      "person@example.test",
+    );
     expect(handoff).toHaveBeenCalledWith("totp");
     expect(verify).toHaveBeenCalledTimes(1);
 
@@ -180,5 +194,55 @@ describe("first-run bounded discovery", () => {
         allowedOrigins: [ORIGIN],
       }),
     ).rejects.toThrow("record a successful verify-login");
+  });
+
+  it("stores a recorded ceremony only after owner approval", async () => {
+    const options = () => {
+      let calls = 0;
+      return {
+        decisions: {
+          decide: async (input: {
+            candidates: readonly DecisionCandidate[];
+          }) => {
+            calls += 1;
+            return calls === 1
+              ? act("verify-login", input.candidates)
+              : { kind: "finish" as const, observationId: "observation-1" };
+          },
+        },
+        browser: browser(),
+        executor: {
+          execute: vi.fn(async (_action: ResetActionDecision) => undefined),
+          handoff: vi.fn(async () => undefined),
+        },
+        authorize: vi.fn(),
+        verify: async () => true,
+        entryUrl: `${ORIGIN}/forgot`,
+        allowedOrigins: [ORIGIN],
+      };
+    };
+    const declined = new MemoryRecipeStore();
+    await expect(
+      recordAndApproveRecipe(declined, options(), async () => false),
+    ).rejects.toThrow("declined");
+    expect(await declined.get("accounts.example.test")).toBeUndefined();
+
+    const approved = new MemoryRecipeStore();
+    const recipe = await recordAndApproveRecipe(
+      approved,
+      options(),
+      async (candidate) => candidate.review === "candidate",
+    );
+    expect(recipe.review).toBe("approved");
+    expect((await approved.get(recipe.domain))?.review).toBe("approved");
+    // Second run short-circuits: no discovery decisions are consumed.
+    const again = await recordAndApproveRecipe(
+      approved,
+      options(),
+      async () => {
+        throw new Error("must not be asked");
+      },
+    );
+    expect(again).toEqual(recipe);
   });
 });
