@@ -1,0 +1,3026 @@
+diff --git a/packages/agent-sandboxes/e2e/harness.ts b/packages/agent-sandboxes/e2e/harness.ts
+new file mode 100644
+index 000000000..33718714e
+--- /dev/null
++++ b/packages/agent-sandboxes/e2e/harness.ts
+@@ -0,0 +1,233 @@
++import {
++  type BrowserDriver,
++  BrowserStepExecutor,
++  type BrowserStepPorts,
++  CandidateCustody,
++  DurableJournal,
++  DurableResetRunner,
++  type HumanChallenge,
++  MemoryCheckpointJournal,
++  RESET_ACTIONS,
++  type ResetAction,
++  type ResetEffects,
++  type ResetRun,
++  fixedGrants,
++  resetAudience,
++  resetResource,
++} from "@opensesame/cua-password-reset";
++/** Runner wiring shared by every sandbox-provider e2e. */
++import type { AuthorityGrant } from "@opensesame/os-domain";
++import type { PasswordMethod } from "@opensesame/vault-core";
++import type { MockResetSite } from "./mock-site.js";
++
++export const PEPPER = "person-pepper";
++
++const method: PasswordMethod = {
++  id: "password-1",
++  type: "password",
++  generator: {
++    id: "derived",
++    counter: 1,
++    rules: {
++      length: 24,
++      lower: true,
++      upper: true,
++      digits: true,
++      symbols: true,
++      avoidAmbiguous: false,
++      minDigits: 1,
++      minSymbols: 1,
++    },
++  },
++  pepper: true,
++  pepperAt: "end",
++  secret: Buffer.alloc(32, 7).toString("base64"),
++  changedAt: "2026-10-27T00:00:00.000Z",
++};
++
++function grant(action: ResetAction, domain: string): AuthorityGrant {
++  const now = new Date();
++  return {
++    id: `grant:${action}`,
++    version: 1,
++    issuerPrincipalId: "person",
++    beneficiaryPrincipalId: "agent",
++    actorId: null,
++    clientId: null,
++    actorInstanceId: "agent-instance-1",
++    proofKeyThumbprint: "proof-key-1",
++    organizationId: "org",
++    projectId: null,
++    environmentId: null,
++    connectionId: null,
++    actions: [action],
++    resources: [resetResource(domain, "item-1")],
++    constraints: {
++      audiences: [resetAudience("run-1")],
++      notBefore: null,
++      expiresAt: new Date(now.getTime() + 600_000),
++      requiredAssurance: null,
++      authenticationMaxAgeSeconds: null,
++      allowedNetworks: [],
++      parameterRulesDigest: null,
++      budgets: {},
++      maximumDelegationDepth: 0,
++      offlineUse: "forbidden",
++      rawCredentialExport: false,
++    },
++    parentGrantId: null,
++    delegationDepth: 0,
++    createdAt: now,
++    revokedAt: null,
++  };
++}
++
++export function resetRun(site: MockResetSite, challenge = false): ResetRun {
++  const domain = new URL(site.origin).hostname;
++  return {
++    id: "run-1",
++    domain,
++    origin: site.origin,
++    itemId: "item-1",
++    transport: "cdp",
++    grantIds: Object.fromEntries(
++      RESET_ACTIONS.map((action) => [action, `grant:${action}`]),
++    ),
++    cursor: 0,
++    status: "running",
++    updatedAt: new Date().toISOString(),
++    recipe: {
++      schemaVersion: 1,
++      review: "approved",
++      domain,
++      entryPath: "/reset",
++      allowedOrigins: [site.origin],
++      steps: [
++        { id: "open", primitive: "navigate", path: "/reset" },
++        {
++          id: "identify",
++          primitive: "fill-field",
++          ref: "e1",
++          expectedLabel: "Email",
++          purpose: "identifier",
++        },
++        {
++          id: "request",
++          primitive: "click",
++          ref: "e2",
++          expectedLabel: "Send reset link",
++        },
++        { id: "mail", primitive: "await-email-link" },
++        ...(challenge
++          ? [{ id: "challenge", primitive: "await-human" as const }]
++          : []),
++        {
++          id: "password",
++          primitive: "fill-field",
++          ref: "e3",
++          expectedLabel: "New password",
++          purpose: "new-password",
++        },
++        {
++          id: "submit",
++          primitive: "submit",
++          ref: "e4",
++          expectedLabel: "Save password",
++        },
++        { id: "verify", primitive: "verify-login" },
++      ],
++    },
++  };
++}
++
++export function runtimeForDriver(
++  browser: BrowserDriver,
++  site: MockResetSite,
++  challenge = false,
++) {
++  const initial = resetRun(site, challenge);
++  const provider = fixedGrants(
++    Object.fromEntries(
++      RESET_ACTIONS.map((action) => [action, grant(action, initial.domain)]),
++    ),
++  );
++  const custody = new CandidateCustody(
++    method,
++    () => PEPPER,
++    () => {
++      const live = provider.grant("password_reset.password.produce", initial);
++      if (live.actions[0] !== "password_reset.password.produce")
++        throw new Error("Not authorized");
++    },
++  );
++  const challenges: HumanChallenge[] = [];
++  const verifyLogin = async (): Promise<boolean> =>
++    custody.withPassword(async (password) => {
++      const response = await fetch(`${site.origin}/login`, {
++        method: "POST",
++        redirect: "manual",
++        headers: { "content-type": "application/x-www-form-urlencoded" },
++        body: new URLSearchParams({
++          email: "person@example.test",
++          password,
++        }),
++      });
++      return response.headers.get("location") === "/account";
++    });
++  const ports: BrowserStepPorts = {
++    identifier: async () => "person@example.test",
++    mailbox: { resetLink: async () => site.resetLink() },
++    candidate: custody,
++    authorizeProxy: () => {
++      provider.grant("password_reset.proxy.substitute", initial);
++    },
++    takeover: {
++      handoff: async (seen) => {
++        challenges.push(seen);
++      },
++      resume: async () => {
++        await fetch(`${site.origin}/challenge/clear`, {
++          method: "POST",
++          redirect: "manual",
++        });
++        await browser.open(site.resetLink());
++      },
++    },
++    verifyLogin,
++  };
++  const executor = new BrowserStepExecutor(browser, ports);
++  const effects: ResetEffects = {
++    execute: (step, current, context) =>
++      executor.execute(step, current, context),
++    backupCandidate: async () => {},
++    verifyCandidate: async () =>
++      (await verifyLogin()) ? "verified" : "not_active",
++    promoteCandidate: async () => {},
++    compensate: async () => {
++      site.restorePassword();
++      return "compensated" as const;
++    },
++  };
++  const store = new MemoryCheckpointJournal();
++  const journal = new DurableJournal(store);
++  return {
++    initial,
++    custody,
++    challenges,
++    journal,
++    store,
++    runner: new DurableResetRunner(journal, effects, provider),
++  };
++}
++
++export async function expectNewPasswordAccepted(
++  custody: CandidateCustody,
++  site: MockResetSite,
++): Promise<void> {
++  const accepted = await custody.withPassword(async (password) =>
++    site.accepts(password),
++  );
++  if (!accepted) throw new Error("site does not accept the new password");
++  if (site.accepts("old-password"))
++    throw new Error("site still accepts the old password");
++}
+diff --git a/packages/agent-sandboxes/e2e/mock-site.ts b/packages/agent-sandboxes/e2e/mock-site.ts
+new file mode 100644
+index 000000000..33afa8ff7
+--- /dev/null
++++ b/packages/agent-sandboxes/e2e/mock-site.ts
+@@ -0,0 +1,160 @@
++/**
++ * Minimal server-rendered reset site for sandbox-provider e2e. Same shape
++ * as the CUA mock (plain forms, token link, optional CAPTCHA gate) so all
++ * four provider lanes drive identical ceremonies.
++ */
++import { randomUUID } from "node:crypto";
++import {
++  type IncomingMessage,
++  type Server,
++  type ServerResponse,
++  createServer,
++} from "node:http";
++
++function page(response: ServerResponse, body: string): void {
++  response
++    .writeHead(200, { "content-type": "text/html; charset=utf-8" })
++    .end(`<!doctype html><html><body>${body}</body></html>`);
++}
++
++async function bodyText(request: IncomingMessage): Promise<string> {
++  const chunks: Buffer[] = [];
++  for await (const chunk of request) chunks.push(Buffer.from(chunk));
++  return Buffer.concat(chunks).toString("utf8");
++}
++
++export class MockResetSite {
++  private server: Server | undefined;
++  private password = "old-password";
++  private readonly token = randomUUID();
++  private challengePending = false;
++  origin = "";
++  submissions = 0;
++
++  async start(withChallenge = false): Promise<void> {
++    this.challengePending = withChallenge;
++    this.server = createServer((request, response) => {
++      void this.answer(request, response);
++    });
++    await new Promise<void>((resolve) =>
++      this.server?.listen(0, "127.0.0.1", resolve),
++    );
++    const address = this.server.address();
++    if (!address || !(address instanceof Object) || !("port" in address))
++      throw new Error("Mock site did not bind");
++    this.origin = `http://127.0.0.1:${address.port}`;
++  }
++
++  async stop(): Promise<void> {
++    const server = this.server;
++    this.server = undefined;
++    if (server)
++      await new Promise<void>((resolve) => server.close(() => resolve()));
++  }
++
++  resetLink(): string {
++    return `${this.origin}/reset/link?token=${this.token}`;
++  }
++
++  accepts(password: string): boolean {
++    return this.password === password;
++  }
++
++  restorePassword(): void {
++    this.password = "old-password";
++  }
++
++  private async answer(
++    request: IncomingMessage,
++    response: ServerResponse,
++  ): Promise<void> {
++    const url = new URL(request.url ?? "/", this.origin);
++    if (request.method === "GET") return this.answerGet(url, response);
++    if (request.method === "POST")
++      return this.answerPost(url, request, response);
++    response.writeHead(404).end();
++  }
++
++  private answerGet(url: URL, response: ServerResponse): void {
++    switch (url.pathname) {
++      case "/reset":
++        page(
++          response,
++          `<form method="post" action="/request"><label>Email<input name="email" type="email"></label><button>Send reset link</button></form>`,
++        );
++        return;
++      case "/check-email":
++        page(response, "<main>Check your email for a reset link</main>");
++        return;
++      case "/reset/link": {
++        if (url.searchParams.get("token") !== this.token) {
++          page(response, "<main>Reset link expired</main>");
++          return;
++        }
++        const challenge = this.challengePending
++          ? `<p>CAPTCHA verify you are human</p><form method="post" action="/challenge/clear"><button>Challenge completed</button></form>`
++          : "";
++        page(
++          response,
++          `${challenge}<form method="post" action="/password"><input type="hidden" name="token" value="${this.token}"><label>New password<input name="password" type="password"></label><button>Save password</button></form>`,
++        );
++        return;
++      }
++      case "/login":
++        page(
++          response,
++          `<form method="post" action="/login"><label>Email<input name="email" type="email"></label><label>Password<input name="password" type="password"></label><button>Sign in</button></form>`,
++        );
++        return;
++      case "/account":
++        page(response, "<main>Signed in</main>");
++        return;
++      default:
++        response.writeHead(404).end();
++    }
++  }
++
++  private async answerPost(
++    url: URL,
++    request: IncomingMessage,
++    response: ServerResponse,
++  ): Promise<void> {
++    const values = new URLSearchParams(await bodyText(request));
++    switch (url.pathname) {
++      case "/request":
++        response.writeHead(303, { location: "/check-email" }).end();
++        return;
++      case "/challenge/clear":
++        this.challengePending = false;
++        response
++          .writeHead(303, {
++            location: `/reset/link?token=${this.token}`,
++          })
++          .end();
++        return;
++      case "/password": {
++        const next = values.get("password");
++        if (values.get("token") !== this.token || !next) {
++          page(response, "<main>Password was not updated</main>");
++          return;
++        }
++        this.password = next;
++        this.submissions += 1;
++        page(response, "<main>Password updated</main>");
++        return;
++      }
++      case "/login":
++        if (
++          values.get("email") === "person@example.test" &&
++          values.get("password") === this.password
++        ) {
++          response.writeHead(303, { location: "/account" }).end();
++          return;
++        }
++        page(response, "<main>Sign in failed</main>");
++        return;
++      default:
++        response.writeHead(404).end();
++    }
++  }
++}
+diff --git a/packages/agent-sandboxes/e2e/relay.spec.ts b/packages/agent-sandboxes/e2e/relay.spec.ts
+new file mode 100644
+index 000000000..c1423671a
+--- /dev/null
++++ b/packages/agent-sandboxes/e2e/relay.spec.ts
+@@ -0,0 +1,56 @@
++import { expect, test } from "@playwright/test";
++import {
++  LocalSandboxProvider,
++  relayDriverOverWebSocket,
++  startRelayServer,
++} from "../src/index.js";
++import {
++  PEPPER,
++  expectNewPasswordAccepted,
++  runtimeForDriver,
++} from "./harness.js";
++import { MockResetSite } from "./mock-site.js";
++
++const executable = process.env.AGENT_BROWSER;
++if (!executable) throw new Error("AGENT_BROWSER is not configured");
++
++test("full reset through the driver relay, with a takeover pause", async () => {
++  const site = new MockResetSite();
++  await site.start(true);
++  const local = new LocalSandboxProvider({ executable });
++  const hosted = await local.allocate({ origin: site.origin });
++  const relay = await startRelayServer({
++    token: "relay-e2e-token",
++    driver: hosted.browser,
++  });
++  let relayClosedBrowser = false;
++  let phase = "initialize";
++  try {
++    const driver = relayDriverOverWebSocket(relay.url, {
++      token: "relay-e2e-token",
++    });
++    const runtime = runtimeForDriver(driver, site, true);
++    phase = "start";
++    const parked = await runtime.runner.start(runtime.initial);
++    expect(parked.status).toBe("awaiting_human");
++    expect(runtime.challenges).toEqual(["captcha"]);
++    phase = "resume";
++    const finished = await runtime.runner.resumeAfterHuman(parked);
++    expect(finished.status).toBe("succeeded");
++    expect(site.submissions).toBe(1);
++    phase = "verify";
++    await expectNewPasswordAccepted(runtime.custody, site);
++    const journalText = JSON.stringify(await runtime.store.load("run-1"));
++    expect(journalText).not.toContain(PEPPER);
++    phase = "close";
++    await driver.close();
++    relayClosedBrowser = true;
++  } catch (error) {
++    process.stderr.write(`relay e2e failure phase: ${phase}\n`);
++    throw error;
++  } finally {
++    await relay.close().catch(() => {});
++    if (!relayClosedBrowser) await hosted.close().catch(() => {});
++    await site.stop().catch(() => {});
++  }
++});
+diff --git a/packages/agent-sandboxes/e2e/wasm.spec.ts b/packages/agent-sandboxes/e2e/wasm.spec.ts
+new file mode 100644
+index 000000000..4b4ddc894
+--- /dev/null
++++ b/packages/agent-sandboxes/e2e/wasm.spec.ts
+@@ -0,0 +1,39 @@
++import { expect, test } from "@playwright/test";
++import { WasmRelayProvider, startVirtualNetworkRelay } from "../src/index.js";
++import {
++  PEPPER,
++  expectNewPasswordAccepted,
++  runtimeForDriver,
++} from "./harness.js";
++import { MockResetSite } from "./mock-site.js";
++
++test("full reset in the WASM DOM driver over a virtualized network", async () => {
++  const site = new MockResetSite();
++  await site.start(true);
++  const relay = await startVirtualNetworkRelay({
++    token: "vnet-e2e-token",
++    allowLoopbackTargets: true,
++  });
++  try {
++    const provider = new WasmRelayProvider({
++      relayUrl: relay.url,
++      relayToken: "vnet-e2e-token",
++    });
++    const sandbox = await provider.allocate({ origin: site.origin });
++    expect(sandbox.provider).toBe("wasm-relay");
++    const runtime = runtimeForDriver(sandbox.browser, site, true);
++    const parked = await runtime.runner.start(runtime.initial);
++    expect(parked.status).toBe("awaiting_human");
++    expect(runtime.challenges).toEqual(["captcha"]);
++    const finished = await runtime.runner.resumeAfterHuman(parked);
++    expect(finished.status).toBe("succeeded");
++    expect(site.submissions).toBe(1);
++    await expectNewPasswordAccepted(runtime.custody, site);
++    const journalText = JSON.stringify(await runtime.store.load("run-1"));
++    expect(journalText).not.toContain(PEPPER);
++    await sandbox.close();
++  } finally {
++    await relay.close();
++    await site.stop();
++  }
++});
+diff --git a/packages/agent-sandboxes/package.json b/packages/agent-sandboxes/package.json
+index 7dffd37b2..fc51d86af 100644
+--- a/packages/agent-sandboxes/package.json
++++ b/packages/agent-sandboxes/package.json
+@@ -16,13 +16,19 @@
+     "test:e2e": "playwright test"
+   },
+   "dependencies": {
+-    "@opensesame/cua-password-reset": "workspace:*"
++    "@opensesame/cua-password-reset": "workspace:*",
++    "linkedom": "0.18.13",
++    "ws": "8.21.3",
++    "zod": "4.6.6"
+   },
+   "devDependencies": {
+     "@playwright/test": "1.64.1",
+     "@types/node": "22.15.29",
++    "@types/ws": "8.18.1",
+     "typescript": "5.8.3",
+-    "vitest": "4.1.12"
++    "vitest": "4.1.12",
++    "@opensesame/os-domain": "workspace:*",
++    "@opensesame/vault-core": "workspace:*"
+   },
+   "license": "MIT",
+   "repository": {
+diff --git a/packages/agent-sandboxes/playwright.config.ts b/packages/agent-sandboxes/playwright.config.ts
+index ced38466c..096c207e7 100644
+--- a/packages/agent-sandboxes/playwright.config.ts
++++ b/packages/agent-sandboxes/playwright.config.ts
+@@ -2,4 +2,15 @@ import { defineConfig } from "@playwright/test";
+ 
+ export default defineConfig({
+   testDir: "./e2e",
++  fullyParallel: false,
++  workers: 1,
++  timeout: 120_000,
++  reporter: "line",
++  use: {
++    headless: true,
++    launchOptions: {
++      executablePath:
++        process.env.PLAYWRIGHT_CHROMIUM ?? "/usr/bin/google-chrome",
++    },
++  },
+ });
+diff --git a/packages/agent-sandboxes/src/index.ts b/packages/agent-sandboxes/src/index.ts
+index 41f933a93..640a05429 100644
+--- a/packages/agent-sandboxes/src/index.ts
++++ b/packages/agent-sandboxes/src/index.ts
+@@ -1,2 +1,9 @@
+ export * from "./local-provider.js";
++export * from "./relay-driver.js";
++export * from "./relay-protocol.js";
++export * from "./relay-server.js";
+ export * from "./types.js";
++export * from "./vnet.js";
++export * from "./vnet-server.js";
++export * from "./wasm-dom-driver.js";
++export * from "./wasm-provider.js";
+diff --git a/packages/agent-sandboxes/src/relay-driver.ts b/packages/agent-sandboxes/src/relay-driver.ts
+new file mode 100644
+index 000000000..eee27ac66
+--- /dev/null
++++ b/packages/agent-sandboxes/src/relay-driver.ts
+@@ -0,0 +1,184 @@
++/**
++ * A `BrowserDriver` that drives a browser behind the relay protocol.
++ * Pure TypeScript with no Node imports: the same code runs in Node, in a
++ * browser tab, or compiled to WASM, given a WebSocket-like transport.
++ */
++
++import type {
++  BrowserDriver,
++  Observation,
++} from "@opensesame/cua-password-reset";
++import {
++  type RelayRequest,
++  type RelayResponse,
++  type RelayTransport,
++  parseRelayResponse,
++} from "./relay-protocol.js";
++
++export class RelayBrowserDriver implements BrowserDriver {
++  private sequence = 0;
++
++  constructor(private readonly transport: RelayTransport) {}
++
++  private async call(
++    request: Omit<RelayRequest, "id">,
++  ): Promise<RelayResponse & { ok: true }> {
++    this.sequence += 1;
++    const response = await this.transport({ ...request, id: this.sequence });
++    if (!response.ok) throw new Error(`relay driver: ${response.error}`);
++    return response;
++  }
++
++  async open(url: string): Promise<void> {
++    await this.call({ method: "open", url });
++  }
++
++  async snapshot(): Promise<Observation> {
++    const response = await this.call({ method: "snapshot" });
++    if (!response.observation)
++      throw new Error("relay driver: snapshot carried no observation");
++    return response.observation;
++  }
++
++  async click(ref: string): Promise<void> {
++    await this.call({ method: "click", ref });
++  }
++
++  async fill(ref: string, value: string): Promise<void> {
++    await this.call({ method: "fill", ref, value });
++  }
++
++  async fillSecret(ref: string, value: string): Promise<void> {
++    await this.call({ method: "fillSecret", ref, value });
++  }
++
++  async pageUrl(): Promise<string> {
++    const response = await this.call({ method: "pageUrl" });
++    return response.pageUrl ?? "";
++  }
++
++  async close(): Promise<void> {
++    await this.call({ method: "close" });
++  }
++}
++
++interface SocketLike {
++  send(data: string): void;
++  close(): void;
++  addEventListener(
++    type: "message",
++    listener: (event: { data: unknown }) => void,
++  ): void;
++  addEventListener(type: "open", listener: () => void): void;
++  addEventListener(type: "error" | "close", listener: () => void): void;
++}
++
++/**
++ * WebSocket transport for the relay protocol. Works with the global
++ * `WebSocket` in browsers, Workers, WASM hosts, and Node ≥ 22. Requests
++ * are serialized: the driver issues one command at a time, matching the
++ * single-page session behind the relay.
++ */
++export function webSocketRelayTransport(
++  socket: SocketLike,
++  ready: Promise<void>,
++): RelayTransport {
++  let pending: {
++    id: number;
++    resolve: (response: RelayResponse) => void;
++    reject: (error: Error) => void;
++  } | null = null;
++  let closed = false;
++  const fail = () => {
++    closed = true;
++    const settle = pending;
++    pending = null;
++    settle?.reject(new Error("relay driver: connection closed"));
++  };
++  socket.addEventListener("close", fail);
++  socket.addEventListener("error", fail);
++  socket.addEventListener("message", (event) => {
++    const settle = pending;
++    if (!settle) return;
++    const parsed = parseRelayResponse(String(event.data));
++    if (!parsed) {
++      pending = null;
++      settle.reject(new Error("relay driver: undecodable response"));
++      return;
++    }
++    if (parsed.id !== settle.id) return;
++    pending = null;
++    settle.resolve(parsed);
++  });
++  return async (request) => {
++    await ready;
++    if (closed) throw new Error("relay driver: connection closed");
++    if (pending) throw new Error("relay driver: concurrent request");
++    return new Promise<RelayResponse>((resolve, reject) => {
++      pending = { id: request.id, resolve, reject };
++      try {
++        socket.send(JSON.stringify(request));
++      } catch {
++        pending = null;
++        closed = true;
++        reject(new Error("relay driver: connection closed"));
++      }
++    });
++  };
++}
++
++export interface RelaySocketOptions {
++  token: string;
++}
++
++/** Connect a relay driver to a `ws(s)://` relay endpoint. */
++export function relayDriverOverWebSocket(
++  url: string,
++  options: RelaySocketOptions,
++): RelayBrowserDriver {
++  if (!options.token) throw new Error("relay driver: token is required");
++  const endpoint = new URL(url);
++  if (
++    endpoint.username ||
++    endpoint.password ||
++    (endpoint.protocol !== "wss:" &&
++      !(
++        endpoint.protocol === "ws:" &&
++        (endpoint.hostname === "127.0.0.1" || endpoint.hostname === "[::1]")
++      ))
++  ) {
++    throw new Error(
++      "relay driver: remote relay requires wss and no URL credentials",
++    );
++  }
++  const socket = new WebSocket(endpoint.href);
++  const ready = new Promise<void>((resolve, reject) => {
++    socket.addEventListener("open", () => {
++      const onAuth = (event: MessageEvent) => {
++        const parsed = parseRelayResponse(String(event.data));
++        if (parsed && parsed.id !== 0) return;
++        socket.removeEventListener("message", onAuth);
++        if (parsed?.ok) resolve();
++        else reject(new Error("relay driver: authentication refused"));
++      };
++      socket.addEventListener("message", onAuth);
++      try {
++        socket.send(JSON.stringify({ type: "auth", token: options.token }));
++      } catch {
++        reject(new Error("relay driver: connection failed"));
++      }
++    });
++    socket.addEventListener("error", () =>
++      reject(new Error("relay driver: connection failed")),
++    );
++    socket.addEventListener("close", () =>
++      reject(new Error("relay driver: connection closed")),
++    );
++  });
++  // The socket can close before the first driver call observes readiness.
++  void ready.catch(() => {});
++  // SAFETY: the global WebSocket implements the SocketLike surface used here (send/close/addEventListener), verified by the relay tests.
++  return new RelayBrowserDriver(
++    webSocketRelayTransport(socket as SocketLike, ready),
++  );
++}
+diff --git a/packages/agent-sandboxes/src/relay-protocol.ts b/packages/agent-sandboxes/src/relay-protocol.ts
+new file mode 100644
+index 000000000..4c12e1813
+--- /dev/null
++++ b/packages/agent-sandboxes/src/relay-protocol.ts
+@@ -0,0 +1,121 @@
++/**
++ * The driver relay protocol: JSON messages carrying exactly the
++ * `BrowserDriver` surface, so a browser that lives somewhere else (a Boat
++ * sandbox, a future WASM host with a real engine) can be driven from here
++ * without provider credentials or site secrets ever entering a command
++ * log. `fillSecret` values cross only inside this authenticated channel,
++ * one fill at a time, exactly as the local stdin fill does.
++ */
++
++import type { Observation } from "@opensesame/cua-password-reset";
++import { z } from "zod";
++
++export const RELAY_METHODS = [
++  "open",
++  "snapshot",
++  "click",
++  "fill",
++  "fillSecret",
++  "pageUrl",
++  "close",
++] as const;
++export type RelayMethod = (typeof RELAY_METHODS)[number];
++
++export interface RelayRequest {
++  id: number;
++  method: RelayMethod;
++  url?: string | undefined;
++  ref?: string | undefined;
++  value?: string | undefined;
++}
++
++/**
++ * First frame on a relay socket. Browser/WASM WebSocket clients cannot set
++ * upgrade headers, so the bearer token travels as this frame instead; the
++ * relay answers `{id: 0, ok: true}` and refuses requests before it.
++ */
++export interface RelayAuth {
++  type: "auth";
++  token: string;
++}
++
++export type RelayResponse =
++  | {
++      id: number;
++      ok: true;
++      observation?: Observation | undefined;
++      pageUrl?: string | undefined;
++    }
++  | { id: number; ok: false; error: string };
++
++/** One request/response round trip. Transport is the caller's choice. */
++export type RelayTransport = (request: RelayRequest) => Promise<RelayResponse>;
++
++const relayRequestSchema = z.object({
++  id: z.number(),
++  method: z.enum(RELAY_METHODS),
++  url: z.string().optional(),
++  ref: z.string().optional(),
++  value: z.string().optional(),
++});
++
++const relayAuthSchema = z.object({
++  type: z.literal("auth"),
++  token: z.string(),
++});
++
++const relayResponseSchema = z.union([
++  z.object({
++    id: z.number(),
++    ok: z.literal(true),
++    observation: z
++      .object({
++        id: z.string(),
++        origin: z.string(),
++        fields: z.array(
++          z.object({
++            ref: z.string(),
++            kind: z.enum([
++              "email",
++              "text",
++              "password",
++              "otp",
++              "button",
++              "link",
++              "static",
++            ]),
++            label: z.string(),
++          }),
++        ),
++      })
++      .optional(),
++    pageUrl: z.string().optional(),
++  }),
++  z.object({ id: z.number(), ok: z.literal(false), error: z.string() }),
++]);
++
++/** Parse one relay response frame; anything else is not a relay message. */
++export function parseRelayResponse(text: string): RelayResponse | null {
++  const parsed = relayResponseSchema.safeParse(parseJsonText(text));
++  return parsed.success ? parsed.data : null;
++}
++
++function parseJsonText(text: string) {
++  try {
++    return JSON.parse(text);
++  } catch {
++    return null;
++  }
++}
++
++/** Parse one inbound relay frame; anything else is not a relay message. */
++export function parseRelayFrame(
++  text: string,
++): { auth: RelayAuth } | { request: RelayRequest } | null {
++  const parsed = parseJsonText(text);
++  const auth = relayAuthSchema.safeParse(parsed);
++  if (auth.success) return { auth: auth.data };
++  const request = relayRequestSchema.safeParse(parsed);
++  if (request.success) return { request: request.data };
++  return null;
++}
+diff --git a/packages/agent-sandboxes/src/relay-server.ts b/packages/agent-sandboxes/src/relay-server.ts
+new file mode 100644
+index 000000000..5185b2ccd
+--- /dev/null
++++ b/packages/agent-sandboxes/src/relay-server.ts
+@@ -0,0 +1,168 @@
++/**
++ * Reference relay server: hosts one real `BrowserDriver` behind the relay
++ * protocol over an authenticated WebSocket. This is the process a remote
++ * sandbox lane runs next to its browser (Boat runs it inside the sandbox;
++ * tests run it in-process). The bearer token is checked before requests and
++ * never logged. Remote access requires a TLS-terminating proxy.
++ */
++
++import { type Server, createServer } from "node:http";
++import type { BrowserDriver } from "@opensesame/cua-password-reset";
++import { WebSocket, WebSocketServer } from "ws";
++import {
++  type RelayRequest,
++  type RelayResponse,
++  parseRelayFrame,
++} from "./relay-protocol.js";
++
++export interface RelayServerOptions {
++  /** Port to bind; 0 picks an ephemeral port (tests). */
++  port?: number;
++  host?: string;
++  /** Required bearer token for the upgrade or first authentication frame. */
++  token: string;
++  /** The browser this relay drives. One session per server. */
++  driver: BrowserDriver;
++}
++
++export interface RunningRelayServer {
++  url: string;
++  port: number;
++  close(): Promise<void>;
++}
++
++type DispatchResult = Omit<Extract<RelayResponse, { ok: true }>, "id" | "ok">;
++
++type DispatchHandler = (
++  driver: BrowserDriver,
++  request: RelayRequest,
++) => Promise<DispatchResult>;
++
++const HANDLERS = {
++  open: async (driver, request) => {
++    await driver.open(request.url ?? "");
++    return {};
++  },
++  snapshot: async (driver) => ({ observation: await driver.snapshot() }),
++  click: async (driver, request) => {
++    await driver.click(request.ref ?? "");
++    return {};
++  },
++  fill: async (driver, request) => {
++    await driver.fill(request.ref ?? "", request.value ?? "");
++    return {};
++  },
++  fillSecret: async (driver, request) => {
++    await driver.fillSecret(request.ref ?? "", request.value ?? "");
++    return {};
++  },
++  pageUrl: async (driver) => ({
++    pageUrl: driver.pageUrl ? await driver.pageUrl() : "",
++  }),
++  close: async (driver) => {
++    await driver.close?.();
++    return {};
++  },
++} satisfies Record<RelayRequest["method"], DispatchHandler>;
++
++async function dispatch(
++  driver: BrowserDriver,
++  request: RelayRequest,
++): Promise<RelayResponse> {
++  try {
++    const result = await HANDLERS[request.method](driver, request);
++    return { id: request.id, ok: true, ...result };
++  } catch (error) {
++    return {
++      id: request.id,
++      ok: false,
++      error: error instanceof Error ? error.message : "driver failed",
++    };
++  }
++}
++
++export async function startRelayServer(
++  options: RelayServerOptions,
++): Promise<RunningRelayServer> {
++  const host = options.host ?? "127.0.0.1";
++  if (host !== "127.0.0.1" && host !== "::1")
++    throw new Error(
++      "relay server: plaintext listener must bind literal loopback",
++    );
++  if (!options.token) throw new Error("relay server: token is required");
++  const server: Server = createServer((request, response) => {
++    response.writeHead(404).end();
++    void request;
++  });
++  const wss = new WebSocketServer({ noServer: true });
++  let owner: WebSocket | null = null;
++  // A disconnect must not let the next owner overtake an in-flight command.
++  let queue = Promise.resolve();
++  server.on("upgrade", (request, socket, head) => {
++    const headerAuthed =
++      request.headers.authorization === `Bearer ${options.token}`;
++    wss.handleUpgrade(request, socket, head, (ws) => {
++      let authenticated = false;
++      const claim = () => {
++        if (owner && owner !== ws) return false;
++        owner = ws;
++        authenticated = true;
++        return true;
++      };
++      ws.on("close", () => {
++        if (owner === ws) owner = null;
++      });
++      ws.on("error", () => ws.terminate());
++      if (headerAuthed && !claim()) {
++        ws.close(1008, "relay session already owned");
++        return;
++      }
++      ws.on("message", (data) => {
++        const frame = parseRelayFrame(data.toString());
++        if (!authenticated) {
++          if (
++            frame &&
++            "auth" in frame &&
++            frame.auth.token === options.token &&
++            claim()
++          ) {
++            ws.send(JSON.stringify({ id: 0, ok: true }));
++          } else {
++            ws.send(
++              JSON.stringify({ id: 0, ok: false, error: "unauthorized" }),
++            );
++            ws.close(1008, "unauthorized");
++          }
++          return;
++        }
++        if (!frame || !("request" in frame)) return;
++        const request = frame.request;
++        queue = queue
++          .then(async () => {
++            if (owner !== ws || ws.readyState !== WebSocket.OPEN) return;
++            const response = await dispatch(options.driver, request);
++            if (ws.readyState !== WebSocket.OPEN) return;
++            ws.send(JSON.stringify(response));
++            if (request.method === "close" && response.ok) ws.close();
++          })
++          .catch(() => ws.terminate());
++      });
++    });
++  });
++  await new Promise<void>((resolve) => {
++    server.listen(options.port ?? 0, host, resolve);
++  });
++  const address = server.address();
++  const port =
++    address instanceof Object && "port" in address ? address.port : 0;
++  return {
++    url: `ws://${host === "::1" ? "[::1]" : host}:${port}`,
++    port,
++    close: async () => {
++      for (const client of wss.clients) client.terminate();
++      wss.close();
++      await new Promise<void>((resolve) => server.close(() => resolve()));
++      await queue;
++    },
++  };
++}
+diff --git a/packages/agent-sandboxes/src/relay.test.ts b/packages/agent-sandboxes/src/relay.test.ts
+new file mode 100644
+index 000000000..8461d45ae
+--- /dev/null
++++ b/packages/agent-sandboxes/src/relay.test.ts
+@@ -0,0 +1,203 @@
++import { once } from "node:events";
++import type {
++  BrowserDriver,
++  Observation,
++} from "@opensesame/cua-password-reset";
++import { afterEach, describe, expect, it, vi } from "vitest";
++import { WebSocket } from "ws";
++import { relayDriverOverWebSocket } from "./relay-driver.js";
++import { type RunningRelayServer, startRelayServer } from "./relay-server.js";
++
++const OBSERVATION: Observation = {
++  id: "obs-1",
++  origin: "https://accounts.example.test",
++  fields: [{ ref: "e1", kind: "email", label: "Email" }],
++};
++
++function fakeDriver(): BrowserDriver & { calls: string[] } {
++  const calls: string[] = [];
++  return {
++    calls,
++    open: vi.fn(async (url: string) => {
++      calls.push(`open ${url}`);
++    }),
++    snapshot: vi.fn(async () => OBSERVATION),
++    click: vi.fn(async (ref: string) => {
++      calls.push(`click ${ref}`);
++    }),
++    fill: vi.fn(async () => {}),
++    fillSecret: vi.fn(async (ref: string) => {
++      calls.push(`fillSecret ${ref}`);
++    }),
++    pageUrl: vi.fn(async () => "https://accounts.example.test/reset"),
++    close: vi.fn(async () => {
++      calls.push("close");
++    }),
++  };
++}
++
++describe("driver relay", () => {
++  let server: RunningRelayServer | null = null;
++
++  afterEach(async () => {
++    await server?.close();
++    server = null;
++    vi.unstubAllGlobals();
++  });
++
++  it("drives the hosted browser over an authenticated socket", async () => {
++    const hosted = fakeDriver();
++    server = await startRelayServer({ token: "s3cret-token", driver: hosted });
++    const driver = relayDriverOverWebSocket(server.url, {
++      token: "s3cret-token",
++    });
++    await driver.open("https://accounts.example.test/reset");
++    await expect(driver.snapshot()).resolves.toEqual(OBSERVATION);
++    await driver.fillSecret("e1", "value-never-logged");
++    await expect(driver.pageUrl()).resolves.toContain("/reset");
++    await driver.close();
++    expect(hosted.calls).toEqual([
++      "open https://accounts.example.test/reset",
++      "fillSecret e1",
++      "close",
++    ]);
++  });
++
++  it("refuses a wrong relay token", async () => {
++    server = await startRelayServer({
++      token: "s3cret-token",
++      driver: fakeDriver(),
++    });
++    const driver = relayDriverOverWebSocket(server.url, { token: "wrong" });
++    await expect(
++      driver.open("https://accounts.example.test/reset"),
++    ).rejects.toThrow(/refused|failed/u);
++  });
++
++  it("surfaces hosted driver errors as relay errors", async () => {
++    const hosted = fakeDriver();
++    vi.mocked(hosted.open).mockRejectedValue(new Error("navigation blocked"));
++    server = await startRelayServer({ token: "t", driver: hosted });
++    const driver = relayDriverOverWebSocket(server.url, { token: "t" });
++    await expect(driver.open("https://x.test/")).rejects.toThrow(
++      "navigation blocked",
++    );
++  });
++  it("allows retrying close when the hosted driver fails to close", async () => {
++    const hosted = fakeDriver();
++    if (!hosted.close) throw new Error("fake driver requires close");
++    vi.mocked(hosted.close).mockRejectedValueOnce(new Error("close failed"));
++    server = await startRelayServer({ token: "t", driver: hosted });
++    const driver = relayDriverOverWebSocket(server.url, { token: "t" });
++    await expect(driver.close()).rejects.toThrow("close failed");
++    await expect(driver.close()).resolves.toBeUndefined();
++    expect(hosted.close).toHaveBeenCalledTimes(2);
++  });
++
++  it("rejects insecure remote addresses and plaintext non-loopback listeners", async () => {
++    const driver = fakeDriver();
++    await expect(
++      startRelayServer({ host: "0.0.0.0", token: "t", driver }),
++    ).rejects.toThrow(/loopback/u);
++    await expect(startRelayServer({ token: "", driver })).rejects.toThrow(
++      /token/u,
++    );
++    expect(() =>
++      relayDriverOverWebSocket("ws://example.test/relay", { token: "t" }),
++    ).toThrow(/wss/u);
++    expect(() =>
++      relayDriverOverWebSocket("ws://localhost/relay", { token: "t" }),
++    ).toThrow(/wss/u);
++    expect(() =>
++      relayDriverOverWebSocket("wss://user:password@example.test/relay", {
++        token: "t",
++      }),
++    ).toThrow(/credentials/u);
++    const constructed = vi.fn();
++    class Socket {
++      constructor(url: string) {
++        constructed(url);
++      }
++      addEventListener() {}
++      send() {}
++      close() {}
++    }
++    vi.stubGlobal("WebSocket", Socket);
++    relayDriverOverWebSocket("wss://example.test/relay", { token: "t" });
++    expect(constructed).toHaveBeenCalledWith("wss://example.test/relay");
++  });
++
++  it("allows only one authenticated client to own the browser session", async () => {
++    const hosted = fakeDriver();
++    server = await startRelayServer({ token: "shared", driver: hosted });
++    const first = relayDriverOverWebSocket(server.url, { token: "shared" });
++    await first.open("https://first.example/");
++    const second = relayDriverOverWebSocket(server.url, { token: "shared" });
++    await expect(second.open("https://second.example/")).rejects.toThrow(
++      /refused|closed/u,
++    );
++    expect(hosted.calls).toEqual(["open https://first.example/"]);
++    await first.close();
++  });
++
++  it("serializes pipelined commands and reconnects after in-flight work", async () => {
++    const hosted = fakeDriver();
++    let release: () => void = () => {};
++    const held = new Promise<void>((resolve) => {
++      release = resolve;
++    });
++    vi.mocked(hosted.open).mockImplementation(async () => {
++      await held;
++    });
++    server = await startRelayServer({ token: "shared", driver: hosted });
++    const first = new WebSocket(server.url);
++    try {
++      await once(first, "open");
++      first.send(JSON.stringify({ type: "auth", token: "shared" }));
++      await once(first, "message");
++      first.send(
++        JSON.stringify({ id: 1, method: "open", url: "https://x.test/" }),
++      );
++      first.send(JSON.stringify({ id: 2, method: "snapshot" }));
++      await vi.waitFor(() => expect(hosted.open).toHaveBeenCalledOnce());
++      expect(hosted.snapshot).not.toHaveBeenCalled();
++      first.terminate();
++      await once(first, "close");
++      const next = relayDriverOverWebSocket(server.url, { token: "shared" });
++      const nextSnapshot = next.snapshot();
++      await new Promise((resolve) => setTimeout(resolve, 25));
++      expect(hosted.snapshot).not.toHaveBeenCalled();
++      release();
++      await expect(nextSnapshot).resolves.toEqual(OBSERVATION);
++      expect(hosted.snapshot).toHaveBeenCalledOnce();
++      await next.close();
++    } finally {
++      release();
++      first.terminate();
++    }
++  });
++
++  it("rejects an in-flight and subsequent command when the socket closes", async () => {
++    const hosted = fakeDriver();
++    let release: () => void = () => {};
++    const held = new Promise<void>((resolve) => {
++      release = resolve;
++    });
++    vi.mocked(hosted.open).mockImplementation(async () => {
++      await held;
++    });
++    server = await startRelayServer({ token: "t", driver: hosted });
++    const driver = relayDriverOverWebSocket(server.url, { token: "t" });
++    const pending = driver.open("https://x.test/");
++    await vi.waitFor(() => expect(hosted.open).toHaveBeenCalledOnce());
++    const closing = server.close();
++    try {
++      await expect(pending).rejects.toThrow(/closed|failed/u);
++      await expect(driver.snapshot()).rejects.toThrow(/closed/u);
++    } finally {
++      release();
++      await closing;
++      server = null;
++    }
++  });
++});
+diff --git a/packages/agent-sandboxes/src/vnet-cookie-jar.test.ts b/packages/agent-sandboxes/src/vnet-cookie-jar.test.ts
+new file mode 100644
+index 000000000..f35fd1102
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-cookie-jar.test.ts
+@@ -0,0 +1,38 @@
++import { describe, expect, it } from "vitest";
++import { CookieJar } from "./vnet-cookie-jar.js";
++
++function cookies(...lines: string[]): Headers {
++  const headers = new Headers();
++  for (const line of lines) headers.append("set-cookie", line);
++  return headers;
++}
++
++describe("virtual network cookies", () => {
++  it("enforces Secure, path, expiry, and host-only domain scope", () => {
++    const jar = new CookieJar();
++    const url = new URL("https://accounts.example.test/reset/start");
++    jar.store(
++      url,
++      cookies(
++        "auth=secret; Secure; Path=/reset",
++        "gone=x; Max-Age=0",
++        "domain=x; Domain=example.test",
++        "exact=y; Domain=.accounts.example.test; Secure; Path=/",
++        "__Host-invalid=x; Domain=accounts.example.test; Secure; Path=/",
++        "plain=x; Path=/",
++      ),
++    );
++    expect(jar.header(new URL("https://accounts.example.test/reset/go"))).toBe(
++      "auth=secret; exact=y; plain=x",
++    );
++    expect(jar.header(new URL("http://accounts.example.test/reset/go"))).toBe(
++      "plain=x",
++    );
++    expect(jar.header(new URL("https://accounts.example.test/elsewhere"))).toBe(
++      "exact=y; plain=x",
++    );
++    expect(jar.header(new URL("https://evil.example.test/reset/go"))).toBe("");
++    jar.store(url, cookies("auth=; Secure; Path=/reset; Max-Age=0"));
++    expect(jar.header(url)).toBe("exact=y; plain=x");
++  });
++});
+diff --git a/packages/agent-sandboxes/src/vnet-cookie-jar.ts b/packages/agent-sandboxes/src/vnet-cookie-jar.ts
+new file mode 100644
+index 000000000..81167ff6c
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-cookie-jar.ts
+@@ -0,0 +1,153 @@
++/** Host-only jar; an exact-host Domain attribute never broadens its scope. */
++type Cookie = {
++  name: string;
++  value: string;
++  host: string;
++  path: string;
++  secure: boolean;
++  expires: number | null;
++};
++
++function defaultPath(pathname: string): string {
++  const last = pathname.lastIndexOf("/");
++  return last <= 0 ? "/" : pathname.slice(0, last);
++}
++
++function pathMatches(request: string, cookie: string): boolean {
++  return (
++    request === cookie ||
++    (request.startsWith(cookie) &&
++      (cookie.endsWith("/") || request[cookie.length] === "/"))
++  );
++}
++
++type CookieAttributes = {
++  path: string;
++  secure: boolean;
++  expires: number | null;
++  maxAge: number | null;
++  hasDomain: boolean;
++  domainMatches: boolean;
++};
++
++function applyAttribute(
++  state: CookieAttributes,
++  url: URL,
++  attribute: string,
++): void {
++  const [rawName, ...rest] = attribute.trim().split("=");
++  const key = (rawName ?? "").toLowerCase();
++  const value = rest.join("=").trim();
++  if (key === "domain") {
++    state.hasDomain = true;
++    if (value.replace(/^\./u, "").toLowerCase() !== url.hostname.toLowerCase())
++      state.domainMatches = false;
++  }
++  if (key === "secure") state.secure = true;
++  if (key === "path" && value.startsWith("/")) state.path = value;
++  if (key === "expires") {
++    const parsed = Date.parse(value);
++    if (Number.isFinite(parsed)) state.expires = parsed;
++  }
++  if (key === "max-age" && /^-?\d+$/u.test(value)) state.maxAge = Number(value);
++}
++
++function cookiePair(
++  pair: string | undefined,
++): { name: string; value: string } | null {
++  if (!pair) return null;
++  const eq = pair.indexOf("=");
++  if (eq <= 0) return null;
++  const name = pair.slice(0, eq).trim();
++  const value = pair.slice(eq + 1).trim();
++  if (
++    !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) ||
++    [...value].some(
++      (char) =>
++        char.charCodeAt(0) <= 32 ||
++        char.charCodeAt(0) === 127 ||
++        char === ";" ||
++        char === ",",
++    )
++  )
++    return null;
++  return { name, value };
++}
++
++function validAttributes(
++  name: string,
++  url: URL,
++  state: CookieAttributes,
++): boolean {
++  return !(
++    !state.domainMatches ||
++    (state.secure && url.protocol !== "https:") ||
++    (name.startsWith("__Secure-") && !state.secure) ||
++    (name.startsWith("__Host-") &&
++      (!state.secure || state.path !== "/" || state.hasDomain))
++  );
++}
++
++function parseCookie(url: URL, line: string): Cookie | null {
++  const [pair, ...attributes] = line.split(";");
++  const parsed = cookiePair(pair);
++  if (!parsed) return null;
++  const state: CookieAttributes = {
++    path: defaultPath(url.pathname),
++    secure: false,
++    expires: null,
++    maxAge: null,
++    hasDomain: false,
++    domainMatches: true,
++  };
++  for (const attribute of attributes) applyAttribute(state, url, attribute);
++  if (!validAttributes(parsed.name, url, state)) return null;
++  const expires =
++    state.maxAge === null
++      ? state.expires
++      : state.maxAge <= 0
++        ? 0
++        : Date.now() + state.maxAge * 1000;
++  return {
++    name: parsed.name,
++    value: parsed.value,
++    host: url.hostname,
++    path: state.path,
++    secure: state.secure,
++    expires,
++  };
++}
++
++export class CookieJar {
++  private readonly cookies: Cookie[] = [];
++
++  store(url: URL, headers: Headers): void {
++    for (const line of headers.getSetCookie?.() ?? []) {
++      const cookie = parseCookie(url, line);
++      if (!cookie) continue;
++      const index = this.cookies.findIndex(
++        (c) =>
++          c.host === url.hostname &&
++          c.path === cookie.path &&
++          c.name === cookie.name,
++      );
++      if (index >= 0) this.cookies.splice(index, 1);
++      if (cookie.expires === null || cookie.expires > Date.now())
++        this.cookies.push(cookie);
++    }
++  }
++
++  header(url: URL): string {
++    return this.cookies
++      .filter(
++        (c) =>
++          c.host === url.hostname &&
++          (!c.secure || url.protocol === "https:") &&
++          (c.expires === null || c.expires > Date.now()) &&
++          pathMatches(url.pathname, c.path),
++      )
++      .sort((a, b) => b.path.length - a.path.length)
++      .map((c) => `${c.name}=${c.value}`)
++      .join("; ");
++  }
++}
+diff --git a/packages/agent-sandboxes/src/vnet-pinned-fetch.test.ts b/packages/agent-sandboxes/src/vnet-pinned-fetch.test.ts
+new file mode 100644
+index 000000000..0cc41bed2
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-pinned-fetch.test.ts
+@@ -0,0 +1,26 @@
++import { describe, expect, it } from "vitest";
++import { resolvePinnedAddress } from "./vnet-pinned-fetch.js";
++
++describe("pinned relay DNS", () => {
++  it("refuses private, mixed and IPv6 destinations", async () => {
++    await expect(resolvePinnedAddress("127.0.0.1", false)).rejects.toThrow(
++      /public IPv4/u,
++    );
++    await expect(
++      resolvePinnedAddress("169.254.169.254", false),
++    ).rejects.toThrow(/public IPv4/u);
++    await expect(resolvePinnedAddress("::1", true)).rejects.toThrow(/IPv6/u);
++    await expect(
++      resolvePinnedAddress("mixed.example", false, async () => [
++        { address: "8.8.8.8", family: 4 },
++        { address: "10.0.0.1", family: 4 },
++      ]),
++    ).rejects.toThrow(/public IPv4/u);
++    expect(
++      await resolvePinnedAddress("good.example", false, async () => [
++        { address: "8.8.8.8", family: 4 },
++      ]),
++    ).toBe("8.8.8.8");
++    expect(await resolvePinnedAddress("localhost", true)).toBe("127.0.0.1");
++  });
++});
+diff --git a/packages/agent-sandboxes/src/vnet-pinned-fetch.ts b/packages/agent-sandboxes/src/vnet-pinned-fetch.ts
+new file mode 100644
+index 000000000..21d4e9813
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-pinned-fetch.ts
+@@ -0,0 +1,130 @@
++/** DNS is resolved and checked once; the connection uses the checked IPv4 address. */
++import { lookup } from "node:dns/promises";
++import { request as httpRequest } from "node:http";
++import { request as httpsRequest } from "node:https";
++import { BlockList, isIP } from "node:net";
++
++const blocked = new BlockList();
++for (const [address, prefix] of [
++  ["0.0.0.0", 8],
++  ["10.0.0.0", 8],
++  ["100.64.0.0", 10],
++  ["127.0.0.0", 8],
++  ["169.254.0.0", 16],
++  ["172.16.0.0", 12],
++  ["192.0.0.0", 24],
++  ["192.0.2.0", 24],
++  ["192.88.99.0", 24],
++  ["192.168.0.0", 16],
++  ["198.18.0.0", 15],
++  ["198.51.100.0", 24],
++  ["203.0.113.0", 24],
++  ["224.0.0.0", 4],
++  ["240.0.0.0", 4],
++] as const)
++  blocked.addSubnet(address, prefix, "ipv4");
++
++type Resolve = (
++  host: string,
++) => Promise<readonly { address: string; family: number }[]>;
++const systemResolve: Resolve = (host) => lookup(host, { all: true, family: 4 });
++
++export async function resolvePinnedAddress(
++  host: string,
++  allowLoopback: boolean,
++  resolve: Resolve = systemResolve,
++): Promise<string> {
++  if (allowLoopback && (host === "localhost" || host === "127.0.0.1"))
++    return "127.0.0.1";
++  if (isIP(host) === 6 || host.startsWith("["))
++    throw new Error("virtual network: IPv6 destinations are not supported");
++  const records =
++    isIP(host) === 4 ? [{ address: host, family: 4 }] : await resolve(host);
++  if (
++    records.length === 0 ||
++    records.some(
++      (record) =>
++        record.family !== 4 ||
++        isIP(record.address) !== 4 ||
++        blocked.check(record.address, "ipv4"),
++    )
++  )
++    throw new Error(
++      "virtual network: destination does not resolve exclusively to public IPv4 addresses",
++    );
++  const first = records[0];
++  if (!first) throw new Error("virtual network: destination has no addresses");
++  return first.address;
++}
++
++export function pinnedFetch(allowLoopback: boolean): typeof fetch {
++  return async (input, init) => {
++    const url = new URL(
++      input instanceof Request ? input.url : input.toString(),
++    );
++    const address = await resolvePinnedAddress(url.hostname, allowLoopback);
++    const request = url.protocol === "https:" ? httpsRequest : httpRequest;
++    const headers: Record<string, string> = {};
++    new Headers(init?.headers).forEach((value, name) => {
++      headers[name] = value;
++    });
++    headers["accept-encoding"] = "identity";
++    return await new Promise<Response>((resolve, reject) => {
++      const req = request(
++        url,
++        {
++          method: init?.method ?? "GET",
++          headers,
++          family: 4,
++          lookup: (_host, _options, callback) => callback(null, address, 4),
++        },
++        (res) => {
++          const chunks: Buffer[] = [];
++          let length = 0;
++          res.on("data", (chunk: Buffer) => {
++            length += chunk.length;
++            if (length > 2_000_000) {
++              req.destroy(new Error("virtual network: response too large"));
++              return;
++            }
++            chunks.push(chunk);
++          });
++          res.on("error", reject);
++          res.on("end", () => {
++            try {
++              if (
++                res.headers["content-encoding"] &&
++                res.headers["content-encoding"] !== "identity"
++              )
++                throw new Error(
++                  "virtual network: encoded response is not supported",
++                );
++              const responseHeaders = new Headers();
++              for (const [key, value] of Object.entries(res.headers)) {
++                for (const entry of Array.isArray(value)
++                  ? value
++                  : value === undefined
++                    ? []
++                    : [value])
++                  responseHeaders.append(key, entry);
++              }
++              const status = res.statusCode ?? 502;
++              const body = [204, 205, 304].includes(status)
++                ? null
++                : Buffer.concat(chunks).toString("utf8");
++              resolve(new Response(body, { status, headers: responseHeaders }));
++            } catch (error) {
++              reject(error);
++            }
++          });
++        },
++      );
++      req.on("error", reject);
++      req.setTimeout(15_000, () =>
++        req.destroy(new Error("virtual network: request timed out")),
++      );
++      if (typeof init?.body === "string") req.write(init.body);
++      req.end();
++    });
++  };
++}
+diff --git a/packages/agent-sandboxes/src/vnet-server.test.ts b/packages/agent-sandboxes/src/vnet-server.test.ts
+new file mode 100644
+index 000000000..cc8c59dab
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-server.test.ts
+@@ -0,0 +1,364 @@
++import { type Server, createServer } from "node:http";
++import { afterAll, beforeAll, describe, expect, it } from "vitest";
++import {
++  type RunningVirtualNetworkRelay,
++  startVirtualNetworkRelay,
++} from "./vnet-server.js";
++import { virtualFetchOverHttp } from "./vnet.js";
++
++describe("virtual network relay", () => {
++  let target: Server;
++  let targetPort = 0;
++  let relay: RunningVirtualNetworkRelay;
++
++  beforeAll(async () => {
++    target = createServer((request, response) => {
++      if (request.url === "/start") {
++        response.writeHead(303, {
++          location: "/final",
++          "set-cookie": "session=abc; Path=/",
++        });
++        response.end();
++        return;
++      }
++      response
++        .writeHead(200, { "content-type": "text/plain" })
++        .end(`cookie:${request.headers.cookie ?? ""} method:${request.method}`);
++    });
++    await new Promise<void>((resolve) => {
++      target.listen(0, "127.0.0.1", resolve);
++    });
++    const address = target.address();
++    targetPort =
++      address instanceof Object && "port" in address ? address.port : 0;
++    relay = await startVirtualNetworkRelay({
++      token: "relay-token",
++      allowLoopbackTargets: true,
++    });
++  });
++
++  afterAll(async () => {
++    await relay.close();
++    await new Promise<void>((resolve) => target.close(() => resolve()));
++  });
++
++  it("follows redirects relay-side and carries cookies per session", async () => {
++    const virtualFetch = virtualFetchOverHttp(relay.url, "relay-token");
++    const result = await virtualFetch({
++      sessionId: "s1",
++      url: `http://127.0.0.1:${targetPort}/start`,
++      method: "POST",
++      body: "payload",
++    });
++    expect(result.status).toBe(200);
++    expect(result.url).toBe(`http://127.0.0.1:${targetPort}/final`);
++    expect(result.bodyText).toBe("cookie:session=abc method:GET");
++    // A different session does not inherit the cookie.
++    const other = await virtualFetch({
++      sessionId: "s2",
++      url: `http://127.0.0.1:${targetPort}/final`,
++      method: "GET",
++    });
++    expect(other.bodyText).toBe("cookie: method:GET");
++  });
++
++  it("pins a session to its first host when no allowlist is given", async () => {
++    const virtualFetch = virtualFetchOverHttp(relay.url, "relay-token");
++    await virtualFetch({
++      sessionId: "s3",
++      url: `http://127.0.0.1:${targetPort}/final`,
++      method: "GET",
++    });
++    await expect(
++      virtualFetch({
++        sessionId: "s3",
++        url: "http://example.com/final",
++        method: "GET",
++      }),
++    ).rejects.toThrow(/refused/u);
++  });
++
++  it("requires the relay token", async () => {
++    const virtualFetch = virtualFetchOverHttp(relay.url, "wrong");
++    await expect(
++      virtualFetch({
++        sessionId: "s4",
++        url: `http://127.0.0.1:${targetPort}/final`,
++        method: "GET",
++      }),
++    ).rejects.toThrow("refused (401)");
++  });
++});
++
++describe("virtual network boundaries", () => {
++  it("refuses plaintext non-loopback relay transport", () => {
++    expect(() =>
++      virtualFetchOverHttp("http://relay.example.test", "token"),
++    ).toThrow(/HTTPS/u);
++    expect(() =>
++      virtualFetchOverHttp("https://user:pass@relay.example.test", "token"),
++    ).toThrow(/HTTPS/u);
++    expect(() =>
++      virtualFetchOverHttp("http://localhost:4000", "token"),
++    ).toThrow(/HTTPS/u);
++  });
++
++  it("refuses plaintext listeners outside literal loopback", async () => {
++    await expect(
++      startVirtualNetworkRelay({ token: "token", host: "0.0.0.0" }),
++    ).rejects.toThrow(/literal loopback/u);
++    await expect(
++      startVirtualNetworkRelay({ token: "token", host: "localhost" }),
++    ).rejects.toThrow(/literal loopback/u);
++    await expect(startVirtualNetworkRelay({ token: "" })).rejects.toThrow(
++      /token/u,
++    );
++  });
++
++  it("does not follow cross-origin redirects or allow a session policy to widen", async () => {
++    let received = 0;
++    const sink = createServer((_request, response) => {
++      received += 1;
++      response.end();
++    });
++    await new Promise<void>((resolve) => sink.listen(0, "127.0.0.1", resolve));
++    const sinkAddress = sink.address();
++    if (!sinkAddress || typeof sinkAddress === "string")
++      throw new Error("sink failed");
++    const sinkOrigin = `http://127.0.0.1:${sinkAddress.port}`;
++    const source = createServer((_request, response) =>
++      response.writeHead(307, { location: `${sinkOrigin}/capture` }).end(),
++    );
++    await new Promise<void>((resolve) =>
++      source.listen(0, "127.0.0.1", resolve),
++    );
++    const sourceAddress = source.address();
++    if (!sourceAddress || typeof sourceAddress === "string")
++      throw new Error("source failed");
++    const sourceOrigin = `http://127.0.0.1:${sourceAddress.port}`;
++    const relay = await startVirtualNetworkRelay({
++      token: "token",
++      allowLoopbackTargets: true,
++    });
++    const fetch = virtualFetchOverHttp(relay.url, "token");
++    try {
++      await expect(
++        fetch({
++          sessionId: "redirect",
++          url: sourceOrigin,
++          method: "POST",
++          body: "password-canary",
++          allowedOrigins: [sourceOrigin, sinkOrigin],
++        }),
++      ).rejects.toThrow(/refused/u);
++      expect(received).toBe(0);
++      await expect(
++        fetch({
++          sessionId: "redirect",
++          url: sinkOrigin,
++          method: "GET",
++          allowedOrigins: [sinkOrigin],
++        }),
++      ).rejects.toThrow(/refused/u);
++      expect(received).toBe(0);
++    } finally {
++      await relay.close();
++      await new Promise<void>((resolve) => source.close(() => resolve()));
++      await new Promise<void>((resolve) => sink.close(() => resolve()));
++    }
++  });
++});
++
++describe("session lifecycle and redirects", () => {
++  it("closes authenticated sessions and expires idle sessions while preserving active resume", async () => {
++    let clock = 0;
++    const targetFetch: typeof globalThis.fetch = async (_url, init) =>
++      new Response(new Headers(init?.headers).get("cookie") ?? "", {
++        headers: { "set-cookie": "session=abc; Path=/; Secure" },
++      });
++    const relay = await startVirtualNetworkRelay({
++      token: "token",
++      sessionIdleTtlMs: 1000,
++      now: () => clock,
++      fetchImpl: targetFetch,
++    });
++    const fetch = virtualFetchOverHttp(relay.url, "token");
++    const request = (sessionId: string) => ({
++      sessionId,
++      url: "https://accounts.test/",
++      method: "GET",
++    });
++    try {
++      for (let i = 0; i < 500; i += 1) await fetch(request(`session-${i}`));
++      await expect(fetch(request("overflow"))).rejects.toThrow(/refused/u);
++      const unauthorized = await globalThis.fetch(`${relay.url}/close`, {
++        method: "POST",
++        headers: {
++          authorization: "Bearer wrong",
++          "content-type": "application/json",
++        },
++        body: JSON.stringify({ sessionId: "session-0" }),
++      });
++      expect(unauthorized.status).toBe(401);
++      await fetch.closeSession?.("session-1");
++      await fetch(request("overflow"));
++      clock = 500;
++      expect((await fetch(request("session-0"))).bodyText).toBe("session=abc");
++      clock = 1001;
++      await fetch(request("new"));
++      expect((await fetch(request("session-0"))).bodyText).toBe("session=abc");
++      expect((await fetch(request("session-2"))).bodyText).toBe("");
++      expect((await fetch(request("session-1"))).bodyText).toBe("");
++    } finally {
++      await relay.close();
++    }
++  }, 20_000);
++
++  it("keeps in-flight sessions until completion after close", async () => {
++    let release: (() => void) | undefined;
++    let started: (() => void) | undefined;
++    const entered = new Promise<void>((resolve) => {
++      started = resolve;
++    });
++    const targetFetch: typeof globalThis.fetch = async () => {
++      started?.();
++      await new Promise<void>((resolve) => {
++        release = resolve;
++      });
++      return new Response("done");
++    };
++    const relay = await startVirtualNetworkRelay({
++      token: "token",
++      fetchImpl: targetFetch,
++    });
++    const fetch = virtualFetchOverHttp(relay.url, "token");
++    const request = {
++      sessionId: "active",
++      url: "https://accounts.test/",
++      method: "GET",
++    };
++    try {
++      const inFlight = fetch(request);
++      await entered;
++      await fetch.closeSession?.("active");
++      await expect(fetch(request)).rejects.toThrow(/refused/u);
++      release?.();
++      expect((await inFlight).bodyText).toBe("done");
++    } finally {
++      release?.();
++      await relay.close();
++    }
++  });
++
++  it("allows an approved cross-origin redirect without forwarding body or headers and refuses downgrade", async () => {
++    const seen: Array<{
++      url: string;
++      method: string;
++      body: BodyInit | null | undefined;
++      headers: Headers;
++    }> = [];
++    let downgrade = false;
++    const targetFetch: typeof globalThis.fetch = async (input, init) => {
++      const url = input.toString();
++      seen.push({
++        url,
++        method: init?.method ?? "",
++        body: init?.body,
++        headers: new Headers(init?.headers),
++      });
++      if (url.startsWith("https://rp.test"))
++        return new Response(null, {
++          status: 302,
++          headers: {
++            location: downgrade
++              ? "http://127.0.0.1:9999/"
++              : "https://idp.test/",
++          },
++        });
++      return new Response("ok");
++    };
++    const relay = await startVirtualNetworkRelay({
++      token: "token",
++      fetchImpl: targetFetch,
++    });
++    const fetch = virtualFetchOverHttp(relay.url, "token");
++    const allowedOrigins = [
++      "https://rp.test",
++      "https://idp.test",
++      "http://127.0.0.1:9999",
++    ];
++    try {
++      const result = await fetch({
++        sessionId: "flow",
++        url: "https://rp.test/",
++        method: "POST",
++        body: "password-canary",
++        headers: { "content-type": "application/x-www-form-urlencoded" },
++        allowedOrigins,
++      });
++      expect(result.bodyText).toBe("ok");
++      expect(seen[1]?.method).toBe("GET");
++      expect(seen[1]?.body).toBeUndefined();
++      expect(seen[1]?.headers.has("content-type")).toBe(false);
++      expect(seen[1]?.headers.has("cookie")).toBe(false);
++      downgrade = true;
++      await expect(
++        fetch({
++          sessionId: "downgrade",
++          url: "https://rp.test/",
++          method: "POST",
++          body: "password-canary",
++          allowedOrigins,
++        }),
++      ).rejects.toThrow(/refused/u);
++      expect(
++        seen.some((entry) => entry.url.startsWith("http://127.0.0.1")),
++      ).toBe(false);
++    } finally {
++      await relay.close();
++    }
++  });
++
++  it("does not replay a secret-bearing relay RPC across HTTP redirects", async () => {
++    let captured = 0;
++    const sink = createServer((_request, response) => {
++      captured += 1;
++      response.end();
++    });
++    await new Promise<void>((resolve) => sink.listen(0, "127.0.0.1", resolve));
++    const sinkAddress = sink.address();
++    if (!sinkAddress || typeof sinkAddress === "string")
++      throw new Error("sink failed");
++    const redirector = createServer((_request, response) =>
++      response
++        .writeHead(307, {
++          location: `http://127.0.0.1:${sinkAddress.port}/capture`,
++        })
++        .end(),
++    );
++    await new Promise<void>((resolve) =>
++      redirector.listen(0, "127.0.0.1", resolve),
++    );
++    const address = redirector.address();
++    if (!address || typeof address === "string")
++      throw new Error("redirector failed");
++    try {
++      const fetch = virtualFetchOverHttp(
++        `http://127.0.0.1:${address.port}`,
++        "secret-token",
++      );
++      await expect(
++        fetch({
++          sessionId: "run",
++          url: "https://rp.test/",
++          method: "POST",
++          body: "password-canary",
++        }),
++      ).rejects.toThrow();
++      expect(captured).toBe(0);
++    } finally {
++      await new Promise<void>((resolve) => redirector.close(() => resolve()));
++      await new Promise<void>((resolve) => sink.close(() => resolve()));
++    }
++  });
++});
+diff --git a/packages/agent-sandboxes/src/vnet-server.ts b/packages/agent-sandboxes/src/vnet-server.ts
+new file mode 100644
+index 000000000..551f25bec
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-server.ts
+@@ -0,0 +1,375 @@
++/**
++ * Reference virtual-network relay: performs the real HTTP requests for
++ * WASM-hosted drivers, one cookie jar per session, redirects followed
++ * relay-side. This is user-controlled infrastructure by design — it sees
++ * reset traffic in plaintext, so it must never be a shared public proxy.
++ * The bearer token grants access to all sessions: use it only among mutually
++ * trusted clients. Session IDs and cookie jars do not provide tenant isolation.
++ * Origins are bound on first use and
++ * redirects stay within the session's approved origins. DNS uses checked, pinned
++ * IPv4 addresses; loopback target access is an explicit development option.
++ */
++
++import {
++  type IncomingMessage,
++  type Server,
++  type ServerResponse,
++  createServer,
++} from "node:http";
++import { CookieJar } from "./vnet-cookie-jar.js";
++import { pinnedFetch } from "./vnet-pinned-fetch.js";
++import {
++  type VirtualFetchRequest,
++  type VirtualFetchResponse,
++  virtualFetchRequestSchema,
++} from "./vnet.js";
++
++export interface VirtualNetworkRelayOptions {
++  port?: number;
++  host?: string;
++  token: string;
++  /** Additional server-wide hostname restriction; session origins still apply. */
++  allowedDomains?: readonly string[];
++  /** Test/development only: allow literal localhost and 127.0.0.1 targets. */
++  allowLoopbackTargets?: boolean;
++  /** Idle sessions expire after this interval; default 30 minutes, maximum one day. */
++  sessionIdleTtlMs?: number;
++  /** Trusted monotonic clock override for tests. */
++  now?: () => number;
++  /** Trusted transport override; the caller is responsible for destination enforcement. */
++  fetchImpl?: typeof fetch;
++}
++
++export interface RunningVirtualNetworkRelay {
++  url: string;
++  port: number;
++  close(): Promise<void>;
++}
++
++type Session = {
++  jar: CookieJar;
++  origins: string[];
++  lastUsed: number;
++  active: number;
++  closing: boolean;
++};
++
++type RelayContext = {
++  options: VirtualNetworkRelayOptions;
++  sessions: Map<string, Session>;
++  ttl: number;
++  now: () => number;
++  allowed: ReadonlySet<string>;
++  fetchImpl: typeof fetch;
++};
++
++function normalizedOrigin(value: string): string {
++  const url = new URL(value);
++  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
++  if (
++    url.username ||
++    url.password ||
++    (url.protocol !== "https:" && !(url.protocol === "http:" && loopback))
++  )
++    throw new Error(
++      "virtual network: only HTTPS or loopback HTTP is permitted",
++    );
++  return url.origin;
++}
++
++function assertAllowed(
++  url: URL,
++  allowed: ReadonlySet<string>,
++  session: Session,
++): void {
++  if (allowed.size > 0 && !allowed.has(url.hostname))
++    throw new Error("virtual network: host is not allowlisted");
++  if (!session.origins.includes(normalizedOrigin(url.href)))
++    throw new Error("virtual network: origin is not allowed for this session");
++}
++
++function redirectTarget(
++  response: Response,
++  url: URL,
++  method: string,
++  body: string | undefined,
++): { url: URL; method: string; body: string | undefined } | null {
++  const location = response.headers.get("location");
++  if (![301, 302, 303, 307, 308].includes(response.status) || !location)
++    return null;
++  const next = { url: new URL(location, url), method, body };
++  if (
++    response.status === 303 ||
++    response.status === 301 ||
++    response.status === 302
++  ) {
++    if (method !== "GET" && method !== "HEAD") {
++      next.method = "GET";
++      next.body = undefined;
++    }
++  }
++  return next;
++}
++
++function requestHeaders(
++  request: VirtualFetchRequest,
++  forward: boolean,
++  jar: CookieJar,
++  url: URL,
++): Record<string, string> {
++  const headers: Record<string, string> = {};
++  for (const [name, value] of Object.entries(
++    forward ? (request.headers ?? {}) : {},
++  )) {
++    const lower = name.toLowerCase();
++    if (!["accept", "accept-language", "content-type"].includes(lower))
++      throw new Error("virtual network: request header is not permitted");
++    headers[lower] = value;
++  }
++  const cookies = jar.header(url);
++  if (cookies) headers.cookie = cookies;
++  return headers;
++}
++
++function isCrossOriginRedirect(
++  redirect: { url: URL; method: string },
++  url: URL,
++  allowed: ReadonlySet<string>,
++  session: Session,
++): boolean {
++  if (normalizedOrigin(redirect.url.href) === normalizedOrigin(url.href))
++    return false;
++  assertAllowed(redirect.url, allowed, session);
++  if (
++    (url.protocol === "https:" && redirect.url.protocol !== "https:") ||
++    (redirect.method !== "GET" && redirect.method !== "HEAD")
++  )
++    throw new Error("virtual network: unsafe cross-origin redirect");
++  return true;
++}
++
++async function performFetch(
++  fetchImpl: typeof fetch,
++  jar: CookieJar,
++  allowed: ReadonlySet<string>,
++  session: Session,
++  request: VirtualFetchRequest,
++): Promise<VirtualFetchResponse> {
++  let url = new URL(request.url);
++  let method = request.method.toUpperCase();
++  let body = request.body;
++  let forwardRequestHeaders = true;
++  for (let hop = 0; hop <= 10; hop += 1) {
++    assertAllowed(url, allowed, session);
++    const headers = requestHeaders(request, forwardRequestHeaders, jar, url);
++    const init: RequestInit = { method, headers, redirect: "manual" };
++    if (body !== undefined && method !== "GET" && method !== "HEAD")
++      init.body = body;
++    const response = await fetchImpl(url, init);
++    jar.store(url, response.headers);
++    const redirect = redirectTarget(response, url, method, body);
++    if (redirect) {
++      if (isCrossOriginRedirect(redirect, url, allowed, session)) {
++        forwardRequestHeaders = false;
++        redirect.body = undefined;
++      }
++      url = redirect.url;
++      method = redirect.method;
++      body = redirect.body;
++      continue;
++    }
++    const responseHeaders: Record<string, string> = {};
++    response.headers.forEach((value, key) => {
++      if (key !== "set-cookie") responseHeaders[key] = value;
++    });
++    return {
++      status: response.status,
++      url: url.href,
++      headers: responseHeaders,
++      bodyText: await response.text(),
++    };
++  }
++  throw new Error("virtual network: too many redirects");
++}
++
++async function readRequestBody(
++  request: IncomingMessage,
++  response: ServerResponse,
++): Promise<string | null> {
++  const chunks: Buffer[] = [];
++  let length = 0;
++  try {
++    for await (const chunk of request) {
++      const bytes = Buffer.from(chunk);
++      length += bytes.length;
++      if (length > 1_000_000) {
++        response.writeHead(413).end();
++        return null;
++      }
++      chunks.push(bytes);
++    }
++  } catch {
++    response.destroy();
++    return null;
++  }
++  return Buffer.concat(chunks).toString("utf8");
++}
++
++function closeSession(data: unknown, sessions: Map<string, Session>): void {
++  if (
++    !data ||
++    typeof data !== "object" ||
++    !("sessionId" in data) ||
++    typeof data.sessionId !== "string" ||
++    !data.sessionId ||
++    data.sessionId.length > 128
++  )
++    throw new Error("virtual network: invalid session id");
++  const session = sessions.get(data.sessionId);
++  if (session) {
++    session.closing = true;
++    if (session.active === 0) sessions.delete(data.sessionId);
++  }
++}
++
++function sessionFor(
++  parsed: VirtualFetchRequest,
++  context: RelayContext,
++): Session {
++  const currentTime = context.now();
++  for (const [id, existing] of context.sessions) {
++    if (
++      existing.active === 0 &&
++      (existing.closing || currentTime - existing.lastUsed >= context.ttl)
++    )
++      context.sessions.delete(id);
++  }
++  const origins = [
++    ...new Set((parsed.allowedOrigins ?? [parsed.url]).map(normalizedOrigin)),
++  ].sort();
++  let session = context.sessions.get(parsed.sessionId);
++  if (!session) {
++    if (context.sessions.size >= 500)
++      throw new Error("virtual network: session limit reached");
++    session = {
++      jar: new CookieJar(),
++      origins,
++      lastUsed: currentTime,
++      active: 0,
++      closing: false,
++    };
++    context.sessions.set(parsed.sessionId, session);
++  } else if (session.closing) {
++    throw new Error("virtual network: session is closing");
++  } else if (
++    parsed.allowedOrigins &&
++    JSON.stringify(origins) !== JSON.stringify(session.origins)
++  ) {
++    throw new Error("virtual network: session policy changed");
++  }
++  return session;
++}
++
++async function fetchSession(
++  parsed: VirtualFetchRequest,
++  context: RelayContext,
++): Promise<VirtualFetchResponse> {
++  const session = sessionFor(parsed, context);
++  session.active += 1;
++  try {
++    return await performFetch(
++      context.fetchImpl,
++      session.jar,
++      context.allowed,
++      session,
++      parsed,
++    );
++  } finally {
++    session.active -= 1;
++    session.lastUsed = context.now();
++    if (session.closing && session.active === 0)
++      context.sessions.delete(parsed.sessionId);
++  }
++}
++
++async function handleRequest(
++  request: IncomingMessage,
++  response: ServerResponse,
++  context: RelayContext,
++): Promise<void> {
++  if (
++    request.method !== "POST" ||
++    !["/fetch", "/close"].includes(request.url ?? "")
++  ) {
++    response.writeHead(404).end();
++    return;
++  }
++  if (request.headers.authorization !== `Bearer ${context.options.token}`) {
++    response.writeHead(401).end();
++    return;
++  }
++  const body = await readRequestBody(request, response);
++  if (body === null) return;
++  try {
++    const data: unknown = JSON.parse(body);
++    if (request.url === "/close") {
++      closeSession(data, context.sessions);
++      response.writeHead(204).end();
++      return;
++    }
++    const parsed = virtualFetchRequestSchema.parse(data);
++    const result = await fetchSession(parsed, context);
++    response
++      .writeHead(200, { "content-type": "application/json" })
++      .end(JSON.stringify(result));
++  } catch (error) {
++    response.writeHead(502, { "content-type": "application/json" }).end(
++      JSON.stringify({
++        error: error instanceof Error ? error.message : "fetch failed",
++      }),
++    );
++  }
++}
++
++export async function startVirtualNetworkRelay(
++  options: VirtualNetworkRelayOptions,
++): Promise<RunningVirtualNetworkRelay> {
++  const host = options.host ?? "127.0.0.1";
++  if (host !== "127.0.0.1" && host !== "::1")
++    throw new Error(
++      "virtual network: plaintext listener must bind literal loopback",
++    );
++  if (!options.token) throw new Error("virtual network: token is required");
++  const sessions = new Map<string, Session>();
++  const ttl = options.sessionIdleTtlMs ?? 30 * 60_000;
++  if (!Number.isInteger(ttl) || ttl < 1 || ttl > 24 * 60 * 60_000)
++    throw new Error("virtual network: invalid session idle timeout");
++  const now = options.now ?? (() => performance.now());
++  const allowed = new Set(options.allowedDomains ?? []);
++  const fetchImpl =
++    options.fetchImpl ?? pinnedFetch(options.allowLoopbackTargets === true);
++  const context: RelayContext = {
++    options,
++    sessions,
++    ttl,
++    now,
++    allowed,
++    fetchImpl,
++  };
++  const server: Server = createServer((request, response) => {
++    void handleRequest(request, response, context);
++  });
++  await new Promise<void>((resolve) => {
++    server.listen(options.port ?? 0, host, resolve);
++  });
++  const address = server.address();
++  const port =
++    address instanceof Object && "port" in address ? address.port : 0;
++  return {
++    url: `http://${host === "::1" ? "[::1]" : host}:${port}`,
++    port,
++    close: async () => {
++      await new Promise<void>((resolve) => server.close(() => resolve()));
++    },
++  };
++}
+diff --git a/packages/agent-sandboxes/src/vnet.ts b/packages/agent-sandboxes/src/vnet.ts
+new file mode 100644
+index 000000000..181985570
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet.ts
+@@ -0,0 +1,96 @@
++/**
++ * Virtualized networking for the WASM lane.
++ *
++ * A WASM/browser-hosted DOM driver cannot open sockets to the target site
++ * (no raw TCP, and the same-origin policy stands in the way), so every
++ * fetch it makes is an RPC to a relay: the relay performs the real request
++ * (cookies and redirects included, per session) and returns the final
++ * response. The driver only ever talks to its relay; the relay is the
++ * only party that sees the target site, which is why it must be
++ * user-controlled infrastructure, never a shared public proxy.
++ */
++
++import { z } from "zod";
++
++export interface VirtualFetchRequest {
++  sessionId: string;
++  url: string;
++  method: string;
++  /** Immutable origins authorized for this session by the caller. */
++  allowedOrigins?: readonly string[] | undefined;
++  headers?: Record<string, string> | undefined;
++  body?: string | undefined;
++}
++
++export interface VirtualFetchResponse {
++  status: number;
++  /** Final URL after relay-side redirect following. */
++  url: string;
++  headers: Record<string, string>;
++  bodyText: string;
++}
++
++export type VirtualFetch = ((
++  request: VirtualFetchRequest,
++) => Promise<VirtualFetchResponse>) & {
++  closeSession?: (sessionId: string) => Promise<void>;
++};
++
++export const virtualFetchRequestSchema = z.object({
++  sessionId: z.string().min(1).max(128),
++  url: z.string().url().max(2048),
++  method: z.enum(["GET", "HEAD", "POST"]),
++  allowedOrigins: z.array(z.string().url().max(2048)).min(1).max(32).optional(),
++  headers: z.record(z.string(), z.string()).optional(),
++  body: z.string().optional(),
++});
++
++const virtualFetchResponseSchema = z.object({
++  status: z.number(),
++  url: z.string(),
++  headers: z.record(z.string(), z.string()),
++  bodyText: z.string(),
++});
++
++/** HTTP client side of the virtual-network relay (global `fetch` only). */
++export function virtualFetchOverHttp(
++  relayUrl: string,
++  token: string,
++): VirtualFetch {
++  const base = new URL(relayUrl);
++  const loopback = ["127.0.0.1", "[::1]"].includes(base.hostname);
++  if (
++    base.username ||
++    base.password ||
++    base.search ||
++    base.hash ||
++    (base.protocol !== "https:" && !(base.protocol === "http:" && loopback)) ||
++    !token
++  )
++    throw new Error(
++      "virtual network relay requires HTTPS or loopback HTTP and a token",
++    );
++  const endpoint = base.href.replace(/\/$/u, "");
++  const send = async (path: string, body: unknown) => {
++    const response = await fetch(`${endpoint}${path}`, {
++      method: "POST",
++      headers: {
++        authorization: `Bearer ${token}`,
++        "content-type": "application/json",
++      },
++      body: JSON.stringify(body),
++      redirect: "error",
++    });
++    if (!response.ok)
++      throw new Error(`virtual network relay refused (${response.status})`);
++    return response;
++  };
++  const virtualFetch: VirtualFetch = async (request) =>
++    virtualFetchResponseSchema.parse(
++      await (await send("/fetch", request)).json(),
++    );
++  virtualFetch.closeSession = async (sessionId) => {
++    await send("/close", { sessionId });
++  };
++  return virtualFetch;
++}
+diff --git a/packages/agent-sandboxes/src/wasm-dom-driver.test.ts b/packages/agent-sandboxes/src/wasm-dom-driver.test.ts
+new file mode 100644
+index 000000000..949e2585f
+--- /dev/null
++++ b/packages/agent-sandboxes/src/wasm-dom-driver.test.ts
+@@ -0,0 +1,110 @@
++import { describe, expect, it } from "vitest";
++import type { VirtualFetch, VirtualFetchRequest } from "./vnet.js";
++import { WasmDomDriver } from "./wasm-dom-driver.js";
++
++const FORM_PAGE = `<!doctype html><html><body>
++  <form method="post" action="/reset/submit">
++    <label>Email <input name="email" type="email"></label>
++    <label>New password <input name="password" type="password"></label>
++    <button>Save password</button>
++  </form>
++</body></html>`;
++
++type RecordedRequest = { url: string; method: string; body?: string };
++
++function memoryFetch(pageEntries: ReadonlyArray<readonly [string, string]>) {
++  const pages = new Map(pageEntries);
++  const requests: RecordedRequest[] = [];
++  return {
++    requests,
++    virtualFetch: async (request: VirtualFetchRequest) => {
++      const recorded: RecordedRequest = {
++        url: request.url,
++        method: request.method,
++      };
++      if (request.body !== undefined) recorded.body = request.body;
++      requests.push(recorded);
++      const page = pages.get(new URL(request.url).pathname);
++      return {
++        status: page ? 200 : 404,
++        url: request.url,
++        headers: {},
++        bodyText: page ?? "<html><body>missing</body></html>",
++      };
++    },
++  };
++}
++
++function driverFor(virtualFetch: VirtualFetch): WasmDomDriver {
++  return new WasmDomDriver({
++    virtualFetch,
++    sessionId: "test-session",
++    allowedDomains: ["accounts.example.test"],
++  });
++}
++
++describe("WasmDomDriver", () => {
++  it("snapshots form fields with labels and kinds", async () => {
++    const { virtualFetch } = memoryFetch([["/reset", FORM_PAGE]]);
++    const driver = driverFor(virtualFetch);
++    await driver.open("https://accounts.example.test/reset");
++    const snapshot = await driver.snapshot();
++    expect(snapshot.origin).toBe("https://accounts.example.test");
++    expect(snapshot.fields).toEqual([
++      { ref: "e1", kind: "email", label: "Email" },
++      { ref: "e2", kind: "password", label: "New password" },
++      { ref: "e3", kind: "button", label: "Save password" },
++    ]);
++  });
++
++  it("fills and submits a form through the virtual network only", async () => {
++    const { virtualFetch, requests } = memoryFetch([
++      ["/reset", FORM_PAGE],
++      ["/reset/submit", "<html><body>Password updated</body></html>"],
++    ]);
++    const driver = driverFor(virtualFetch);
++    await driver.open("https://accounts.example.test/reset");
++    await driver.fill("e1", "person@example.test");
++    await driver.fillSecret("e2", "candidate-pepper-value");
++    await driver.click("e3");
++    const submission = requests.find((r) => r.method === "POST");
++    expect(submission?.url).toBe("https://accounts.example.test/reset/submit");
++    expect(submission?.body).toContain("email=person%40example.test");
++    expect(submission?.body).toContain("password=candidate-pepper-value");
++    expect(await driver.pageUrl()).toContain("/reset/submit");
++    // The secret never appears in an observation.
++    expect(JSON.stringify(await driver.snapshot())).not.toContain(
++      "candidate-pepper-value",
++    );
++  });
++
++  it("surfaces an active challenge as static, but not branding", async () => {
++    const { virtualFetch } = memoryFetch([
++      [
++        "/reset",
++        "<html><body><p>CAPTCHA verify you are human</p><p>This site is protected by reCAPTCHA</p></body></html>",
++      ],
++      [
++        "/plain",
++        "<html><body><p>This site is protected by reCAPTCHA</p></body></html>",
++      ],
++    ]);
++    const driver = driverFor(virtualFetch);
++    await driver.open("https://accounts.example.test/reset");
++    expect((await driver.snapshot()).fields).toContainEqual({
++      ref: "e1",
++      kind: "static",
++      label: "CAPTCHA verify you are human",
++    });
++    await driver.open("https://accounts.example.test/plain");
++    expect((await driver.snapshot()).fields).toEqual([]);
++  });
++
++  it("refuses navigation outside the allowlist", async () => {
++    const { virtualFetch } = memoryFetch([]);
++    const driver = driverFor(virtualFetch);
++    await expect(driver.open("https://evil.example.test/")).rejects.toThrow(
++      "approved domains",
++    );
++  });
++});
+diff --git a/packages/agent-sandboxes/src/wasm-dom-driver.ts b/packages/agent-sandboxes/src/wasm-dom-driver.ts
+new file mode 100644
+index 000000000..e301b0441
+--- /dev/null
++++ b/packages/agent-sandboxes/src/wasm-dom-driver.ts
+@@ -0,0 +1,275 @@
++/**
++ * The WASM-lane browser driver: a DOM-level driver with **no direct
++ * network access**. Pages are fetched through the virtual-network relay
++ * (`VirtualFetch`), parsed locally, and forms are filled/submitted as
++ * serialized DOM state. The same code runs in Node (tests), a browser
++ * tab, or a WASM host — only `linkedom` and the relay port are needed.
++ *
++ * Honest ceiling, same as every DOM/proxy lane: JavaScript-driven pages,
++ * canvas widgets, and WebAuthn will not work here. Server-rendered form
++ * flows (the long tail of password-reset pages) do. Challenges are still
++ * surfaced as static observations so the run parks for a person through
++ * the usual takeover channel instead of failing silently.
++ */
++
++import type {
++  BrowserDriver,
++  Observation,
++} from "@opensesame/cua-password-reset";
++import { parseHTML } from "linkedom";
++import type { VirtualFetch } from "./vnet.js";
++
++export interface WasmDomDriverOptions {
++  virtualFetch: VirtualFetch;
++  sessionId: string;
++  allowedDomains: readonly string[];
++}
++
++// Structural DOM surface the driver needs. Declared locally so the driver
++// does not depend on any one DOM implementation's types (linkedom here, a
++// WASM DOM host there).
++interface DomElement {
++  tagName: string;
++  textContent: string | null;
++  ownerDocument: DomDocument | null;
++  getAttribute(name: string): string | null;
++  setAttribute(name: string, value: string): void;
++  hasAttribute(name: string): boolean;
++  closest(selector: string): DomElement | null;
++  querySelectorAll(selector: string): ArrayLike<DomElement>;
++  value?: string;
++}
++
++interface DomDocument {
++  body: { textContent: string | null } | null;
++  querySelector(selector: string): DomElement | null;
++  querySelectorAll(selector: string): ArrayLike<DomElement>;
++}
++
++type Element = DomElement;
++
++const ACTIVE_CAPTCHA =
++  /verify you are human|verify you(?:'|’)re human|i(?:'|’)m not a robot|not a robot|select all (?:images|squares|tiles)|captcha (?:challenge|required|verification)|performing security verification|checking your browser/iu;
++
++function staticChallengePhrase(text: string): string | null {
++  if (ACTIVE_CAPTCHA.test(text)) return "CAPTCHA verify you are human";
++  if (/passkey|security key/iu.test(text))
++    return "Passkey security key required";
++  if (/text message/iu.test(text)) return "Text message code required";
++  if (/authenticator|totp/iu.test(text))
++    return "Authenticator TOTP code required";
++  if (/one-time code|code from email|email code/iu.test(text))
++    return "One-time code from email";
++  return null;
++}
++
++function fieldKind(element: Element): Observation["fields"][number]["kind"] {
++  const tag = element.tagName.toLowerCase();
++  if (tag === "a") return "link";
++  if (tag === "button") return "button";
++  const type = (element.getAttribute("type") ?? "text").toLowerCase();
++  if (type === "submit" || type === "button") return "button";
++  if (type === "password") return "password";
++  const name = element.getAttribute("name") ?? "";
++  const label = labelOf(element);
++  if (/totp|authenticator|one-time|otp/iu.test(`${name} ${label}`))
++    return "otp";
++  if (type === "email" || /email/iu.test(`${name} ${label}`)) return "email";
++  return "text";
++}
++
++function associatedLabel(element: Element): string | null {
++  const id = element.getAttribute("id");
++  const doc = element.ownerDocument;
++  if (id && doc) {
++    const linked = doc.querySelector(`label[for="${id}"]`);
++    if (linked?.textContent) return linked.textContent.trim().slice(0, 200);
++  }
++  const wrapping = element.closest("label");
++  if (wrapping?.textContent) return wrapping.textContent.trim().slice(0, 200);
++  return null;
++}
++
++function labelOf(element: Element): string {
++  const aria = element.getAttribute("aria-label");
++  if (aria) return aria.slice(0, 200);
++  const associated = associatedLabel(element);
++  if (associated) return associated;
++  if (
++    element.tagName.toLowerCase() === "button" ||
++    element.tagName.toLowerCase() === "a"
++  )
++    return (element.textContent ?? "").trim().slice(0, 200);
++  const placeholder = element.getAttribute("placeholder");
++  if (placeholder) return placeholder.slice(0, 200);
++  const value = element.getAttribute("value");
++  if (value && (element.getAttribute("type") ?? "").toLowerCase() === "submit")
++    return value.slice(0, 200);
++  return (element.getAttribute("name") ?? "").slice(0, 200);
++}
++
++function parseDocument(html: string): DomDocument {
++  const parsed = parseHTML(html);
++  // SAFETY: parseHTML's document implements the structural surface above, exercised by the DOM driver tests.
++  return parsed.document as DomDocument;
++}
++
++export class WasmDomDriver implements BrowserDriver {
++  private document: DomDocument | null = null;
++  private currentUrl = "about:blank";
++
++  constructor(private readonly options: WasmDomDriverOptions) {}
++
++  private assertAllowed(url: URL): void {
++    if (!this.options.allowedDomains.includes(url.hostname))
++      throw new Error("wasm driver: navigation left the approved domains");
++  }
++
++  private elements(): Element[] {
++    if (!this.document) return [];
++    return Array.from(
++      this.document.querySelectorAll(
++        "input, button, a[href], select, textarea",
++      ),
++    ).filter(
++      (element) =>
++        (element.getAttribute("type") ?? "").toLowerCase() !== "hidden",
++    );
++  }
++
++  private elementForRef(ref: string): Element {
++    const elements = this.elements();
++    const index = Number(ref.slice(1)) - 1;
++    const element = ref.startsWith("e") ? elements[index] : undefined;
++    if (!element) throw new Error(`wasm driver: unknown ref ${ref}`);
++    return element;
++  }
++
++  async open(url: string): Promise<void> {
++    const target = new URL(url);
++    this.assertAllowed(target);
++    const response = await this.options.virtualFetch({
++      sessionId: this.options.sessionId,
++      url: target.href,
++      method: "GET",
++    });
++    const finalUrl = new URL(response.url);
++    this.assertAllowed(finalUrl);
++    this.currentUrl = finalUrl.href;
++    this.document = parseDocument(response.bodyText);
++  }
++
++  async snapshot(): Promise<Observation> {
++    const fields = this.elements().map((element, index) => ({
++      ref: `e${index + 1}`,
++      kind: fieldKind(element),
++      label: labelOf(element),
++    }));
++    const text = this.document?.body?.textContent ?? "";
++    const challenge = staticChallengePhrase(text);
++    if (
++      challenge &&
++      !fields.some((field) => field.label === challenge) &&
++      fields.length < 100
++    ) {
++      fields.push({
++        ref: `e${fields.length + 1}`,
++        kind: "static" as const,
++        label: challenge,
++      });
++    }
++    return {
++      id: crypto.randomUUID(),
++      origin: new URL(this.currentUrl).origin,
++      fields: fields.slice(0, 100),
++    };
++  }
++
++  async click(ref: string): Promise<void> {
++    const element = this.elementForRef(ref);
++    const tag = element.tagName.toLowerCase();
++    if (tag === "a") {
++      const href = element.getAttribute("href");
++      if (!href) throw new Error("wasm driver: link has no href");
++      await this.open(new URL(href, this.currentUrl).href);
++      return;
++    }
++    const form = element.closest("form");
++    if (!form) return;
++    await this.submitForm(form, element);
++  }
++
++  private serializeForm(form: Element, submitter: Element): URLSearchParams {
++    const values = new URLSearchParams();
++    const controls = form.querySelectorAll("input, select, textarea, button");
++    for (const candidate of Array.from(controls)) {
++      const name = candidate.getAttribute("name");
++      if (!name || candidate.hasAttribute("disabled")) continue;
++      const type = (candidate.getAttribute("type") ?? "text").toLowerCase();
++      if (
++        candidate.tagName.toLowerCase() === "button" ||
++        type === "submit" ||
++        type === "button"
++      ) {
++        if (candidate === submitter)
++          values.append(name, candidate.getAttribute("value") ?? "");
++        continue;
++      }
++      if (
++        (type === "checkbox" || type === "radio") &&
++        !candidate.hasAttribute("checked")
++      )
++        continue;
++      values.append(
++        name,
++        candidate.value ?? candidate.getAttribute("value") ?? "",
++      );
++    }
++    return values;
++  }
++
++  private async submitForm(form: Element, submitter: Element): Promise<void> {
++    const method = (form.getAttribute("method") ?? "get").toUpperCase();
++    const action = new URL(
++      form.getAttribute("action") ?? this.currentUrl,
++      this.currentUrl,
++    );
++    this.assertAllowed(action);
++    const values = this.serializeForm(form, submitter);
++    if (method === "GET") {
++      action.search = values.toString();
++      await this.open(action.href);
++      return;
++    }
++    const response = await this.options.virtualFetch({
++      sessionId: this.options.sessionId,
++      url: action.href,
++      method,
++      headers: { "content-type": "application/x-www-form-urlencoded" },
++      body: values.toString(),
++    });
++    const finalUrl = new URL(response.url);
++    this.assertAllowed(finalUrl);
++    this.currentUrl = finalUrl.href;
++    this.document = parseDocument(response.bodyText);
++  }
++
++  async fill(ref: string, value: string): Promise<void> {
++    const element = this.elementForRef(ref);
++    element.setAttribute("value", value);
++    element.value = value;
++  }
++
++  async fillSecret(ref: string, value: string): Promise<void> {
++    await this.fill(ref, value);
++  }
++
++  async pageUrl(): Promise<string> {
++    return this.currentUrl;
++  }
++
++  async close(): Promise<void> {
++    this.document = null;
++    this.currentUrl = "about:blank";
++  }
++}
+diff --git a/packages/agent-sandboxes/src/wasm-provider.ts b/packages/agent-sandboxes/src/wasm-provider.ts
+new file mode 100644
+index 000000000..b70d74c67
+--- /dev/null
++++ b/packages/agent-sandboxes/src/wasm-provider.ts
+@@ -0,0 +1,73 @@
++/**
++ * WASM lane provider: allocates the DOM-level driver whose entire network
++ * is virtualized through a user-controlled relay. The driver itself is
++ * host-agnostic TypeScript (Node, browser tab, or WASM host); this
++ * provider only binds it to a relay endpoint and session.
++ */
++
++import { randomUUID } from "node:crypto";
++import {
++  type AllocatedSandbox,
++  type SandboxAllocationRequest,
++  type SandboxProvider,
++  allowedDomainsFor,
++} from "./types.js";
++import { type VirtualFetch, virtualFetchOverHttp } from "./vnet.js";
++import { WasmDomDriver } from "./wasm-dom-driver.js";
++
++export interface WasmRelayProviderOptions {
++  /** Base URL of the virtual-network relay. */
++  relayUrl?: string;
++  relayToken?: string;
++  /** Inject a virtual fetch directly (tests, in-process relay). */
++  virtualFetch?: VirtualFetch;
++}
++
++export class WasmRelayProvider implements SandboxProvider {
++  readonly id = "wasm-relay" as const;
++
++  constructor(private readonly options: WasmRelayProviderOptions = {}) {}
++
++  async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
++    const { url, allowedDomains } = allowedDomainsFor(request);
++    const session = request.session ?? `wasm-${randomUUID()}`;
++    let virtualFetch = this.options.virtualFetch;
++    if (!virtualFetch) {
++      if (!this.options.relayUrl || !this.options.relayToken)
++        throw new Error(
++          "wasm-relay provider needs a relay URL and token (or an injected virtual fetch)",
++        );
++      virtualFetch = virtualFetchOverHttp(
++        this.options.relayUrl,
++        this.options.relayToken,
++      );
++    }
++    const allowedOrigins = [
++      ...new Set([
++        url.origin,
++        ...allowedDomains
++          .filter((domain) => domain !== url.hostname)
++          .map((domain) => `https://${domain}`),
++      ]),
++    ];
++    const boundFetch = virtualFetch;
++    const browser = new WasmDomDriver({
++      virtualFetch: (input) => boundFetch({ ...input, allowedOrigins }),
++      sessionId: session,
++      allowedDomains,
++    });
++    return {
++      provider: this.id,
++      session,
++      browser,
++      allowedDomains,
++      close: async () => {
++        try {
++          await browser.close();
++        } finally {
++          await boundFetch.closeSession?.(session);
++        }
++      },
++    };
++  }
++}
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index d3069a2d8..2df6ad164 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -686,13 +686,31 @@ importers:
+       '@opensesame/cua-password-reset':
+         specifier: workspace:*
+         version: link:../cua-password-reset
++      linkedom:
++        specifier: 0.18.13
++        version: 0.18.13
++      ws:
++        specifier: 8.21.3
++        version: 8.21.3
++      zod:
++        specifier: 4.6.6
++        version: 4.6.6
+     devDependencies:
++      '@opensesame/os-domain':
++        specifier: workspace:*
++        version: link:../os-domain
++      '@opensesame/vault-core':
++        specifier: workspace:*
++        version: link:../vault-core
+       '@playwright/test':
+         specifier: 1.64.1
+         version: 1.64.1
+       '@types/node':
+         specifier: 22.15.29
+         version: 22.15.29
++      '@types/ws':
++        specifier: 8.18.1
++        version: 8.18.1
+       typescript:
+         specifier: 5.8.3
+         version: 5.8.3
+@@ -17050,7 +17068,7 @@ snapshots:
+       jsonwebtoken: 9.0.3
+       load-esm: 1.0.3
+       mime-types: 2.1.35
+-      retry-axios: 2.6.0(axios@1.20.0(debug@4.4.3))
++      retry-axios: 2.6.0(axios@1.20.0)
+       tough-cookie: 4.1.4
+     transitivePeerDependencies:
+       - supports-color
+@@ -19033,7 +19051,7 @@ snapshots:
+       onetime: 7.0.0
+       signal-exit: 4.1.0
+ 
+-  retry-axios@2.6.0(axios@1.20.0(debug@4.4.3)):
++  retry-axios@2.6.0(axios@1.20.0):
+     dependencies:
+       axios: 1.20.0(debug@4.4.3)
+     optional: true
