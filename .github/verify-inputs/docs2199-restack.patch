@@ -611,7 +611,7 @@ index c256be6450c26fe0239064c2ed789c58f0f788a1..11e6a6cece2b5a9e2c67f255f8ddeb03
 +intended seven-file diff after an unrelated draft stack displaced the branch;
 +the displaced commit remains recoverable in the originating repository.
 diff --git a/docs/security/openssf-scorecard.md b/docs/security/openssf-scorecard.md
-index 1287bdbef0f8acfd817cc18774e3182334851b02..bebf430099dbe8d9cd99e9be76f69628f7915d78 100644
+index 1287bdbef0f8acfd817cc18774e3182334851b02..02284cb37145fe4f51f9a1d5b55ef3632e8395c6 100644
 --- a/docs/security/openssf-scorecard.md
 +++ b/docs/security/openssf-scorecard.md
 @@ -89,9 +89,10 @@ with truthful answers and evidence. Useful starting evidence is:
@@ -621,10 +621,10 @@ index 1287bdbef0f8acfd817cc18774e3182334851b02..bebf430099dbe8d9cd99e9be76f69628
 -Verify each criterion, resolve gaps, and add the project's real badge URL
 -only after enrollment. Enrollment is currently deferred; no badge ID or
 -certification is asserted here.
-+The authenticated Scorecard run on 2026-10-26 reports an InProgress
-+assessment (score 2). Complete each criterion with evidence before claiming
-+a passing badge. No passing certification or unverified badge ID is asserted
-+here.
++On 2026-10-26, the authenticated Scorecard reported a Best-Practices check
++score of 2 and an in-progress assessment. Check the current Best Practices
++assessment and complete its criteria before claiming a passing badge. No
++passing certification or unverified badge ID is asserted here.
  
  ## Other low checks
  
