@@ -1,0 +1,361 @@
+diff --git a/packages/app-core/src/lib/native-connector-records.storage.test.ts b/packages/app-core/src/lib/native-connector-records.storage.test.ts
+index c52b0ec1c..5a03ff5a1 100644
+--- a/packages/app-core/src/lib/native-connector-records.storage.test.ts
++++ b/packages/app-core/src/lib/native-connector-records.storage.test.ts
+@@ -362,6 +362,31 @@ it("does not treat requested permissions as granted permissions", async () => {
+   );
+ });
+ 
++it("recognizes Google account scope aliases without treating other scopes as granted", async () => {
++  diskBackend();
++  const record = input();
++  record.configuration.providerId = "google-drive";
++  const requested = [
++    "openid",
++    "https://www.googleapis.com/auth/userinfo.email",
++  ];
++  record.configuration.requestedScopes = { user: requested };
++  const metadata = required(record.runtime.grants[0]);
++  metadata.permissionState = "known";
++  metadata.grantedScopes = ["openid", "email"];
++  const grant = required(record.privateState.grants.user);
++  grant.providerId = "google-drive";
++  grant.scopes = ["openid", "email"];
++  expect((await saveNativeConnector(record, classification)).status).toBe(
++    "connected",
++  );
++  requested.push("https://www.googleapis.com/auth/drive.readonly");
++  record.connectionId = "native-2";
++  expect((await saveNativeConnector(record, classification)).status).toBe(
++    "reauthorize",
++  );
++});
++
+ it("sanitizes invalid sealed records instead of returning parser messages or credentials", async () => {
+   const backend = diskBackend();
+   await saveNativeConnector(input(), classification);
+diff --git a/packages/app-core/src/lib/native-connector-view.ts b/packages/app-core/src/lib/native-connector-view.ts
+index 404dba178..01901a509 100644
+--- a/packages/app-core/src/lib/native-connector-view.ts
++++ b/packages/app-core/src/lib/native-connector-view.ts
+@@ -4,7 +4,7 @@ import type {
+   NativePrivateState,
+   NativeRuntime,
+ } from "./native-connector-schema.js";
+-import { requiredResourceScopes } from "./native-oauth-client-scopes.js";
++import { hasRequiredResourceScopes } from "./native-oauth-client-scopes.js";
+ 
+ export type NativeConnectorStatus =
+   | "configuration"
+@@ -93,9 +93,11 @@ function requiresReauthorization(
+       grant.needsReauth ||
+       (grant.expiresAt !== null && grant.expiresAt <= Date.now()) ||
+       (grant.permissionState === "known" &&
+-        requiredResourceScopes(
++        !hasRequiredResourceScopes(
++          configuration.providerId,
+           configuration.requestedScopes[grant.actor] ?? [],
+-        ).some((scope) => !grant.grantedScopes.includes(scope))),
++          grant.grantedScopes,
++        )),
+   );
+ }
+ 
+diff --git a/packages/app-core/src/lib/native-oauth-client-exchange.ts b/packages/app-core/src/lib/native-oauth-client-exchange.ts
+index ce7b80458..5c232807c 100644
+--- a/packages/app-core/src/lib/native-oauth-client-exchange.ts
++++ b/packages/app-core/src/lib/native-oauth-client-exchange.ts
+@@ -19,8 +19,8 @@ import {
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
+ import {
++  hasRequiredResourceScopes,
+   offlineConsentValid,
+-  requiredResourceScopes,
+ } from "./native-oauth-client-scopes.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import { nativeOAuthHttp } from "./native-oauth-http.js";
+@@ -257,13 +257,20 @@ export async function exchangeNativeOAuthClient(
+     );
+     await recordDefinitiveRejection(claim, response);
+     const receipt = issued(response.body, response.status, pending);
++    const scopeValid =
++      receipt.grant.scopes === null ||
++      hasRequiredResourceScopes(
++        pending.providerId,
++        pending.scopes,
++        receipt.grant.scopes,
++      );
+     await journalNativeOAuthGrant(
+       id,
+       claim.obligation.id,
+       receipt.grant,
+       nativeOAuthClientClassification,
+       {
+-        protocol_valid: String(receipt.valid),
++        protocol_valid: String(receipt.valid && scopeValid),
+         requested_scopes: JSON.stringify(pending.scopes),
+       },
+     );
+@@ -277,13 +284,7 @@ export async function exchangeNativeOAuthClient(
+     if (readNativeOAuthClientSecret(id, owner) !== secret)
+       throw new NativeOAuthError("expired");
+     if (!receipt.valid) throw new NativeOAuthError("provider");
+-    if (
+-      receipt.grant.scopes &&
+-      requiredResourceScopes(pending.scopes).some(
+-        (scope) => !receipt.grant.scopes?.includes(scope),
+-      )
+-    )
+-      throw new NativeOAuthError("scope");
++    if (!scopeValid) throw new NativeOAuthError("scope");
+     return { connectionId: id, intentId: claim.obligation.id };
+   } finally {
+     release();
+diff --git a/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts b/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts
+new file mode 100644
+index 000000000..90323701d
+--- /dev/null
++++ b/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts
+@@ -0,0 +1,91 @@
++import { afterEach, expect, it } from "vitest";
++import { GOOGLE_ACCOUNT_POLICY } from "./native-google-account-policy.generated.js";
++import {
++  beginNativeOAuthClient,
++  configureNativeOAuthClient,
++} from "./native-oauth-client-config.js";
++import { exchangeNativeOAuthClient } from "./native-oauth-client-exchange.js";
++import { nativeOAuthClientFixture } from "./native-oauth-client.test-support.js";
++import { requireNativeOAuthRecord } from "./native-oauth-session.js";
++
++const EMAIL_URL = "https://www.googleapis.com/auth/userinfo.email";
++const closing: (() => Promise<void>)[] = [];
++afterEach(async () => {
++  for (const close of closing.splice(0).reverse()) await close();
++});
++
++async function googleExchange(requested: string[], issued: string) {
++  const fixture = await nativeOAuthClientFixture("none");
++  closing.push(fixture.close);
++  const localToken = fixture.input.parameters.token_endpoint;
++  if (!localToken) throw new Error("Missing local token endpoint");
++  const localFetch = fixture.owner.transport.fetch;
++  const redirected: typeof fetch = async (input, init) => {
++    const request = new Request(input, init);
++    if (request.url !== GOOGLE_ACCOUNT_POLICY.endpoints.token_endpoint)
++      throw new Error("Unexpected provider endpoint");
++    return localFetch(localToken, {
++      method: request.method,
++      headers: request.headers,
++      body: await request.text(),
++      signal: request.signal,
++    });
++  };
++  fixture.owner.transport.fetch = redirected;
++  fixture.owner.transport.settleCredentialMutation = redirected;
++  fixture.input.providerId = "google-drive";
++  fixture.input.parameters = {
++    client_id: fixture.input.parameters.client_id ?? "",
++    ...GOOGLE_ACCOUNT_POLICY.endpoints,
++    token_auth_method: "none",
++    resource_parameter: "omit",
++  };
++  fixture.input.requestedScopes.user = requested;
++  fixture.state.resourceParameter = "omit";
++  fixture.state.scope = issued;
++  const saved = await configureNativeOAuthClient(fixture.input, fixture.owner);
++  const authorization = new URL(
++    await beginNativeOAuthClient(saved.connectionId, fixture.owner),
++  );
++  fixture.state.challenge =
++    authorization.searchParams.get("code_challenge") ?? "";
++  const search = new URLSearchParams({
++    native_state: authorization.searchParams.get("state") ?? "",
++    native_code: "one-use-code",
++  }).toString();
++  return { ...fixture, saved, search };
++}
++
++it.each<{ requested: string[]; issued: string }>([
++  { requested: ["openid", EMAIL_URL], issued: `openid ${EMAIL_URL}` },
++  { requested: ["openid", EMAIL_URL], issued: "openid email" },
++  { requested: ["openid", "email"], issued: `openid ${EMAIL_URL}` },
++])(
++  "exchanges equivalent Google account scopes end to end",
++  async ({ requested, issued }) => {
++    const f = await googleExchange(requested, issued);
++    const receipt = await exchangeNativeOAuthClient(f.search, f.owner);
++    expect(f.requests).toHaveLength(1);
++    expect(
++      requireNativeOAuthRecord(receipt.connectionId).privateState.recovery[0]
++        ?.grant?.scopes,
++    ).toEqual(["openid", "email"]);
++  },
++);
++
++it("rejects an over-scoped Google token after retaining its credentials", async () => {
++  const f = await googleExchange(
++    ["openid", EMAIL_URL],
++    `openid ${EMAIL_URL} https://www.googleapis.com/auth/drive.readonly`,
++  );
++  await expect(
++    exchangeNativeOAuthClient(f.search, f.owner),
++  ).rejects.toMatchObject({
++    code: "provider",
++  });
++  const record = requireNativeOAuthRecord(f.saved.connectionId);
++  expect(record.privateState.recovery[0]).toMatchObject({
++    credentials: { protocol_valid: "false" },
++    grant: { accessToken: "issued-access-1" },
++  });
++});
+diff --git a/packages/app-core/src/lib/native-oauth-client-scopes.ts b/packages/app-core/src/lib/native-oauth-client-scopes.ts
+index 787651aa6..b8870e46a 100644
+--- a/packages/app-core/src/lib/native-oauth-client-scopes.ts
++++ b/packages/app-core/src/lib/native-oauth-client-scopes.ts
+@@ -1,3 +1,5 @@
++import { normalizeGoogleDriveAccountScopes } from "./native-google-drive-account.js";
++
+ export function offlineConsentValid(
+   requested: readonly string[],
+   issued: readonly string[] | null,
+@@ -15,3 +17,18 @@ export function requiredResourceScopes(
+ ): readonly string[] {
+   return requested.filter((scope) => scope !== "offline_access");
+ }
++
++/** Compare equivalent provider scope spellings without broadening the requested set. */
++export function hasRequiredResourceScopes(
++  providerId: string,
++  requested: readonly string[],
++  granted: readonly string[],
++): boolean {
++  const required =
++    normalizeGoogleDriveAccountScopes(
++      providerId,
++      requiredResourceScopes(requested),
++    ) ?? [];
++  const issued = normalizeGoogleDriveAccountScopes(providerId, granted) ?? [];
++  return required.every((scope) => issued.includes(scope));
++}
+diff --git a/packages/app-core/src/lib/native-oauth-client.test.ts b/packages/app-core/src/lib/native-oauth-client.test.ts
+index a488e48d2..89a259ba9 100644
+--- a/packages/app-core/src/lib/native-oauth-client.test.ts
++++ b/packages/app-core/src/lib/native-oauth-client.test.ts
+@@ -15,6 +15,8 @@ import {
+   exchangeNativeOAuthClient,
+   issued,
+ } from "./native-oauth-client-exchange.js";
++import { verifyNativeOAuthMcpResource } from "./native-oauth-mcp-operations.js";
++import { verifyNativeOAuthResource } from "./native-oauth-resource.js";
+ import {
+   CLIENT_ID,
+   CLIENT_SECRET,
+@@ -173,8 +175,7 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
+         access_token: "issued-access-1",
+         refresh_token: "issued-refresh-1",
+         token_type: "Bearer",
+-        scope:
+-          "openid https://www.googleapis.com/auth/userinfo.email",
++        scope: "openid https://www.googleapis.com/auth/userinfo.email",
+       },
+       200,
+       { ...pending, providerId: "google-drive", scopes: ["openid", "email"] },
+@@ -309,9 +310,38 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
+     await expect(
+       exchangeNativeOAuthClient(f.search, f.owner),
+     ).rejects.toMatchObject({ code: "scope" });
+-    expect(
+-      requireNativeOAuthRecord(f.saved.connectionId).privateState.grants,
+-    ).toEqual({});
++    const record = requireNativeOAuthRecord(f.saved.connectionId);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: { phase: "verify", protocol_valid: "false" },
++      grant: { accessToken: "issued-access-1", scopes: ["different:scope"] },
++    });
++    await expect(
++      verifyNativeOAuthResource(f.saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "cleanup" });
++    await expect(
++      verifyNativeOAuthMcpResource(f.saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "cleanup" });
++    // Old records can contain an under-scoped grant marked protocol-valid.
++    // Both verification paths must reject it before using the token.
++    await updateNativeConnector(
++      record.connectionId,
++      nativeOAuthGuard(record),
++      nativeOAuthClientClassification(),
++      (current) => {
++        const intent = current.privateState.recovery[0];
++        if (!intent?.credentials) throw new Error("Missing retained grant");
++        intent.credentials.protocol_valid = "true";
++        return current;
++      },
++    );
++    await expect(
++      verifyNativeOAuthResource(f.saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "scope" });
++    await expect(
++      verifyNativeOAuthMcpResource(f.saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "scope" });
++    expect(f.requests).toHaveLength(1);
+   });
+   it("preserves the exact revision/CAS and refuses configuration edits with a pending authorization", async () => {
+     const f = await setup("client_secret_post");
+diff --git a/packages/app-core/src/lib/native-oauth-mcp-resource.ts b/packages/app-core/src/lib/native-oauth-mcp-resource.ts
+index a420ed0b6..9f2fe2dcc 100644
+--- a/packages/app-core/src/lib/native-oauth-mcp-resource.ts
++++ b/packages/app-core/src/lib/native-oauth-mcp-resource.ts
+@@ -21,6 +21,7 @@ import {
+   nativeOAuthClientTarget,
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
++import { hasRequiredResourceScopes } from "./native-oauth-client-scopes.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import {
+   nativeOAuthGuard,
+@@ -48,6 +49,15 @@ function actualGrant(
+     (grant.expiresAt !== null && grant.expiresAt <= Date.now())
+   )
+     throw new NativeOAuthError("expired");
++  if (
++    grant.scopes !== null &&
++    !hasRequiredResourceScopes(
++      record.configuration.providerId,
++      record.configuration.requestedScopes[grant.actor] ?? [],
++      grant.scopes,
++    )
++  )
++    throw new NativeOAuthError("scope");
+   const saved = [
+     record.privateState.grants.user,
+     ...record.privateState.recovery
+diff --git a/packages/app-core/src/lib/native-oauth-resource.ts b/packages/app-core/src/lib/native-oauth-resource.ts
+index 054362561..2d1a9d721 100644
+--- a/packages/app-core/src/lib/native-oauth-resource.ts
++++ b/packages/app-core/src/lib/native-oauth-resource.ts
+@@ -18,6 +18,7 @@ import {
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
+ import { commitNativeOAuthGrant } from "./native-oauth-commit.js";
++import { hasRequiredResourceScopes } from "./native-oauth-client-scopes.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import {
+   nativeOAuthGuard,
+@@ -40,6 +41,15 @@ function actualResource(
+     (grant.expiresAt !== null && grant.expiresAt <= Date.now())
+   )
+     throw new NativeOAuthError("expired");
++  if (
++    grant.scopes !== null &&
++    !hasRequiredResourceScopes(
++      record.configuration.providerId,
++      record.configuration.requestedScopes[grant.actor] ?? [],
++      grant.scopes,
++    )
++  )
++    throw new NativeOAuthError("scope");
+   return target.resource;
+ }
+ function resourceTransport(
