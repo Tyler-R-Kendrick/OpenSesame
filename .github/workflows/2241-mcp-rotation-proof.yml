@@ -1,0 +1,67 @@
+name: Review MCP scope and rotation retention
+on:
+  push:
+    branches: [review/2241-mcp-rotation-proof-a737-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-mcp-rotation-proof-a737-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: a737da29ab3306ef2f874f52448d18f518dab923
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify source and candidate
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a737da29ab3306ef2f874f52448d18f518dab923
+          test "$(git rev-parse HEAD^{tree})" = 690a5f7e6758c5d5fa6bbe60be3e8a02692ecfc2
+          printf '%s  %s\n' 9ca8cbccb6adafafba2b0c7f1c508e32812d9fde85b438a181525ace115c9dc4 ../controller/.github/verify-inputs/2241-mcp-rotation.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2241-mcp-rotation.patch
+          test "$(git write-tree)" = 87350b5c091686b5b2a6cab368e95fcf77c5d1f2
+          git diff --exit-code
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check affected formatting and types
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/native-connector-local-registration.test.ts packages/app-core/src/lib/native-mcp-registration-lifecycle.test.ts packages/app-core/src/lib/native-connector-lifecycle.ts packages/app-core/src/lib/native-mcp-profile.ts packages/app-core/src/lib/native-oauth-session.ts packages/app-core/src/lib/native-mcp-submission.ts apps/pages/src/sections/connections/connect/NativeConnectorRecovery.tsx apps/pages/src/sections/connections/connect/NativeConnectorRevocation.test.tsx apps/pages/src/sections/connections/connect/native-connector-controller.ts apps/pages/src/sections/connections/connect/native-connector-ui.ts packages/app-core/src/lib/native-mcp-registration-admission.ts packages/app-core/src/lib/native-mcp-registration.ts packages/app-core/src/lib/native-mcp-registration-retention.test.ts packages/app-core/src/lib/native-mcp-mutation-lock.ts packages/app-core/src/lib/native-mcp-mutation-lock.test.ts packages/app-core/src/lib/native-mcp-session.ts packages/app-core/src/lib/native-mcp-proof.ts packages/app-core/src/lib/native-mcp-refresh.ts packages/app-core/src/lib/native-mcp-connectors.test-support.ts packages/app-core/src/lib/native-mcp-connectors.test.ts packages/app-core/src/lib/native-mcp-token-receipt.ts packages/app-core/src/lib/native-mcp-oauth.ts packages/app-core/src/lib/native-mcp-authorization.ts packages/app-core/src/lib/native-mcp-cleanup.ts packages/app-core/src/lib/native-mcp-attestation.ts packages/app-core/src/lib/native-mcp-partial-refresh.ts packages/app-core/src/lib/native-mcp-scope-recovery.test.ts packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts
+          pnpm lint:anti-slop:files packages/app-core/src/lib/native-connector-local-registration.test.ts packages/app-core/src/lib/native-mcp-registration-lifecycle.test.ts packages/app-core/src/lib/native-connector-lifecycle.ts packages/app-core/src/lib/native-mcp-profile.ts packages/app-core/src/lib/native-oauth-session.ts packages/app-core/src/lib/native-mcp-submission.ts apps/pages/src/sections/connections/connect/NativeConnectorRecovery.tsx apps/pages/src/sections/connections/connect/NativeConnectorRevocation.test.tsx apps/pages/src/sections/connections/connect/native-connector-controller.ts apps/pages/src/sections/connections/connect/native-connector-ui.ts packages/app-core/src/lib/native-mcp-registration-admission.ts packages/app-core/src/lib/native-mcp-registration.ts packages/app-core/src/lib/native-mcp-registration-retention.test.ts packages/app-core/src/lib/native-mcp-mutation-lock.ts packages/app-core/src/lib/native-mcp-mutation-lock.test.ts packages/app-core/src/lib/native-mcp-attestation.ts packages/app-core/src/lib/native-mcp-authorization.ts packages/app-core/src/lib/native-mcp-cleanup.ts packages/app-core/src/lib/native-mcp-connectors.test-support.ts packages/app-core/src/lib/native-mcp-oauth.ts packages/app-core/src/lib/native-mcp-partial-refresh.ts packages/app-core/src/lib/native-mcp-proof.ts packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts packages/app-core/src/lib/native-mcp-refresh.ts packages/app-core/src/lib/native-mcp-scope-recovery.test.ts packages/app-core/src/lib/native-mcp-session.ts packages/app-core/src/lib/native-mcp-token-receipt.ts
+          pnpm --filter @opensesame/app-core typecheck
+      - name: Exercise MCP authorization, refresh and cleanup
+        working-directory: candidate
+        run: pnpm --filter @opensesame/app-core exec vitest run src/lib/native-connector-local-registration.test.ts src/lib/native-mcp-registration-lifecycle.test.ts src/lib/native-mcp-mutation-lock.test.ts src/lib/native-mcp-connectors.test.ts src/lib/native-mcp-scope-recovery.test.ts src/lib/native-mcp-refresh-recovery.test.ts src/lib/native-mcp-oauth.test.ts src/lib/native-mcp-registration-cleanup.test.ts src/lib/native-mcp-registration-retention.test.ts
+
+      - name: Verify Pages recovery flow
+        working-directory: candidate
+        run: |
+          pnpm --filter @opensesame/pages typecheck
+          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/connect/NativeConnectorRevocation.test.tsx src/sections/connections/connect/NativeConnectorRecovery.test.tsx
+      - name: Check structural quality
+        working-directory: candidate
+        run: pnpm quality:gate
+      - name: Check candidate unchanged
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a737da29ab3306ef2f874f52448d18f518dab923
+          test "$(git write-tree)" = 87350b5c091686b5b2a6cab368e95fcf77c5d1f2
+          git diff --exit-code
