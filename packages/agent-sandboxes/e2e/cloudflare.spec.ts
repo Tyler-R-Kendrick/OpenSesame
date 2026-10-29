@@ -107,9 +107,9 @@ function fakeBrowserRun(webSocketUrl: string): Promise<{
           response.writeHead(400).end();
           return;
         }
-        const address = server.address();
-        if (!address || typeof address === "string")
-          throw new Error("missing test server address");
+        const address = z
+          .object({ port: z.number().int().positive() })
+          .parse(server.address());
         response.writeHead(200, { "content-type": "application/json" }).end(
           JSON.stringify({
             sessionId: "fake-session-1",
