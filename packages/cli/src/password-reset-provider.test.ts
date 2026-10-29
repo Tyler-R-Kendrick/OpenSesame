@@ -132,7 +132,7 @@ describe("sandbox provider configuration", () => {
 });
 
 describe("boat registration state persistence", () => {
-  it("round-trips sealed beside the config and defaults to empty", async () => {
+  it("round-trips with private file permissions and defaults to empty", async () => {
     const directory = await configDir(bundledConfig());
     expect(loadBoatProviderState(directory)).toEqual({});
     saveBoatProviderState(directory, {
