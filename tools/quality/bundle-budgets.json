@@ -305,11 +305,12 @@
         "2026-10-27: javascriptGzip 2344->2349 for vault rotation password-reset UX (#2211): the always-on vault-ui seam, rotation panel hook and row decorations that call through it, installed from the ai.password-reset module. CI on cfe94d7 measures 2345 KiB gzip; the ceiling keeps four kibibytes over the measurement.",
         "2026-10-29: javascript 7594->7600 for the connector configuration contracts and a denser large-catalog dictionary. CI on 7b0042f measures 7600/2349 KiB raw/gzip; the dictionary trades six KiB of raw source for one KiB less compressed JavaScript, so only the raw ceiling moves to the measured value. Total, CSS, largest-asset and hardened-profile ceilings are unchanged.",
         "2026-10-29: javascript 7600->7602 for enforcing the Google account-only configuration and issued-scope guards in the real OAuth lifecycle. CI on 8a0a213 measures 7602/2349 KiB raw/gzip; only the raw ceiling moves to the measured value, with total, CSS, largest-asset and hardened-profile ceilings unchanged.",
-        "2026-10-29: javascript 7602->7610 and javascriptGzip 2349->2351 after landing the takeover route and the account-only OAuth guards. CI on 2a35963 measures 7610/2351 KiB raw/gzip; the ceilings move only to the combined measured values, with total, CSS, largest-asset and hardened-profile ceilings unchanged."
+        "2026-10-29: javascript 7602->7610 and javascriptGzip 2349->2351 after landing the takeover route and the account-only OAuth guards. CI on 2a35963 measures 7610/2351 KiB raw/gzip; the ceilings move only to the combined measured values, with total, CSS, largest-asset and hardened-profile ceilings unchanged.",
+        "2026-10-29: javascript 7610->7612 for the local catalog configuration contract, descriptor and runtime registration that make wallet and CUA catalog rows configurable (#2241). CI on ee8af39a3 measures 7612/2348 KiB raw/gzip; only the raw ceiling moves to the measured value. Total, gzip, CSS, largest-asset and hardened-profile ceilings are unchanged."
       ],
       "budgets": {
         "total": 21050,
-        "javascript": 7610,
+        "javascript": 7612,
         "javascriptGzip": 2351,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",

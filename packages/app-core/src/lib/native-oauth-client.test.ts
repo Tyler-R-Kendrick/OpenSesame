@@ -173,8 +173,7 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
         access_token: "issued-access-1",
         refresh_token: "issued-refresh-1",
         token_type: "Bearer",
-        scope:
-          "openid https://www.googleapis.com/auth/userinfo.email",
+        scope: "openid https://www.googleapis.com/auth/userinfo.email",
       },
       200,
       { ...pending, providerId: "google-drive", scopes: ["openid", "email"] },
