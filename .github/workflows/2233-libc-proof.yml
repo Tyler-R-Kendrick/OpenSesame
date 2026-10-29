@@ -1,0 +1,62 @@
+name: Verify Hono lock platform filters
+on:
+  push:
+    branches: [review/2233-libc-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2233-libc-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout exact candidate parent
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: 77857b6f6ffad437dd24b9acc7072e28dd53e352
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify and apply exact candidate
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 77857b6f6ffad437dd24b9acc7072e28dd53e352
+          printf '%s  %s\n' 508f08fd2888c9e77dc8bf7a23951e61a2d0b9ff83b62bc18898d6a29b3d873e ../controller/.github/verify-inputs/2233-preserve-libc.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2233-preserve-libc.patch
+          test "$(git write-tree)" = b326cde441f9ca153056f25fcf2437328ec614c0
+          git diff --exit-code
+          test "$(pnpm --version)" = 9.15.0
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify native package selection on glibc
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d node_modules/.pnpm/@oxlint+binding-linux-x64-gnu@1.79.0
+          test ! -d node_modules/.pnpm/@oxlint+binding-linux-x64-musl@1.79.0
+          test -d node_modules/.pnpm/@rollup+rollup-linux-x64-gnu@4.66.0
+          test ! -d node_modules/.pnpm/@rollup+rollup-linux-x64-musl@4.66.0
+          pnpm exec oxlint --version
+          node -e "require('./node_modules/.pnpm/rollup@4.66.0/node_modules/rollup'); console.log('Rollup loaded')"
+      - name: Verify source after test
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 77857b6f6ffad437dd24b9acc7072e28dd53e352
+          test "$(git write-tree)" = b326cde441f9ca153056f25fcf2437328ec614c0
+          git diff --exit-code
