@@ -4,6 +4,7 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { canonicalProviderId } from "@opensesame/app-core/lib/connector-catalog.js";
 import { canConfigureAutomatically } from "@opensesame/app-core/lib/connector-guidance.js";
 import { docLink } from "@opensesame/app-core/lib/doc-link.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
@@ -20,6 +21,7 @@ import {
   hasConnectRoute,
   isVercelCatalogId,
 } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { connectionRouteProvider } from "@opensesame/app-core/sections/connections/provider-route.js";
 import {
   CATEGORY_LABELS,
   type Flash,
@@ -112,9 +114,7 @@ export function ConnectorSettingsPage({
     family === undefined
       ? []
       : family.members.map((id) => {
-          const row = (providers ?? []).find(
-            (candidate) => candidate.id === id,
-          );
+          const row = connectionRouteProvider(providers ?? [], id);
           return { id, label: row?.displayName ?? id };
         });
   const ceremonyRoot = connectorCeremonyRoot(pathname);
@@ -216,7 +216,7 @@ export function ConnectorSettingsPage({
           <label htmlFor="connector-api-family">API family</label>
           <select
             id="connector-api-family"
-            value={provider.id}
+            value={canonicalProviderId(provider.id) ?? provider.id}
             onChange={(event) => navigate(connectorPath(event.target.value))}
           >
             {familyOptions.map((option) => (

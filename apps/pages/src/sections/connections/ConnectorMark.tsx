@@ -19,6 +19,8 @@ const MICROSOFT_PROVIDER_IDS = new Set([
   "azure-kms",
   "azure-sm",
   "azure-ac",
+  "azure-key-vault-secrets",
+  "azure-app-configuration",
   "azure-openai",
   "azure-access-token",
   "m365",

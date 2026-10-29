@@ -29,15 +29,19 @@ const provider = found;
 const xml =
   '<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><Prefix/><IsTruncated>false</IsTruncated><Contents><Key>sealed/document</Key></Contents></ListBucketResult>';
 
-it("keeps S3 in its native authentication owner when its browser driver is unavailable", () => {
+it("offers S3's compiled road before its runtime driver activates", () => {
+  // The descriptor built with an explicit refusal keeps its unavailable shape.
   const descriptor = nativeS3Descriptor(provider, false);
   expect(descriptor.methods[0]).toMatchObject({
     id: "api-key",
     available: false,
   });
+  // The catalog card reads the compiled contract, not the driver's
+  // registration state: a fresh session offers the road this device can take.
   expect(catalogConnectorAction(provider, null)).toMatchObject({
-    kind: "unavailable",
-    glyph: "blocked",
+    kind: "connect",
+    glyph: "plus",
+    method: "api-key",
   });
   render(
     <MemoryRouter>
@@ -58,16 +62,13 @@ it("keeps S3 in its native authentication owner when its browser driver is unava
       />
     </MemoryRouter>,
   );
+  expect(screen.getByLabelText("S3 HTTPS service origin")).toBeTruthy();
+  expect(screen.getByLabelText("Bucket")).toBeTruthy();
   expect(
-    screen.getByRole("img", {
+    screen.queryByRole("img", {
       name: `${provider.displayName} has no supported browser connection method.`,
     }),
-  ).toBeTruthy();
-  expect(
-    screen.queryByRole("button", { name: "Save configuration" }),
   ).toBeNull();
-  expect(screen.queryByLabelText("S3 HTTPS service origin")).toBeNull();
-  expect(screen.queryByLabelText("Connector name")).toBeNull();
 });
 
 it("disables provider operations for a saved S3 binding after its driver is deactivated", async () => {
