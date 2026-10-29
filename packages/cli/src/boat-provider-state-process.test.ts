@@ -17,7 +17,7 @@ await withBoatStateLock(process.argv[1], async () => {
   const ready = join(dir, "ready");
   const child = spawn(
     process.execPath,
-    ["--input-type=module", "-e", source, dir, ready],
+    ["--import", "tsx", "--input-type=module", "-e", source, dir, ready],
     {
       stdio: "ignore",
     },
