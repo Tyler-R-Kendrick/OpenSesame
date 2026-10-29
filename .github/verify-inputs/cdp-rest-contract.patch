@@ -1,0 +1,1016 @@
+diff --git a/packages/agent-sandboxes/e2e/cloudflare.spec.ts b/packages/agent-sandboxes/e2e/cloudflare.spec.ts
+index 7b1457611..489f85dbc 100644
+--- a/packages/agent-sandboxes/e2e/cloudflare.spec.ts
++++ b/packages/agent-sandboxes/e2e/cloudflare.spec.ts
+@@ -4,6 +4,7 @@ import { type Server, createServer } from "node:http";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { expect, test } from "@playwright/test";
++import WebSocket, { WebSocketServer } from "ws";
+ import { z } from "zod";
+ import { CloudflareSandboxProvider } from "../src/index.js";
+ import {
+@@ -93,16 +94,29 @@ function fakeBrowserRun(webSocketUrl: string): Promise<{
+         response.writeHead(401).end();
+         return;
+       }
+-      response.writeHead(201, { "content-type": "application/json" }).end(
+-        JSON.stringify({
+-          success: true,
+-          errors: [],
+-          result: {
++      let body = "";
++      request.setEncoding("utf8");
++      request.on("data", (part: string) => {
++        body += part;
++      });
++      request.on("end", () => {
++        if (
++          body !==
++          JSON.stringify({ guardrails: { allowedDomains: ["127.0.0.1"] } })
++        ) {
++          response.writeHead(400).end();
++          return;
++        }
++        const address = server.address();
++        if (!address || typeof address === "string")
++          throw new Error("missing test server address");
++        response.writeHead(200, { "content-type": "application/json" }).end(
++          JSON.stringify({
+             sessionId: "fake-session-1",
+-            webSocketDebuggerUrl: webSocketUrl,
+-          },
+-        }),
+-      );
++            webSocketDebuggerUrl: `ws://127.0.0.1:${address.port}/devtools/browser/fake-session-1`,
++          }),
++        );
++      });
+       return;
+     }
+     if (request.method === "DELETE") {
+@@ -114,6 +128,29 @@ function fakeBrowserRun(webSocketUrl: string): Promise<{
+     }
+     response.writeHead(404).end();
+   });
++  const sockets = new WebSocketServer({ noServer: true });
++  server.on("upgrade", (request, socket, head) => {
++    if (
++      request.url !== "/devtools/browser/fake-session-1" ||
++      request.headers.authorization !== "Bearer cf-test-token"
++    ) {
++      socket.destroy();
++      return;
++    }
++    sockets.handleUpgrade(request, socket, head, (incoming) => {
++      incoming.pause();
++      const chrome = new WebSocket(webSocketUrl);
++      chrome.once("open", () => {
++        incoming.on("message", (data, binary) => chrome.send(data, { binary }));
++        chrome.on("message", (data, binary) => incoming.send(data, { binary }));
++        incoming.resume();
++      });
++      chrome.on("error", () => incoming.close());
++      chrome.on("close", () => incoming.close());
++      incoming.on("error", () => chrome.close());
++      incoming.on("close", () => chrome.close());
++    });
++  });
+   return new Promise((resolve) => {
+     server.listen(0, "127.0.0.1", () => {
+       const address = server.address();
+@@ -140,6 +177,7 @@ test("full reset on Cloudflare Browser Run shape: REST allocation + CDP driver",
+       accountId: "acct-test",
+       apiToken: "cf-test-token",
+       baseUrl: fake.baseUrl,
++      allowInsecureLoopbackForTesting: true,
+     });
+     const sandbox = await provider.allocate({ origin: site.origin });
+     expect(sandbox.provider).toBe("cloudflare");
+diff --git a/packages/agent-sandboxes/src/cdp-node-socket.ts b/packages/agent-sandboxes/src/cdp-node-socket.ts
+index 8800975ce..c3cba23db 100644
+--- a/packages/agent-sandboxes/src/cdp-node-socket.ts
++++ b/packages/agent-sandboxes/src/cdp-node-socket.ts
+@@ -16,7 +16,11 @@ export function connectCdp(
+   options: ConnectCdpOptions = {},
+ ): Promise<CdpConnection> {
+   return new Promise((resolve, reject) => {
+-    const ws = new WebSocket(url, { headers: options.headers ?? {} });
++    const ws = new WebSocket(url, {
++      headers: options.headers ?? {},
++      followRedirects: false,
++      handshakeTimeout: 15_000,
++    });
+     const socket: CdpSocket = {
+       send: (data) => ws.send(data),
+       close: () => ws.close(),
+@@ -28,6 +32,6 @@ export function connectCdp(
+       },
+     };
+     ws.once("open", () => resolve(new CdpConnection(socket)));
+-    ws.once("error", () => reject(new Error("cdp: connection failed")));
++    ws.on("error", () => reject(new Error("cdp: connection failed")));
+   });
+ }
+diff --git a/packages/agent-sandboxes/src/cloudflare-client.test.ts b/packages/agent-sandboxes/src/cloudflare-client.test.ts
+index c552da9cf..87713b23a 100644
+--- a/packages/agent-sandboxes/src/cloudflare-client.test.ts
++++ b/packages/agent-sandboxes/src/cloudflare-client.test.ts
+@@ -1,96 +1,265 @@
+ import { describe, expect, it, vi } from "vitest";
+ import { CloudflareBrowserRunClient } from "./cloudflare-client.js";
+ 
+-interface FakeApiBody {
+-  success: boolean;
+-  errors?: { message: string }[];
+-  result?: {
+-    sessionId: string;
+-    status?: string;
+-    webSocketDebuggerUrl?: string;
+-  };
+-}
+-
+-function jsonResponse(body: FakeApiBody, status = 200): Response {
++function jsonResponse(body: unknown, status = 200): Response {
+   return new Response(JSON.stringify(body), {
+     status,
+     headers: { "content-type": "application/json" },
+   });
+ }
+ 
++const endpoint =
++  "https://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser";
++const socket =
++  "wss://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9";
++
+ describe("CloudflareBrowserRunClient", () => {
+-  it("allocates a session and derives the CDP websocket URL", async () => {
++  it("sends the documented guardrails and keep_alive query, and accepts the direct response", async () => {
+     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+-      expect(url).toBe(
+-        "https://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser",
+-      );
++      expect(url).toBe(`${endpoint}?keep_alive=120000`);
+       expect(init?.method).toBe("POST");
+-      const headers = new Headers(init?.headers);
+-      expect(headers.get("authorization")).toBe("Bearer token-1");
++      expect(init?.redirect).toBe("error");
++      expect(new Headers(init?.headers).get("authorization")).toBe(
++        "Bearer token-1",
++      );
++      expect(JSON.parse(String(init?.body))).toEqual({
++        guardrails: {
++          allowedDomains: ["accounts.example.test", "idp.example.test"],
++        },
++      });
+       return jsonResponse({
+-        success: true,
+-        errors: [],
+-        result: { sessionId: "sess-9", status: "active" },
++        sessionId: "sess-9",
++        webSocketDebuggerUrl: socket,
+       });
+     });
+-    // SAFETY: the mock implements exactly the (url, init) call shape the client uses; the cast only widens it to the full fetch signature.
+     const client = new CloudflareBrowserRunClient({
+       accountId: "acct-1",
+       apiToken: "token-1",
++      keepAliveMs: 120_000,
+       fetchImpl: fetchImpl as typeof fetch,
+-      sessionTimeoutMs: 120_000,
+     });
+-    const session = await client.createSession();
+-    expect(session).toEqual({
+-      sessionId: "sess-9",
+-      webSocketUrl:
+-        "wss://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9",
++    await expect(
++      client.createSession(["accounts.example.test", "idp.example.test"]),
++    ).resolves.toEqual({ sessionId: "sess-9", webSocketUrl: socket });
++  });
++
++  it("derives the documented socket path if the optional URL is omitted", async () => {
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "token-1",
++      fetchImpl: async () => jsonResponse({ sessionId: "sess-9" }),
+     });
+-    const sentBody = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+-    expect(sentBody).toEqual({ sessionTimeout: 120_000 });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).resolves.toEqual({ sessionId: "sess-9", webSocketUrl: socket });
++  });
++
++  it.each([
++    "wss://attacker.example/devtools/browser/sess-9",
++    "ws://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9",
++    "wss://api.cloudflare.com:444/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9",
++    "wss://other@api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9",
++    "wss://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/other",
++    `${socket}?credential=leak`,
++    `${socket}#fragment`,
++  ])(
++    "rejects and deletes a session with an untrusted socket %s",
++    async (url) => {
++      const calls: { url: string; init?: RequestInit }[] = [];
++      const client = new CloudflareBrowserRunClient({
++        accountId: "acct-1",
++        apiToken: "token-1",
++        fetchImpl: async (input, init) => {
++          calls.push({ url: String(input), init });
++          return jsonResponse({
++            sessionId: "sess-9",
++            webSocketDebuggerUrl: url,
++          });
++        },
++      });
++      await expect(
++        client.createSession(["accounts.example.test"]),
++      ).rejects.toThrow("untrusted CDP endpoint");
++      expect(calls).toHaveLength(2);
++      expect(calls[1]?.url).toBe(`${endpoint}/sess-9`);
++      expect(calls[1]?.init?.method).toBe("DELETE");
++      expect(calls[1]?.init?.redirect).toBe("error");
++    },
++  );
++
++  it.each([
++    "https://evil.example",
++    "https://api.cloudflare.com.evil.example",
++    "http://api.cloudflare.com",
++    "http://127.0.0.1:9000",
++    "https://user@api.cloudflare.com/client/v4/accounts/acct-1/browser-run",
++    "https://api.cloudflare.com/client/v4/accounts/other/browser-run",
++  ])("rejects an untrusted API destination %s", (baseUrl) => {
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acct-1",
++          apiToken: "token-1",
++          baseUrl,
++        }),
++    ).toThrow("untrusted API endpoint");
+   });
+ 
+-  it("prefers a webSocketDebuggerUrl returned by the API", async () => {
++  it("requires an explicit opt-in for the loopback fake and binds the socket to it", async () => {
+     const client = new CloudflareBrowserRunClient({
+       accountId: "acct-1",
+       apiToken: "token-1",
++      baseUrl: "http://127.0.0.1:9123",
++      allowInsecureLoopbackForTesting: true,
+       fetchImpl: async () =>
+         jsonResponse({
+-          success: true,
+-          result: {
+-            sessionId: "sess-2",
+-            webSocketDebuggerUrl: "wss://example.test/custom",
+-          },
++          sessionId: "sess-9",
++          webSocketDebuggerUrl: "ws://127.0.0.1:9123/devtools/browser/sess-9",
++        }),
++    });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).resolves.toMatchObject({
++      webSocketUrl: "ws://127.0.0.1:9123/devtools/browser/sess-9",
++    });
++  });
++
++  it.each([
++    { allowedDomains: [] },
++    { allowedDomains: ["*.example.test"] },
++    { allowedDomains: ["https://example.test"] },
++    { allowedDomains: ["bad..example"] },
++    { allowedDomains: ["K.example.test"] },
++    { allowedDomains: Array(51).fill("example.test") },
++  ])(
++    "fails before allocation for invalid guardrail hostnames",
++    async ({ allowedDomains }) => {
++      const fetchImpl = vi.fn();
++      const client = new CloudflareBrowserRunClient({
++        accountId: "acct-1",
++        apiToken: "token-1",
++        fetchImpl,
++      });
++      await expect(client.createSession(allowedDomains)).rejects.toThrow(
++        "invalid guardrail hostnames",
++      );
++      expect(fetchImpl).not.toHaveBeenCalled();
++    },
++  );
++
++  it("rejects invalid identifiers and unsupported timeout settings before I/O", async () => {
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acct/other",
++          apiToken: "secret",
++        }),
++    ).toThrow("invalid account id");
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acctK",
++          apiToken: "secret",
+         }),
++    ).toThrow("invalid account id");
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acct-1",
++          apiToken: "secret",
++          keepAliveMs: 1,
++        }),
++    ).toThrow("invalid keep_alive");
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acct-1",
++          apiToken: "secret",
++          sessionTimeoutMs: 120_000,
++        } as CloudflareBrowserRunClientOptionsWithOldTimeout),
++    ).toThrow("unsupported");
++    const fetchImpl = vi.fn();
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "token-1",
++      fetchImpl,
+     });
+-    await expect(client.createSession()).resolves.toEqual({
+-      sessionId: "sess-2",
+-      webSocketUrl: "wss://example.test/custom",
++    await expect(client.closeSession("..")).rejects.toThrow(
++      "invalid session id",
++    );
++    expect(fetchImpl).not.toHaveBeenCalled();
++  });
++
++  it("does not leak server error bodies", async () => {
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "token-1",
++      fetchImpl: async () =>
++        jsonResponse({ errors: [{ message: "server secret" }] }, 429),
+     });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).rejects.toThrow("HTTP 429");
+   });
+ 
+-  it("surfaces API errors and deletes sessions", async () => {
++  it("cleans up valid session IDs when the returned URL has the wrong type", async () => {
+     const calls: string[] = [];
+     const client = new CloudflareBrowserRunClient({
+       accountId: "acct-1",
+       apiToken: "token-1",
+       fetchImpl: async (url, init) => {
+-        calls.push(`${init?.method ?? "GET"} ${url}`);
+-        return jsonResponse(
+-          { success: false, errors: [{ message: "quota exceeded" }] },
+-          429,
+-        );
++        calls.push(`${init?.method} ${url}`);
++        return jsonResponse({ sessionId: "sess-9", webSocketDebuggerUrl: 42 });
+       },
+     });
+-    await expect(client.createSession()).rejects.toThrow("quota exceeded");
+-    await client.closeSession("sess-9");
+-    expect(calls[1]).toContain("DELETE ");
+-    expect(calls[1]).toContain("/devtools/browser/sess-9");
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).rejects.toThrow("invalid session response");
++    expect(calls).toEqual([`POST ${endpoint}`, `DELETE ${endpoint}/sess-9`]);
+   });
+ 
+-  it("requires account configuration from the environment of the caller", () => {
+-    expect(
+-      () => new CloudflareBrowserRunClient({ accountId: "", apiToken: "" }),
+-    ).toThrow("account id and API token");
++  it("reports cleanup failures without including a server error body", async () => {
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "token-1",
++      fetchImpl: async (_url, init) =>
++        init?.method === "DELETE"
++          ? jsonResponse({ secret: "do-not-display" }, 500)
++          : jsonResponse({
++              sessionId: "sess-9",
++              webSocketDebuggerUrl: "wss://evil.test/",
++            }),
++    });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).rejects.toThrow("untrusted CDP endpoint; session cleanup failed");
++    await expect(client.closeSession("sess-9")).rejects.toThrow("HTTP 500");
++  });
++
++  it("snapshots the validated token and idle timeout", async () => {
++    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
++      expect(url).toBe(`${endpoint}?keep_alive=120000`);
++      expect(new Headers(init?.headers).get("authorization")).toBe(
++        "Bearer token-1",
++      );
++      return jsonResponse({
++        sessionId: "sess-9",
++        webSocketDebuggerUrl: socket,
++      });
++    });
++    const options = {
++      accountId: "acct-1",
++      apiToken: "token-1",
++      keepAliveMs: 120_000,
++      fetchImpl: fetchImpl as typeof fetch,
++    };
++    const client = new CloudflareBrowserRunClient(options);
++    options.apiToken = "other";
++    options.keepAliveMs = 1;
++    await client.createSession(["accounts.example.test"]);
+   });
+ });
++
++type CloudflareBrowserRunClientOptionsWithOldTimeout = ConstructorParameters<
++  typeof CloudflareBrowserRunClient
++>[0] & { sessionTimeoutMs: number };
+diff --git a/packages/agent-sandboxes/src/cloudflare-client.ts b/packages/agent-sandboxes/src/cloudflare-client.ts
+index 3ef47b10b..68e48375f 100644
+--- a/packages/agent-sandboxes/src/cloudflare-client.ts
++++ b/packages/agent-sandboxes/src/cloudflare-client.ts
+@@ -1,106 +1,207 @@
+ /**
+- * Cloudflare Browser Run (Browser Rendering) session client.
+- *
+- * Allocation is one REST call (`POST /devtools/browser`); the browser is
+- * then driven over its per-session CDP WebSocket. The API token is
+- * provider configuration (environment), never a page secret, and sessions
+- * are closed with `DELETE` when the run ends.
+- *
+- * API shape: https://developers.cloudflare.com/browser-run/cdp/
++ * Browser Run REST session client.
++ * https://developers.cloudflare.com/browser-run/cdp/session-management/
++ * https://developers.cloudflare.com/browser-run/features/guardrails/
+  */
+-
+ import { z } from "zod";
+ 
+ export interface CloudflareClientOptions {
+   accountId: string;
+   apiToken: string;
+-  /** Defaults to the public Cloudflare API; injectable for tests. */
++  /** Defaults to the public Cloudflare API. */
+   baseUrl?: string;
+   fetchImpl?: typeof fetch;
+-  /** How long a session may idle before Browser Run closes it. */
+-  sessionTimeoutMs?: number;
++  /** Explicit test-only opt-in for a local fake API and CDP socket. */
++  allowInsecureLoopbackForTesting?: boolean;
++  /** Browser Run's keep_alive query parameter, in milliseconds. */
+   keepAliveMs?: number;
+ }
+ 
+-interface CreateSessionBody {
+-  sessionTimeout?: number;
+-  keepAlive?: number;
+-}
+-
+ export interface CloudflareSession {
+   sessionId: string;
+-  /** Browser-level CDP WebSocket URL for this session. */
+   webSocketUrl: string;
+ }
+ 
++export class CloudflareSessionCleanupError extends Error {
++  constructor(
++    readonly sessionId: string,
++    message: string,
++  ) {
++    super(message);
++    this.name = "CloudflareSessionCleanupError";
++  }
++}
++
+ const sessionResponseSchema = z.object({
+-  success: z.boolean(),
+-  errors: z.array(z.object({ message: z.string() })).optional(),
+-  result: z
+-    .object({
+-      sessionId: z.string(),
+-      webSocketDebuggerUrl: z.string().optional(),
+-    })
+-    .optional(),
++  sessionId: z.string(),
++  webSocketDebuggerUrl: z.string().optional(),
+ });
+ 
++const identifier = /^[A-Za-z0-9_-]{1,128}$/u;
++const hostname =
++  /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/u;
++
+ export class CloudflareBrowserRunClient {
+   private readonly baseUrl: string;
+   private readonly fetchImpl: typeof fetch;
++  private readonly apiToken: string;
++  private readonly keepAliveMs: number | undefined;
+ 
+-  constructor(private readonly options: CloudflareClientOptions) {
++  constructor(options: CloudflareClientOptions) {
+     if (!options.accountId || !options.apiToken)
+       throw new Error(
+         "cloudflare provider needs an account id and API token (environment)",
+       );
+-    this.baseUrl = (
+-      options.baseUrl ??
+-      `https://api.cloudflare.com/client/v4/accounts/${options.accountId}/browser-run`
+-    ).replace(/\/$/u, "");
++    if (!identifier.test(options.accountId))
++      throw new Error("cloudflare: invalid account id");
++    if ("sessionTimeoutMs" in options)
++      throw new Error("cloudflare: sessionTimeoutMs is unsupported");
++    if (!/^[A-Za-z0-9._~+/-]+=*$/u.test(options.apiToken))
++      throw new Error("cloudflare: invalid API token");
++    if (
++      options.keepAliveMs !== undefined &&
++      (!Number.isInteger(options.keepAliveMs) ||
++        options.keepAliveMs < 10_000 ||
++        options.keepAliveMs > 1_200_000)
++    )
++      throw new Error("cloudflare: invalid keep_alive");
++    const expectedPath = `/client/v4/accounts/${options.accountId}/browser-run`;
++    let base: URL;
++    try {
++      base = new URL(
++        options.baseUrl ?? `https://api.cloudflare.com${expectedPath}`,
++      );
++    } catch {
++      throw new Error("cloudflare: untrusted API endpoint");
++    }
++    const production =
++      base.protocol === "https:" &&
++      base.hostname === "api.cloudflare.com" &&
++      !base.port &&
++      base.pathname.replace(/\/$/u, "") === expectedPath;
++    const testLoopback =
++      options.allowInsecureLoopbackForTesting === true &&
++      base.protocol === "http:" &&
++      base.hostname === "127.0.0.1";
++    if (
++      base.username ||
++      base.password ||
++      base.search ||
++      base.hash ||
++      !(production || testLoopback)
++    )
++      throw new Error("cloudflare: untrusted API endpoint");
++    this.baseUrl = base.href.replace(/\/$/u, "");
+     this.fetchImpl = options.fetchImpl ?? fetch;
++    this.apiToken = options.apiToken;
++    this.keepAliveMs = options.keepAliveMs;
+   }
+ 
+   private headers() {
+     return {
+-      authorization: `Bearer ${this.options.apiToken}`,
++      authorization: `Bearer ${this.apiToken}`,
+       "content-type": "application/json",
+     };
+   }
+ 
+-  /** Headers the CDP WebSocket upgrade must carry for this account. */
+   cdpHeaders() {
+-    return { authorization: `Bearer ${this.options.apiToken}` };
++    return { authorization: `Bearer ${this.apiToken}` };
+   }
+ 
+-  async createSession(): Promise<CloudflareSession> {
+-    const body: CreateSessionBody = {};
+-    if (this.options.sessionTimeoutMs !== undefined)
+-      body.sessionTimeout = this.options.sessionTimeoutMs;
+-    if (this.options.keepAliveMs !== undefined)
+-      body.keepAlive = this.options.keepAliveMs;
+-    const response = await this.fetchImpl(`${this.baseUrl}/devtools/browser`, {
+-      method: "POST",
+-      headers: this.headers(),
+-      body: JSON.stringify(body),
+-    });
+-    const parsed = sessionResponseSchema.parse(await response.json());
+-    if (!response.ok || !parsed.success || !parsed.result) {
+-      const detail =
+-        parsed.errors?.map((error) => error.message).join("; ") ||
+-        `HTTP ${response.status}`;
+-      throw new Error(`cloudflare: session allocation failed (${detail})`);
++  async createSession(
++    allowedDomains: readonly string[],
++  ): Promise<CloudflareSession> {
++    if (
++      !Array.isArray(allowedDomains) ||
++      allowedDomains.length === 0 ||
++      allowedDomains.length > 50 ||
++      allowedDomains.some(
++        (domain) => typeof domain !== "string" || !hostname.test(domain),
++      )
++    )
++      throw new Error("cloudflare: invalid guardrail hostnames");
++    const endpoint = new URL(`${this.baseUrl}/devtools/browser`);
++    if (this.keepAliveMs !== undefined)
++      endpoint.searchParams.set("keep_alive", String(this.keepAliveMs));
++    let response: Response;
++    try {
++      response = await this.fetchImpl(endpoint.href, {
++        method: "POST",
++        redirect: "error",
++        headers: this.headers(),
++        body: JSON.stringify({ guardrails: { allowedDomains } }),
++        signal: AbortSignal.timeout(30_000),
++      });
++    } catch {
++      throw new Error("cloudflare: session allocation request failed");
++    }
++    if (!response.ok)
++      throw new Error(
++        `cloudflare: session allocation failed (HTTP ${response.status})`,
++      );
++    let raw: unknown;
++    try {
++      raw = await response.json();
++    } catch {
++      throw new Error("cloudflare: invalid session response");
++    }
++    const idResult = z.object({ sessionId: z.string() }).safeParse(raw);
++    if (!idResult.success)
++      throw new Error("cloudflare: invalid session response");
++    const { sessionId } = idResult.data;
++    if (!identifier.test(sessionId))
++      throw new Error("cloudflare: invalid session id");
++    const result = sessionResponseSchema.safeParse(raw);
++    if (!result.success)
++      return this.rejectSession(sessionId, "invalid session response");
++    const parsed = result.data;
++    const expected = `${this.baseUrl.replace(/^http/u, "ws")}/devtools/browser/${sessionId}`;
++    const webSocketUrl = parsed.webSocketDebuggerUrl ?? expected;
++    if (webSocketUrl !== expected) {
++      return this.rejectSession(sessionId, "untrusted CDP endpoint");
+     }
+-    const { sessionId } = parsed.result;
+-    const webSocketUrl =
+-      parsed.result.webSocketDebuggerUrl ??
+-      `${this.baseUrl.replace(/^http/u, "ws")}/devtools/browser/${sessionId}`;
+     return { sessionId, webSocketUrl };
+   }
+ 
++  private async rejectSession(
++    sessionId: string,
++    reason: string,
++  ): Promise<never> {
++    try {
++      await this.closeSession(sessionId);
++    } catch {
++      throw new CloudflareSessionCleanupError(
++        sessionId,
++        `cloudflare: ${reason}; session cleanup failed`,
++      );
++    }
++    throw new Error(`cloudflare: ${reason}`);
++  }
++
+   async closeSession(sessionId: string): Promise<void> {
+-    await this.fetchImpl(
+-      `${this.baseUrl}/devtools/browser/${encodeURIComponent(sessionId)}`,
+-      { method: "DELETE", headers: this.headers() },
+-    ).catch(() => {});
++    if (!identifier.test(sessionId))
++      throw new Error("cloudflare: invalid session id");
++    let response: Response;
++    try {
++      response = await this.fetchImpl(
++        `${this.baseUrl}/devtools/browser/${encodeURIComponent(sessionId)}`,
++        {
++          method: "DELETE",
++          redirect: "error",
++          headers: this.headers(),
++          signal: AbortSignal.timeout(10_000),
++        },
++      );
++    } catch {
++      throw new CloudflareSessionCleanupError(
++        sessionId,
++        "cloudflare: session cleanup request failed",
++      );
++    }
++    if (!response.ok)
++      throw new CloudflareSessionCleanupError(
++        sessionId,
++        `cloudflare: session cleanup failed (HTTP ${response.status})`,
++      );
+   }
+ }
+diff --git a/packages/agent-sandboxes/src/cloudflare-provider.test.ts b/packages/agent-sandboxes/src/cloudflare-provider.test.ts
+new file mode 100644
+index 000000000..14bba449d
+--- /dev/null
++++ b/packages/agent-sandboxes/src/cloudflare-provider.test.ts
+@@ -0,0 +1,99 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import {
++  CloudflareBrowserRunClient,
++  CloudflareSessionCleanupError,
++} from "./cloudflare-client.js";
++import { CloudflareSandboxProvider } from "./cloudflare-provider.js";
++
++const mocks = vi.hoisted(() => ({
++  connect: vi.fn(),
++  driverConnect: vi.fn(),
++}));
++
++vi.mock("./cdp-node-socket.js", () => ({ connectCdp: mocks.connect }));
++vi.mock("./cdp-driver.js", () => ({
++  CdpBrowserDriver: { connect: mocks.driverConnect },
++}));
++
++function fakeClient(deleteStatus = 200) {
++  const calls: string[] = [];
++  const client = new CloudflareBrowserRunClient({
++    accountId: "acct-1",
++    apiToken: "token-1",
++    fetchImpl: async (url, init) => {
++      calls.push(`${init?.method} ${url}`);
++      return new Response(JSON.stringify({ sessionId: "sess-9" }), {
++        status: init?.method === "DELETE" ? deleteStatus : 200,
++      });
++    },
++  });
++  return { client, calls };
++}
++
++beforeEach(() => {
++  mocks.connect.mockReset();
++  mocks.driverConnect.mockReset();
++});
++afterEach(() => vi.useRealTimers());
++
++describe("Cloudflare provider lifecycle", () => {
++  it("closes an open socket and deletes the session when driver initialization fails", async () => {
++    const { client, calls } = fakeClient();
++    const close = vi.fn();
++    mocks.connect.mockResolvedValue({ close });
++    mocks.driverConnect.mockRejectedValue(new Error("driver refused"));
++    const provider = new CloudflareSandboxProvider({ client });
++    await expect(
++      provider.allocate({ origin: "https://accounts.example.test" }),
++    ).rejects.toThrow("driver refused");
++    expect(close).toHaveBeenCalledOnce();
++    expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
++  });
++
++  it("bounds initialization and closes the socket before session deletion", async () => {
++    vi.useFakeTimers();
++    const { client, calls } = fakeClient();
++    const close = vi.fn();
++    mocks.connect.mockResolvedValue({ close });
++    mocks.driverConnect.mockImplementation(() => new Promise(() => {}));
++    const provider = new CloudflareSandboxProvider({ client });
++    const pending = provider.allocate({
++      origin: "https://accounts.example.test",
++    });
++    const rejected = expect(pending).rejects.toThrow(
++      "initialization timed out",
++    );
++    await vi.advanceTimersByTimeAsync(15_001);
++    await rejected;
++    expect(close).toHaveBeenCalledOnce();
++    expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
++  });
++
++  it("returns the validated session ID when cleanup fails", async () => {
++    const { client } = fakeClient(500);
++    const close = vi.fn();
++    mocks.connect.mockResolvedValue({ close });
++    mocks.driverConnect.mockRejectedValue(new Error("driver refused"));
++    const provider = new CloudflareSandboxProvider({ client });
++    const failure = await provider
++      .allocate({ origin: "https://accounts.example.test" })
++      .catch((error: unknown) => error);
++    expect(failure).toBeInstanceOf(CloudflareSessionCleanupError);
++    expect(failure).toMatchObject({ sessionId: "sess-9" });
++    expect(close).toHaveBeenCalledOnce();
++  });
++
++  it("attempts session deletion even if closing the browser throws", async () => {
++    const { client, calls } = fakeClient();
++    mocks.connect.mockResolvedValue({ close: vi.fn() });
++    mocks.driverConnect.mockResolvedValue({
++      close: vi.fn().mockRejectedValue(new Error("close failed")),
++    });
++    const provider = new CloudflareSandboxProvider({ client });
++    const sandbox = await provider.allocate({
++      origin: "https://accounts.example.test",
++    });
++    await expect(sandbox.close()).rejects.toThrow("close failed");
++    expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
++  });
++});
+diff --git a/packages/agent-sandboxes/src/cloudflare-provider.ts b/packages/agent-sandboxes/src/cloudflare-provider.ts
+index eefb29f2f..d5be6d9de 100644
+--- a/packages/agent-sandboxes/src/cloudflare-provider.ts
++++ b/packages/agent-sandboxes/src/cloudflare-provider.ts
+@@ -5,11 +5,13 @@
+  * the run closes.
+  */
+ 
++import type { CdpConnection } from "./cdp-connection.js";
+ import { CdpBrowserDriver, type CdpDriverOptions } from "./cdp-driver.js";
+ import { connectCdp } from "./cdp-node-socket.js";
+ import {
+   CloudflareBrowserRunClient,
+   type CloudflareClientOptions,
++  CloudflareSessionCleanupError,
+ } from "./cloudflare-client.js";
+ import {
+   type AllocatedSandbox,
+@@ -26,6 +28,8 @@ export interface CloudflareProviderOptions
+ }
+ 
+ function clientFrom(options: CloudflareProviderOptions) {
++  if ("sessionTimeoutMs" in options)
++    throw new Error("cloudflare: sessionTimeoutMs is unsupported");
+   if (options.client) return options.client;
+   const accountId =
+     options.accountId ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? "";
+@@ -37,8 +41,9 @@ function clientFrom(options: CloudflareProviderOptions) {
+   const clientOptions: CloudflareClientOptions = { accountId, apiToken };
+   if (options.baseUrl) clientOptions.baseUrl = options.baseUrl;
+   if (options.fetchImpl) clientOptions.fetchImpl = options.fetchImpl;
+-  if (options.sessionTimeoutMs !== undefined)
+-    clientOptions.sessionTimeoutMs = options.sessionTimeoutMs;
++  if (options.allowInsecureLoopbackForTesting !== undefined)
++    clientOptions.allowInsecureLoopbackForTesting =
++      options.allowInsecureLoopbackForTesting;
+   if (options.keepAliveMs !== undefined)
+     clientOptions.keepAliveMs = options.keepAliveMs;
+   return new CloudflareBrowserRunClient(clientOptions);
+@@ -52,27 +57,53 @@ export class CloudflareSandboxProvider implements SandboxProvider {
+   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
+     const { allowedDomains } = allowedDomainsFor(request);
+     const client = clientFrom(this.options);
+-    const session = await client.createSession();
++    const session = await client.createSession(allowedDomains);
++    let connection: CdpConnection | undefined;
+     try {
+-      const connection = await connectCdp(session.webSocketUrl, {
++      connection = await connectCdp(session.webSocketUrl, {
+         headers: client.cdpHeaders(),
+       });
+       const driverOptions: CdpDriverOptions = { allowedDomains };
+       if (this.options.loadTimeoutMs !== undefined)
+         driverOptions.loadTimeoutMs = this.options.loadTimeoutMs;
+-      const browser = await CdpBrowserDriver.connect(connection, driverOptions);
++      let timeout: ReturnType<typeof setTimeout> | undefined;
++      const browser = await Promise.race([
++        CdpBrowserDriver.connect(connection, driverOptions),
++        new Promise<never>((_resolve, reject) => {
++          timeout = setTimeout(
++            () =>
++              reject(new Error("cloudflare: browser initialization timed out")),
++            15_000,
++          );
++        }),
++      ]).finally(() => clearTimeout(timeout));
+       return {
+         provider: this.id,
+         session: session.sessionId,
+         browser,
+         allowedDomains,
+         close: async () => {
+-          await browser.close();
+-          await client.closeSession(session.sessionId);
++          try {
++            await browser.close();
++          } finally {
++            await client.closeSession(session.sessionId);
++          }
+         },
+       };
+     } catch (error) {
+-      await client.closeSession(session.sessionId);
++      try {
++        connection?.close();
++      } catch {
++        // Attempt remote cleanup even if closing the local socket fails.
++      }
++      try {
++        await client.closeSession(session.sessionId);
++      } catch {
++        throw new CloudflareSessionCleanupError(
++          session.sessionId,
++          "cloudflare: browser connection and session cleanup failed",
++        );
++      }
+       throw error;
+     }
+   }
+diff --git a/packages/agent-sandboxes/src/cloudflare-redirect.test.ts b/packages/agent-sandboxes/src/cloudflare-redirect.test.ts
+new file mode 100644
+index 000000000..af33dfda0
+--- /dev/null
++++ b/packages/agent-sandboxes/src/cloudflare-redirect.test.ts
+@@ -0,0 +1,99 @@
++import { once } from "node:events";
++import { type Server, createServer } from "node:http";
++import { afterEach, describe, expect, it } from "vitest";
++import { WebSocketServer } from "ws";
++import { connectCdp } from "./cdp-node-socket.js";
++import { CloudflareBrowserRunClient } from "./cloudflare-client.js";
++
++const servers: Server[] = [];
++const websocketServers: WebSocketServer[] = [];
++
++async function listen(server: Server): Promise<string> {
++  servers.push(server);
++  server.listen(0, "127.0.0.1");
++  await once(server, "listening");
++  const address = server.address();
++  if (!address || typeof address === "string")
++    throw new Error("test listener missing");
++  return `http://127.0.0.1:${address.port}`;
++}
++
++afterEach(async () => {
++  for (const ws of websocketServers.splice(0)) {
++    for (const client of ws.clients) client.terminate();
++    await new Promise<void>((resolve) => ws.close(() => resolve()));
++  }
++  for (const server of servers.splice(0)) {
++    server.closeAllConnections();
++    await new Promise<void>((resolve) => server.close(() => resolve()));
++  }
++});
++
++describe("provider bearer redirects", () => {
++  it("refuses an HTTP redirect and keeps the bearer away from the second endpoint", async () => {
++    let reached = 0;
++    const target = await listen(
++      createServer((_request, response) => {
++        reached += 1;
++        response.writeHead(200).end();
++      }),
++    );
++    const redirect = await listen(
++      createServer((_request, response) => {
++        response.writeHead(302, { location: `${target}/stolen` }).end();
++      }),
++    );
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "test-bearer",
++      baseUrl: redirect,
++      allowInsecureLoopbackForTesting: true,
++    });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).rejects.toThrow("session allocation request failed");
++    expect(reached).toBe(0);
++  });
++
++  it("refuses a WebSocket redirect and keeps the bearer away from the second endpoint", async () => {
++    let reached = 0;
++    const targetServer = createServer();
++    targetServer.on("upgrade", (_request, socket) => {
++      reached += 1;
++      socket.destroy();
++    });
++    const target = await listen(targetServer);
++    const redirectServer = createServer();
++    redirectServer.on("upgrade", (_request, socket) => {
++      socket.end(
++        `HTTP/1.1 302 Found\r\nLocation: ${target.replace("http:", "ws:")}/stolen\r\nConnection: close\r\n\r\n`,
++      );
++    });
++    const redirect = await listen(redirectServer);
++    await expect(
++      connectCdp(redirect.replace("http:", "ws:"), {
++        headers: { authorization: "Bearer test-bearer" },
++      }),
++    ).rejects.toThrow("cdp: connection failed");
++    expect(reached).toBe(0);
++  });
++
++  it("sends the bearer to the intended socket and opens a real WebSocket", async () => {
++    let received = "";
++    const server = createServer();
++    const ws = new WebSocketServer({ noServer: true });
++    websocketServers.push(ws);
++    server.on("upgrade", (request, socket, head) => {
++      received = request.headers.authorization ?? "";
++      ws.handleUpgrade(request, socket, head, (connection) =>
++        ws.emit("connection", connection, request),
++      );
++    });
++    const base = await listen(server);
++    const connection = await connectCdp(base.replace("http:", "ws:"), {
++      headers: { authorization: "Bearer test-bearer" },
++    });
++    expect(received).toBe("Bearer test-bearer");
++    connection.close();
++  });
++});
