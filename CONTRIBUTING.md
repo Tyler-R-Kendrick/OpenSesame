@@ -21,6 +21,23 @@ code goes.
 **Cursor Cloud Agents** use the repo-managed environment in `.cursor/` (see
 [`AGENTS.md`](AGENTS.md) — Cursor Cloud specific instructions).
 
+## Report bugs
+
+File bugs in [GitHub Issues](https://github.com/Tyler-R-Kendrick/OpenSesame/issues).
+Never file a public issue carrying exploit details, tokens or claim secrets —
+vulnerabilities go through [SECURITY.md](SECURITY.md) private reporting instead.
+
+## Standards and tests
+
+- Coding standards are enforced by tooling, not convention: Biome (lint +
+  format) and the anti-slop Oxlint preset on TypeScript, rustfmt and Clippy on
+  Rust (the hooks run them; `pnpm lint`, `pnpm audit:clippy`).
+- New functionality includes automated tests that fail without it, beside the
+  existing suites for the plane it touches.
+- Test commands: `pnpm test` (every TypeScript workspace), `pnpm
+  test:integration`, and `cargo +1.88.0 test --workspace --all-targets` for
+  Rust.
+
 ## Before you push
 
 ```bash

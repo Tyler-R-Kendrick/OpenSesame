@@ -27,6 +27,7 @@ import type { SupportEntry } from "../session.js";
 import { useSupport } from "../session.js";
 import { SupportComposer } from "./SupportComposer.js";
 import "../support.css";
+import { ProjectLinks } from "./ProjectLinks.js";
 import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
 import { Availability } from "./SupportPanelChrome.js";
 import {
@@ -109,7 +110,9 @@ function topicsHere(
  * untrusted text, and a support answer is exactly where an injected page would
  * try to spend markup.
  */
-export function SupportPanel(): ReactElement {
+export function SupportPanel({
+  gate: atGate = false,
+}: { gate?: boolean }): ReactElement {
   const { view, support } = useSupport();
   const sheetRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -192,6 +195,7 @@ export function SupportPanel(): ReactElement {
         </div>
 
         <div className="sheet__body support__body">
+          {atGate ? null : <ProjectLinks />}
           <RemoteSupportPreview warning={view.warning} />
           <Availability
             availability={availability}
