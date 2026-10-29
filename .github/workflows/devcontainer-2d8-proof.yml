@@ -1,0 +1,38 @@
+name: Verify pinned devcontainer image
+on:
+  push:
+    branches: [review/devcontainer-2d8-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/devcontainer-2d8-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 4d7039c708c8251539c658aaa1e6426e8129bfac
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify candidate identity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 4d7039c708c8251539c658aaa1e6426e8129bfac
+          test "$(git rev-parse HEAD^{tree})" = 2fa2b3e7a0c0792ba287522c7553a06a1fb6146b
+          test "$(git rev-parse HEAD^)" = 2d8ad2307d3a2b535f6b09a37d35aee7c08ba8b1
+      - name: Build exact devcontainer and verify toolchain
+        run: |
+          set -euo pipefail
+          npx --yes @devcontainers/cli@0.90.0 build --workspace-folder "$PWD" --image-name opensesame-image-proof
+          docker run --rm --user vscode -v "$PWD:/workspace:ro" -w /workspace --entrypoint bash opensesame-image-proof -lc 'set -euo pipefail; node --version; rustup show active-toolchain; rustup run 1.88.0 rustc --version; rustup component list --installed | grep -E "^rustfmt-|^clippy-"; rustup target list --installed | grep -Fx wasm32-unknown-unknown'
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 2fa2b3e7a0c0792ba287522c7553a06a1fb6146b
+          git diff --exit-code
