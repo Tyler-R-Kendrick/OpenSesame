@@ -1,0 +1,64 @@
+name: CodeQL input policy proof
+on:
+  push:
+    branches: [review/codeql-input-policy-proof-v3-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/codeql-input-policy-proof-v3-20261029' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: source
+          ref: ac9a724c60e970da7a84fa49e7bd02a271194816
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Verify immutable source, patch and staged tree
+        working-directory: source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          echo '7cfaea2a4f37653a0ce9eb5b197f4ff24107aeaead82a2ef9648e3fcebc13870  ../controller/.github/proofs/codeql-input-policy.patch' | sha256sum --check
+          git apply --index ../controller/.github/proofs/codeql-input-policy.patch
+          test "$(git write-tree)" = cc71458e3f09234b88b79c8b2af857bef5e9c0d9
+          git diff --cached --check HEAD
+      - name: Verify scanner-policy and release-selection tests
+        working-directory: source
+        run: |
+          set -euo pipefail
+          node --check scripts/release/lib/candidate-api.mjs
+          node --test scripts/release/candidate-policy-scanner.test.mjs scripts/release/candidate-service.test.mjs scripts/release/candidate-selection.test.mjs
+      - name: Check actual selected policy files and modes
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-tree -r -z HEAD > "$RUNNER_TEMP/source-tree.bin"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { policyEntriesForTree } from './scripts/release/lib/candidate-api.mjs';
+          const entries = readFileSync(process.env.RUNNER_TEMP + '/source-tree.bin', 'utf8').split('\0').filter(Boolean).map((item) => {
+            const tab = item.indexOf('\t');
+            const mode = item.slice(0, tab).split(' ')[0];
+            return [item.slice(tab + 1), mode];
+          });
+          const selected = policyEntriesForTree(new Map(entries));
+          if (selected.some(([, mode]) => mode !== '100644' && mode !== '100755')) throw new Error('Unexpected non-regular policy entry');
+          for (const name of ['tools/pwa-tailscale-native-http/source.json', 'apps/android/android/app/build.gradle.kts', 'apps/android/scripts/build-core.sh', 'packages/app-core/scripts/sops-oracle/oracle.mjs']) {
+            if (!selected.some(([path]) => path === name)) throw new Error(`Missing expected policy input: ${name}`);
+          }
+          console.log(`Checked ${selected.length} policy paths`);
+          NODE
+      - name: Verify staged tree unchanged after tests
+        working-directory: source
+        run: test "$(git write-tree)" = cc71458e3f09234b88b79c8b2af857bef5e9c0d9
