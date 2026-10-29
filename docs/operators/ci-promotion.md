@@ -120,16 +120,25 @@ runs fail. Corresponding jobs retain tools, scope, timestamps, reports and logs.
 External model reviews, Deepsec investigations and cve-lite's local workflow
 remain supplemental; this pipeline does not claim those reviews occurred.
 
-The CodeQL gate retains and reports two reviewed JavaScript HMAC findings for
-the complete Git tree of commit `660eef2b47734044b89992721059dbfd85c86b9f`.
-They concern a federated-cookie integrity tag and an opaque journal filename,
-not password storage. The complete SARIF results and all source tree bytes are
-pinned. If either finding appears on any other candidate tree, qualification
-fails until its complete dataflows and dependencies are reviewed and the
-trusted controller policy is updated in a later commit. This intentionally
-blocks qualification for newer candidates until that review; it does not
-silence or dismiss the retained SARIF. Any additional finding, missing evidence,
-or analysis/extraction error also fails.
+The CodeQL gate retains two reviewed JavaScript HMAC findings on the historical
+`660eef2b47734044b89992721059dbfd85c86b9f` source. Their complete SARIF result
+digests, language categories and source inputs are recorded together in
+`scripts/release/codeql-reviewed-inputs.json`. The input digest covers every Git
+tree entry, including mode and object ID, except that review-record file itself.
+This exception lets a later controller record an independently reviewed source
+without requiring the record to contain its own digest. The record is part of
+the compatibility policy and must match the trusted controller. No native TLS result is currently authorized by this record.
+
+Any changed input or unrecorded result fails qualification until its complete
+dataflows, dependencies, analyzer output and source are reviewed. After review,
+compute the candidate input digest with the trusted controller's
+`candidateTree` and `candidateSourceDigest` functions, and add only the exact
+reviewed result digest and language under that input digest in the record.
+Changing only the record leaves the input digest stable. This process retains
+and does not dismiss SARIF. Missing evidence, additional findings and
+analysis/extraction errors also fail. Candidate build processes currently run
+on the analysis runners; a separate trustworthy analysis provenance boundary
+is still needed before these reports can establish isolation from such code.
 
 ## Operating a release
 
