@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: b57f29c7e64524897705be44b96ce42e9c2579d5
+          ref: d53586d36975c1bb1d7474518e310dd180aa6255
           persist-credentials: false
           fetch-depth: 2
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
@@ -23,8 +23,8 @@ jobs:
       - name: Verify exact signed source
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = b57f29c7e64524897705be44b96ce42e9c2579d5
-          test "$(git rev-parse HEAD^{tree})" = e8630aa00529bdf3bfcf233b810078c1dc1e0c05
+          test "$(git rev-parse HEAD)" = d53586d36975c1bb1d7474518e310dd180aa6255
+          test "$(git rev-parse HEAD^{tree})" = b55f8082200f76c8b6beec031966ef7068bd1244
           test "$(git rev-parse HEAD^)" = 8ef798d04a8d38c8d40a93d51ca017a6fccac01a
           git diff --exit-code
           test "$(pnpm --version)" = 9.15.0
@@ -35,10 +35,10 @@ jobs:
           set -euo pipefail
           test -d node_modules/.pnpm/@oxlint+binding-linux-x64-gnu@1.79.0
           test ! -d node_modules/.pnpm/@oxlint+binding-linux-x64-musl@1.79.0
-          test -d node_modules/.pnpm/@rollup+rollup-linux-x64-gnu@4.66.0
-          test ! -d node_modules/.pnpm/@rollup+rollup-linux-x64-musl@4.66.0
+          test -d node_modules/.pnpm/@rollup+rollup-linux-x64-gnu@4.65.0
+          test ! -d node_modules/.pnpm/@rollup+rollup-linux-x64-musl@4.65.0
           pnpm exec oxlint --version
-          node -e "require('./node_modules/.pnpm/rollup@4.66.0/node_modules/rollup'); console.log('Rollup loaded')"
+          node -e "require('./node_modules/.pnpm/rollup@4.65.0/node_modules/rollup'); console.log('Rollup loaded')"
       - name: Typecheck and test control plane
         run: |
           set -euo pipefail
@@ -48,6 +48,6 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^{tree})" = e8630aa00529bdf3bfcf233b810078c1dc1e0c05
+          test "$(git rev-parse HEAD^{tree})" = b55f8082200f76c8b6beec031966ef7068bd1244
           git diff --exit-code
           git diff --cached --exit-code
