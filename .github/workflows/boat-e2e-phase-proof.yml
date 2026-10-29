@@ -1,0 +1,43 @@
+name: Boat e2e phase diagnostic
+on:
+  push:
+    branches: [review/boat-e2e-phase-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/boat-e2e-phase-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 896a5cfc7871bec9daea918078bf07226aa3b3ca
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify immutable diagnostic source
+        run: |
+          test "$(git rev-parse HEAD)" = 896a5cfc7871bec9daea918078bf07226aa3b3ca
+          test "$(git rev-parse HEAD^{tree})" = 4e984c91c420d432714b0e92511ae684df977eb3
+          test -z "$(git status --porcelain)"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Trace test phases without credential values
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
+        run: |
+          set -euo pipefail
+          test -x "$AGENT_BROWSER_CHROME"
+          export AGENT_BROWSER="$PWD/packages/cua-password-reset/node_modules/.bin/agent-browser"
+          test -x "$AGENT_BROWSER"
+          pnpm --filter @opensesame/agent-sandboxes exec playwright test e2e/boat.spec.ts
+      - name: Verify source unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 4e984c91c420d432714b0e92511ae684df977eb3
+          git diff --exit-code
