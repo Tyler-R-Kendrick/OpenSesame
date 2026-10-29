@@ -44,6 +44,17 @@ fi
 # install is running. Never reset or rewrite them after the install; report
 # tracked changes so they can be reviewed instead.
 TRACKED=".codex/hooks.json .claude/settings.json skills-lock.json"
+hook_fingerprints() {
+  for f in .grok/hooks/impeccable.json .github/hooks/impeccable.json \
+           .cursor/hooks.json .claude/settings.local.json; do
+    if [ -f "$f" ]; then
+      sha256sum -- "$f" || return 1
+    else
+      printf 'absent  %s\n' "$f"
+    fi
+  done
+}
+HOOKS_BEFORE=$(hook_fingerprints) || degrade "could not fingerprint personal hooks before install"
 
 # 1. Install missing catalogue skills at upstream latest
 #    (lock key stitch::x installs as stitch-x/). Explicit agents only:
@@ -125,6 +136,11 @@ fi
 node scripts/dev/sync-agent-skills.mjs || degrade "skill mirror sync reported problems"
 if [ -n "$(git status --porcelain -- $TRACKED 2>/dev/null)" ]; then
   degrade "tracked skill configuration is modified; review changes before committing"
+fi
+if ! hooks_after=$(hook_fingerprints); then
+  degrade "could not fingerprint personal hooks after install"
+elif [ "$HOOKS_BEFORE" != "$hooks_after" ]; then
+  degrade "personal hook settings changed during install; review them before running an agent"
 fi
 
 # 8. Record currency durably, then gate. A failed check degrades the run

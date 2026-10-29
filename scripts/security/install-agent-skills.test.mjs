@@ -32,4 +32,13 @@ test('failed catalogue install is degraded and concurrent user edits survive', (
   assert.equal(readFileSync(join(root, '.claude/settings.local.json'), 'utf8'), '{"hooks":{"PreToolUse":[{"command":"impeccable personal"}]}}\n');
   assert.equal(readFileSync(join(root, '.grok/hooks/impeccable.json'), 'utf8'), '{"personal":"impeccable"}\n');
   assert.equal(JSON.parse(readFileSync(join(root, '.agents/.skills-currency.json'), 'utf8')).status, 'degraded');
+
+  // An installer-created hook is left for inspection, but must make an
+  // otherwise successful run visibly degraded before an agent is started.
+  put('.codex/hooks.json', '{\"original\":true}\n');
+  put('bin/npx', '#!/bin/sh\nmkdir -p .github/hooks\nprintf \"{}\\n\" > .github/hooks/impeccable.json\nexit 0\n');
+  chmodSync(join(root, 'bin/npx'), 0o755);
+  const output = execFileSync('bash', ['scripts/dev/install-agent-skills.sh'], { cwd: root, env: { ...process.env, PATH: join(root, 'bin') + ':' + process.env.PATH }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  assert.equal(JSON.parse(readFileSync(join(root, '.agents/.skills-currency.json'), 'utf8')).status, 'degraded');
+  assert.match(output, /status: degraded/u);
 });
