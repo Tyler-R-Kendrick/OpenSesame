@@ -15,10 +15,13 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           ref: e4e5e03d734b20ad6a26a83a233cf8a0224ef629
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 24
           package-manager-cache: false
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
       - name: Verify immutable source
         run: test "$(git rev-parse HEAD)" = e4e5e03d734b20ad6a26a83a233cf8a0224ef629
       - name: Exercise fixture repeatedly and expose clean-case failure diagnostics
@@ -33,14 +36,14 @@ jobs:
           s = p.read_text()
           original = '    assert.equal(result.error, undefined);\n    return result;'
           revised = '''    assert.equal(result.error, undefined);
-              if (name === "semgrep" && status === 0 && result.status !== 0)
+              if (name === "semgrep" && report === cleanSemgrep && status === 0 && result.status !== 0)
                 console.error("SANITIZED FIXTURE FAILURE:", result.stdout, result.stderr);
               return result;'''
           if s.count(original) != 1:
               raise RuntimeError('fixture changed')
           p.write_text(s.replace(original, revised))
           PY
-          for attempt in $(seq 1 20); do
+          for attempt in $(seq 1 5); do
             echo "attempt $attempt"
-            node --test --test-name-pattern="Semgrep requires" scripts/security/release-scanner-gates.test.mjs
+            node --test scripts/security/*.test.mjs
           done
