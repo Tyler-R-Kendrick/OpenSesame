@@ -51,6 +51,7 @@ async function fixture() {
     "net/tsdial/tsdial.go",
     "net/tlsdial/tlsdial.go",
     "ipn/ipnlocal/node_backend.go",
+    "derp/derphttp/derphttp_client.go",
     "licenses/tailscale.md",
   ]) {
     await mkdir(dirname(join(source, name)), { recursive: true });
