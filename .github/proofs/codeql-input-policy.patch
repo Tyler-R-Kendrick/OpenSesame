@@ -1,0 +1,156 @@
+diff --git a/scripts/release/candidate-policy-scanner.test.mjs b/scripts/release/candidate-policy-scanner.test.mjs
+index ad5d54fcc..f8310ae34 100644
+--- a/scripts/release/candidate-policy-scanner.test.mjs
++++ b/scripts/release/candidate-policy-scanner.test.mjs
+@@ -33,6 +33,36 @@ test("scanner configuration, ignores and helpers are part of policy compatibilit
+     "scripts/test/live-turn/audit-crypto.sh",
+     "scripts/test/live-turn/verify-crypto-subset.py",
+     "scripts/test/live-turn/new-helper.py",
++    "tools/pwa-tailscale-native-http/source.json",
++    "packages/app-core/scripts/sops-oracle/oracle.mjs",
++    "apps/android/scripts/build-core.sh",
++    "crates/authenticator-core/src/bin/uniffi-bindgen.rs",
++    "crates/authenticator-core/src/lib.rs",
++    "crates/authenticator-core/src/new-boundary.rs",
++    "apps/android/scripts/new-build-helper.py",
++    "apps/android/android/settings.gradle.kts",
++    "apps/android/android/build.gradle.kts",
++    "apps/android/android/app/build.gradle.kts",
++    "apps/android/android/gradle.properties",
++    "apps/android/android/app/new.gradle.kts",
++    "apps/android/android/buildSrc/src/main/Injected.kt",
++    "apps/android/android/gradle/verification-metadata.xml",
++    "scripts/test/live-turn/go.mod",
++    "scripts/test/live-turn/go.sum",
++    "go.work",
++    "scripts/test/live-turn/go.work",
++    "scripts/test/live-turn/go.work.sum",
++    "scripts/test/live-turn/third_party/x-crypto/go.mod",
++    "Cargo.toml",
++    "Cargo.lock",
++    "crates/example/Cargo.toml",
++    "crates/example/build.rs",
++    "rust-toolchain.toml",
++    "pnpm-lock.yaml",
++    "pnpm-workspace.yaml",
++    "apps/example/package.json",
++    "apps/example/.npmrc",
++    "apps/example/.pnpmfile.cjs",
+     "tools/pwa-tailscale-native-http/native-audit.mjs",
+     "tools/pwa-tailscale-native-http/compose-native.mjs",
+     "tools/pwa-tailscale-native-http/prepare-distribution.mjs",
+@@ -71,6 +101,22 @@ test("scanner configuration, ignores and helpers are part of policy compatibilit
+ test("missing required controller scanner configuration fails closed", async () => {
+   const api = new GitHub({ workflowSha: "a".repeat(40) });
+   const required = [
++    "tools/pwa-tailscale-native-http/source.json",
++    "packages/app-core/scripts/sops-oracle/oracle.mjs",
++    "apps/android/scripts/build-core.sh",
++    "crates/authenticator-core/src/bin/uniffi-bindgen.rs",
++    "crates/authenticator-core/src/lib.rs",
++    "apps/android/android/settings.gradle.kts",
++    "apps/android/android/build.gradle.kts",
++    "apps/android/android/app/build.gradle.kts",
++    "apps/android/android/gradle.properties",
++    "scripts/test/live-turn/go.mod",
++    "scripts/test/live-turn/go.sum",
++    "Cargo.toml",
++    "Cargo.lock",
++    "rust-toolchain.toml",
++    "pnpm-lock.yaml",
++    "pnpm-workspace.yaml",
+     ".github/codeql/codeql-config.yml",
+     ".gitleaks.toml",
+     ".cargo/audit.toml",
+@@ -118,3 +164,14 @@ test("policy compatibility includes Git file modes and rejects policy symlinks",
+   mode = "120000";
+   await assert.rejects(api.tree("c".repeat(40)), /Invalid policy file mode/);
+ });
++
++test("unrelated skill-package metadata is not executable extraction policy", () => {
++  const path = ".claude/skills/scandinavian-design/scripts/package.json";
++  assert.deepEqual(policyEntriesForTree(new Map([[path, "120000:blob"]])), []);
++  assert.deepEqual(
++    policyEntriesForTree(
++      new Map([["apps/example/package.json", "100644:blob"]]),
++    ),
++    [["apps/example/package.json", "100644:blob"]],
++  );
++});
+diff --git a/scripts/release/lib/candidate-api.mjs b/scripts/release/lib/candidate-api.mjs
+index 6ba04f127..60f26e11d 100644
+--- a/scripts/release/lib/candidate-api.mjs
++++ b/scripts/release/lib/candidate-api.mjs
+@@ -27,6 +27,22 @@ const SCANNER_CONFIG_NAMES = new Set([
+   "osv-scanner.toml",
+ ]);
+ const REQUIRED_SECURITY_POLICY_FILES = [
++  "tools/pwa-tailscale-native-http/source.json",
++  "packages/app-core/scripts/sops-oracle/oracle.mjs",
++  "apps/android/scripts/build-core.sh",
++  "crates/authenticator-core/src/bin/uniffi-bindgen.rs",
++  "crates/authenticator-core/src/lib.rs",
++  "apps/android/android/settings.gradle.kts",
++  "apps/android/android/build.gradle.kts",
++  "apps/android/android/app/build.gradle.kts",
++  "apps/android/android/gradle.properties",
++  "scripts/test/live-turn/go.mod",
++  "scripts/test/live-turn/go.sum",
++  "Cargo.toml",
++  "Cargo.lock",
++  "rust-toolchain.toml",
++  "pnpm-lock.yaml",
++  "pnpm-workspace.yaml",
+   ".github/codeql/codeql-config.yml",
+   ".gitleaks.toml",
+   ".cargo/audit.toml",
+@@ -45,10 +61,49 @@ function scannerHelper(path, prefix) {
+   );
+ }
+ 
++// These inputs can select build logic, compilers or dependencies executed by
++// CodeQL. Bind candidate copies to the controller; equality is only a drift
++// guard, not proof that compiled-language extraction is isolated.
++function extractionBuildInput(path) {
++  const parts = path.split("/");
++  const name = parts.at(-1);
++  return (
++    ((path === "package.json" ||
++      /^(?:apps|packages|examples|tests|tools)\//.test(path)) &&
++      name === "package.json") ||
++    [
++      "Cargo.toml",
++      "Cargo.lock",
++      "go.mod",
++      "go.sum",
++      "go.work",
++      "go.work.sum",
++      "build.rs",
++      ".npmrc",
++      ".pnpmfile.cjs",
++    ].includes(name) ||
++    ["rust-toolchain.toml", "pnpm-lock.yaml", "pnpm-workspace.yaml"].includes(
++      path,
++    ) ||
++    /(?:^|\/)gradle\.properties$/.test(path) ||
++    /\.gradle(?:\.kts)?$/.test(name) ||
++    parts.includes("buildSrc") ||
++    (path.startsWith("apps/android/android/gradle/") &&
++      !path.includes(".test.")) ||
++    (path.startsWith("apps/android/scripts/") && !path.includes(".test.")) ||
++    path.startsWith("crates/authenticator-core/") ||
++    (path.startsWith("packages/app-core/scripts/sops-oracle/") &&
++      /\.(?:mjs|cjs|js|json)$/.test(name) &&
++      !path.includes(".test.")) ||
++    path === "tools/pwa-tailscale-native-http/source.json"
++  );
++}
++
+ function scannerPolicyPath(path) {
+   const parts = path.split("/");
+   const name = parts.at(-1);
+   return (
++    extractionBuildInput(path) ||
+     SCANNER_CONFIG_NAMES.has(name) ||
+     path.startsWith(".github/codeql/") ||
+     parts.includes(".semgrep") ||
