@@ -158,7 +158,10 @@ function useNativeForm(props: Props) {
         setValues(nativeFieldValues(method.fields, values, false));
         onFlash({
           tone: "ok",
-          text: `${descriptor.name} access verified and saved on this device.`,
+          text:
+            method.id === "native-local"
+              ? `${descriptor.name} configuration validated locally and saved on this device. Provider access was not checked.`
+              : `${descriptor.name} access verified and saved on this device.`,
         });
       } else {
         onFlash({

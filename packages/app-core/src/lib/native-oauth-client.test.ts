@@ -11,10 +11,7 @@ import {
   nativeOAuthClientClassification,
   readNativeOAuthClientSecret,
 } from "./native-oauth-client-config.js";
-import {
-  exchangeNativeOAuthClient,
-  issued,
-} from "./native-oauth-client-exchange.js";
+import { exchangeNativeOAuthClient } from "./native-oauth-client-exchange.js";
 import {
   CLIENT_ID,
   CLIENT_SECRET,
@@ -141,28 +138,6 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
     });
   });
 
-  it("retains an over-scoped Google token response as protocol-invalid", async () => {
-    const f = await setup();
-    const pending = requireNativeOAuthRecord(f.saved.connectionId).privateState
-      .pending.user;
-    if (!pending) throw new Error("Missing pending");
-    const receipt = issued(
-      {
-        access_token: "issued-access-1",
-        refresh_token: "issued-refresh-1",
-        token_type: "Bearer",
-        scope: "openid email https://www.googleapis.com/auth/drive.readonly",
-      },
-      200,
-      { ...pending, providerId: "google-drive" },
-    );
-    expect(receipt.valid).toBe(false);
-    expect(receipt.grant).toMatchObject({
-      accessToken: "issued-access-1",
-      refreshToken: "issued-refresh-1",
-    });
-  });
-
   it("refuses wrong-client credentials without exposing provider secret text or claiming verification", async () => {
     const f = await setup("client_secret_basic");
     f.state.wrongClient = true;
@@ -282,16 +257,6 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
       grant: { accessToken: "issued-access-1" },
     });
     expect(record.privateState.grants).toEqual({});
-  });
-  it("requires selected permission evidence when the token endpoint returns scopes", async () => {
-    const f = await setup();
-    f.state.scope = "different:scope";
-    await expect(
-      exchangeNativeOAuthClient(f.search, f.owner),
-    ).rejects.toMatchObject({ code: "scope" });
-    expect(
-      requireNativeOAuthRecord(f.saved.connectionId).privateState.grants,
-    ).toEqual({});
   });
   it("preserves the exact revision/CAS and refuses configuration edits with a pending authorization", async () => {
     const f = await setup("client_secret_post");

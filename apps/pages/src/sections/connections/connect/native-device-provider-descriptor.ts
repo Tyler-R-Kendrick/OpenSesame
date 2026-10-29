@@ -9,9 +9,11 @@ import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
+import { nativeCatalogConfiguration } from "@opensesame/app-core/lib/native-catalog-configuration.js";
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
+import { nativeCatalogConfigurationDescriptor } from "./native-catalog-configuration-descriptor.js";
 import type {
   NativeConnectorDescriptor,
   NativeMethodDescriptor,
@@ -168,6 +170,13 @@ export function nativeDeviceProviderDescriptor(
     return null;
   const provider = catalogProvider(providerId);
   if (!provider) return null;
+  if (nativeCatalogConfiguration(provider.id)) {
+    const configuration = nativeCatalogConfigurationDescriptor(
+      provider,
+      availability.has("native-local", provider.id),
+    );
+    if (configuration) return { ...configuration, providerId };
+  }
   // Aliases retain their route identity; driver lookup still uses the compiled id.
   const instance = ["vault", "openbao"].includes(provider.id);
   if (instance) {
