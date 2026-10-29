@@ -273,7 +273,7 @@ index d34f30e3b..5185b2ccd 100644
    };
  }
 diff --git a/packages/agent-sandboxes/src/relay.test.ts b/packages/agent-sandboxes/src/relay.test.ts
-index 158d039bb..f5a4a35e7 100644
+index 158d039bb..8461d45ae 100644
 --- a/packages/agent-sandboxes/src/relay.test.ts
 +++ b/packages/agent-sandboxes/src/relay.test.ts
 @@ -1,8 +1,10 @@
@@ -295,12 +295,13 @@ index 158d039bb..f5a4a35e7 100644
    });
  
    it("drives the hosted browser over an authenticated socket", async () => {
-@@ -80,4 +83,120 @@ describe("driver relay", () => {
+@@ -80,4 +83,121 @@ describe("driver relay", () => {
        "navigation blocked",
      );
    });
 +  it("allows retrying close when the hosted driver fails to close", async () => {
 +    const hosted = fakeDriver();
++    if (!hosted.close) throw new Error("fake driver requires close");
 +    vi.mocked(hosted.close).mockRejectedValueOnce(new Error("close failed"));
 +    server = await startRelayServer({ token: "t", driver: hosted });
 +    const driver = relayDriverOverWebSocket(server.url, { token: "t" });
@@ -746,7 +747,7 @@ index 000000000..21d4e9813
 +  };
 +}
 diff --git a/packages/agent-sandboxes/src/vnet-server.test.ts b/packages/agent-sandboxes/src/vnet-server.test.ts
-index b3bffaec2..cc8742041 100644
+index b3bffaec2..bf092e822 100644
 --- a/packages/agent-sandboxes/src/vnet-server.test.ts
 +++ b/packages/agent-sandboxes/src/vnet-server.test.ts
 @@ -31,7 +31,10 @@ describe("virtual network relay", () => {
@@ -833,7 +834,7 @@ index b3bffaec2..cc8742041 100644
 +describe("session lifecycle and redirects", () => {
 +  it("closes authenticated sessions and expires idle sessions while preserving active resume", async () => {
 +    let clock = 0;
-+    const targetFetch: typeof fetch = async (_url, init) =>
++    const targetFetch: typeof globalThis.fetch = async (_url, init) =>
 +      new Response(new Headers(init?.headers).get("cookie") ?? "", {
 +        headers: { "set-cookie": "session=abc; Path=/; Secure" },
 +      });
@@ -881,7 +882,7 @@ index b3bffaec2..cc8742041 100644
 +    const entered = new Promise<void>((resolve) => {
 +      started = resolve;
 +    });
-+    const targetFetch: typeof fetch = async () => {
++    const targetFetch: typeof globalThis.fetch = async () => {
 +      started?.();
 +      await new Promise<void>((resolve) => {
 +        release = resolve;
@@ -919,7 +920,7 @@ index b3bffaec2..cc8742041 100644
 +      headers: Headers;
 +    }> = [];
 +    let downgrade = false;
-+    const targetFetch: typeof fetch = async (input, init) => {
++    const targetFetch: typeof globalThis.fetch = async (input, init) => {
 +      const url = input.toString();
 +      seen.push({
 +        url,
