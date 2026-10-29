@@ -1,0 +1,51 @@
+name: Review main quality repair
+on:
+  push:
+    branches: [review/main-quality-tests-v3-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/main-quality-tests-v3-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify patch and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '57ec3d6ae384ae33b27f64d77a54ed05f1075a8e478ad714146e696b235e7c83  .github/quality-repair.patch' | sha256sum -c -
+          cp .github/quality-repair.patch "$RUNNER_TEMP/quality-repair.patch"
+          git checkout --detach ac9a724c60e970da7a84fa49e7bd02a271194816
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          git apply --index "$RUNNER_TEMP/quality-repair.patch"
+          test "$(git write-tree)" = 7a7c1d71a076bce83912e098adfef2cdce345ea7
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint modified files
+        run: |
+          pnpm exec biome check apps/pages/src/modules/ai.password-reset/TakeoverPanel.tsx apps/pages/src/modules/ai.password-reset/TakeoverPanel.test.tsx apps/pages/src/modules/ai.password-reset/runtime.test.ts apps/pages/src/modules/ai.password-reset/takeover-client.test.ts apps/pages/src/sections/connections/SettingsPage.roads.test-support.tsx packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-connector-availability.test.ts
+          pnpm exec oxlint --config oxlint.config.ts --disable-nested-config --report-unused-disable-directives-severity=error --deny-warnings apps/pages/src/modules/ai.password-reset/TakeoverPanel.tsx apps/pages/src/modules/ai.password-reset/TakeoverPanel.test.tsx apps/pages/src/modules/ai.password-reset/runtime.test.ts apps/pages/src/modules/ai.password-reset/takeover-client.test.ts apps/pages/src/sections/connections/SettingsPage.roads.test-support.tsx packages/app-core/src/lib/native-api-target.test.ts packages/app-core/src/lib/native-connector-availability.test.ts
+      - name: Typecheck affected packages
+        run: |
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/pages typecheck
+      - name: Exercise affected tests
+        run: |
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-api-target.test.ts src/lib/native-connector-availability.test.ts
+          pnpm --filter @opensesame/pages exec vitest run src/modules/ai.password-reset/TakeoverPanel.test.tsx src/modules/ai.password-reset/runtime.test.ts src/modules/ai.password-reset/takeover-client.test.ts
+          pnpm --filter @opensesame/pages exec vitest related --run src/sections/connections/SettingsPage.roads.test-support.tsx
+      - name: Check unchanged candidate tree
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          test "$(git write-tree)" = 7a7c1d71a076bce83912e098adfef2cdce345ea7
+          git diff --exit-code
