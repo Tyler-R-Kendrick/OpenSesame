@@ -1,3 +1,7 @@
+import {
+  SANDBOX_PROVIDER_IDS,
+  type SandboxProviderId,
+} from "@opensesame/agent-sandboxes";
 import { leftover, takeOption } from "./parse-options.js";
 import type { GlobalFlags } from "./parse.js";
 
@@ -29,6 +33,7 @@ export type PasswordResetCommand = {
   recipe?: string;
   transport?: "cdp" | "extension" | "proxy";
   runtimeModule?: string;
+  provider?: SandboxProviderId;
   runtimeResource?: string;
   model?: string;
   modelBaseURL?: string;
@@ -53,6 +58,7 @@ export function parsePasswordReset(
     recipe: takeOption(args, "--recipe"),
     transport: takeOption(args, "--transport"),
     runtimeModule: takeOption(args, "--runtime"),
+    provider: takeOption(args, "--provider"),
     runtimeResource: takeOption(args, "--runtime-resource"),
     model: takeOption(args, "--model"),
     modelBaseURL: takeOption(args, "--model-base-url"),
@@ -61,6 +67,7 @@ export function parsePasswordReset(
     maxSteps,
   };
   validateTransport(options.transport);
+  validateProvider(options.provider);
   const command: PasswordResetCommand = {
     name: "password-reset",
     action,
@@ -93,6 +100,16 @@ function readMaxSteps(args: string[]): number | undefined {
   )
     throw new Error("password-reset --max-steps must be between 1 and 80");
   return maxSteps;
+}
+
+function validateProvider(provider: string | undefined): void {
+  if (
+    provider !== undefined &&
+    !SANDBOX_PROVIDER_IDS.some((candidate) => candidate === provider)
+  )
+    throw new Error(
+      `password-reset --provider must be one of ${SANDBOX_PROVIDER_IDS.join(", ")}`,
+    );
 }
 
 function validateTransport(transport: string | undefined): void {

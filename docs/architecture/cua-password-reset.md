@@ -200,7 +200,37 @@ Persisted model state is bounded typed decisions and redacted structural
 summaries, not provider-native hidden state. Journal, receipts and notices use
 the shared scrubber and sealed storage.
 
-## 8. Static PWA and run transport
+## 8. Sandbox providers
+
+The bundled CLI runtime allocates its browser through
+`@opensesame/agent-sandboxes`, selected with `runtime.provider` in the
+reset config (or `--provider` at configure time). The default is `local`:
+an ephemeral agent-browser session on the user's device with no account
+to provision. `cloudflare` allocates a Browser Run session over REST and
+drives it over CDP. `boat` allocates a Boat cloud sandbox — registering
+the agent through Boat's auth.md flow when no API key is configured — and
+drives a relay agent inside it. `wasm-relay` drives the DOM-level driver
+whose network is virtualized through a user-controlled relay
+(`OPENSESAME_VNET_RELAY_URL` / `OPENSESAME_VNET_RELAY_TOKEN`), for hosts
+with no direct network. Provider API keys are supplied through the environment.
+Boat agent claim state is stored as plaintext in a private `0600` file beside
+the config, including claim link material and identity assertions; it is not
+encrypted. The directory must be owned by the current user and not writable by
+other users. Every ancestor must be owned by root or the current user;
+ancestors writable by others must also have the sticky bit. Boat state
+persistence currently requires POSIX file protections and may be unavailable
+in user namespaces that hide root ownership. An interrupted process may leave `.boat-agent-state.lock`; after confirming no
+Boat allocation is running, remove that lock to retry. A rotated provider
+assertion can be lost if the provider response succeeds but persistence fails
+and the process exits. A lost registration or rotation response can also leave
+an orphaned registration or prevent recovery; the local lock cannot make the
+remote operation atomic.
+When allocation itself needs a person (Boat claim, billing checkout), the
+provider raises `SandboxClaimRequiredError` and the CLI prints the link
+and code instead of inventing a second human channel — the same error
+the PWA surfaces through its notifications queue.
+
+## 9. Static PWA and run transport
 
 The static PWA works with no backend. A remote person/driver pair uses the
 existing live transport port and WebRTC adapter with sealed pairing, disclosed
@@ -210,7 +240,7 @@ vault, proxy or screenshot store. ADR 0196's seat lessons apply: empty vault
 catalog, seat-bound approval, strict frames, per-call grant recheck and revocation
 on seat/session end. Reconnect fetches fresh status; it never replays an effect.
 
-## 9. Implementation and test sequence
+## 10. Implementation and test sequence
 
 1. **Contracts:** replay `spec/conformance/cua-password-reset.json` in Rust and
    TypeScript; registry parity/mirrors; strict decision schemas.
