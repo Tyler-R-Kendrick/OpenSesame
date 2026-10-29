@@ -136,7 +136,9 @@ for device-login setups (see `.grok/config.toml`).
   Node 22 feature at build time, user-writable corepack
   (`--install-directory "$HOME/.local/bin"`, `COREPACK_HOME` under
   `/home/vscode`), frozen-lockfile install in `updateContentCommand`,
-  hooks in `postCreateCommand`, named volumes for cargo/pnpm/corepack.
+  hooks in `postCreateCommand`; only the pnpm store is a named
+  (per-workspace) volume — executable caches (cargo target, corepack)
+  stay container-local so no cache crosses checkouts.
   `postStartCommand` runs `scripts/dev/install-agent-skills.sh` only
   (latest third-party skills into gitignored roots; warns and continues
   offline). No other `postAttach` work, no host paths, no dotfiles.
@@ -162,8 +164,9 @@ for device-login setups (see `.grok/config.toml`).
   plain `git revert` of the config commit — personal state above is
   unaffected because none of it is tracked.
 - Devcontainer: rebuild (`Dev Containers: Rebuild Container`) after image
-  or feature changes; named volumes survive rebuilds. Delete the
-  `opensesame-*` volumes to fully reset caches.
+  or feature changes; the per-workspace pnpm-store volume survives
+  rebuilds, executable caches do not. Delete the `opensesame-*` volumes
+  to fully reset caches.
 
 ## Acceptance checklist
 

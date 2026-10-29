@@ -33,8 +33,6 @@
   },
   "remoteUser": "vscode",
   "mounts": [
-    "source=opensesame-cargo-target-${localWorkspaceFolderBasename},target=/home/vscode/.cache/packages/cargo-target,type=volume",
-    "source=opensesame-pnpm-store-${localWorkspaceFolderBasename},target=/home/vscode/.local/share/pnpm/store,type=volume",
-    "source=opensesame-corepack-${localWorkspaceFolderBasename},target=/home/vscode/.cache/node/corepack,type=volume"
+    "source=opensesame-pnpm-store-${localWorkspaceFolderBasename},target=/home/vscode/.local/share/pnpm/store,type=volume"
   ]
 }
