@@ -2,9 +2,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { projectBrowserPolicy } from "../../scripts/emit-browser-policy.mjs";
 import { connectPlan, connectPlans } from "./connect-plan.js";
 import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
 import {
+  NativeBrowserPolicySchema,
   assertNativeBrowserMcpPolicy,
   bindNativeBrowserPolicyOrigin,
   nativeBrowserApiPolicy,
@@ -12,6 +14,7 @@ import {
   nativeBrowserMethodPolicy,
   nativeBrowserOAuthPolicy,
 } from "./native-browser-policy.js";
+import { NATIVE_BROWSER_POLICY_RUNTIME_JSON } from "./native-browser-policy.runtime.generated.js";
 import { NativeMcpSession } from "./native-mcp-protocol.js";
 
 const authored = JSON.parse(
@@ -29,6 +32,15 @@ describe("audited browser-only policy", () => {
   it("compiles the single authored source without drift", () => {
     expect(JSON.parse(NATIVE_BROWSER_POLICY_JSON)).toEqual(authored);
     expect(NATIVE_BROWSER_POLICY_JSON).toBe(JSON.stringify(authored));
+  });
+  it("retains every policy decision field in the runtime projection", () => {
+    expect(NATIVE_BROWSER_POLICY_RUNTIME_JSON).toBe(
+      JSON.stringify(projectBrowserPolicy(authored)),
+    );
+    const runtime = JSON.parse(NATIVE_BROWSER_POLICY_RUNTIME_JSON);
+    expect(NativeBrowserPolicySchema.parse(runtime)).toEqual(
+      NativeBrowserPolicySchema.parse(authored),
+    );
   });
   it("contains only TLS-verified concrete refusals with reproducible public evidence", () => {
     expect(authored.audited_origin).toBe("https://tyler-r-kendrick.github.io");
