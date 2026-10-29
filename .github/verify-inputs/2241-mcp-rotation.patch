@@ -1,0 +1,377 @@
+diff --git a/packages/app-core/src/lib/native-mcp-connectors.test-support.ts b/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
+index 9b736e26a..ab5beabf1 100644
+--- a/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
++++ b/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
+@@ -51,6 +51,8 @@ export type ConnectorFixtureOptions = {
+   management?: boolean;
+   deleteFailure?: boolean;
+   onRegistration?: () => void;
++  requestedScopes?: string[];
++  token?: JsonObject;
+ };
+ async function oauthFixtureFetch(
+   request: Request,
+@@ -80,6 +82,7 @@ async function oauthFixtureFetch(
+   return fixture(target, {
+     registered,
+     tokenFailure: options.tokenFailure,
++    token: options.token,
+     onToken: options.onToken,
+   }).ports.fetch(request);
+ }
+@@ -189,7 +192,7 @@ export async function mcpConnectorFixture(
+     method: "mcp",
+     parameters: {},
+     credentials: {},
+-    requestedScopes: { user: [] },
++    requestedScopes: { user: options.requestedScopes ?? [] },
+     targetIds: {},
+   };
+   const saved = await configureNativeMcpConnector(draft);
+diff --git a/packages/app-core/src/lib/native-mcp-connectors.test.ts b/packages/app-core/src/lib/native-mcp-connectors.test.ts
+index de23b88fe..eade02c2e 100644
+--- a/packages/app-core/src/lib/native-mcp-connectors.test.ts
++++ b/packages/app-core/src/lib/native-mcp-connectors.test.ts
+@@ -225,6 +225,219 @@ describe("sealed native MCP connector lifecycle", () => {
+     );
+     expect(refreshed).toContain("refresh_token");
+   });
++  it("retains an under-scoped initial grant without sending it to the MCP resource", async () => {
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid", "AdobeID"],
++      token: {
++        access_token: "under-scoped-access",
++        refresh_token: "under-scoped-refresh",
++        token_type: "Bearer",
++        scope: "openid",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "permission" });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]?.grant).toMatchObject({
++      accessToken: "under-scoped-access",
++      refreshToken: "under-scoped-refresh",
++      scopes: ["openid"],
++    });
++    expect(context.methods).toEqual([]);
++    expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++  });
++
++  it("rejects a previously saved under-scoped grant before MCP verification or use", async () => {
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token: {
++        access_token: "issued-access",
++        refresh_token: "rotated-refresh",
++        token_type: "Bearer",
++        scope: "openid AdobeID",
++      },
++    });
++    const record = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(record),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.scopes = ["openid"];
++        current.runtime.grants[0].grantedScopes = ["openid"];
++        return current;
++      },
++    );
++    context.methods.splice(0);
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "permission",
++    });
++    await expect(listNativeMcpTools(context.id)).rejects.toMatchObject({
++      code: "permission",
++    });
++    expect(context.methods).toEqual([]);
++  });
++
++  it("retains an under-scoped rotated grant for cleanup without contacting MCP", async () => {
++    const token = {
++      access_token: "initial-access",
++      refresh_token: "initial-refresh",
++      token_type: "Bearer",
++      scope: "openid AdobeID",
++      expires_in: 3600,
++    };
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token,
++    });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    token.access_token = "replacement-access";
++    token.refresh_token = "replacement-refresh";
++    token.scope = "openid";
++    context.methods.splice(0);
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "permission",
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: { phase: "verify" },
++      grant: {
++        accessToken: "replacement-access",
++        refreshToken: "replacement-refresh",
++        scopes: ["openid"],
++      },
++    });
++    expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    expect(context.methods).toEqual([]);
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual(
++      expect.arrayContaining(["replacement-refresh", "replacement-access"]),
++    );
++  });
++
++  it("keeps the old grant and requests reauthorization for invalid refresh", async () => {
++    const options = { tokenFailure: false };
++    const context = await authorized(options);
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    options.tokenFailure = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "authorization",
++      oauthError: "invalid_grant",
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery).toEqual([]);
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "rotated-refresh",
++    );
++    expect(record.runtime.grants[0].needsReauth).toBe(true);
++  });
++
++  it("keeps the old grant after a refresh failure before token issuance", async () => {
++    const options = { metadataFailure: false };
++    const context = await authorized(options);
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    options.metadataFailure = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery).toEqual([]);
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "rotated-refresh",
++    );
++    expect(record.privateState.verification).toBeNull();
++  });
++
++  it("retries sealing a rotated pair after a transient storage failure before cleanup", async () => {
++    const token = {
++      access_token: "initial-access",
++      refresh_token: "initial-refresh",
++      token_type: "Bearer",
++      scope: "openid AdobeID",
++      expires_in: 3600,
++    };
++    let fail = false;
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token,
++      onToken: () => {
++        if (fail)
++          vi.mocked(kvSeams.kvSetDurable).mockRejectedValueOnce(
++            new Error("storage unavailable"),
++          );
++      },
++    });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    token.access_token = "replacement-access";
++    token.refresh_token = "replacement-refresh";
++    fail = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery[0]?.credentials?.phase).toBe("refresh");
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "initial-refresh",
++    );
++    fail = false;
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual(
++      expect.arrayContaining(["replacement-refresh", "replacement-access"]),
++    );
++  });
++
+   it("retains a DCR response across failed sealing and resumes consent without creating another registration", async () => {
+     let fail = true;
+     const context = await mcpConnectorFixture({
+diff --git a/packages/app-core/src/lib/native-mcp-proof.ts b/packages/app-core/src/lib/native-mcp-proof.ts
+index 9502c73af..3d72dfd30 100644
+--- a/packages/app-core/src/lib/native-mcp-proof.ts
++++ b/packages/app-core/src/lib/native-mcp-proof.ts
+@@ -12,7 +12,10 @@ import {
+   nativeMcpRecordBinding,
+ } from "./native-mcp-profile.js";
+ import { requireNativeMcpRecord } from "./native-mcp-records.js";
+-import { nativeMcpRecordSession } from "./native-mcp-session.js";
++import {
++  assertNativeMcpGrantScopes,
++  nativeMcpRecordSession,
++} from "./native-mcp-session.js";
+ import { NativeMcpError } from "./native-mcp-target.js";
+ import { nativeOAuthGuard } from "./native-oauth-session.js";
+ 
+@@ -22,13 +25,7 @@ function verified(
+ ): NativeConnectorRecord {
+   const verifiedAt = Math.max(Date.now(), (record.runtime.verifiedAt ?? 0) + 1);
+   const binding = nativeMcpRecordBinding(record.configuration);
+-  if (
+-    grant?.scopes &&
+-    (record.configuration.requestedScopes.user ?? []).some(
+-      (scope) => !grant.scopes?.includes(scope),
+-    )
+-  )
+-    throw new NativeMcpError("permission");
++  assertNativeMcpGrantScopes(record, grant);
+   record.privateState.grants = grant ? { user: grant } : {};
+   record.privateState.verification = {
+     fingerprint: binding.fingerprint,
+diff --git a/packages/app-core/src/lib/native-mcp-refresh.ts b/packages/app-core/src/lib/native-mcp-refresh.ts
+index d2464e1ff..ad94b6523 100644
+--- a/packages/app-core/src/lib/native-mcp-refresh.ts
++++ b/packages/app-core/src/lib/native-mcp-refresh.ts
+@@ -63,7 +63,7 @@ export async function refreshNativeMcpAuthorization(
+     initial.connectionId,
+     intent.id,
+   );
+-  let journaled = false;
++  let received = false;
+   try {
+     const protocol = new NativeMcpPublicOAuth(target, {
+       ...transport,
+@@ -73,6 +73,7 @@ export async function refreshNativeMcpAuthorization(
+       nativeMcpClient(initial),
+       old.refreshToken,
+     );
++    received = true;
+     const grant = nativeMcpIssuedGrant({ ...old, targetId }, tokens);
+     grant.refreshToken = grant.refreshToken ?? old.refreshToken;
+     grant.scopes = grant.scopes ?? old.scopes;
+@@ -82,7 +83,6 @@ export async function refreshNativeMcpAuthorization(
+       grant,
+       nativeMcpClassification,
+     );
+-    journaled = true;
+     transport.assertCurrent();
+     if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
+     return await activateNativeMcpGrant(
+@@ -92,19 +92,16 @@ export async function refreshNativeMcpAuthorization(
+       transport,
+     );
+   } catch (error) {
+-    if (
+-      error instanceof NativeMcpAuthError &&
+-      error.oauthError === "invalid_grant"
+-    ) {
+-      await markInvalidRefresh(initial.connectionId, intent.id);
+-    } else if (journaled) {
+-      // The provider may have rotated the refresh token but the replacement
+-      // was not activated; keep the old grant but require consent again.
+-      await markInvalidRefresh(initial.connectionId, intent.id);
+-    } else {
+-      // Network, metadata, 5xx or SDK failure before any replacement was
+-      // journaled: unwinding the intent keeps verify/re-authorize/remove open.
+-      await clearRefreshIntent(initial.connectionId, intent.id);
++    // Once a token response is captured, retain its recovery obligation.
++    // If sealing failed, the in-memory journal can retry against that intent;
++    // if verification failed, the sealed replacement can be revoked.
++    if (!received) {
++      if (
++        error instanceof NativeMcpAuthError &&
++        error.oauthError === "invalid_grant"
++      )
++        await markInvalidRefresh(initial.connectionId, intent.id);
++      else await clearRefreshIntent(initial.connectionId, intent.id);
+     }
+     throw error;
+   } finally {
+diff --git a/packages/app-core/src/lib/native-mcp-session.ts b/packages/app-core/src/lib/native-mcp-session.ts
+index 6196d7c8e..ae2677e46 100644
+--- a/packages/app-core/src/lib/native-mcp-session.ts
++++ b/packages/app-core/src/lib/native-mcp-session.ts
+@@ -35,6 +35,20 @@ export async function markNativeMcpRefused(
+     },
+   );
+ }
++/** Enforce selected permissions before any grant is sent to the MCP resource. */
++export function assertNativeMcpGrantScopes(
++  record: NativeConnectorRecord,
++  grant?: NativeGrant,
++): void {
++  if (
++    grant?.scopes &&
++    (record.configuration.requestedScopes.user ?? []).some(
++      (scope) => !grant.scopes?.includes(scope),
++    )
++  )
++    throw new NativeMcpError("permission");
++}
++
+ export async function nativeMcpRecordSession(
+   record: NativeConnectorRecord,
+   transport: NativeProviderTransport,
+@@ -48,6 +62,7 @@ export async function nativeMcpRecordSession(
+   );
+   const binding = nativeMcpRecordBinding(record.configuration);
+   const grant = issuedGrant ?? record.privateState.grants.user;
++  assertNativeMcpGrantScopes(record, grant);
+   if (grant && grant.expiresAt !== null && grant.expiresAt <= Date.now())
+     throw new NativeMcpError("authorization");
+   const assertCurrent = () => {
