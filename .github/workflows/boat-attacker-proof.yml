@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           path: candidate
-          ref: 7e2b44d22673abdf710f5e611887b663744f1868
+          ref: d68cc3c75ebf43224e339f2d1448afadd671bedc
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
         with:
@@ -36,12 +36,14 @@ jobs:
       - name: Apply exact synthetic regression and candidate
         run: |
           set -euo pipefail
+          test "$(git -C baseline rev-parse HEAD)" = 7e2b44d22673abdf710f5e611887b663744f1868
+          test "$(git -C candidate rev-parse HEAD)" = d68cc3c75ebf43224e339f2d1448afadd671bedc
+          test "$(git -C candidate rev-parse HEAD^{tree})" = 6400049687022ccfe17e4a1a1756605e1b021b5e
           printf '%s  %s\n' 992913a56660f416ed31ae530ec153ae1f03b0e6dd56e7faba8249d3011b3afe controller/.github/verify-inputs/boat-attack-baseline.patch | sha256sum --check
-          printf '%s  %s\n' 4de022e41779b1fcc2370a851ac07b5008e789c051a421f47a4c4d09a44982ca controller/.github/verify-inputs/boat-v7-attack-proof.patch | sha256sum --check
           git -C baseline apply --index ../controller/.github/verify-inputs/boat-attack-baseline.patch
-          git -C candidate apply --index ../controller/.github/verify-inputs/boat-v7-attack-proof.patch
+          git -C candidate apply --index ../controller/.github/verify-inputs/boat-attack-baseline.patch
           test "$(git -C baseline write-tree)" = 4027801f1cb7e6868c409a55a3fa611d71543685
-          test "$(git -C candidate write-tree)" = 272a72f6befa430bba6b4f41cc214b76755da4e8
+          test "$(git -C candidate write-tree)" = c19035e53636a4522f8561b662876facd5596c56
           git -C baseline diff --exit-code
           git -C candidate diff --exit-code
       - name: Install frozen graphs
@@ -53,8 +55,10 @@ jobs:
         working-directory: baseline
         run: |
           set -uo pipefail
+          set +e
           pnpm --filter @opensesame/agent-sandboxes exec vitest run src/boat-hosted-destination.test.ts --maxWorkers=1 > "$RUNNER_TEMP/boat-red.log" 2>&1
           status=$?
+          set -e
           cat "$RUNNER_TEMP/boat-red.log"
           test "$status" -ne 0
           grep -F 'BOAT_RELAY_PROBE bearer=true secret=true connections=' "$RUNNER_TEMP/boat-red.log"
@@ -83,6 +87,6 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git -C baseline write-tree)" = 4027801f1cb7e6868c409a55a3fa611d71543685
-          test "$(git -C candidate write-tree)" = 272a72f6befa430bba6b4f41cc214b76755da4e8
+          test "$(git -C candidate write-tree)" = c19035e53636a4522f8561b662876facd5596c56
           git -C baseline diff --exit-code
           git -C candidate diff --exit-code
