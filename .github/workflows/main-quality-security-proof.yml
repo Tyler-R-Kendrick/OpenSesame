@@ -1,0 +1,58 @@
+name: Verify typed password-reset quality fixes
+on:
+  push:
+    branches: [review/main-quality-security-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/main-quality-security-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: ac9a724c60e970da7a84fa49e7bd02a271194816
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify and apply exact patch
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          printf '%s  %s\n' 93dd6640e8754d310558d7e8f2eace3b7f8d97a5ebd034d39a51d3e614d85292 ../controller/.github/verify-inputs/main-quality-security.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/main-quality-security.patch
+          test "$(git write-tree)" = 949c13429449a4a8e54f1a5379dbaa679379d18c
+          git diff --exit-code
+      - name: Install frozen graph
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Typecheck and targeted tests
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm exec oxlint --config oxlint.config.ts --disable-nested-config --report-unused-disable-directives-severity=error --deny-warnings --no-error-on-unmatched-pattern packages/app-core/src/lib/password-reset/rotation-handoff.ts packages/cua-password-reset/src/discovery.ts scripts/security/map-composed-go-sarif.mjs scripts/security/map-composed-go-sarif.test.mjs
+          pnpm exec biome check packages/app-core/src/lib/password-reset/rotation-handoff.ts packages/cua-password-reset/src/discovery.ts scripts/security/map-composed-go-sarif.mjs scripts/security/map-composed-go-sarif.test.mjs
+          node --test scripts/security/map-composed-go-sarif.test.mjs
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/cua-password-reset typecheck
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/password-reset/rotation-handoff.test.ts
+          pnpm --filter @opensesame/cua-password-reset exec vitest run src/discovery.test.ts
+      - name: Verify source after tests
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          test "$(git write-tree)" = 949c13429449a4a8e54f1a5379dbaa679379d18c
+          git diff --exit-code

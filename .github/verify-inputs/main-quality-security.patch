@@ -1,0 +1,159 @@
+diff --git a/packages/app-core/src/lib/password-reset/rotation-handoff.ts b/packages/app-core/src/lib/password-reset/rotation-handoff.ts
+index 9aa094edd..fb567fbcf 100644
+--- a/packages/app-core/src/lib/password-reset/rotation-handoff.ts
++++ b/packages/app-core/src/lib/password-reset/rotation-handoff.ts
+@@ -74,8 +74,9 @@ export async function dispatchPasswordResetRotation(
+   );
+   try {
+     const result = await handOff(origin);
+-    const accepted = typeof result === "boolean" ? result : result.accepted;
+-    const jobId = typeof result === "boolean" ? null : (result.jobId ?? null);
++    const accepted = result === true || (result !== false && result.accepted);
++    const jobId =
++      result === true || result === false ? null : (result.jobId ?? null);
+     if (accepted) {
+       // Accepted is not done: the ceremony runs on the Host from here. The
+       // queue event is consumed, but the run stays in-progress (with its
+diff --git a/packages/cua-password-reset/src/discovery.ts b/packages/cua-password-reset/src/discovery.ts
+index 68fea58e4..aabb25ba7 100644
+--- a/packages/cua-password-reset/src/discovery.ts
++++ b/packages/cua-password-reset/src/discovery.ts
+@@ -36,10 +36,7 @@ export interface DiscoveryOptions {
+   maxSteps?: number;
+ }
+ 
+-function discoveryEntry(options: DiscoveryOptions): {
+-  entry: URL;
+-  maxSteps: number;
+-} {
++function discoveryEntry(options: DiscoveryOptions) {
+   const entry = new URL(options.entryUrl);
+   if (
+     !["https:", "http:"].includes(entry.protocol) ||
+diff --git a/scripts/security/map-composed-go-sarif.mjs b/scripts/security/map-composed-go-sarif.mjs
+index 91f38ebfb..39623aec4 100644
+--- a/scripts/security/map-composed-go-sarif.mjs
++++ b/scripts/security/map-composed-go-sarif.mjs
+@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
+ import { lstatSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+ import { join, resolve } from "node:path";
+ import { pathToFileURL } from "node:url";
++import { isJsonObject, isString } from "../lib/json-boundary.mjs";
+ import {
+   REVIEWED_NATIVE_RESULTS,
+   reviewedResultDigest,
+@@ -84,7 +85,7 @@ function assertKnownGroups(pins) {
+       !known.has(group) &&
+       Array.isArray(section?.files) &&
+       section.files.some(
+-        (file) => typeof file?.path === "string" && file.path.endsWith(".go"),
++        (file) => isString(file?.path) && file.path.endsWith(".go"),
+       )
+     )
+       throw new Error(`Unrecognized Go overlay group ${group}`);
+@@ -92,7 +93,7 @@ function assertKnownGroups(pins) {
+ }
+ 
+ function addOverlay(root, sha, file, directory, destinations) {
+-  if (typeof file?.path !== "string") throw new Error("Malformed overlay path");
++  if (!isString(file?.path)) throw new Error("Malformed overlay path");
+   if (!file.path.endsWith(".go")) return;
+   if (
+     !/^[A-Za-z0-9_-]+\.go$/.test(file.path) ||
+@@ -158,7 +159,7 @@ function assertIndexedReference(location, artifacts) {
+   )
+     throw new Error("Invalid SARIF artifact index");
+   const referenced = artifacts[location.index]?.location;
+-  if (!referenced || typeof referenced.uri !== "string")
++  if (!referenced || !isString(referenced.uri))
+     throw new Error("Missing indexed SARIF artifact");
+   if (
+     (location.uri !== undefined && location.uri !== referenced.uri) ||
+@@ -169,11 +170,11 @@ function assertIndexedReference(location, artifacts) {
+ }
+ 
+ function assertReference(location, artifacts) {
+-  if (!location || typeof location !== "object" || Array.isArray(location))
++  if (!isJsonObject(location))
+     throw new Error("Invalid SARIF artifact location");
+   if (location.index !== undefined) {
+     assertIndexedReference(location, artifacts);
+-  } else if (typeof location.uri !== "string") {
++  } else if (!isString(location.uri)) {
+     throw new Error("SARIF artifact location has no URI or index");
+   }
+ }
+@@ -207,7 +208,7 @@ function collectArtifacts(run, mappings, locations) {
+       throw new Error("SARIF artifact has an inconsistent self index");
+     locations.push(location);
+     const original = location?.uri;
+-    if (typeof original !== "string") continue;
++    if (!isString(original)) continue;
+     const final = mappings.get(original) ?? original;
+     const key = `${location.uriBaseId ?? ""}\0${final}`;
+     if (artifactUris.has(key))
+@@ -220,11 +221,11 @@ function visitReferences(root, visit) {
+   const pending = [root];
+   while (pending.length) {
+     const value = pending.pop();
+-    if (!value || typeof value !== "object") continue;
+     if (Array.isArray(value)) {
+       pending.push(...value);
+       continue;
+     }
++    if (!isJsonObject(value)) continue;
+     for (const [key, child] of Object.entries(value)) {
+       if (
+         (key === "artifactLocation" || key === "analysisTarget") &&
+@@ -246,11 +247,11 @@ function countResults(run, mappings, summary) {
+     summary.findings++;
+     const location = result.locations?.[0]?.physicalLocation?.artifactLocation;
+     const uri = location?.uri ?? run.artifacts[location?.index]?.location?.uri;
+-    if (typeof uri !== "string" || !mappings.has(uri))
++    if (!isString(uri) || !mappings.has(uri))
+       summary.unmappedPrimaryFindings++;
+     visitReferences(result, (child) => {
+       const referenced = child.uri ?? run.artifacts[child.index]?.location?.uri;
+-      if (typeof referenced !== "string" || !mappings.has(referenced))
++      if (!isString(referenced) || !mappings.has(referenced))
+         summary.unmappedResultLocations++;
+     });
+   }
+@@ -271,7 +272,7 @@ function inspectRun(run, mappings, locations, summary) {
+ function rewriteLocations(locations, mappings) {
+   let count = 0;
+   for (const location of new Set(locations)) {
+-    if (typeof location.uri !== "string" || !mappings.has(location.uri))
++    if (!isString(location.uri) || !mappings.has(location.uri))
+       continue;
+     if (location.uriBaseId !== "%SRCROOT%")
+       throw new Error("Unexpected staged URI base");
+diff --git a/scripts/security/map-composed-go-sarif.test.mjs b/scripts/security/map-composed-go-sarif.test.mjs
+index f6485a34c..2c3f1598f 100644
+--- a/scripts/security/map-composed-go-sarif.test.mjs
++++ b/scripts/security/map-composed-go-sarif.test.mjs
+@@ -396,3 +396,24 @@ test("rejects a staged URI with an unexpected base", () => {
+     /URI base/,
+   );
+ });
++
++test("rejects malformed artifact references inside nested result arrays", () => {
++  const make = (reference) => ({
++    version: "2.1.0",
++    runs: [
++      {
++        artifacts: [],
++        results: [{ nested: [{ artifactLocation: reference }] }],
++      },
++    ],
++  });
++  for (const invalid of [null, [], "source.go", 7, { uri: 7 }]) {
++    assert.throws(() => mapReport(make(invalid), new Map()), /location|URI/);
++  }
++  const source = ".codeql-native/source/cmd/tsconnect/wasm/nodepeer.go";
++  const target = "tools/pwa-tailscale-native-http/nodepeer.go";
++  const report = make({ uri: source, uriBaseId: "%SRCROOT%" });
++  const summary = mapReport(report, new Map([[source, target]]));
++  assert.equal(summary.mappedLocations, 1);
++  assert.equal(report.runs[0].results[0].nested[0].artifactLocation.uri, target);
++});
