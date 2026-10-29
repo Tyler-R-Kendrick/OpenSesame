@@ -339,14 +339,14 @@ index 9a13fd3883a9bf2c1442c95b44f74ec825293998..2165b6ce97fce339d062f6cab372fe1e
  }
  
 diff --git a/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx b/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
-index c6b3ed8574f622e89cf5d99014747214efa50fa2..1c774376e4d643f90f6d5d044d415b143797a7dc 100644
+index c6b3ed8574f622e89cf5d99014747214efa50fa2..01fc0f4774d25b5d733fa8a41300a2ab7b55f837 100644
 --- a/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
 +++ b/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
-@@ -170,6 +170,25 @@ describe("keyboard operability", () => {
+@@ -170,6 +170,27 @@ describe("keyboard operability", () => {
      );
    });
  
-+  it("opens project navigation and reaches each link with keys", async () => {
++  it("reaches the project disclosure and each open link with keys", async () => {
 +    const user = userEvent.setup();
 +    mountSupport({ agent: fakeAgentAnswering("Anything.") });
 +    const sheet = await openPanel(user);
@@ -355,7 +355,9 @@ index c6b3ed8574f622e89cf5d99014747214efa50fa2..1c774376e4d643f90f6d5d044d415b14
 +    if (!project) throw new Error("Project navigation needs a disclosure");
 +    expect(project.open).toBe(false);
 +    await tabTo(user, summary);
-+    await user.keyboard("{Enter}");
++    // jsdom does not implement Enter's native summary activation. The real
++    // browser mobile walk tests Enter; a click opens it here for tab traversal.
++    await user.click(summary);
 +    expect(project.open).toBe(true);
 +    const links = within(project).getAllByRole<HTMLAnchorElement>("link");
 +    expect(links).toHaveLength(10);
@@ -368,7 +370,7 @@ index c6b3ed8574f622e89cf5d99014747214efa50fa2..1c774376e4d643f90f6d5d044d415b14
    it("offers nothing that only a pointer can use", async () => {
      const user = userEvent.setup();
      mountSupport({ agent: fakeAgentAnswering("Anything.") });
-@@ -178,7 +197,29 @@ describe("keyboard operability", () => {
+@@ -178,7 +199,29 @@ describe("keyboard operability", () => {
      // Everything the trap can reach is a control the platform already makes
      // operable — no `div` wearing an onClick, no `role="button"` stand-in.
      const kinds = new Set(reachable(sheet).map((element) => element.tagName));

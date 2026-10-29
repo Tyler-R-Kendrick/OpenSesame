@@ -34,9 +34,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
-          printf '%s  %s\n' 1dc82b7fbb46d329b718b83a8af66f2f17a86a51b24844beebfe8e3770a80a6b work/docs2199-controller/.github/verify-inputs/docs2199-restack.patch | sha256sum --check
+          printf '%s  %s\n' 215551debafe9de533ea441d33ae4debfac248c3cf56bb7e7b32f4059eb1e8fb work/docs2199-controller/.github/verify-inputs/docs2199-restack.patch | sha256sum --check
           git apply --index work/docs2199-controller/.github/verify-inputs/docs2199-restack.patch
-          test "$(git write-tree)" = 34e1a055130fb5bdbf1402a767666ce86893279a
+          test "$(git write-tree)" = bb7c3cc3d4b2003cbd3dfd0423bdf11c8ad2f4fc
           git diff --exit-code
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -62,7 +62,7 @@ jobs:
         if: always()
         run: |
           test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
-          test "$(git write-tree)" = 34e1a055130fb5bdbf1402a767666ce86893279a
+          test "$(git write-tree)" = bb7c3cc3d4b2003cbd3dfd0423bdf11c8ad2f4fc
           git diff --exit-code
       - name: Retain mobile review evidence
         if: always()
