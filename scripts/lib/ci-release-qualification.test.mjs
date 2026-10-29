@@ -266,22 +266,18 @@ describe("complete coverage and publication boundaries", () => {
 });
 
 describe("CodeQL and publication boundaries", () => {
-  it("reports CodeQL on the actual PR or main commit and qualifies the selected release source", () => {
+  it("monitors on demand or schedule and qualifies the selected release source", () => {
     const workflow = read("codeql.yml");
     expect(workflow).toContain("workflow_call:");
-    expect(workflow).toMatch(/^ {2}push:\n {4}branches: \[main\]/m);
-    expect(workflow).toMatch(/^ {2}pull_request:\n/m);
+    expect(workflow).not.toMatch(/^ {2}(?:push|pull_request|merge_group):/m);
     expect(workflow).toMatch(/^ {2}workflow_dispatch:/m);
     expect(workflow).toMatch(/^ {2}schedule:\n/m);
-    expect(workflow).toContain(
-      "github.event_name != 'pull_request' || !github.event.pull_request.draft",
-    );
     expect(workflow).toContain("ref: ${{ inputs.source_sha || github.sha }}");
     expect(workflow).toContain(
       "ref: ${{ inputs.source_sha && 'refs/heads/main' || github.ref }}",
     );
     expect(workflow).toContain("sha: ${{ inputs.source_sha || github.sha }}");
-    // Direct PR/main events upload their own analysis. Go is mapped before its
+    // Scheduled/manual monitoring uploads its analysis. Go is mapped before its
     // separate upload; candidate calls never overwrite live main.
     expect(workflow).toContain(
       "upload: ${{ (inputs.source_sha || matrix.language == 'go') && 'never' || 'always' }}",

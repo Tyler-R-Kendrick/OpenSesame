@@ -4,11 +4,8 @@ name: CodeQL
 # before enabling this workflow: GitHub rejects advanced uploads while default
 # setup is active. Both native projects have explicit build commands below.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [main]
+  # Release qualification calls this for the frozen candidate. Monitoring
+  # remains scheduled or on demand so integration only builds affected code.
   workflow_dispatch:
   schedule:
     - cron: '41 4 * * 1'
@@ -23,12 +20,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ inputs.source_sha && format('candidate-{0}', github.run_id) || format('monitor-{0}', github.event.pull_request.number || github.ref) }}
+  group: codeql-${{ inputs.source_sha && format('candidate-{0}', github.run_id) || format('monitor-{0}', github.ref) }}
   cancel-in-progress: ${{ !inputs.source_sha }}
 
 jobs:
   analyze:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -149,8 +145,8 @@ jobs:
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           category: /language:${{ matrix.language }}
-          # A release caller supplies a vetted main candidate. Direct PR and
-          # branch events report the actual event ref and merge/head commit.
+          # A release caller supplies a vetted main candidate. Monitoring
+          # reports the scheduled or manually selected ref and commit.
           ref: ${{ inputs.source_sha && 'refs/heads/main' || github.ref }}
           sha: ${{ inputs.source_sha || github.sha }}
           # Release candidates may be older than current main. Keep their
@@ -189,7 +185,6 @@ jobs:
           if-no-files-found: error
 
   analyze-native-go:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Analyze native Go (${{ matrix.target }})
     runs-on: ubuntu-latest
     timeout-minutes: 90

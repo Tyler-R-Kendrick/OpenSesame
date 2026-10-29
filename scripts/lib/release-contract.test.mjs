@@ -168,18 +168,26 @@ describe("Pages publication proof", () => {
 });
 
 describe("release workflow wiring", () => {
-  it("keeps signature diagnostics inside the existing required CI job", () => {
+  it("keeps signature enforcement in the ruleset and build admission in CI", () => {
     const ci = readFileSync(
       new URL("../../.github/workflows/ci.yml", import.meta.url),
       "utf8",
     );
-    expect(ci).toContain("node scripts/release/check-pr-signatures.mjs");
-    expect(ci).toContain("pull-requests: read");
-    expect(ci.indexOf("check-pr-signatures.mjs")).toBeLessThan(
-      ci.indexOf("- name: Install"),
+    const ruleset = JSON.parse(
+      readFileSync(
+        new URL("../../ops/github/default-branch.json", import.meta.url),
+        "utf8",
+      ),
     );
+    expect(ruleset.rules).toContainEqual({ type: "required_signatures" });
+    expect(ci).not.toContain("check-pr-signatures.mjs");
+    expect(ci).not.toContain("check-merge-group-signature.mjs");
+    expect(ci).not.toContain("pull-requests: read");
+    expect(ci).toContain("node scripts/lib/ci-affected-builds.mjs run-ts");
+    expect(ci).toContain("node scripts/lib/ci-affected-builds.mjs run-cargo");
+    expect(ci).not.toContain("ci-affected-tests.mjs");
     for (const name of ["TypeScript", "Bundle budgets", "Rust"])
-      expect(ci).toContain(`name: ${name}`);
+      expect(ci).toContain(`name: ${name}\n`);
   });
   it("stamps once during candidate construction and promotes that archive after qualification", () => {
     const producer = readFileSync(

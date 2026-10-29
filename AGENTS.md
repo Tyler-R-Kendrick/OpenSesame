@@ -336,7 +336,7 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # system notification carrying only { kind, action, ref }), approved and refused
 # with the keyboard and the passkey, every decision a receipt in Sessions, an
 # application signed in and revoked, and a locked vault showing nothing and
-# answering 423. Own CI job, required through Bundle budgets. Run before
+# answering 423. Own mandatory prerelease job. Run before
 # touching `device-receipts`, `device-inbox`, `local-notifications` or Receipts.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:tutorials
@@ -689,7 +689,7 @@ before staging, and review any limit change as a policy change.
 - **Browser-local IAM must prove an actual application sign-in.** Changes to
   local identity sessions, application grants, popup transport or consent
   require `pnpm --filter @opensesame/pages verify:local-iam` against a fresh
-  Pages build, alongside the focused IAM tests. This required Bundle budgets
+  Pages build, alongside the focused IAM tests. This mandatory prerelease
   check uses separate browser origins, real encrypted storage and virtual
   WebAuthn, with keyboard-only explicit consent, session check, revocation
   and denial at desktop/mobile widths. A registration form or mocked success
@@ -701,7 +701,7 @@ before staging, and review any limit change as a policy change.
   the Web Push adapters or the Host's delivery require
   `pnpm --filter @opensesame/pages verify:push-worker` and `verify:push`
   against fresh builds (`build:push-verify` for the second). `verify:push` is
-  its own CI job, folded into the required Bundle budgets check, and runs
+  its own mandatory prerelease job, and runs
   for the server code it exercises as well as for Pages. A push worker that is
   only ever shown to a mocked enrolment, or a walk that nudges the browser, is
   not evidence.
@@ -1127,7 +1127,7 @@ before staging, and review any limit change as a policy change.
   the target registry require `pnpm --filter @opensesame/pages verify:tutorials`
   against a fresh Pages build (every tutorial, desktop and phone, Next and
   Back and Replay and Done, keyboard and mouse, focus handed back), and keep it
-  in the required Bundle budgets job.
+  in the mandatory prerelease suite.
 - **Every new user-facing feature is a capability, and an optional one never
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
@@ -1432,7 +1432,8 @@ watches the app. It does not replace the merge gates below.
 Before pushing:
 
 ```bash
-pnpm lint && pnpm quality && pnpm typecheck && pnpm test
+pnpm setup:hooks
+# Commit: staged lint. Push: static quality + lint + typecheck; tests qualify CD.
 ```
 
 If the change is user-visible, also capture its evidence and put it in the PR
@@ -1469,63 +1470,49 @@ CI lives in `.github/workflows/`. `main` is the integration branch; deployment
 channels do not have separate Git branches. The operating contract is
 [CI and artifact promotion](docs/operators/ci-promotion.md).
 
-- `ci.yml` runs on PRs, main pushes, merge groups and demand. The required check
-  names remain **TypeScript**, **Rust**, and **Bundle budgets**. It preserves
-  signatures, approved evidence, repository/skills checks, affected TypeScript
-  packages and Rust crates/dependents, actual default Pages budget measurement,
-  and affected default-build trust journeys. It does not run the broad browser,
-  native-platform, CodeQL, coverage or mutation matrices for every PR. Main's
-  changed scope starts at a verified successful ancestor, covering failed,
-  cancelled and coalesced pushes. Active main runs finish; superseded PR runs
+- `ci.yml` runs on PRs, main pushes, merge groups and demand. It only builds
+  the affected TypeScript/Rust graph and its transitive consumers/prerequisites.
+  The required check names remain **TypeScript**, **Rust**, and **Bundle budgets**;
+  the last is a compatibility reporter for the TS build, not a budget gate.
+  Tests, lint, standalone typechecks, quality checks, browser journeys and scans
+  never gate trunk. GitHub's ruleset still requires verified commit signatures.
+  Main's diff starts at a verified successful ancestor, covering failed,
+  cancelled and coalesced pushes. Active main builds finish; superseded PR builds
   cancel. Missing or unexpectedly skipped selected work fails the reporter.
+- `.githooks/pre-commit` checks staged source. The default push hook runs static
+  lint, quality, typechecking and relevant rustfmt/Clippy without test aliases.
+  `OPENSESAME_PREPUSH=full` is an explicit local `pnpm verify` opt-in.
 - `dev-nightly.yml` runs at **00:17 America/Chicago**, or on demand from `main`.
-  It selects successful push-main CI, builds or reuses one complete candidate,
-  and calls `ci-dev-checks.yml`: the full TypeScript/Postgres suite plus browser
-  and native smoke of the stored production artifacts. It records exact
-  candidate/run/attempt/digest qualification evidence.
+  It selects successful push-main builds, builds or reuses one complete candidate,
+  then qualifies the full TypeScript/Postgres suite and stored native/Pages
+  artifacts. Evidence binds the candidate, run, attempt and digests.
 - `release-weekly.yml` runs Thursday at **04:17 America/Chicago**, or on demand
   from `main`. It freezes one dev-qualified candidate; prerelease, mutation,
-  security and publication are one dependency graph. A new main commit cannot
-  replace or cancel that candidate. The `release` and `github-pages`
-  environments protect the actual publishing jobs; environment settings must
-  permit the controller's `main` ref.
-- `ci-prerelease-checks.yml` preserves the complete former 17-job CI suite,
-  all browser profiles/viewport/tutorial/live matrices, Android/Apple, mTLS,
-  complete `pnpm verify`, password parity, actual native platform tests,
-  container build validation, native-Wasm cold validation, measured TS/Rust
-  coverage, autofill-extension browser checks and exact-artifact smoke. Every
-  declared result must succeed.
-- `ci-release-checks.yml` runs the existing scoped TS, duress and Rust mutation
-  gates, then requires the selected security mode's full matrix: OSV/RustSec and
-  dependency policy, structural/Semgrep SAST, secret scans, six-language CodeQL,
-  Kani, Miri, Shuttle and coverage-guided Rust/TS fuzzing. Mutation and security
-  follow prerelease and can run concurrently. Missing tools, scanner errors,
+  security and publication are one dependency graph. New main work never replaces
+  or cancels that candidate. The `release` and `github-pages` environments protect
+  publication and must permit the controller's `main` ref.
+- `ci-prerelease-checks.yml` retains the complete browser/profile/viewport/tutorial/
+  live matrices, Android/Apple, mTLS, `pnpm verify`, parity, native platforms,
+  containers, native-Wasm, coverage, sync authorization, autofill and exact-artifact
+  smoke. Every declared result must succeed. These suites run for CD, not trunk.
+- `ci-release-checks.yml` retains scoped TS/duress/Rust mutation and full security:
+  dependencies, structural/Semgrep SAST, secrets, six-language CodeQL, Kani, Miri,
+  Shuttle and coverage-guided Rust/TS fuzzing. Missing tools, scanner errors,
   incomplete reports, fallback fuzzing and unexpected skips fail qualification.
   No budget, coverage or mutation threshold is lowered.
-- `candidate-build.yml` stamps Pages and packs the existing x86_64/aarch64 Linux
-  kits once, keeping TEST proxy archives separately named. Original build
-  attestations bind the actual selected source as well as the controller
-  revision. `release-publish.yml` verifies the entire candidate and its chain of
-  qualification receipts, and publishes those bytes without building again.
-  `deploy-pages.yml`, `release-kit.yml`, the old OCI/npm publishers and the local
-  rebuild-and-push script now refuse publication. OCI/npm must first gain
+- `candidate-build.yml` builds and attests the immutable production candidate.
+  `release-publish.yml` verifies qualification receipts and publishes those bytes
+  without rebuilding. Retired publishers still refuse publication; OCI/npm need
   candidate-bound producers and qualification before publishing is restored.
-- `security.yml` remains independent repository-history/Scorecard monitoring.
-  `sync-target-security.yml` and `autofill-browser.yml` retain their targeted
-  early authorization regressions.
-  Manual agent investigations remain supplemental; a dashboard upload or model
-  review does not substitute for a required deterministic release check.
+- CodeQL monitoring remains scheduled/manual. Sync authorization and autofill
+  have manual/reusable entry points and qualify the selected prerelease source.
+  `security.yml` retains independent repository-history/Scorecard monitoring.
 
-The integration check names describe their fast scope. References elsewhere in
-this document to built browser matrices refer to mandatory prerelease coverage;
-authors still run the focused local journeys for behavior they change. A draft
-PR runs no heavy suite and its required reporters fail. Existing owner-only
-self-hosted selection is retained for eligible fast TS/Rust work; production
-candidate builds and all publication stay GitHub-hosted.
-
-A green integration PR can merge without waiting for the weekly release. A failed
-release gate blocks publication, not ongoing integration. Keep the work hosted
-as §9 describes and do not bypass signatures or required checks.
+Authors run focused local tests for behavior they change. Tests qualify delivery
+without blocking ongoing integration. A draft PR builds nothing and its reporters
+fail; existing owner-only self-hosted build eligibility remains. Production
+candidate builds and publication stay GitHub-hosted. See
+[ADR 0215](docs/adr/0215-trunk-builds-only.md) for the build-only trunk contract.
 
 ## 9. Starting, parallelizing, and shipping a task
 

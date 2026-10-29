@@ -31,69 +31,53 @@ function dependencies(text) {
   );
 }
 
-describe("fast integration retains concrete merge guarantees", () => {
-  it("does not run browser/native matrices on each incremental PR", () => {
-    expect(Object.keys(jobs(source))).toEqual([
+describe("integration compiles only the impacted graph", () => {
+  it("runs one build per language and retains the protected check names", () => {
+    const fast = jobs(source);
+    expect(Object.keys(fast)).toEqual([
       "changes",
-      "typescript-tests",
-      "bundle",
-      "rust",
+      "typescript-build",
+      "rust-build",
       "typescript",
       "bundle-check",
       "rust-check",
     ]);
-    expect(jobs(source).bundle).toContain(
-      "node scripts/lib/ci-pages-build.mjs",
+    expect(fast["typescript-build"]).toContain(
+      "node scripts/lib/ci-affected-builds.mjs run-ts",
     );
-    expect(jobs(source).bundle).toContain(
-      "node scripts/quality/bundle-budget-gate.mjs",
+    expect(fast["rust-build"]).toContain(
+      "node scripts/lib/ci-affected-builds.mjs run-cargo",
     );
-    expect(jobs(source).bundle).toContain("timeout-minutes: 30");
-    expect(
-      jobs(source).bundle.match(/node scripts\/lib\/ci-pages-build.mjs/g),
-    ).toHaveLength(1);
-    expect(jobs(source).bundle).not.toContain("build:profile");
-  });
-  it("keeps affected trust paths early using the existing browser classifier", () => {
-    const bundle = jobs(source).bundle;
-    const mapping = {
-      static: [
-        "verify:static",
-        "verify:encrypted-search",
-        "verify:portable-drop",
-      ],
-      "sign-in": ["verify:local-iam"],
-      auth: ["verify:auth", "verify:trusted-unlock"],
-      budgets: ["verify:push-worker", "verify:sw-dirty-edit"],
-      "customer-crypto": [
-        "verify:customer-vault-browser",
-        "verify-kdbx-native-dom.mjs",
-      ],
-    };
-    const steps = bundle.split(/\n {6}- /);
-    for (const [gate, commands] of Object.entries(mapping)) {
-      const matching = steps.filter((step) =>
-        step.includes(
-          `contains(fromJSON(needs.changes.outputs.bundle_matrix).*.shard, '${gate}')`,
-        ),
-      );
-      expect(matching).toHaveLength(1);
-      for (const command of commands) expect(matching[0]).toContain(command);
-      expect(matching[0]).toContain(
-        "PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome",
-      );
-      expect(matching[0]).not.toContain("continue-on-error");
-    }
-    for (const broad of [
-      "verify:mobile",
-      "verify:tutorials",
-      "verify:live-join",
-      "verify:quorum-browser",
-    ]) {
-      expect(bundle).not.toContain(broad);
+    expect(dependencies(fast.typescript)).toEqual([
+      "changes",
+      "typescript-build",
+    ]);
+    expect(dependencies(fast["bundle-check"])).toEqual([
+      "changes",
+      "typescript-build",
+    ]);
+    expect(dependencies(fast["rust-check"])).toEqual(["changes", "rust-build"]);
+    for (const name of ["TypeScript", "Rust", "Bundle budgets"]) {
+      expect(source).toContain(`name: ${name}\n`);
     }
   });
-  it("shares one cumulative diff between classification and the executed tests", () => {
+
+  it("never turns tests, static analysis or browser qualification into a trunk gate", () => {
+    const commands = source
+      .split(/\n {6}- /)
+      .filter((step) => /\n {8}run:/.test(step))
+      .map((step) => step.split(/\n {8}run:/)[1])
+      .join("\n");
+    expect(commands).not.toMatch(
+      /ci-affected-tests|\b(?:test|typecheck|lint|quality|verify|audit)(?::|\b)|vitest|playwright|clippy|rustfmt|bundle-budget|evidence-gate|repository-size-gate|sync-agent-skills|check-(?:pr|merge-group)-signature/,
+    );
+    expect(source).not.toContain("services:");
+    expect(source).not.toContain("bundle_matrix:");
+    expect(source).not.toContain("--all-targets");
+    expect(source).not.toContain("uses: ./.github/workflows/");
+  });
+
+  it("shares one cumulative diff between planning and both build jobs", () => {
     const fast = jobs(source);
     expect(fast.changes).toContain("ci-main-baseline.mjs");
     expect(fast.changes).toContain(
@@ -102,19 +86,15 @@ describe("fast integration retains concrete merge guarantees", () => {
     expect(fast.changes).toContain(
       "HEAD_SHA: ${{ steps.scope.outputs.head_sha }}",
     );
-    for (const job of [fast["typescript-tests"], fast.rust]) {
+    for (const command of ["plan-ts", "plan-cargo"]) {
+      expect(fast.changes).toContain(
+        `node scripts/lib/ci-affected-builds.mjs ${command}`,
+      );
+    }
+    for (const job of [fast["typescript-build"], fast["rust-build"]]) {
       expect(job).toContain("BASE_SHA: ${{ needs.changes.outputs.base_sha }}");
       expect(job).toContain("HEAD_SHA: ${{ needs.changes.outputs.head_sha }}");
       expect(job).not.toContain("github.event.before");
-    }
-    for (const check of [
-      "check-pr-signatures.mjs",
-      "check-merge-group-signature.mjs",
-      "evidence-gate.mjs",
-      "repository-size-gate.mjs",
-      "sync-agent-skills.mjs --check",
-    ]) {
-      expect(fast.changes).toContain(check);
     }
   });
 });
@@ -146,6 +126,7 @@ describe("complete candidate qualification preserves coverage", () => {
       "container",
       "native-wasm",
       "autofill-browser",
+      "sync-target-security",
       "coverage",
     ])
       expect(full[id], id).toBeDefined();
@@ -166,6 +147,9 @@ describe("complete candidate qualification preserves coverage", () => {
       );
     }
   });
+});
+
+describe("candidate qualification records successful immutable-artifact checks", () => {
   it.each([
     ["dev", dev],
     ["prerelease", prerelease],
@@ -235,29 +219,26 @@ describe("upstream CI execution contracts survive tier migration", () => {
     expect(step).toContain('source "$RUNNER_TEMP/opensesame-dbus/env.sh"');
     expect(workflow).not.toContain("sudo");
   });
-  it.each([source, prerelease])(
-    "prepares rootless DBus and loads its environment for each Rust test command",
-    (workflow) => {
-      const rust = jobs(workflow).rust;
-      expect(rust).toContain(
-        'bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"',
+  it("prepares rootless DBus for prerelease Rust tests", () => {
+    const rust = jobs(prerelease).rust;
+    expect(rust).toContain(
+      'bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"',
+    );
+    expect(rust).not.toContain("sudo");
+    const steps = rust.split(/\n {6}- /);
+    for (const command of [
+      "node scripts/lib/ci-affected-tests.mjs run-cargo",
+      "cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden",
+    ]) {
+      const matches = steps.filter((step) => step.includes(command));
+      expect(matches).toHaveLength(1);
+      const setup = 'source "$RUNNER_TEMP/opensesame-dbus/env.sh"';
+      expect(matches[0]).toContain(setup);
+      expect(matches[0].indexOf(setup)).toBeLessThan(
+        matches[0].indexOf(command),
       );
-      expect(rust).not.toContain("sudo");
-      const steps = rust.split(/\n {6}- /);
-      for (const command of [
-        "node scripts/lib/ci-affected-tests.mjs run-cargo",
-        "cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden",
-      ]) {
-        const matches = steps.filter((step) => step.includes(command));
-        expect(matches).toHaveLength(1);
-        const setup = 'source "$RUNNER_TEMP/opensesame-dbus/env.sh"';
-        expect(matches[0]).toContain(setup);
-        expect(matches[0].indexOf(setup)).toBeLessThan(
-          matches[0].indexOf(command),
-        );
-      }
-    },
-  );
+    }
+  });
   it("keeps journey compilation setup and measured header evidence in prerelease", () => {
     const steps = jobs(prerelease).bundle.split(/\n {6}- /);
     const preparation = steps.find((step) => step.includes("prepare-dbus.sh"));
@@ -276,31 +257,32 @@ describe("upstream CI execution contracts survive tier migration", () => {
     expect(evidence).toContain("name: header-layout-${{ inputs.source_sha }}");
     expect(evidence).toContain("path: ${{ runner.temp }}/header-layout/");
   });
-  it("keeps targeted autofill PR coverage and requires it on the exact candidate", () => {
-    const autofill = read("autofill-browser.yml");
-    const candidate = jobs(prerelease)["autofill-browser"];
-    expect(candidate).toContain("needs: admission");
-    expect(candidate).toContain(
-      "uses: ./.github/workflows/autofill-browser.yml",
-    );
-    expect(candidate).toContain("source_sha: ${{ inputs.source_sha }}");
-    expect(autofill).toContain(
-      "  workflow_call:\n    inputs:\n      source_sha:",
-    );
-    expect(autofill).toContain("        required: true\n        type: string");
-    expect(autofill).toContain(
-      "ref: ${{ inputs.source_sha || github.event.pull_request.head.sha || github.sha }}",
-    );
-    expect(autofill).toContain("cancel-in-progress: ${{ !inputs.source_sha }}");
-    expect(autofill).toContain(
-      "    paths:\n      - '.github/workflows/autofill-browser.yml'",
-    );
-    expect(autofill).toContain("      - 'apps/browser-extension-autofill/**'");
-    expect(autofill).toContain(
+  it.each([
+    [
+      "autofill-browser",
       "pnpm --filter @opensesame/browser-extension-autofill test:e2e",
-    );
-    expect(autofill).not.toContain("continue-on-error");
-  });
+    ],
+    ["sync-target-security", "sync-target"],
+  ])(
+    "requires %s on the exact candidate without an automatic trunk trigger",
+    (id, command) => {
+      const workflow = read(`${id}.yml`);
+      const candidate = jobs(prerelease)[id];
+      expect(candidate).toContain("needs: admission");
+      expect(candidate).toContain(`uses: ./.github/workflows/${id}.yml`);
+      expect(candidate).toContain("source_sha: ${{ inputs.source_sha }}");
+      expect(workflow).toContain(
+        "  workflow_call:\n    inputs:\n      source_sha:",
+      );
+      expect(workflow).toContain("required: true");
+      expect(workflow).not.toMatch(
+        /^ {2}(?:pull_request|pull_request_target|push|merge_group):/m,
+      );
+      expect(workflow).toContain("inputs.source_sha");
+      expect(workflow).toContain(command);
+      expect(workflow).not.toContain("continue-on-error");
+    },
+  );
   it("keeps release candidates on GitHub-hosted runners", () => {
     expect(jobs(prerelease).changes).toContain(
       '[ "$EVENT" = "pull_request" ] && [ "$HEAD_REPO" = "$REPO" ]',

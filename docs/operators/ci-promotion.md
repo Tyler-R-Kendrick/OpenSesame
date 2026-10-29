@@ -3,15 +3,16 @@
 OpenSesame integrates continuously on `main`. A candidate is a fixed source
 revision and complete immutable artifact set. Nightly and weekly jobs qualify
 that identity; publication consumes the same bytes. See
-[ADR 0214](../adr/0214-trunk-ci-artifact-promotion.md).
+[ADR 0214](../adr/0214-trunk-ci-artifact-promotion.md) and
+[ADR 0215](../adr/0215-trunk-builds-only.md).
 
 ## Cadence and ownership
 
 | Stage | Entry point | Trigger and required work |
 |---|---|---|
-| Integration | `ci.yml` | PR, merge group, main push or manual: signature/evidence/footprint checks, affected TS/Rust, actual default Pages budget and affected trust journeys. |
+| Integration | `ci.yml` | PR, merge group, main push or manual: compile affected TypeScript packages/Rust crates, their transitive consumers and build prerequisites only. |
 | Dev | `dev-nightly.yml` | Daily **00:17 America/Chicago**, or manual on main: select successful main CI, build/reuse complete artifacts, full TS/Postgres and production Pages/native smoke. |
-| Prerelease | `ci-prerelease-checks.yml` | Called by weekly: all former CI browser/native jobs, complete verification, parity, real platforms, cold native-Wasm, container validation, coverage and artifact smoke. |
+| Prerelease | `ci-prerelease-checks.yml` | Called by weekly: all former CI browser/native jobs, complete verification, parity, real platforms, cold native-Wasm, container validation, sync authorization, autofill, coverage and artifact smoke. |
 | Release qualification | `ci-release-checks.yml` | After prerelease: separate required mutation and security matrices, each with its own receipt. |
 | Publication | `release-publish.yml` | After both deep suites: revalidate evidence, stage a native draft, pass the release environment gate, deploy unchanged Pages files, verify live content, publish native assets. |
 
@@ -33,28 +34,42 @@ The production PWA bakes `/OpenSesame/`, its shared-origin profile and canonical
 origin. Browser qualification serves that package through the existing harnesses.
 A distinct origin/profile needs a distinct artifact and corresponding evidence.
 
-## Fast integration
+## Build-only integration
 
-Protected check names remain **TypeScript**, **Rust**, and **Bundle budgets**.
-Their top-level reporters require successful preflight, explicit scope and
-successful selected work. Unexpected skips, cancellations or missing decisions
-fail. Draft PRs run no heavy suite and deliberately fail the reporters.
+Protected check names remain **TypeScript**, **Rust**, and **Bundle budgets** for
+compatibility with the existing ruleset and candidate admission. TypeScript
+reports the affected package build, Rust reports the affected crate build, and
+Bundle budgets reports that same TypeScript build result. The budget name is a
+legacy alias; budget measurement now runs only during delivery qualification.
+Reporters require successful scope resolution and every selected build to
+succeed. Unexpected skips, cancellations or missing decisions fail. Draft PRs
+run no builds and deliberately fail the reporters.
 
-TypeScript and Rust retain dependency-aware selection. Pages builds once,
-measures the default output and selects trust journeys from the existing gate
-catalog: static delivery, local IAM, authentication, trusted-contact unlock,
-encrypted search, portable drops, service-worker safety and customer-vault
-cryptography. Broad profiles, viewports, tutorial/live matrices and mobile
-platform builds remain mandatory in prerelease.
+The build planner selects changed packages/crates plus their transitive consumers.
+Turbo's `^build` dependencies and Cargo compile prerequisites. Shared build
+inputs, dependency lockfiles, removed manifests or an unreadable diff select a
+conservative full build. Documentation and lint-only changes compile nothing.
+Pages builds once through its ordinary build recipe; it has no separate
+`tsc --noEmit` pass. TypeScript library compilation still emits declarations and
+JavaScript through its normal compiler.
+
+Trunk does not start databases, tests, browser journeys, quality ratchets,
+standalone typechecks, lint, budget measurements or security scans. Install local
+Git hooks with `pnpm setup:hooks` (also part of bootstrap). The commit hook checks
+staged source; the default push hook runs static lint, quality, typechecking and
+relevant Rust formatting/Clippy without test suites. Full local verification
+remains an explicit opt-in. GitHub's required-signatures ruleset enforces commit
+signatures independently of the build workflow.
 
 Main runs finish; superseded PR runs can cancel. Pending main runs can coalesce,
 so main scope starts at a verified successful ancestor and includes intervening
-failed/cancelled pushes. An unavailable baseline selects full fast scope.
-Short-lived and stacked review branches still merge when fast checks and review
-pass; they need not wait for the weekly release. Targeted sync-target and
-autofill-extension browser regressions remain early. The autofill browser suite
-also qualifies every weekly candidate. Repository history/Scorecard monitoring
-is supplemental.
+failed/cancelled pushes. An unavailable baseline builds both full graphs.
+Integration does not wait for development or release qualification. Development
+runs full TypeScript/Postgres suites and exact-artifact smoke. Prerelease runs the
+complete browser/native suite, budgets, sync authorization and autofill; release
+qualification adds mutation and security. Those reusable workflows have no PR,
+merge-group or main-push triggers. Scheduled repository monitoring and manual
+investigations remain independent.
 
 ## Build and identity
 
