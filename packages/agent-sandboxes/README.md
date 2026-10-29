@@ -12,7 +12,7 @@ lives and how its traffic reaches the site.
 | `local` | Ephemeral agent-browser session on the user's device | `LocalSandboxProvider` over `createLocalSandbox` |
 | `wasm-relay` | DOM-level driver with no direct network; every fetch is virtualized through a user-controlled relay, so the same code can run in a WASM/browser host | `WasmDomDriver` + `VirtualNetwork` relay (`vnet-server.ts`) |
 | `cloudflare` | Cloudflare Browser Run session allocated over REST | `CdpBrowserDriver` over the session CDP socket |
-| `boat` | Boat cloud sandbox allocated over the Boat REST API | Driver relay hosted inside the sandbox (`relay-server.ts`); provider lands next in this stack |
+| `boat` | Boat cloud sandbox allocated over the Boat REST API | Relay agent inside the sandbox (`boat-agent.ts`) behind its hosted port; allocation registers the agent via auth.md when no API key is configured |
 
 ## Security invariants
 
@@ -40,4 +40,12 @@ lives and how its traffic reaches the site.
   run parks for a person instead of guessing.
 - Cloudflare and Boat allocate real remote browsers; a person takes
   over through the allocation's `takeoverUrl` when the provider exposes
-  one, or through the Host step-channel otherwise.
+  one, or through the Host step-channel otherwise. Boat does not expose
+  a takeover URL here (its hosted/desktop URLs carry access tokens),
+  and Boat allocation does not yet rejoin a prior sandbox by session
+  id — keep the allocation alive in the host process for the run.
+- The Boat lane needs an operator-configured agent start command
+  (`BOAT_RELAY_AGENT_COMMAND`), typically run from a saved snapshot
+  with this package installed. Sandboxes are created with none of the
+  account's secrets, monitoring off, snapshots off, and are deleted
+  on close so session cookies die with the run.
