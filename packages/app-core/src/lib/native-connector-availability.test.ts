@@ -12,10 +12,17 @@ import {
 } from "./native-connector-drivers.js";
 
 const driver: NativeConnectorDriver = {
-  cleanup: { classification: () => ({}) } as never,
+  cleanup: {
+    classification: () => ({ publicParameters: [], privateCredentials: [] }),
+    cleanup: async () => "local-credential-forgotten",
+  },
   supports: () => true,
-  configure: async () => ({}) as never,
-  verify: async () => ({}) as never,
+  configure: async () => {
+    throw new Error("not used in this test");
+  },
+  verify: async () => {
+    throw new Error("not used in this test");
+  },
   invoke: async () => ({ label: "", items: [] }),
 };
 
