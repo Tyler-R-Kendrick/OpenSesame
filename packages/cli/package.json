@@ -33,6 +33,7 @@
     "@opensesame/api-client": "workspace:*",
     "@opensesame/app-core": "workspace:*",
     "@opensesame/agent-client": "workspace:*",
+    "@opensesame/agent-sandboxes": "workspace:*",
     "@opensesame/cua-password-reset": "workspace:*",
     "@opensesame/log-scrub": "workspace:*",
     "@opensesame/mcp-client": "workspace:*",

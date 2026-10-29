@@ -15,7 +15,10 @@ async function captureError<T>(run: () => Promise<T>): Promise<Error> {
   }
   throw new Error("expected the operation to reject");
 }
-import { BoatSandboxProvider } from "./boat-provider.js";
+import {
+  type BoatProviderState,
+  BoatSandboxProvider,
+} from "./boat-provider.js";
 import { type RunningRelayServer, startRelayServer } from "./relay-server.js";
 import { SandboxClaimRequiredError } from "./types.js";
 
@@ -78,6 +81,7 @@ function errorEnvelope(status: number, code: string) {
 
 function fakeBoat() {
   const state = { claimed: false, billed: false };
+  const persistedStates: BoatProviderState[] = [];
   const requests: RecordedRequest[] = [];
   const driver = new StubDriver();
   let relay: RunningRelayServer | null = null;
@@ -166,6 +170,7 @@ function fakeBoat() {
     state,
     requests,
     driver,
+    persistedStates,
     // SAFETY: checked at the fake-fetch boundary: the mock implements exactly the (url, init) call shapes the Boat clients send.
     provider: new BoatSandboxProvider({
       origin: "https://boat.test",
@@ -173,7 +178,20 @@ function fakeBoat() {
       claimEmail: "person@example.test",
       agentCommand: "opensesame-boat-agent",
       pollIntervalMs: 1,
+      onStateChange: (next) => {
+        persistedStates.push(next);
+      },
     }),
+    // SAFETY: checked at the fake-fetch boundary: the mock implements exactly the (url, init) call shapes the Boat clients send.
+    resumedProvider: (state: BoatProviderState) =>
+      new BoatSandboxProvider({
+        origin: "https://boat.test",
+        fetchImpl: fetchImpl as typeof fetch,
+        claimEmail: "person@example.test",
+        agentCommand: "opensesame-boat-agent",
+        pollIntervalMs: 1,
+        state,
+      }),
     closeRelay: async () => {
       await relay?.close();
     },
@@ -193,6 +211,29 @@ describe("BoatSandboxProvider", () => {
     ).rejects.toThrow("agent start command");
   });
 
+  it("resumes a persisted claim in a fresh provider without re-registering", async () => {
+    const boat = fakeBoat();
+    try {
+      boat.state.claimed = true;
+      boat.state.billed = true;
+      const provider = boat.resumedProvider({ claimToken: "clm_1" });
+      const sandbox = await provider.allocate({
+        origin: "https://accounts.example.test",
+      });
+      expect(sandbox.session).toBe("bx_23456789");
+      await sandbox.close();
+      const registrations = boat.requests.filter(
+        (entry) => entry.path === "/api/boat/agent/identity",
+      );
+      expect(registrations).toHaveLength(0);
+      expect(
+        boat.requests.some((entry) => entry.path === "/api/boat/oauth2/token"),
+      ).toBe(true);
+    } finally {
+      await boat.closeRelay();
+    }
+  });
+
   it("walks claim, then billing, then drives the relay with no secrets in commands", async () => {
     const boat = fakeBoat();
     const request = { origin: "https://accounts.example.test" };
@@ -207,6 +248,9 @@ describe("BoatSandboxProvider", () => {
       const claim = claimError as SandboxClaimRequiredError;
       expect(claim.verificationUri).toBe(CLAIM.verification_uri);
       expect(claim.userCode).toBe("123456");
+      // The registration is persisted before the gate surfaces, so the
+      // next process resumes this claim instead of re-registering.
+      expect(boat.persistedStates.at(-1)).toEqual({ claimToken: "clm_1" });
 
       // 2. Claimed, but no card on file: the checkout URL surfaces the
       // same way.

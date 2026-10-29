@@ -1,3 +1,4 @@
+import { SandboxClaimRequiredError } from "@opensesame/agent-sandboxes";
 import {
   BrowserStepExecutor,
   type BrowserStepPorts,
@@ -13,6 +14,10 @@ import {
   resetRecipeHostnames,
 } from "./password-reset-local-verification.js";
 import type { ResetRuntimeContext } from "./password-reset-runtime.js";
+import {
+  type SandboxProviderFactory,
+  createSandboxProvider,
+} from "./password-reset-sandbox-provider.js";
 import { readPasswordFromTty } from "./tty-password.js";
 
 export {
@@ -23,6 +28,8 @@ import type { LocalSandboxPort } from "./password-reset-local-verification.js";
 
 export interface LocalRuntimeOptions {
   sandbox?: LocalSandboxPort;
+  /** Build the configured non-local sandbox provider (tests). */
+  createProvider?: SandboxProviderFactory;
   verificationSandbox?: LocalSandboxPort;
   mailbox?: MailboxPort;
   takeover?: HumanTakeoverPort;
@@ -48,20 +55,20 @@ export async function createLocalPasswordResetEffects(
   if (!run.recipe.verification)
     throw new Error("The bundled runtime requires verification metadata");
   if (!item.username) throw new Error("The account item has no username");
+  if (run.recipe.steps.length > context.loaded.config.runtime.maxSteps)
+    throw new Error("The approved recipe exceeds the configured step budget");
   const readSecretLine =
     options.readSecretLine ?? ((prompt) => readPasswordFromTty(prompt));
   const notify = options.notify ?? emitStderrLine;
-  const sandbox =
-    options.sandbox ??
-    createLocalSandbox({
-      origin: run.origin,
-      extraAllowedDomains: resetRecipeHostnames(run.recipe),
-      // Stable per run so a later `resume` invocation rejoins the same
-      // agent-browser session a human was handed.
-      session: `cua-${run.id}`,
-      executable: localAgentBrowserExecutable(context),
-    });
-  const verifier = createLocalLoginVerifier(context, options, {
+  const providerId = context.loaded.config.runtime.provider ?? "local";
+  const sandbox = await sandboxForRun(context, options, providerId, notify);
+  // Remote lanes verify in the allocated browser; the local lane keeps
+  // its fresh verification session. Explicit test sandboxes win.
+  const verifierOptions =
+    providerId === "local" || options.sandbox || options.verificationSandbox
+      ? options
+      : { ...options, verificationSandbox: sandbox };
+  const verifier = createLocalLoginVerifier(context, verifierOptions, {
     handoff: async (challenge, current) => {
       if (options.takeover) return options.takeover.handoff(challenge, current);
       notify(
@@ -93,8 +100,6 @@ export async function createLocalPasswordResetEffects(
     },
     verifyLogin: async () => (await verifyLogin()) === true,
   };
-  if (run.recipe.steps.length > context.loaded.config.runtime.maxSteps)
-    throw new Error("The approved recipe exceeds the configured step budget");
   const executor = new BrowserStepExecutor(sandbox.browser, ports);
   const closeQuietly = async () => {
     await Promise.allSettled([sandbox.close(), verifier.close()]);
@@ -127,6 +132,73 @@ export async function createLocalPasswordResetEffects(
     compensate: async () => {
       await closeQuietly();
       return "unsupported";
+    },
+  };
+}
+
+async function sandboxForRun(
+  context: ResetRuntimeContext,
+  options: LocalRuntimeOptions,
+  providerId: string,
+  notify: (message: string) => void,
+): Promise<LocalSandboxPort> {
+  if (options.sandbox) return options.sandbox;
+  if (providerId !== "local")
+    return allocateProviderSandbox(context, options, notify);
+  const { run } = context;
+  return createLocalSandbox({
+    origin: run.origin,
+    extraAllowedDomains: resetRecipeHostnames(run.recipe),
+    // Stable per run so a later `resume` invocation rejoins the same
+    // agent-browser session a human was handed.
+    session: `cua-${run.id}`,
+    executable: localAgentBrowserExecutable(context),
+  });
+}
+
+/**
+ * Allocate a non-local sandbox for the run. A provider claim (Boat
+ * registration, billing checkout) is a human intervention: print the
+ * link and code, then fail so the person can finish and retry.
+ */
+async function allocateProviderSandbox(
+  context: ResetRuntimeContext,
+  options: LocalRuntimeOptions,
+  notify: (message: string) => void,
+): Promise<LocalSandboxPort> {
+  const { run } = context;
+  const providerId = context.loaded.config.runtime.provider ?? "local";
+  const provider = (
+    options.createProvider ??
+    ((id) => createSandboxProvider(id, context.loaded.directory))
+  )(providerId);
+  let allocation;
+  try {
+    allocation = await provider.allocate({
+      origin: run.origin,
+      extraAllowedDomains: resetRecipeHostnames(run.recipe),
+      session: `cua-${run.id}`,
+    });
+  } catch (error) {
+    if (error instanceof SandboxClaimRequiredError) {
+      const code = error.userCode ? ` and enter code ${error.userCode}` : "";
+      notify(
+        `Sandbox allocation needs you: open ${error.verificationUri}${code}, then retry.`,
+      );
+      throw new Error(
+        `Sandbox allocation needs a person first: ${error.verificationUri}`,
+      );
+    }
+    throw error;
+  }
+  let closed = false;
+  return {
+    browser: allocation.browser,
+    session: allocation.session,
+    close: async () => {
+      if (closed) return;
+      closed = true;
+      await allocation.close();
     },
   };
 }
