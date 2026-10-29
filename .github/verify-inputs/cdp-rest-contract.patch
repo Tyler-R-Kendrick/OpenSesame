@@ -1,0 +1,2548 @@
+diff --git a/packages/agent-sandboxes/e2e/cloudflare.spec.ts b/packages/agent-sandboxes/e2e/cloudflare.spec.ts
+index 7b1457611..489f85dbc 100644
+--- a/packages/agent-sandboxes/e2e/cloudflare.spec.ts
++++ b/packages/agent-sandboxes/e2e/cloudflare.spec.ts
+@@ -4,6 +4,7 @@ import { type Server, createServer } from "node:http";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { expect, test } from "@playwright/test";
++import WebSocket, { WebSocketServer } from "ws";
+ import { z } from "zod";
+ import { CloudflareSandboxProvider } from "../src/index.js";
+ import {
+@@ -93,16 +94,29 @@ function fakeBrowserRun(webSocketUrl: string): Promise<{
+         response.writeHead(401).end();
+         return;
+       }
+-      response.writeHead(201, { "content-type": "application/json" }).end(
+-        JSON.stringify({
+-          success: true,
+-          errors: [],
+-          result: {
++      let body = "";
++      request.setEncoding("utf8");
++      request.on("data", (part: string) => {
++        body += part;
++      });
++      request.on("end", () => {
++        if (
++          body !==
++          JSON.stringify({ guardrails: { allowedDomains: ["127.0.0.1"] } })
++        ) {
++          response.writeHead(400).end();
++          return;
++        }
++        const address = server.address();
++        if (!address || typeof address === "string")
++          throw new Error("missing test server address");
++        response.writeHead(200, { "content-type": "application/json" }).end(
++          JSON.stringify({
+             sessionId: "fake-session-1",
+-            webSocketDebuggerUrl: webSocketUrl,
+-          },
+-        }),
+-      );
++            webSocketDebuggerUrl: `ws://127.0.0.1:${address.port}/devtools/browser/fake-session-1`,
++          }),
++        );
++      });
+       return;
+     }
+     if (request.method === "DELETE") {
+@@ -114,6 +128,29 @@ function fakeBrowserRun(webSocketUrl: string): Promise<{
+     }
+     response.writeHead(404).end();
+   });
++  const sockets = new WebSocketServer({ noServer: true });
++  server.on("upgrade", (request, socket, head) => {
++    if (
++      request.url !== "/devtools/browser/fake-session-1" ||
++      request.headers.authorization !== "Bearer cf-test-token"
++    ) {
++      socket.destroy();
++      return;
++    }
++    sockets.handleUpgrade(request, socket, head, (incoming) => {
++      incoming.pause();
++      const chrome = new WebSocket(webSocketUrl);
++      chrome.once("open", () => {
++        incoming.on("message", (data, binary) => chrome.send(data, { binary }));
++        chrome.on("message", (data, binary) => incoming.send(data, { binary }));
++        incoming.resume();
++      });
++      chrome.on("error", () => incoming.close());
++      chrome.on("close", () => incoming.close());
++      incoming.on("error", () => chrome.close());
++      incoming.on("close", () => chrome.close());
++    });
++  });
+   return new Promise((resolve) => {
+     server.listen(0, "127.0.0.1", () => {
+       const address = server.address();
+@@ -140,6 +177,7 @@ test("full reset on Cloudflare Browser Run shape: REST allocation + CDP driver",
+       accountId: "acct-test",
+       apiToken: "cf-test-token",
+       baseUrl: fake.baseUrl,
++      allowInsecureLoopbackForTesting: true,
+     });
+     const sandbox = await provider.allocate({ origin: site.origin });
+     expect(sandbox.provider).toBe("cloudflare");
+diff --git a/packages/agent-sandboxes/e2e/relay.spec.ts b/packages/agent-sandboxes/e2e/relay.spec.ts
+index 43dbc8527..c1423671a 100644
+--- a/packages/agent-sandboxes/e2e/relay.spec.ts
++++ b/packages/agent-sandboxes/e2e/relay.spec.ts
+@@ -23,24 +23,34 @@ test("full reset through the driver relay, with a takeover pause", async () => {
+     token: "relay-e2e-token",
+     driver: hosted.browser,
+   });
++  let relayClosedBrowser = false;
++  let phase = "initialize";
+   try {
+     const driver = relayDriverOverWebSocket(relay.url, {
+       token: "relay-e2e-token",
+     });
+     const runtime = runtimeForDriver(driver, site, true);
++    phase = "start";
+     const parked = await runtime.runner.start(runtime.initial);
+     expect(parked.status).toBe("awaiting_human");
+     expect(runtime.challenges).toEqual(["captcha"]);
++    phase = "resume";
+     const finished = await runtime.runner.resumeAfterHuman(parked);
+     expect(finished.status).toBe("succeeded");
+     expect(site.submissions).toBe(1);
++    phase = "verify";
+     await expectNewPasswordAccepted(runtime.custody, site);
+     const journalText = JSON.stringify(await runtime.store.load("run-1"));
+     expect(journalText).not.toContain(PEPPER);
++    phase = "close";
+     await driver.close();
++    relayClosedBrowser = true;
++  } catch (error) {
++    process.stderr.write(`relay e2e failure phase: ${phase}\n`);
++    throw error;
+   } finally {
+-    await relay.close();
+-    await hosted.close();
+-    await site.stop();
++    await relay.close().catch(() => {});
++    if (!relayClosedBrowser) await hosted.close().catch(() => {});
++    await site.stop().catch(() => {});
+   }
+ });
+diff --git a/packages/agent-sandboxes/e2e/wasm.spec.ts b/packages/agent-sandboxes/e2e/wasm.spec.ts
+index d95835075..4b4ddc894 100644
+--- a/packages/agent-sandboxes/e2e/wasm.spec.ts
++++ b/packages/agent-sandboxes/e2e/wasm.spec.ts
+@@ -10,7 +10,10 @@ import { MockResetSite } from "./mock-site.js";
+ test("full reset in the WASM DOM driver over a virtualized network", async () => {
+   const site = new MockResetSite();
+   await site.start(true);
+-  const relay = await startVirtualNetworkRelay({ token: "vnet-e2e-token" });
++  const relay = await startVirtualNetworkRelay({
++    token: "vnet-e2e-token",
++    allowLoopbackTargets: true,
++  });
+   try {
+     const provider = new WasmRelayProvider({
+       relayUrl: relay.url,
+diff --git a/packages/agent-sandboxes/src/cdp-node-socket.ts b/packages/agent-sandboxes/src/cdp-node-socket.ts
+index 8800975ce..c3cba23db 100644
+--- a/packages/agent-sandboxes/src/cdp-node-socket.ts
++++ b/packages/agent-sandboxes/src/cdp-node-socket.ts
+@@ -16,7 +16,11 @@ export function connectCdp(
+   options: ConnectCdpOptions = {},
+ ): Promise<CdpConnection> {
+   return new Promise((resolve, reject) => {
+-    const ws = new WebSocket(url, { headers: options.headers ?? {} });
++    const ws = new WebSocket(url, {
++      headers: options.headers ?? {},
++      followRedirects: false,
++      handshakeTimeout: 15_000,
++    });
+     const socket: CdpSocket = {
+       send: (data) => ws.send(data),
+       close: () => ws.close(),
+@@ -28,6 +32,6 @@ export function connectCdp(
+       },
+     };
+     ws.once("open", () => resolve(new CdpConnection(socket)));
+-    ws.once("error", () => reject(new Error("cdp: connection failed")));
++    ws.on("error", () => reject(new Error("cdp: connection failed")));
+   });
+ }
+diff --git a/packages/agent-sandboxes/src/cloudflare-client.test.ts b/packages/agent-sandboxes/src/cloudflare-client.test.ts
+index c552da9cf..c08d7d212 100644
+--- a/packages/agent-sandboxes/src/cloudflare-client.test.ts
++++ b/packages/agent-sandboxes/src/cloudflare-client.test.ts
+@@ -1,96 +1,265 @@
+ import { describe, expect, it, vi } from "vitest";
+ import { CloudflareBrowserRunClient } from "./cloudflare-client.js";
+ 
+-interface FakeApiBody {
+-  success: boolean;
+-  errors?: { message: string }[];
+-  result?: {
+-    sessionId: string;
+-    status?: string;
+-    webSocketDebuggerUrl?: string;
+-  };
+-}
+-
+-function jsonResponse(body: FakeApiBody, status = 200): Response {
++function jsonResponse(body: unknown, status = 200): Response {
+   return new Response(JSON.stringify(body), {
+     status,
+     headers: { "content-type": "application/json" },
+   });
+ }
+ 
++const endpoint =
++  "https://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser";
++const socket =
++  "wss://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9";
++
+ describe("CloudflareBrowserRunClient", () => {
+-  it("allocates a session and derives the CDP websocket URL", async () => {
++  it("sends the documented guardrails and keep_alive query, and accepts the direct response", async () => {
+     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+-      expect(url).toBe(
+-        "https://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser",
+-      );
++      expect(url).toBe(`${endpoint}?keep_alive=120000`);
+       expect(init?.method).toBe("POST");
+-      const headers = new Headers(init?.headers);
+-      expect(headers.get("authorization")).toBe("Bearer token-1");
++      expect(init?.redirect).toBe("error");
++      expect(new Headers(init?.headers).get("authorization")).toBe(
++        "Bearer token-1",
++      );
++      expect(JSON.parse(String(init?.body))).toEqual({
++        guardrails: {
++          allowedDomains: ["accounts.example.test", "idp.example.test"],
++        },
++      });
+       return jsonResponse({
+-        success: true,
+-        errors: [],
+-        result: { sessionId: "sess-9", status: "active" },
++        sessionId: "sess-9",
++        webSocketDebuggerUrl: socket,
+       });
+     });
+-    // SAFETY: the mock implements exactly the (url, init) call shape the client uses; the cast only widens it to the full fetch signature.
+     const client = new CloudflareBrowserRunClient({
+       accountId: "acct-1",
+       apiToken: "token-1",
++      keepAliveMs: 120_000,
+       fetchImpl: fetchImpl as typeof fetch,
+-      sessionTimeoutMs: 120_000,
+     });
+-    const session = await client.createSession();
+-    expect(session).toEqual({
+-      sessionId: "sess-9",
+-      webSocketUrl:
+-        "wss://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9",
++    await expect(
++      client.createSession(["accounts.example.test", "idp.example.test"]),
++    ).resolves.toEqual({ sessionId: "sess-9", webSocketUrl: socket });
++  });
++
++  it("derives the documented socket path if the optional URL is omitted", async () => {
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "token-1",
++      fetchImpl: async () => jsonResponse({ sessionId: "sess-9" }),
+     });
+-    const sentBody = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+-    expect(sentBody).toEqual({ sessionTimeout: 120_000 });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).resolves.toEqual({ sessionId: "sess-9", webSocketUrl: socket });
++  });
++
++  it.each([
++    "wss://attacker.example/devtools/browser/sess-9",
++    "ws://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9",
++    "wss://api.cloudflare.com:444/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9",
++    "wss://other@api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/sess-9",
++    "wss://api.cloudflare.com/client/v4/accounts/acct-1/browser-run/devtools/browser/other",
++    `${socket}?credential=leak`,
++    `${socket}#fragment`,
++  ])(
++    "rejects and deletes a session with an untrusted socket %s",
++    async (url) => {
++      const calls: { url: string; init: RequestInit | undefined }[] = [];
++      const client = new CloudflareBrowserRunClient({
++        accountId: "acct-1",
++        apiToken: "token-1",
++        fetchImpl: async (input, init) => {
++          calls.push({ url: String(input), init });
++          return jsonResponse({
++            sessionId: "sess-9",
++            webSocketDebuggerUrl: url,
++          });
++        },
++      });
++      await expect(
++        client.createSession(["accounts.example.test"]),
++      ).rejects.toThrow("untrusted CDP endpoint");
++      expect(calls).toHaveLength(2);
++      expect(calls[1]?.url).toBe(`${endpoint}/sess-9`);
++      expect(calls[1]?.init?.method).toBe("DELETE");
++      expect(calls[1]?.init?.redirect).toBe("error");
++    },
++  );
++
++  it.each([
++    "https://evil.example",
++    "https://api.cloudflare.com.evil.example",
++    "http://api.cloudflare.com",
++    "http://127.0.0.1:9000",
++    "https://user@api.cloudflare.com/client/v4/accounts/acct-1/browser-run",
++    "https://api.cloudflare.com/client/v4/accounts/other/browser-run",
++  ])("rejects an untrusted API destination %s", (baseUrl) => {
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acct-1",
++          apiToken: "token-1",
++          baseUrl,
++        }),
++    ).toThrow("untrusted API endpoint");
+   });
+ 
+-  it("prefers a webSocketDebuggerUrl returned by the API", async () => {
++  it("requires an explicit opt-in for the loopback fake and binds the socket to it", async () => {
+     const client = new CloudflareBrowserRunClient({
+       accountId: "acct-1",
+       apiToken: "token-1",
++      baseUrl: "http://127.0.0.1:9123",
++      allowInsecureLoopbackForTesting: true,
+       fetchImpl: async () =>
+         jsonResponse({
+-          success: true,
+-          result: {
+-            sessionId: "sess-2",
+-            webSocketDebuggerUrl: "wss://example.test/custom",
+-          },
++          sessionId: "sess-9",
++          webSocketDebuggerUrl: "ws://127.0.0.1:9123/devtools/browser/sess-9",
++        }),
++    });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).resolves.toMatchObject({
++      webSocketUrl: "ws://127.0.0.1:9123/devtools/browser/sess-9",
++    });
++  });
++
++  it.each([
++    { allowedDomains: [] },
++    { allowedDomains: ["*.example.test"] },
++    { allowedDomains: ["https://example.test"] },
++    { allowedDomains: ["bad..example"] },
++    { allowedDomains: ["K.example.test"] },
++    { allowedDomains: Array(51).fill("example.test") },
++  ])(
++    "fails before allocation for invalid guardrail hostnames",
++    async ({ allowedDomains }) => {
++      const fetchImpl = vi.fn();
++      const client = new CloudflareBrowserRunClient({
++        accountId: "acct-1",
++        apiToken: "token-1",
++        fetchImpl,
++      });
++      await expect(client.createSession(allowedDomains)).rejects.toThrow(
++        "invalid guardrail hostnames",
++      );
++      expect(fetchImpl).not.toHaveBeenCalled();
++    },
++  );
++
++  it("rejects invalid identifiers and unsupported timeout settings before I/O", async () => {
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acct/other",
++          apiToken: "secret",
++        }),
++    ).toThrow("invalid account id");
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acctK",
++          apiToken: "secret",
+         }),
++    ).toThrow("invalid account id");
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acct-1",
++          apiToken: "secret",
++          keepAliveMs: 1,
++        }),
++    ).toThrow("invalid keep_alive");
++    expect(
++      () =>
++        new CloudflareBrowserRunClient({
++          accountId: "acct-1",
++          apiToken: "secret",
++          sessionTimeoutMs: 120_000,
++        } as CloudflareBrowserRunClientOptionsWithOldTimeout),
++    ).toThrow("unsupported");
++    const fetchImpl = vi.fn();
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "token-1",
++      fetchImpl,
+     });
+-    await expect(client.createSession()).resolves.toEqual({
+-      sessionId: "sess-2",
+-      webSocketUrl: "wss://example.test/custom",
++    await expect(client.closeSession("..")).rejects.toThrow(
++      "invalid session id",
++    );
++    expect(fetchImpl).not.toHaveBeenCalled();
++  });
++
++  it("does not leak server error bodies", async () => {
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "token-1",
++      fetchImpl: async () =>
++        jsonResponse({ errors: [{ message: "server secret" }] }, 429),
+     });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).rejects.toThrow("HTTP 429");
+   });
+ 
+-  it("surfaces API errors and deletes sessions", async () => {
++  it("cleans up valid session IDs when the returned URL has the wrong type", async () => {
+     const calls: string[] = [];
+     const client = new CloudflareBrowserRunClient({
+       accountId: "acct-1",
+       apiToken: "token-1",
+       fetchImpl: async (url, init) => {
+-        calls.push(`${init?.method ?? "GET"} ${url}`);
+-        return jsonResponse(
+-          { success: false, errors: [{ message: "quota exceeded" }] },
+-          429,
+-        );
++        calls.push(`${init?.method} ${url}`);
++        return jsonResponse({ sessionId: "sess-9", webSocketDebuggerUrl: 42 });
+       },
+     });
+-    await expect(client.createSession()).rejects.toThrow("quota exceeded");
+-    await client.closeSession("sess-9");
+-    expect(calls[1]).toContain("DELETE ");
+-    expect(calls[1]).toContain("/devtools/browser/sess-9");
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).rejects.toThrow("invalid session response");
++    expect(calls).toEqual([`POST ${endpoint}`, `DELETE ${endpoint}/sess-9`]);
+   });
+ 
+-  it("requires account configuration from the environment of the caller", () => {
+-    expect(
+-      () => new CloudflareBrowserRunClient({ accountId: "", apiToken: "" }),
+-    ).toThrow("account id and API token");
++  it("reports cleanup failures without including a server error body", async () => {
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "token-1",
++      fetchImpl: async (_url, init) =>
++        init?.method === "DELETE"
++          ? jsonResponse({ secret: "do-not-display" }, 500)
++          : jsonResponse({
++              sessionId: "sess-9",
++              webSocketDebuggerUrl: "wss://evil.test/",
++            }),
++    });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).rejects.toThrow("untrusted CDP endpoint; session cleanup failed");
++    await expect(client.closeSession("sess-9")).rejects.toThrow("HTTP 500");
++  });
++
++  it("snapshots the validated token and idle timeout", async () => {
++    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
++      expect(url).toBe(`${endpoint}?keep_alive=120000`);
++      expect(new Headers(init?.headers).get("authorization")).toBe(
++        "Bearer token-1",
++      );
++      return jsonResponse({
++        sessionId: "sess-9",
++        webSocketDebuggerUrl: socket,
++      });
++    });
++    const options = {
++      accountId: "acct-1",
++      apiToken: "token-1",
++      keepAliveMs: 120_000,
++      fetchImpl: fetchImpl as typeof fetch,
++    };
++    const client = new CloudflareBrowserRunClient(options);
++    options.apiToken = "other";
++    options.keepAliveMs = 1;
++    await client.createSession(["accounts.example.test"]);
+   });
+ });
++
++type CloudflareBrowserRunClientOptionsWithOldTimeout = ConstructorParameters<
++  typeof CloudflareBrowserRunClient
++>[0] & { sessionTimeoutMs: number };
+diff --git a/packages/agent-sandboxes/src/cloudflare-client.ts b/packages/agent-sandboxes/src/cloudflare-client.ts
+index 3ef47b10b..68e48375f 100644
+--- a/packages/agent-sandboxes/src/cloudflare-client.ts
++++ b/packages/agent-sandboxes/src/cloudflare-client.ts
+@@ -1,106 +1,207 @@
+ /**
+- * Cloudflare Browser Run (Browser Rendering) session client.
+- *
+- * Allocation is one REST call (`POST /devtools/browser`); the browser is
+- * then driven over its per-session CDP WebSocket. The API token is
+- * provider configuration (environment), never a page secret, and sessions
+- * are closed with `DELETE` when the run ends.
+- *
+- * API shape: https://developers.cloudflare.com/browser-run/cdp/
++ * Browser Run REST session client.
++ * https://developers.cloudflare.com/browser-run/cdp/session-management/
++ * https://developers.cloudflare.com/browser-run/features/guardrails/
+  */
+-
+ import { z } from "zod";
+ 
+ export interface CloudflareClientOptions {
+   accountId: string;
+   apiToken: string;
+-  /** Defaults to the public Cloudflare API; injectable for tests. */
++  /** Defaults to the public Cloudflare API. */
+   baseUrl?: string;
+   fetchImpl?: typeof fetch;
+-  /** How long a session may idle before Browser Run closes it. */
+-  sessionTimeoutMs?: number;
++  /** Explicit test-only opt-in for a local fake API and CDP socket. */
++  allowInsecureLoopbackForTesting?: boolean;
++  /** Browser Run's keep_alive query parameter, in milliseconds. */
+   keepAliveMs?: number;
+ }
+ 
+-interface CreateSessionBody {
+-  sessionTimeout?: number;
+-  keepAlive?: number;
+-}
+-
+ export interface CloudflareSession {
+   sessionId: string;
+-  /** Browser-level CDP WebSocket URL for this session. */
+   webSocketUrl: string;
+ }
+ 
++export class CloudflareSessionCleanupError extends Error {
++  constructor(
++    readonly sessionId: string,
++    message: string,
++  ) {
++    super(message);
++    this.name = "CloudflareSessionCleanupError";
++  }
++}
++
+ const sessionResponseSchema = z.object({
+-  success: z.boolean(),
+-  errors: z.array(z.object({ message: z.string() })).optional(),
+-  result: z
+-    .object({
+-      sessionId: z.string(),
+-      webSocketDebuggerUrl: z.string().optional(),
+-    })
+-    .optional(),
++  sessionId: z.string(),
++  webSocketDebuggerUrl: z.string().optional(),
+ });
+ 
++const identifier = /^[A-Za-z0-9_-]{1,128}$/u;
++const hostname =
++  /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/u;
++
+ export class CloudflareBrowserRunClient {
+   private readonly baseUrl: string;
+   private readonly fetchImpl: typeof fetch;
++  private readonly apiToken: string;
++  private readonly keepAliveMs: number | undefined;
+ 
+-  constructor(private readonly options: CloudflareClientOptions) {
++  constructor(options: CloudflareClientOptions) {
+     if (!options.accountId || !options.apiToken)
+       throw new Error(
+         "cloudflare provider needs an account id and API token (environment)",
+       );
+-    this.baseUrl = (
+-      options.baseUrl ??
+-      `https://api.cloudflare.com/client/v4/accounts/${options.accountId}/browser-run`
+-    ).replace(/\/$/u, "");
++    if (!identifier.test(options.accountId))
++      throw new Error("cloudflare: invalid account id");
++    if ("sessionTimeoutMs" in options)
++      throw new Error("cloudflare: sessionTimeoutMs is unsupported");
++    if (!/^[A-Za-z0-9._~+/-]+=*$/u.test(options.apiToken))
++      throw new Error("cloudflare: invalid API token");
++    if (
++      options.keepAliveMs !== undefined &&
++      (!Number.isInteger(options.keepAliveMs) ||
++        options.keepAliveMs < 10_000 ||
++        options.keepAliveMs > 1_200_000)
++    )
++      throw new Error("cloudflare: invalid keep_alive");
++    const expectedPath = `/client/v4/accounts/${options.accountId}/browser-run`;
++    let base: URL;
++    try {
++      base = new URL(
++        options.baseUrl ?? `https://api.cloudflare.com${expectedPath}`,
++      );
++    } catch {
++      throw new Error("cloudflare: untrusted API endpoint");
++    }
++    const production =
++      base.protocol === "https:" &&
++      base.hostname === "api.cloudflare.com" &&
++      !base.port &&
++      base.pathname.replace(/\/$/u, "") === expectedPath;
++    const testLoopback =
++      options.allowInsecureLoopbackForTesting === true &&
++      base.protocol === "http:" &&
++      base.hostname === "127.0.0.1";
++    if (
++      base.username ||
++      base.password ||
++      base.search ||
++      base.hash ||
++      !(production || testLoopback)
++    )
++      throw new Error("cloudflare: untrusted API endpoint");
++    this.baseUrl = base.href.replace(/\/$/u, "");
+     this.fetchImpl = options.fetchImpl ?? fetch;
++    this.apiToken = options.apiToken;
++    this.keepAliveMs = options.keepAliveMs;
+   }
+ 
+   private headers() {
+     return {
+-      authorization: `Bearer ${this.options.apiToken}`,
++      authorization: `Bearer ${this.apiToken}`,
+       "content-type": "application/json",
+     };
+   }
+ 
+-  /** Headers the CDP WebSocket upgrade must carry for this account. */
+   cdpHeaders() {
+-    return { authorization: `Bearer ${this.options.apiToken}` };
++    return { authorization: `Bearer ${this.apiToken}` };
+   }
+ 
+-  async createSession(): Promise<CloudflareSession> {
+-    const body: CreateSessionBody = {};
+-    if (this.options.sessionTimeoutMs !== undefined)
+-      body.sessionTimeout = this.options.sessionTimeoutMs;
+-    if (this.options.keepAliveMs !== undefined)
+-      body.keepAlive = this.options.keepAliveMs;
+-    const response = await this.fetchImpl(`${this.baseUrl}/devtools/browser`, {
+-      method: "POST",
+-      headers: this.headers(),
+-      body: JSON.stringify(body),
+-    });
+-    const parsed = sessionResponseSchema.parse(await response.json());
+-    if (!response.ok || !parsed.success || !parsed.result) {
+-      const detail =
+-        parsed.errors?.map((error) => error.message).join("; ") ||
+-        `HTTP ${response.status}`;
+-      throw new Error(`cloudflare: session allocation failed (${detail})`);
++  async createSession(
++    allowedDomains: readonly string[],
++  ): Promise<CloudflareSession> {
++    if (
++      !Array.isArray(allowedDomains) ||
++      allowedDomains.length === 0 ||
++      allowedDomains.length > 50 ||
++      allowedDomains.some(
++        (domain) => typeof domain !== "string" || !hostname.test(domain),
++      )
++    )
++      throw new Error("cloudflare: invalid guardrail hostnames");
++    const endpoint = new URL(`${this.baseUrl}/devtools/browser`);
++    if (this.keepAliveMs !== undefined)
++      endpoint.searchParams.set("keep_alive", String(this.keepAliveMs));
++    let response: Response;
++    try {
++      response = await this.fetchImpl(endpoint.href, {
++        method: "POST",
++        redirect: "error",
++        headers: this.headers(),
++        body: JSON.stringify({ guardrails: { allowedDomains } }),
++        signal: AbortSignal.timeout(30_000),
++      });
++    } catch {
++      throw new Error("cloudflare: session allocation request failed");
++    }
++    if (!response.ok)
++      throw new Error(
++        `cloudflare: session allocation failed (HTTP ${response.status})`,
++      );
++    let raw: unknown;
++    try {
++      raw = await response.json();
++    } catch {
++      throw new Error("cloudflare: invalid session response");
++    }
++    const idResult = z.object({ sessionId: z.string() }).safeParse(raw);
++    if (!idResult.success)
++      throw new Error("cloudflare: invalid session response");
++    const { sessionId } = idResult.data;
++    if (!identifier.test(sessionId))
++      throw new Error("cloudflare: invalid session id");
++    const result = sessionResponseSchema.safeParse(raw);
++    if (!result.success)
++      return this.rejectSession(sessionId, "invalid session response");
++    const parsed = result.data;
++    const expected = `${this.baseUrl.replace(/^http/u, "ws")}/devtools/browser/${sessionId}`;
++    const webSocketUrl = parsed.webSocketDebuggerUrl ?? expected;
++    if (webSocketUrl !== expected) {
++      return this.rejectSession(sessionId, "untrusted CDP endpoint");
+     }
+-    const { sessionId } = parsed.result;
+-    const webSocketUrl =
+-      parsed.result.webSocketDebuggerUrl ??
+-      `${this.baseUrl.replace(/^http/u, "ws")}/devtools/browser/${sessionId}`;
+     return { sessionId, webSocketUrl };
+   }
+ 
++  private async rejectSession(
++    sessionId: string,
++    reason: string,
++  ): Promise<never> {
++    try {
++      await this.closeSession(sessionId);
++    } catch {
++      throw new CloudflareSessionCleanupError(
++        sessionId,
++        `cloudflare: ${reason}; session cleanup failed`,
++      );
++    }
++    throw new Error(`cloudflare: ${reason}`);
++  }
++
+   async closeSession(sessionId: string): Promise<void> {
+-    await this.fetchImpl(
+-      `${this.baseUrl}/devtools/browser/${encodeURIComponent(sessionId)}`,
+-      { method: "DELETE", headers: this.headers() },
+-    ).catch(() => {});
++    if (!identifier.test(sessionId))
++      throw new Error("cloudflare: invalid session id");
++    let response: Response;
++    try {
++      response = await this.fetchImpl(
++        `${this.baseUrl}/devtools/browser/${encodeURIComponent(sessionId)}`,
++        {
++          method: "DELETE",
++          redirect: "error",
++          headers: this.headers(),
++          signal: AbortSignal.timeout(10_000),
++        },
++      );
++    } catch {
++      throw new CloudflareSessionCleanupError(
++        sessionId,
++        "cloudflare: session cleanup request failed",
++      );
++    }
++    if (!response.ok)
++      throw new CloudflareSessionCleanupError(
++        sessionId,
++        `cloudflare: session cleanup failed (HTTP ${response.status})`,
++      );
+   }
+ }
+diff --git a/packages/agent-sandboxes/src/cloudflare-provider.test.ts b/packages/agent-sandboxes/src/cloudflare-provider.test.ts
+new file mode 100644
+index 000000000..14bba449d
+--- /dev/null
++++ b/packages/agent-sandboxes/src/cloudflare-provider.test.ts
+@@ -0,0 +1,99 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import {
++  CloudflareBrowserRunClient,
++  CloudflareSessionCleanupError,
++} from "./cloudflare-client.js";
++import { CloudflareSandboxProvider } from "./cloudflare-provider.js";
++
++const mocks = vi.hoisted(() => ({
++  connect: vi.fn(),
++  driverConnect: vi.fn(),
++}));
++
++vi.mock("./cdp-node-socket.js", () => ({ connectCdp: mocks.connect }));
++vi.mock("./cdp-driver.js", () => ({
++  CdpBrowserDriver: { connect: mocks.driverConnect },
++}));
++
++function fakeClient(deleteStatus = 200) {
++  const calls: string[] = [];
++  const client = new CloudflareBrowserRunClient({
++    accountId: "acct-1",
++    apiToken: "token-1",
++    fetchImpl: async (url, init) => {
++      calls.push(`${init?.method} ${url}`);
++      return new Response(JSON.stringify({ sessionId: "sess-9" }), {
++        status: init?.method === "DELETE" ? deleteStatus : 200,
++      });
++    },
++  });
++  return { client, calls };
++}
++
++beforeEach(() => {
++  mocks.connect.mockReset();
++  mocks.driverConnect.mockReset();
++});
++afterEach(() => vi.useRealTimers());
++
++describe("Cloudflare provider lifecycle", () => {
++  it("closes an open socket and deletes the session when driver initialization fails", async () => {
++    const { client, calls } = fakeClient();
++    const close = vi.fn();
++    mocks.connect.mockResolvedValue({ close });
++    mocks.driverConnect.mockRejectedValue(new Error("driver refused"));
++    const provider = new CloudflareSandboxProvider({ client });
++    await expect(
++      provider.allocate({ origin: "https://accounts.example.test" }),
++    ).rejects.toThrow("driver refused");
++    expect(close).toHaveBeenCalledOnce();
++    expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
++  });
++
++  it("bounds initialization and closes the socket before session deletion", async () => {
++    vi.useFakeTimers();
++    const { client, calls } = fakeClient();
++    const close = vi.fn();
++    mocks.connect.mockResolvedValue({ close });
++    mocks.driverConnect.mockImplementation(() => new Promise(() => {}));
++    const provider = new CloudflareSandboxProvider({ client });
++    const pending = provider.allocate({
++      origin: "https://accounts.example.test",
++    });
++    const rejected = expect(pending).rejects.toThrow(
++      "initialization timed out",
++    );
++    await vi.advanceTimersByTimeAsync(15_001);
++    await rejected;
++    expect(close).toHaveBeenCalledOnce();
++    expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
++  });
++
++  it("returns the validated session ID when cleanup fails", async () => {
++    const { client } = fakeClient(500);
++    const close = vi.fn();
++    mocks.connect.mockResolvedValue({ close });
++    mocks.driverConnect.mockRejectedValue(new Error("driver refused"));
++    const provider = new CloudflareSandboxProvider({ client });
++    const failure = await provider
++      .allocate({ origin: "https://accounts.example.test" })
++      .catch((error: unknown) => error);
++    expect(failure).toBeInstanceOf(CloudflareSessionCleanupError);
++    expect(failure).toMatchObject({ sessionId: "sess-9" });
++    expect(close).toHaveBeenCalledOnce();
++  });
++
++  it("attempts session deletion even if closing the browser throws", async () => {
++    const { client, calls } = fakeClient();
++    mocks.connect.mockResolvedValue({ close: vi.fn() });
++    mocks.driverConnect.mockResolvedValue({
++      close: vi.fn().mockRejectedValue(new Error("close failed")),
++    });
++    const provider = new CloudflareSandboxProvider({ client });
++    const sandbox = await provider.allocate({
++      origin: "https://accounts.example.test",
++    });
++    await expect(sandbox.close()).rejects.toThrow("close failed");
++    expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
++  });
++});
+diff --git a/packages/agent-sandboxes/src/cloudflare-provider.ts b/packages/agent-sandboxes/src/cloudflare-provider.ts
+index eefb29f2f..d5be6d9de 100644
+--- a/packages/agent-sandboxes/src/cloudflare-provider.ts
++++ b/packages/agent-sandboxes/src/cloudflare-provider.ts
+@@ -5,11 +5,13 @@
+  * the run closes.
+  */
+ 
++import type { CdpConnection } from "./cdp-connection.js";
+ import { CdpBrowserDriver, type CdpDriverOptions } from "./cdp-driver.js";
+ import { connectCdp } from "./cdp-node-socket.js";
+ import {
+   CloudflareBrowserRunClient,
+   type CloudflareClientOptions,
++  CloudflareSessionCleanupError,
+ } from "./cloudflare-client.js";
+ import {
+   type AllocatedSandbox,
+@@ -26,6 +28,8 @@ export interface CloudflareProviderOptions
+ }
+ 
+ function clientFrom(options: CloudflareProviderOptions) {
++  if ("sessionTimeoutMs" in options)
++    throw new Error("cloudflare: sessionTimeoutMs is unsupported");
+   if (options.client) return options.client;
+   const accountId =
+     options.accountId ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? "";
+@@ -37,8 +41,9 @@ function clientFrom(options: CloudflareProviderOptions) {
+   const clientOptions: CloudflareClientOptions = { accountId, apiToken };
+   if (options.baseUrl) clientOptions.baseUrl = options.baseUrl;
+   if (options.fetchImpl) clientOptions.fetchImpl = options.fetchImpl;
+-  if (options.sessionTimeoutMs !== undefined)
+-    clientOptions.sessionTimeoutMs = options.sessionTimeoutMs;
++  if (options.allowInsecureLoopbackForTesting !== undefined)
++    clientOptions.allowInsecureLoopbackForTesting =
++      options.allowInsecureLoopbackForTesting;
+   if (options.keepAliveMs !== undefined)
+     clientOptions.keepAliveMs = options.keepAliveMs;
+   return new CloudflareBrowserRunClient(clientOptions);
+@@ -52,27 +57,53 @@ export class CloudflareSandboxProvider implements SandboxProvider {
+   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
+     const { allowedDomains } = allowedDomainsFor(request);
+     const client = clientFrom(this.options);
+-    const session = await client.createSession();
++    const session = await client.createSession(allowedDomains);
++    let connection: CdpConnection | undefined;
+     try {
+-      const connection = await connectCdp(session.webSocketUrl, {
++      connection = await connectCdp(session.webSocketUrl, {
+         headers: client.cdpHeaders(),
+       });
+       const driverOptions: CdpDriverOptions = { allowedDomains };
+       if (this.options.loadTimeoutMs !== undefined)
+         driverOptions.loadTimeoutMs = this.options.loadTimeoutMs;
+-      const browser = await CdpBrowserDriver.connect(connection, driverOptions);
++      let timeout: ReturnType<typeof setTimeout> | undefined;
++      const browser = await Promise.race([
++        CdpBrowserDriver.connect(connection, driverOptions),
++        new Promise<never>((_resolve, reject) => {
++          timeout = setTimeout(
++            () =>
++              reject(new Error("cloudflare: browser initialization timed out")),
++            15_000,
++          );
++        }),
++      ]).finally(() => clearTimeout(timeout));
+       return {
+         provider: this.id,
+         session: session.sessionId,
+         browser,
+         allowedDomains,
+         close: async () => {
+-          await browser.close();
+-          await client.closeSession(session.sessionId);
++          try {
++            await browser.close();
++          } finally {
++            await client.closeSession(session.sessionId);
++          }
+         },
+       };
+     } catch (error) {
+-      await client.closeSession(session.sessionId);
++      try {
++        connection?.close();
++      } catch {
++        // Attempt remote cleanup even if closing the local socket fails.
++      }
++      try {
++        await client.closeSession(session.sessionId);
++      } catch {
++        throw new CloudflareSessionCleanupError(
++          session.sessionId,
++          "cloudflare: browser connection and session cleanup failed",
++        );
++      }
+       throw error;
+     }
+   }
+diff --git a/packages/agent-sandboxes/src/cloudflare-redirect.test.ts b/packages/agent-sandboxes/src/cloudflare-redirect.test.ts
+new file mode 100644
+index 000000000..af33dfda0
+--- /dev/null
++++ b/packages/agent-sandboxes/src/cloudflare-redirect.test.ts
+@@ -0,0 +1,99 @@
++import { once } from "node:events";
++import { type Server, createServer } from "node:http";
++import { afterEach, describe, expect, it } from "vitest";
++import { WebSocketServer } from "ws";
++import { connectCdp } from "./cdp-node-socket.js";
++import { CloudflareBrowserRunClient } from "./cloudflare-client.js";
++
++const servers: Server[] = [];
++const websocketServers: WebSocketServer[] = [];
++
++async function listen(server: Server): Promise<string> {
++  servers.push(server);
++  server.listen(0, "127.0.0.1");
++  await once(server, "listening");
++  const address = server.address();
++  if (!address || typeof address === "string")
++    throw new Error("test listener missing");
++  return `http://127.0.0.1:${address.port}`;
++}
++
++afterEach(async () => {
++  for (const ws of websocketServers.splice(0)) {
++    for (const client of ws.clients) client.terminate();
++    await new Promise<void>((resolve) => ws.close(() => resolve()));
++  }
++  for (const server of servers.splice(0)) {
++    server.closeAllConnections();
++    await new Promise<void>((resolve) => server.close(() => resolve()));
++  }
++});
++
++describe("provider bearer redirects", () => {
++  it("refuses an HTTP redirect and keeps the bearer away from the second endpoint", async () => {
++    let reached = 0;
++    const target = await listen(
++      createServer((_request, response) => {
++        reached += 1;
++        response.writeHead(200).end();
++      }),
++    );
++    const redirect = await listen(
++      createServer((_request, response) => {
++        response.writeHead(302, { location: `${target}/stolen` }).end();
++      }),
++    );
++    const client = new CloudflareBrowserRunClient({
++      accountId: "acct-1",
++      apiToken: "test-bearer",
++      baseUrl: redirect,
++      allowInsecureLoopbackForTesting: true,
++    });
++    await expect(
++      client.createSession(["accounts.example.test"]),
++    ).rejects.toThrow("session allocation request failed");
++    expect(reached).toBe(0);
++  });
++
++  it("refuses a WebSocket redirect and keeps the bearer away from the second endpoint", async () => {
++    let reached = 0;
++    const targetServer = createServer();
++    targetServer.on("upgrade", (_request, socket) => {
++      reached += 1;
++      socket.destroy();
++    });
++    const target = await listen(targetServer);
++    const redirectServer = createServer();
++    redirectServer.on("upgrade", (_request, socket) => {
++      socket.end(
++        `HTTP/1.1 302 Found\r\nLocation: ${target.replace("http:", "ws:")}/stolen\r\nConnection: close\r\n\r\n`,
++      );
++    });
++    const redirect = await listen(redirectServer);
++    await expect(
++      connectCdp(redirect.replace("http:", "ws:"), {
++        headers: { authorization: "Bearer test-bearer" },
++      }),
++    ).rejects.toThrow("cdp: connection failed");
++    expect(reached).toBe(0);
++  });
++
++  it("sends the bearer to the intended socket and opens a real WebSocket", async () => {
++    let received = "";
++    const server = createServer();
++    const ws = new WebSocketServer({ noServer: true });
++    websocketServers.push(ws);
++    server.on("upgrade", (request, socket, head) => {
++      received = request.headers.authorization ?? "";
++      ws.handleUpgrade(request, socket, head, (connection) =>
++        ws.emit("connection", connection, request),
++      );
++    });
++    const base = await listen(server);
++    const connection = await connectCdp(base.replace("http:", "ws:"), {
++      headers: { authorization: "Bearer test-bearer" },
++    });
++    expect(received).toBe("Bearer test-bearer");
++    connection.close();
++  });
++});
+diff --git a/packages/agent-sandboxes/src/relay-driver.ts b/packages/agent-sandboxes/src/relay-driver.ts
+index 1a2bdaff5..eee27ac66 100644
+--- a/packages/agent-sandboxes/src/relay-driver.ts
++++ b/packages/agent-sandboxes/src/relay-driver.ts
+@@ -70,7 +70,7 @@ interface SocketLike {
+     listener: (event: { data: unknown }) => void,
+   ): void;
+   addEventListener(type: "open", listener: () => void): void;
+-  addEventListener(type: "error", listener: () => void): void;
++  addEventListener(type: "error" | "close", listener: () => void): void;
+ }
+ 
+ /**
+@@ -88,6 +88,15 @@ export function webSocketRelayTransport(
+     resolve: (response: RelayResponse) => void;
+     reject: (error: Error) => void;
+   } | null = null;
++  let closed = false;
++  const fail = () => {
++    closed = true;
++    const settle = pending;
++    pending = null;
++    settle?.reject(new Error("relay driver: connection closed"));
++  };
++  socket.addEventListener("close", fail);
++  socket.addEventListener("error", fail);
+   socket.addEventListener("message", (event) => {
+     const settle = pending;
+     if (!settle) return;
+@@ -103,47 +112,71 @@ export function webSocketRelayTransport(
+   });
+   return async (request) => {
+     await ready;
++    if (closed) throw new Error("relay driver: connection closed");
+     if (pending) throw new Error("relay driver: concurrent request");
+     return new Promise<RelayResponse>((resolve, reject) => {
+       pending = { id: request.id, resolve, reject };
+-      socket.send(JSON.stringify(request));
++      try {
++        socket.send(JSON.stringify(request));
++      } catch {
++        pending = null;
++        closed = true;
++        reject(new Error("relay driver: connection closed"));
++      }
+     });
+   };
+ }
+ 
+ export interface RelaySocketOptions {
+-  token?: string;
++  token: string;
+ }
+ 
+ /** Connect a relay driver to a `ws(s)://` relay endpoint. */
+ export function relayDriverOverWebSocket(
+   url: string,
+-  options: RelaySocketOptions = {},
++  options: RelaySocketOptions,
+ ): RelayBrowserDriver {
+-  const socket = new WebSocket(url);
++  if (!options.token) throw new Error("relay driver: token is required");
++  const endpoint = new URL(url);
++  if (
++    endpoint.username ||
++    endpoint.password ||
++    (endpoint.protocol !== "wss:" &&
++      !(
++        endpoint.protocol === "ws:" &&
++        (endpoint.hostname === "127.0.0.1" || endpoint.hostname === "[::1]")
++      ))
++  ) {
++    throw new Error(
++      "relay driver: remote relay requires wss and no URL credentials",
++    );
++  }
++  const socket = new WebSocket(endpoint.href);
+   const ready = new Promise<void>((resolve, reject) => {
+     socket.addEventListener("open", () => {
+-      if (!options.token) {
+-        resolve();
+-        return;
+-      }
+-      const onAuth = (event: { data: unknown }) => {
++      const onAuth = (event: MessageEvent) => {
+         const parsed = parseRelayResponse(String(event.data));
+-        if (!parsed || parsed.id !== 0) {
+-          if (!parsed)
+-            reject(new Error("relay driver: authentication refused"));
+-          return;
+-        }
+-        if (parsed.ok) resolve();
++        if (parsed && parsed.id !== 0) return;
++        socket.removeEventListener("message", onAuth);
++        if (parsed?.ok) resolve();
+         else reject(new Error("relay driver: authentication refused"));
+       };
+       socket.addEventListener("message", onAuth);
+-      socket.send(JSON.stringify({ type: "auth", token: options.token }));
++      try {
++        socket.send(JSON.stringify({ type: "auth", token: options.token }));
++      } catch {
++        reject(new Error("relay driver: connection failed"));
++      }
+     });
+     socket.addEventListener("error", () =>
+       reject(new Error("relay driver: connection failed")),
+     );
++    socket.addEventListener("close", () =>
++      reject(new Error("relay driver: connection closed")),
++    );
+   });
++  // The socket can close before the first driver call observes readiness.
++  void ready.catch(() => {});
+   // SAFETY: the global WebSocket implements the SocketLike surface used here (send/close/addEventListener), verified by the relay tests.
+   return new RelayBrowserDriver(
+     webSocketRelayTransport(socket as SocketLike, ready),
+diff --git a/packages/agent-sandboxes/src/relay-server.ts b/packages/agent-sandboxes/src/relay-server.ts
+index d34f30e3b..5185b2ccd 100644
+--- a/packages/agent-sandboxes/src/relay-server.ts
++++ b/packages/agent-sandboxes/src/relay-server.ts
+@@ -2,13 +2,13 @@
+  * Reference relay server: hosts one real `BrowserDriver` behind the relay
+  * protocol over an authenticated WebSocket. This is the process a remote
+  * sandbox lane runs next to its browser (Boat runs it inside the sandbox;
+- * tests run it in-process). The bearer token is checked on upgrade and
+- * never logged; driver errors cross as messages, never as page content.
++ * tests run it in-process). The bearer token is checked before requests and
++ * never logged. Remote access requires a TLS-terminating proxy.
+  */
+ 
+ import { type Server, createServer } from "node:http";
+ import type { BrowserDriver } from "@opensesame/cua-password-reset";
+-import { WebSocketServer } from "ws";
++import { WebSocket, WebSocketServer } from "ws";
+ import {
+   type RelayRequest,
+   type RelayResponse,
+@@ -19,7 +19,7 @@ export interface RelayServerOptions {
+   /** Port to bind; 0 picks an ephemeral port (tests). */
+   port?: number;
+   host?: string;
+-  /** Required bearer token for the WebSocket upgrade. */
++  /** Required bearer token for the upgrade or first authentication frame. */
+   token: string;
+   /** The browser this relay drives. One session per server. */
+   driver: BrowserDriver;
+@@ -84,56 +84,85 @@ async function dispatch(
+ export async function startRelayServer(
+   options: RelayServerOptions,
+ ): Promise<RunningRelayServer> {
++  const host = options.host ?? "127.0.0.1";
++  if (host !== "127.0.0.1" && host !== "::1")
++    throw new Error(
++      "relay server: plaintext listener must bind literal loopback",
++    );
++  if (!options.token) throw new Error("relay server: token is required");
+   const server: Server = createServer((request, response) => {
+     response.writeHead(404).end();
+     void request;
+   });
+   const wss = new WebSocketServer({ noServer: true });
++  let owner: WebSocket | null = null;
++  // A disconnect must not let the next owner overtake an in-flight command.
++  let queue = Promise.resolve();
+   server.on("upgrade", (request, socket, head) => {
+     const headerAuthed =
+       request.headers.authorization === `Bearer ${options.token}`;
+     wss.handleUpgrade(request, socket, head, (ws) => {
+-      let authenticated = headerAuthed;
++      let authenticated = false;
++      const claim = () => {
++        if (owner && owner !== ws) return false;
++        owner = ws;
++        authenticated = true;
++        return true;
++      };
++      ws.on("close", () => {
++        if (owner === ws) owner = null;
++      });
++      ws.on("error", () => ws.terminate());
++      if (headerAuthed && !claim()) {
++        ws.close(1008, "relay session already owned");
++        return;
++      }
+       ws.on("message", (data) => {
+-        void (async () => {
+-          const frame = parseRelayFrame(data.toString());
+-          if (!authenticated) {
+-            if (
+-              frame &&
+-              "auth" in frame &&
+-              frame.auth.token === options.token
+-            ) {
+-              authenticated = true;
+-              ws.send(JSON.stringify({ id: 0, ok: true }));
+-            } else {
+-              ws.send(
+-                JSON.stringify({ id: 0, ok: false, error: "unauthorized" }),
+-              );
+-              ws.close();
+-            }
+-            return;
++        const frame = parseRelayFrame(data.toString());
++        if (!authenticated) {
++          if (
++            frame &&
++            "auth" in frame &&
++            frame.auth.token === options.token &&
++            claim()
++          ) {
++            ws.send(JSON.stringify({ id: 0, ok: true }));
++          } else {
++            ws.send(
++              JSON.stringify({ id: 0, ok: false, error: "unauthorized" }),
++            );
++            ws.close(1008, "unauthorized");
+           }
+-          if (!frame || !("request" in frame)) return;
+-          ws.send(
+-            JSON.stringify(await dispatch(options.driver, frame.request)),
+-          );
+-        })();
++          return;
++        }
++        if (!frame || !("request" in frame)) return;
++        const request = frame.request;
++        queue = queue
++          .then(async () => {
++            if (owner !== ws || ws.readyState !== WebSocket.OPEN) return;
++            const response = await dispatch(options.driver, request);
++            if (ws.readyState !== WebSocket.OPEN) return;
++            ws.send(JSON.stringify(response));
++            if (request.method === "close" && response.ok) ws.close();
++          })
++          .catch(() => ws.terminate());
+       });
+     });
+   });
+   await new Promise<void>((resolve) => {
+-    server.listen(options.port ?? 0, options.host ?? "127.0.0.1", resolve);
++    server.listen(options.port ?? 0, host, resolve);
+   });
+   const address = server.address();
+   const port =
+     address instanceof Object && "port" in address ? address.port : 0;
+   return {
+-    url: `ws://${options.host ?? "127.0.0.1"}:${port}`,
++    url: `ws://${host === "::1" ? "[::1]" : host}:${port}`,
+     port,
+     close: async () => {
+       for (const client of wss.clients) client.terminate();
+       wss.close();
+       await new Promise<void>((resolve) => server.close(() => resolve()));
++      await queue;
+     },
+   };
+ }
+diff --git a/packages/agent-sandboxes/src/relay.test.ts b/packages/agent-sandboxes/src/relay.test.ts
+index 158d039bb..8461d45ae 100644
+--- a/packages/agent-sandboxes/src/relay.test.ts
++++ b/packages/agent-sandboxes/src/relay.test.ts
+@@ -1,8 +1,10 @@
++import { once } from "node:events";
+ import type {
+   BrowserDriver,
+   Observation,
+ } from "@opensesame/cua-password-reset";
+ import { afterEach, describe, expect, it, vi } from "vitest";
++import { WebSocket } from "ws";
+ import { relayDriverOverWebSocket } from "./relay-driver.js";
+ import { type RunningRelayServer, startRelayServer } from "./relay-server.js";
+ 
+@@ -40,6 +42,7 @@ describe("driver relay", () => {
+   afterEach(async () => {
+     await server?.close();
+     server = null;
++    vi.unstubAllGlobals();
+   });
+ 
+   it("drives the hosted browser over an authenticated socket", async () => {
+@@ -80,4 +83,121 @@ describe("driver relay", () => {
+       "navigation blocked",
+     );
+   });
++  it("allows retrying close when the hosted driver fails to close", async () => {
++    const hosted = fakeDriver();
++    if (!hosted.close) throw new Error("fake driver requires close");
++    vi.mocked(hosted.close).mockRejectedValueOnce(new Error("close failed"));
++    server = await startRelayServer({ token: "t", driver: hosted });
++    const driver = relayDriverOverWebSocket(server.url, { token: "t" });
++    await expect(driver.close()).rejects.toThrow("close failed");
++    await expect(driver.close()).resolves.toBeUndefined();
++    expect(hosted.close).toHaveBeenCalledTimes(2);
++  });
++
++  it("rejects insecure remote addresses and plaintext non-loopback listeners", async () => {
++    const driver = fakeDriver();
++    await expect(
++      startRelayServer({ host: "0.0.0.0", token: "t", driver }),
++    ).rejects.toThrow(/loopback/u);
++    await expect(startRelayServer({ token: "", driver })).rejects.toThrow(
++      /token/u,
++    );
++    expect(() =>
++      relayDriverOverWebSocket("ws://example.test/relay", { token: "t" }),
++    ).toThrow(/wss/u);
++    expect(() =>
++      relayDriverOverWebSocket("ws://localhost/relay", { token: "t" }),
++    ).toThrow(/wss/u);
++    expect(() =>
++      relayDriverOverWebSocket("wss://user:password@example.test/relay", {
++        token: "t",
++      }),
++    ).toThrow(/credentials/u);
++    const constructed = vi.fn();
++    class Socket {
++      constructor(url: string) {
++        constructed(url);
++      }
++      addEventListener() {}
++      send() {}
++      close() {}
++    }
++    vi.stubGlobal("WebSocket", Socket);
++    relayDriverOverWebSocket("wss://example.test/relay", { token: "t" });
++    expect(constructed).toHaveBeenCalledWith("wss://example.test/relay");
++  });
++
++  it("allows only one authenticated client to own the browser session", async () => {
++    const hosted = fakeDriver();
++    server = await startRelayServer({ token: "shared", driver: hosted });
++    const first = relayDriverOverWebSocket(server.url, { token: "shared" });
++    await first.open("https://first.example/");
++    const second = relayDriverOverWebSocket(server.url, { token: "shared" });
++    await expect(second.open("https://second.example/")).rejects.toThrow(
++      /refused|closed/u,
++    );
++    expect(hosted.calls).toEqual(["open https://first.example/"]);
++    await first.close();
++  });
++
++  it("serializes pipelined commands and reconnects after in-flight work", async () => {
++    const hosted = fakeDriver();
++    let release: () => void = () => {};
++    const held = new Promise<void>((resolve) => {
++      release = resolve;
++    });
++    vi.mocked(hosted.open).mockImplementation(async () => {
++      await held;
++    });
++    server = await startRelayServer({ token: "shared", driver: hosted });
++    const first = new WebSocket(server.url);
++    try {
++      await once(first, "open");
++      first.send(JSON.stringify({ type: "auth", token: "shared" }));
++      await once(first, "message");
++      first.send(
++        JSON.stringify({ id: 1, method: "open", url: "https://x.test/" }),
++      );
++      first.send(JSON.stringify({ id: 2, method: "snapshot" }));
++      await vi.waitFor(() => expect(hosted.open).toHaveBeenCalledOnce());
++      expect(hosted.snapshot).not.toHaveBeenCalled();
++      first.terminate();
++      await once(first, "close");
++      const next = relayDriverOverWebSocket(server.url, { token: "shared" });
++      const nextSnapshot = next.snapshot();
++      await new Promise((resolve) => setTimeout(resolve, 25));
++      expect(hosted.snapshot).not.toHaveBeenCalled();
++      release();
++      await expect(nextSnapshot).resolves.toEqual(OBSERVATION);
++      expect(hosted.snapshot).toHaveBeenCalledOnce();
++      await next.close();
++    } finally {
++      release();
++      first.terminate();
++    }
++  });
++
++  it("rejects an in-flight and subsequent command when the socket closes", async () => {
++    const hosted = fakeDriver();
++    let release: () => void = () => {};
++    const held = new Promise<void>((resolve) => {
++      release = resolve;
++    });
++    vi.mocked(hosted.open).mockImplementation(async () => {
++      await held;
++    });
++    server = await startRelayServer({ token: "t", driver: hosted });
++    const driver = relayDriverOverWebSocket(server.url, { token: "t" });
++    const pending = driver.open("https://x.test/");
++    await vi.waitFor(() => expect(hosted.open).toHaveBeenCalledOnce());
++    const closing = server.close();
++    try {
++      await expect(pending).rejects.toThrow(/closed|failed/u);
++      await expect(driver.snapshot()).rejects.toThrow(/closed/u);
++    } finally {
++      release();
++      await closing;
++      server = null;
++    }
++  });
+ });
+diff --git a/packages/agent-sandboxes/src/vnet-cookie-jar.test.ts b/packages/agent-sandboxes/src/vnet-cookie-jar.test.ts
+new file mode 100644
+index 000000000..f35fd1102
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-cookie-jar.test.ts
+@@ -0,0 +1,38 @@
++import { describe, expect, it } from "vitest";
++import { CookieJar } from "./vnet-cookie-jar.js";
++
++function cookies(...lines: string[]): Headers {
++  const headers = new Headers();
++  for (const line of lines) headers.append("set-cookie", line);
++  return headers;
++}
++
++describe("virtual network cookies", () => {
++  it("enforces Secure, path, expiry, and host-only domain scope", () => {
++    const jar = new CookieJar();
++    const url = new URL("https://accounts.example.test/reset/start");
++    jar.store(
++      url,
++      cookies(
++        "auth=secret; Secure; Path=/reset",
++        "gone=x; Max-Age=0",
++        "domain=x; Domain=example.test",
++        "exact=y; Domain=.accounts.example.test; Secure; Path=/",
++        "__Host-invalid=x; Domain=accounts.example.test; Secure; Path=/",
++        "plain=x; Path=/",
++      ),
++    );
++    expect(jar.header(new URL("https://accounts.example.test/reset/go"))).toBe(
++      "auth=secret; exact=y; plain=x",
++    );
++    expect(jar.header(new URL("http://accounts.example.test/reset/go"))).toBe(
++      "plain=x",
++    );
++    expect(jar.header(new URL("https://accounts.example.test/elsewhere"))).toBe(
++      "exact=y; plain=x",
++    );
++    expect(jar.header(new URL("https://evil.example.test/reset/go"))).toBe("");
++    jar.store(url, cookies("auth=; Secure; Path=/reset; Max-Age=0"));
++    expect(jar.header(url)).toBe("exact=y; plain=x");
++  });
++});
+diff --git a/packages/agent-sandboxes/src/vnet-cookie-jar.ts b/packages/agent-sandboxes/src/vnet-cookie-jar.ts
+new file mode 100644
+index 000000000..39fbde08d
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-cookie-jar.ts
+@@ -0,0 +1,111 @@
++/** Host-only jar; an exact-host Domain attribute never broadens its scope. */
++type Cookie = {
++  name: string;
++  value: string;
++  host: string;
++  path: string;
++  secure: boolean;
++  expires: number | null;
++};
++
++function defaultPath(pathname: string): string {
++  const last = pathname.lastIndexOf("/");
++  return last <= 0 ? "/" : pathname.slice(0, last);
++}
++
++function pathMatches(request: string, cookie: string): boolean {
++  return (
++    request === cookie ||
++    (request.startsWith(cookie) &&
++      (cookie.endsWith("/") || request[cookie.length] === "/"))
++  );
++}
++
++export class CookieJar {
++  private readonly cookies: Cookie[] = [];
++
++  store(url: URL, headers: Headers): void {
++    for (const line of headers.getSetCookie?.() ?? []) {
++      const [pair, ...attributes] = line.split(";");
++      if (!pair) continue;
++      const eq = pair.indexOf("=");
++      if (eq <= 0) continue;
++      const name = pair.slice(0, eq).trim();
++      const value = pair.slice(eq + 1).trim();
++      if (
++        !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) ||
++        [...value].some(
++          (char) =>
++            char.charCodeAt(0) <= 32 ||
++            char.charCodeAt(0) === 127 ||
++            char === ";" ||
++            char === ",",
++        )
++      )
++        continue;
++      let path = defaultPath(url.pathname);
++      let secure = false;
++      let expires: number | null = null;
++      let maxAge: number | null = null;
++      let hasDomain = false;
++      let domainMatches = true;
++      for (const attribute of attributes) {
++        const [rawName, ...rest] = attribute.trim().split("=");
++        const key = (rawName ?? "").toLowerCase();
++        const attrValue = rest.join("=").trim();
++        if (key === "domain") {
++          hasDomain = true;
++          if (
++            attrValue.replace(/^\./u, "").toLowerCase() !==
++            url.hostname.toLowerCase()
++          )
++            domainMatches = false;
++        }
++        if (key === "secure") secure = true;
++        if (key === "path" && attrValue.startsWith("/")) path = attrValue;
++        if (key === "expires") {
++          const parsed = Date.parse(attrValue);
++          if (Number.isFinite(parsed)) expires = parsed;
++        }
++        if (key === "max-age" && /^-?\d+$/u.test(attrValue))
++          maxAge = Number(attrValue);
++      }
++      if (
++        !domainMatches ||
++        (secure && url.protocol !== "https:") ||
++        (name.startsWith("__Secure-") && !secure) ||
++        (name.startsWith("__Host-") && (!secure || path !== "/" || hasDomain))
++      )
++        continue;
++      if (maxAge !== null)
++        expires = maxAge <= 0 ? 0 : Date.now() + maxAge * 1000;
++      const index = this.cookies.findIndex(
++        (c) => c.host === url.hostname && c.path === path && c.name === name,
++      );
++      if (index >= 0) this.cookies.splice(index, 1);
++      if (expires === null || expires > Date.now())
++        this.cookies.push({
++          name,
++          value,
++          host: url.hostname,
++          path,
++          secure,
++          expires,
++        });
++    }
++  }
++
++  header(url: URL): string {
++    return this.cookies
++      .filter(
++        (c) =>
++          c.host === url.hostname &&
++          (!c.secure || url.protocol === "https:") &&
++          (c.expires === null || c.expires > Date.now()) &&
++          pathMatches(url.pathname, c.path),
++      )
++      .sort((a, b) => b.path.length - a.path.length)
++      .map((c) => `${c.name}=${c.value}`)
++      .join("; ");
++  }
++}
+diff --git a/packages/agent-sandboxes/src/vnet-pinned-fetch.test.ts b/packages/agent-sandboxes/src/vnet-pinned-fetch.test.ts
+new file mode 100644
+index 000000000..0cc41bed2
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-pinned-fetch.test.ts
+@@ -0,0 +1,26 @@
++import { describe, expect, it } from "vitest";
++import { resolvePinnedAddress } from "./vnet-pinned-fetch.js";
++
++describe("pinned relay DNS", () => {
++  it("refuses private, mixed and IPv6 destinations", async () => {
++    await expect(resolvePinnedAddress("127.0.0.1", false)).rejects.toThrow(
++      /public IPv4/u,
++    );
++    await expect(
++      resolvePinnedAddress("169.254.169.254", false),
++    ).rejects.toThrow(/public IPv4/u);
++    await expect(resolvePinnedAddress("::1", true)).rejects.toThrow(/IPv6/u);
++    await expect(
++      resolvePinnedAddress("mixed.example", false, async () => [
++        { address: "8.8.8.8", family: 4 },
++        { address: "10.0.0.1", family: 4 },
++      ]),
++    ).rejects.toThrow(/public IPv4/u);
++    expect(
++      await resolvePinnedAddress("good.example", false, async () => [
++        { address: "8.8.8.8", family: 4 },
++      ]),
++    ).toBe("8.8.8.8");
++    expect(await resolvePinnedAddress("localhost", true)).toBe("127.0.0.1");
++  });
++});
+diff --git a/packages/agent-sandboxes/src/vnet-pinned-fetch.ts b/packages/agent-sandboxes/src/vnet-pinned-fetch.ts
+new file mode 100644
+index 000000000..21d4e9813
+--- /dev/null
++++ b/packages/agent-sandboxes/src/vnet-pinned-fetch.ts
+@@ -0,0 +1,130 @@
++/** DNS is resolved and checked once; the connection uses the checked IPv4 address. */
++import { lookup } from "node:dns/promises";
++import { request as httpRequest } from "node:http";
++import { request as httpsRequest } from "node:https";
++import { BlockList, isIP } from "node:net";
++
++const blocked = new BlockList();
++for (const [address, prefix] of [
++  ["0.0.0.0", 8],
++  ["10.0.0.0", 8],
++  ["100.64.0.0", 10],
++  ["127.0.0.0", 8],
++  ["169.254.0.0", 16],
++  ["172.16.0.0", 12],
++  ["192.0.0.0", 24],
++  ["192.0.2.0", 24],
++  ["192.88.99.0", 24],
++  ["192.168.0.0", 16],
++  ["198.18.0.0", 15],
++  ["198.51.100.0", 24],
++  ["203.0.113.0", 24],
++  ["224.0.0.0", 4],
++  ["240.0.0.0", 4],
++] as const)
++  blocked.addSubnet(address, prefix, "ipv4");
++
++type Resolve = (
++  host: string,
++) => Promise<readonly { address: string; family: number }[]>;
++const systemResolve: Resolve = (host) => lookup(host, { all: true, family: 4 });
++
++export async function resolvePinnedAddress(
++  host: string,
++  allowLoopback: boolean,
++  resolve: Resolve = systemResolve,
++): Promise<string> {
++  if (allowLoopback && (host === "localhost" || host === "127.0.0.1"))
++    return "127.0.0.1";
++  if (isIP(host) === 6 || host.startsWith("["))
++    throw new Error("virtual network: IPv6 destinations are not supported");
++  const records =
++    isIP(host) === 4 ? [{ address: host, family: 4 }] : await resolve(host);
++  if (
++    records.length === 0 ||
++    records.some(
++      (record) =>
++        record.family !== 4 ||
++        isIP(record.address) !== 4 ||
++        blocked.check(record.address, "ipv4"),
++    )
++  )
++    throw new Error(
++      "virtual network: destination does not resolve exclusively to public IPv4 addresses",
++    );
++  const first = records[0];
++  if (!first) throw new Error("virtual network: destination has no addresses");
++  return first.address;
++}
++
++export function pinnedFetch(allowLoopback: boolean): typeof fetch {
++  return async (input, init) => {
++    const url = new URL(
++      input instanceof Request ? input.url : input.toString(),
++    );
++    const address = await resolvePinnedAddress(url.hostname, allowLoopback);
++    const request = url.protocol === "https:" ? httpsRequest : httpRequest;
++    const headers: Record<string, string> = {};
++    new Headers(init?.headers).forEach((value, name) => {
++      headers[name] = value;
++    });
++    headers["accept-encoding"] = "identity";
++    return await new Promise<Response>((resolve, reject) => {
++      const req = request(
++        url,
++        {
++          method: init?.method ?? "GET",
++          headers,
++          family: 4,
++          lookup: (_host, _options, callback) => callback(null, address, 4),
++        },
++        (res) => {
++          const chunks: Buffer[] = [];
++          let length = 0;
++          res.on("data", (chunk: Buffer) => {
++            length += chunk.length;
++            if (length > 2_000_000) {
++              req.destroy(new Error("virtual network: response too large"));
++              return;
++            }
++            chunks.push(chunk);
++          });
++          res.on("error", reject);
++          res.on("end", () => {
++            try {
++              if (
++                res.headers["content-encoding"] &&
++                res.headers["content-encoding"] !== "identity"
++              )
++                throw new Error(
++                  "virtual network: encoded response is not supported",
++                );
++              const responseHeaders = new Headers();
++              for (const [key, value] of Object.entries(res.headers)) {
++                for (const entry of Array.isArray(value)
++                  ? value
++                  : value === undefined
++                    ? []
++                    : [value])
++                  responseHeaders.append(key, entry);
++              }
++              const status = res.statusCode ?? 502;
++              const body = [204, 205, 304].includes(status)
++                ? null
++                : Buffer.concat(chunks).toString("utf8");
++              resolve(new Response(body, { status, headers: responseHeaders }));
++            } catch (error) {
++              reject(error);
++            }
++          });
++        },
++      );
++      req.on("error", reject);
++      req.setTimeout(15_000, () =>
++        req.destroy(new Error("virtual network: request timed out")),
++      );
++      if (typeof init?.body === "string") req.write(init.body);
++      req.end();
++    });
++  };
++}
+diff --git a/packages/agent-sandboxes/src/vnet-server.test.ts b/packages/agent-sandboxes/src/vnet-server.test.ts
+index b3bffaec2..cc8c59dab 100644
+--- a/packages/agent-sandboxes/src/vnet-server.test.ts
++++ b/packages/agent-sandboxes/src/vnet-server.test.ts
+@@ -31,7 +31,10 @@ describe("virtual network relay", () => {
+     const address = target.address();
+     targetPort =
+       address instanceof Object && "port" in address ? address.port : 0;
+-    relay = await startVirtualNetworkRelay({ token: "relay-token" });
++    relay = await startVirtualNetworkRelay({
++      token: "relay-token",
++      allowLoopbackTargets: true,
++    });
+   });
+ 
+   afterAll(async () => {
+@@ -86,3 +89,276 @@ describe("virtual network relay", () => {
+     ).rejects.toThrow("refused (401)");
+   });
+ });
++
++describe("virtual network boundaries", () => {
++  it("refuses plaintext non-loopback relay transport", () => {
++    expect(() =>
++      virtualFetchOverHttp("http://relay.example.test", "token"),
++    ).toThrow(/HTTPS/u);
++    expect(() =>
++      virtualFetchOverHttp("https://user:pass@relay.example.test", "token"),
++    ).toThrow(/HTTPS/u);
++    expect(() =>
++      virtualFetchOverHttp("http://localhost:4000", "token"),
++    ).toThrow(/HTTPS/u);
++  });
++
++  it("refuses plaintext listeners outside literal loopback", async () => {
++    await expect(
++      startVirtualNetworkRelay({ token: "token", host: "0.0.0.0" }),
++    ).rejects.toThrow(/literal loopback/u);
++    await expect(
++      startVirtualNetworkRelay({ token: "token", host: "localhost" }),
++    ).rejects.toThrow(/literal loopback/u);
++    await expect(startVirtualNetworkRelay({ token: "" })).rejects.toThrow(
++      /token/u,
++    );
++  });
++
++  it("does not follow cross-origin redirects or allow a session policy to widen", async () => {
++    let received = 0;
++    const sink = createServer((_request, response) => {
++      received += 1;
++      response.end();
++    });
++    await new Promise<void>((resolve) => sink.listen(0, "127.0.0.1", resolve));
++    const sinkAddress = sink.address();
++    if (!sinkAddress || typeof sinkAddress === "string")
++      throw new Error("sink failed");
++    const sinkOrigin = `http://127.0.0.1:${sinkAddress.port}`;
++    const source = createServer((_request, response) =>
++      response.writeHead(307, { location: `${sinkOrigin}/capture` }).end(),
++    );
++    await new Promise<void>((resolve) =>
++      source.listen(0, "127.0.0.1", resolve),
++    );
++    const sourceAddress = source.address();
++    if (!sourceAddress || typeof sourceAddress === "string")
++      throw new Error("source failed");
++    const sourceOrigin = `http://127.0.0.1:${sourceAddress.port}`;
++    const relay = await startVirtualNetworkRelay({
++      token: "token",
++      allowLoopbackTargets: true,
++    });
++    const fetch = virtualFetchOverHttp(relay.url, "token");
++    try {
++      await expect(
++        fetch({
++          sessionId: "redirect",
++          url: sourceOrigin,
++          method: "POST",
++          body: "password-canary",
++          allowedOrigins: [sourceOrigin, sinkOrigin],
++        }),
++      ).rejects.toThrow(/refused/u);
++      expect(received).toBe(0);
++      await expect(
++        fetch({
++          sessionId: "redirect",
++          url: sinkOrigin,
++          method: "GET",
++          allowedOrigins: [sinkOrigin],
++        }),
++      ).rejects.toThrow(/refused/u);
++      expect(received).toBe(0);
++    } finally {
++      await relay.close();
++      await new Promise<void>((resolve) => source.close(() => resolve()));
++      await new Promise<void>((resolve) => sink.close(() => resolve()));
++    }
++  });
++});
++
++describe("session lifecycle and redirects", () => {
++  it("closes authenticated sessions and expires idle sessions while preserving active resume", async () => {
++    let clock = 0;
++    const targetFetch: typeof globalThis.fetch = async (_url, init) =>
++      new Response(new Headers(init?.headers).get("cookie") ?? "", {
++        headers: { "set-cookie": "session=abc; Path=/; Secure" },
++      });
++    const relay = await startVirtualNetworkRelay({
++      token: "token",
++      sessionIdleTtlMs: 1000,
++      now: () => clock,
++      fetchImpl: targetFetch,
++    });
++    const fetch = virtualFetchOverHttp(relay.url, "token");
++    const request = (sessionId: string) => ({
++      sessionId,
++      url: "https://accounts.test/",
++      method: "GET",
++    });
++    try {
++      for (let i = 0; i < 500; i += 1) await fetch(request(`session-${i}`));
++      await expect(fetch(request("overflow"))).rejects.toThrow(/refused/u);
++      const unauthorized = await globalThis.fetch(`${relay.url}/close`, {
++        method: "POST",
++        headers: {
++          authorization: "Bearer wrong",
++          "content-type": "application/json",
++        },
++        body: JSON.stringify({ sessionId: "session-0" }),
++      });
++      expect(unauthorized.status).toBe(401);
++      await fetch.closeSession?.("session-1");
++      await fetch(request("overflow"));
++      clock = 500;
++      expect((await fetch(request("session-0"))).bodyText).toBe("session=abc");
++      clock = 1001;
++      await fetch(request("new"));
++      expect((await fetch(request("session-0"))).bodyText).toBe("session=abc");
++      expect((await fetch(request("session-2"))).bodyText).toBe("");
++      expect((await fetch(request("session-1"))).bodyText).toBe("");
++    } finally {
++      await relay.close();
++    }
++  }, 20_000);
++
++  it("keeps in-flight sessions until completion after close", async () => {
++    let release: (() => void) | undefined;
++    let started: (() => void) | undefined;
++    const entered = new Promise<void>((resolve) => {
++      started = resolve;
++    });
++    const targetFetch: typeof globalThis.fetch = async () => {
++      started?.();
++      await new Promise<void>((resolve) => {
++        release = resolve;
++      });
++      return new Response("done");
++    };
++    const relay = await startVirtualNetworkRelay({
++      token: "token",
++      fetchImpl: targetFetch,
++    });
++    const fetch = virtualFetchOverHttp(relay.url, "token");
++    const request = {
++      sessionId: "active",
++      url: "https://accounts.test/",
++      method: "GET",
++    };
++    try {
++      const inFlight = fetch(request);
++      await entered;
++      await fetch.closeSession?.("active");
++      await expect(fetch(request)).rejects.toThrow(/refused/u);
++      release?.();
++      expect((await inFlight).bodyText).toBe("done");
++    } finally {
++      release?.();
++      await relay.close();
++    }
++  });
++
++  it("allows an approved cross-origin redirect without forwarding body or headers and refuses downgrade", async () => {
++    const seen: Array<{
++      url: string;
++      method: string;
++      body: BodyInit | null | undefined;
++      headers: Headers;
++    }> = [];
++    let downgrade = false;
++    const targetFetch: typeof globalThis.fetch = async (input, init) => {
++      const url = input.toString();
++      seen.push({
++        url,
++        method: init?.method ?? "",
++        body: init?.body,
++        headers: new Headers(init?.headers),
++      });
++      if (url.startsWith("https://rp.test"))
++        return new Response(null, {
++          status: 302,
++          headers: {
++            location: downgrade
++              ? "http://127.0.0.1:9999/"
++              : "https://idp.test/",
++          },
++        });
++      return new Response("ok");
++    };
++    const relay = await startVirtualNetworkRelay({
++      token: "token",
++      fetchImpl: targetFetch,
++    });
++    const fetch = virtualFetchOverHttp(relay.url, "token");
++    const allowedOrigins = [
++      "https://rp.test",
++      "https://idp.test",
++      "http://127.0.0.1:9999",
++    ];
++    try {
++      const result = await fetch({
++        sessionId: "flow",
++        url: "https://rp.test/",
++        method: "POST",
++        body: "password-canary",
++        headers: { "content-type": "application/x-www-form-urlencoded" },
++        allowedOrigins,
++      });
++      expect(result.bodyText).toBe("ok");
++      expect(seen[1]?.method).toBe("GET");
++      expect(seen[1]?.body).toBeUndefined();
++      expect(seen[1]?.headers.has("content-type")).toBe(false);
++      expect(seen[1]?.headers.has("cookie")).toBe(false);
++      downgrade = true;
++      await expect(
++        fetch({
++          sessionId: "downgrade",
++          url: "https://rp.test/",
++          method: "POST",
++          body: "password-canary",
++          allowedOrigins,
++        }),
++      ).rejects.toThrow(/refused/u);
++      expect(
++        seen.some((entry) => entry.url.startsWith("http://127.0.0.1")),
++      ).toBe(false);
++    } finally {
++      await relay.close();
++    }
++  });
++
++  it("does not replay a secret-bearing relay RPC across HTTP redirects", async () => {
++    let captured = 0;
++    const sink = createServer((_request, response) => {
++      captured += 1;
++      response.end();
++    });
++    await new Promise<void>((resolve) => sink.listen(0, "127.0.0.1", resolve));
++    const sinkAddress = sink.address();
++    if (!sinkAddress || typeof sinkAddress === "string")
++      throw new Error("sink failed");
++    const redirector = createServer((_request, response) =>
++      response
++        .writeHead(307, {
++          location: `http://127.0.0.1:${sinkAddress.port}/capture`,
++        })
++        .end(),
++    );
++    await new Promise<void>((resolve) =>
++      redirector.listen(0, "127.0.0.1", resolve),
++    );
++    const address = redirector.address();
++    if (!address || typeof address === "string")
++      throw new Error("redirector failed");
++    try {
++      const fetch = virtualFetchOverHttp(
++        `http://127.0.0.1:${address.port}`,
++        "secret-token",
++      );
++      await expect(
++        fetch({
++          sessionId: "run",
++          url: "https://rp.test/",
++          method: "POST",
++          body: "password-canary",
++        }),
++      ).rejects.toThrow();
++      expect(captured).toBe(0);
++    } finally {
++      await new Promise<void>((resolve) => redirector.close(() => resolve()));
++      await new Promise<void>((resolve) => sink.close(() => resolve()));
++    }
++  });
++});
+diff --git a/packages/agent-sandboxes/src/vnet-server.ts b/packages/agent-sandboxes/src/vnet-server.ts
+index 767370625..c2e6751ce 100644
+--- a/packages/agent-sandboxes/src/vnet-server.ts
++++ b/packages/agent-sandboxes/src/vnet-server.ts
+@@ -3,11 +3,16 @@
+  * WASM-hosted drivers, one cookie jar per session, redirects followed
+  * relay-side. This is user-controlled infrastructure by design — it sees
+  * reset traffic in plaintext, so it must never be a shared public proxy.
+- * The bearer token gates every request; request hosts must be on the
+- * session allowlist derived when the session first fetches.
++ * The bearer token grants access to all sessions: use it only among mutually
++ * trusted clients. Session IDs and cookie jars do not provide tenant isolation.
++ * Origins are bound on first use and
++ * redirects stay within the session's approved origins. DNS uses checked, pinned
++ * IPv4 addresses; loopback target access is an explicit development option.
+  */
+ 
+ import { type Server, createServer } from "node:http";
++import { CookieJar } from "./vnet-cookie-jar.js";
++import { pinnedFetch } from "./vnet-pinned-fetch.js";
+ import {
+   type VirtualFetchRequest,
+   type VirtualFetchResponse,
+@@ -18,8 +23,15 @@ export interface VirtualNetworkRelayOptions {
+   port?: number;
+   host?: string;
+   token: string;
+-  /** Hostnames any session may reach. Empty means same-host as first fetch. */
++  /** Additional server-wide hostname restriction; session origins still apply. */
+   allowedDomains?: readonly string[];
++  /** Test/development only: allow literal localhost and 127.0.0.1 targets. */
++  allowLoopbackTargets?: boolean;
++  /** Idle sessions expire after this interval; default 30 minutes, maximum one day. */
++  sessionIdleTtlMs?: number;
++  /** Trusted monotonic clock override for tests. */
++  now?: () => number;
++  /** Trusted transport override; the caller is responsible for destination enforcement. */
+   fetchImpl?: typeof fetch;
+ }
+ 
+@@ -29,35 +41,37 @@ export interface RunningVirtualNetworkRelay {
+   close(): Promise<void>;
+ }
+ 
+-type CookieJar = Map<string, Map<string, string>>;
++type Session = {
++  jar: CookieJar;
++  origins: string[];
++  lastUsed: number;
++  active: number;
++  closing: boolean;
++};
+ 
+-function cookieHeader(jar: CookieJar, hostname: string): string {
+-  const host = jar.get(hostname);
+-  if (!host) return "";
+-  return [...host.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
+-}
+-
+-function storeCookies(jar: CookieJar, hostname: string, headers: Headers) {
+-  const raw = headers.getSetCookie?.() ?? [];
+-  for (const line of raw) {
+-    const pair = line.split(";")[0] ?? "";
+-    const eq = pair.indexOf("=");
+-    if (eq <= 0) continue;
+-    const host = jar.get(hostname) ?? new Map<string, string>();
+-    host.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+-    jar.set(hostname, host);
+-  }
++function normalizedOrigin(value: string): string {
++  const url = new URL(value);
++  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
++  if (
++    url.username ||
++    url.password ||
++    (url.protocol !== "https:" && !(url.protocol === "http:" && loopback))
++  )
++    throw new Error(
++      "virtual network: only HTTPS or loopback HTTP is permitted",
++    );
++  return url.origin;
+ }
+ 
+-function assertHostAllowed(
++function assertAllowed(
+   url: URL,
+   allowed: ReadonlySet<string>,
+-  pinnedHost: string | null,
++  session: Session,
+ ): void {
+-  if (pinnedHost !== null && url.hostname !== pinnedHost)
+-    throw new Error("virtual network: host left the session origin");
+   if (allowed.size > 0 && !allowed.has(url.hostname))
+     throw new Error("virtual network: host is not allowlisted");
++  if (!session.origins.includes(normalizedOrigin(url.href)))
++    throw new Error("virtual network: origin is not allowed for this session");
+ }
+ 
+ function redirectTarget(
+@@ -75,8 +89,10 @@ function redirectTarget(
+     response.status === 301 ||
+     response.status === 302
+   ) {
+-    if (method !== "GET" && method !== "HEAD") next.method = "GET";
+-    if (response.status === 303) next.body = undefined;
++    if (method !== "GET" && method !== "HEAD") {
++      next.method = "GET";
++      next.body = undefined;
++    }
+   }
+   return next;
+ }
+@@ -85,24 +101,43 @@ async function performFetch(
+   fetchImpl: typeof fetch,
+   jar: CookieJar,
+   allowed: ReadonlySet<string>,
+-  pinnedHost: string | null,
++  session: Session,
+   request: VirtualFetchRequest,
+ ): Promise<VirtualFetchResponse> {
+   let url = new URL(request.url);
+   let method = request.method.toUpperCase();
+   let body = request.body;
++  let forwardRequestHeaders = true;
+   for (let hop = 0; hop <= 10; hop += 1) {
+-    assertHostAllowed(url, allowed, pinnedHost);
+-    const headers = { ...(request.headers ?? {}) };
+-    const cookies = cookieHeader(jar, url.hostname);
++    assertAllowed(url, allowed, session);
++    const headers: Record<string, string> = {};
++    for (const [name, value] of Object.entries(
++      forwardRequestHeaders ? (request.headers ?? {}) : {},
++    )) {
++      const lower = name.toLowerCase();
++      if (!["accept", "accept-language", "content-type"].includes(lower))
++        throw new Error("virtual network: request header is not permitted");
++      headers[lower] = value;
++    }
++    const cookies = jar.header(url);
+     if (cookies) headers.cookie = cookies;
+     const init: RequestInit = { method, headers, redirect: "manual" };
+     if (body !== undefined && method !== "GET" && method !== "HEAD")
+       init.body = body;
+     const response = await fetchImpl(url, init);
+-    storeCookies(jar, url.hostname, response.headers);
++    jar.store(url, response.headers);
+     const redirect = redirectTarget(response, url, method, body);
+     if (redirect) {
++      if (normalizedOrigin(redirect.url.href) !== normalizedOrigin(url.href)) {
++        assertAllowed(redirect.url, allowed, session);
++        if (
++          (url.protocol === "https:" && redirect.url.protocol !== "https:") ||
++          (redirect.method !== "GET" && redirect.method !== "HEAD")
++        )
++          throw new Error("virtual network: unsafe cross-origin redirect");
++        forwardRequestHeaders = false;
++        redirect.body = undefined;
++      }
+       url = redirect.url;
+       method = redirect.method;
+       body = redirect.body;
+@@ -125,13 +160,26 @@ async function performFetch(
+ export async function startVirtualNetworkRelay(
+   options: VirtualNetworkRelayOptions,
+ ): Promise<RunningVirtualNetworkRelay> {
+-  const jars = new Map<string, CookieJar>();
+-  const pinnedHosts = new Map<string, string>();
++  const host = options.host ?? "127.0.0.1";
++  if (host !== "127.0.0.1" && host !== "::1")
++    throw new Error(
++      "virtual network: plaintext listener must bind literal loopback",
++    );
++  if (!options.token) throw new Error("virtual network: token is required");
++  const sessions = new Map<string, Session>();
++  const ttl = options.sessionIdleTtlMs ?? 30 * 60_000;
++  if (!Number.isInteger(ttl) || ttl < 1 || ttl > 24 * 60 * 60_000)
++    throw new Error("virtual network: invalid session idle timeout");
++  const now = options.now ?? (() => performance.now());
+   const allowed = new Set(options.allowedDomains ?? []);
+-  const fetchImpl = options.fetchImpl ?? fetch;
++  const fetchImpl =
++    options.fetchImpl ?? pinnedFetch(options.allowLoopbackTargets === true);
+   const server: Server = createServer((request, response) => {
+     void (async () => {
+-      if (request.method !== "POST" || request.url !== "/fetch") {
++      if (
++        request.method !== "POST" ||
++        !["/fetch", "/close"].includes(request.url ?? "")
++      ) {
+         response.writeHead(404).end();
+         return;
+       }
+@@ -140,26 +188,93 @@ export async function startVirtualNetworkRelay(
+         return;
+       }
+       const chunks: Buffer[] = [];
+-      for await (const chunk of request) chunks.push(Buffer.from(chunk));
++      let length = 0;
+       try {
+-        const parsed = virtualFetchRequestSchema.parse(
+-          JSON.parse(Buffer.concat(chunks).toString("utf8")),
+-        );
+-        const jar = jars.get(parsed.sessionId) ?? new Map();
+-        jars.set(parsed.sessionId, jar);
+-        const pinned =
+-          allowed.size === 0
+-            ? (pinnedHosts.get(parsed.sessionId) ??
+-              new URL(parsed.url).hostname)
+-            : null;
+-        if (pinned) pinnedHosts.set(parsed.sessionId, pinned);
+-        const result = await performFetch(
+-          fetchImpl,
+-          jar,
+-          allowed,
+-          pinned,
+-          parsed,
++        for await (const chunk of request) {
++          const bytes = Buffer.from(chunk);
++          length += bytes.length;
++          if (length > 1_000_000) {
++            response.writeHead(413).end();
++            return;
++          }
++          chunks.push(bytes);
++        }
++      } catch {
++        response.destroy();
++        return;
++      }
++      try {
++        const data: unknown = JSON.parse(
++          Buffer.concat(chunks).toString("utf8"),
+         );
++        if (request.url === "/close") {
++          if (
++            !data ||
++            typeof data !== "object" ||
++            !("sessionId" in data) ||
++            typeof data.sessionId !== "string" ||
++            !data.sessionId ||
++            data.sessionId.length > 128
++          )
++            throw new Error("virtual network: invalid session id");
++          const session = sessions.get(data.sessionId);
++          if (session) {
++            session.closing = true;
++            if (session.active === 0) sessions.delete(data.sessionId);
++          }
++          response.writeHead(204).end();
++          return;
++        }
++        const parsed = virtualFetchRequestSchema.parse(data);
++        const currentTime = now();
++        for (const [id, existing] of sessions) {
++          if (
++            existing.active === 0 &&
++            (existing.closing || currentTime - existing.lastUsed >= ttl)
++          )
++            sessions.delete(id);
++        }
++        const origins = [
++          ...new Set(
++            (parsed.allowedOrigins ?? [parsed.url]).map(normalizedOrigin),
++          ),
++        ].sort();
++        let session = sessions.get(parsed.sessionId);
++        if (!session) {
++          if (sessions.size >= 500)
++            throw new Error("virtual network: session limit reached");
++          session = {
++            jar: new CookieJar(),
++            origins,
++            lastUsed: currentTime,
++            active: 0,
++            closing: false,
++          };
++          sessions.set(parsed.sessionId, session);
++        } else if (session.closing) {
++          throw new Error("virtual network: session is closing");
++        } else if (
++          parsed.allowedOrigins &&
++          JSON.stringify(origins) !== JSON.stringify(session.origins)
++        ) {
++          throw new Error("virtual network: session policy changed");
++        }
++        session.active += 1;
++        let result: VirtualFetchResponse;
++        try {
++          result = await performFetch(
++            fetchImpl,
++            session.jar,
++            allowed,
++            session,
++            parsed,
++          );
++        } finally {
++          session.active -= 1;
++          session.lastUsed = now();
++          if (session.closing && session.active === 0)
++            sessions.delete(parsed.sessionId);
++        }
+         response
+           .writeHead(200, { "content-type": "application/json" })
+           .end(JSON.stringify(result));
+@@ -173,13 +288,13 @@ export async function startVirtualNetworkRelay(
+     })();
+   });
+   await new Promise<void>((resolve) => {
+-    server.listen(options.port ?? 0, options.host ?? "127.0.0.1", resolve);
++    server.listen(options.port ?? 0, host, resolve);
+   });
+   const address = server.address();
+   const port =
+     address instanceof Object && "port" in address ? address.port : 0;
+   return {
+-    url: `http://${options.host ?? "127.0.0.1"}:${port}`,
++    url: `http://${host === "::1" ? "[::1]" : host}:${port}`,
+     port,
+     close: async () => {
+       await new Promise<void>((resolve) => server.close(() => resolve()));
+diff --git a/packages/agent-sandboxes/src/vnet.ts b/packages/agent-sandboxes/src/vnet.ts
+index 560abf43e..181985570 100644
+--- a/packages/agent-sandboxes/src/vnet.ts
++++ b/packages/agent-sandboxes/src/vnet.ts
+@@ -16,6 +16,8 @@ export interface VirtualFetchRequest {
+   sessionId: string;
+   url: string;
+   method: string;
++  /** Immutable origins authorized for this session by the caller. */
++  allowedOrigins?: readonly string[] | undefined;
+   headers?: Record<string, string> | undefined;
+   body?: string | undefined;
+ }
+@@ -28,14 +30,17 @@ export interface VirtualFetchResponse {
+   bodyText: string;
+ }
+ 
+-export type VirtualFetch = (
++export type VirtualFetch = ((
+   request: VirtualFetchRequest,
+-) => Promise<VirtualFetchResponse>;
++) => Promise<VirtualFetchResponse>) & {
++  closeSession?: (sessionId: string) => Promise<void>;
++};
+ 
+ export const virtualFetchRequestSchema = z.object({
+-  sessionId: z.string().min(1),
+-  url: z.string().url(),
+-  method: z.string().min(1),
++  sessionId: z.string().min(1).max(128),
++  url: z.string().url().max(2048),
++  method: z.enum(["GET", "HEAD", "POST"]),
++  allowedOrigins: z.array(z.string().url().max(2048)).min(1).max(32).optional(),
+   headers: z.record(z.string(), z.string()).optional(),
+   body: z.string().optional(),
+ });
+@@ -52,18 +57,40 @@ export function virtualFetchOverHttp(
+   relayUrl: string,
+   token: string,
+ ): VirtualFetch {
+-  const endpoint = `${relayUrl.replace(/\/$/u, "")}/fetch`;
+-  return async (request) => {
+-    const response = await fetch(endpoint, {
++  const base = new URL(relayUrl);
++  const loopback = ["127.0.0.1", "[::1]"].includes(base.hostname);
++  if (
++    base.username ||
++    base.password ||
++    base.search ||
++    base.hash ||
++    (base.protocol !== "https:" && !(base.protocol === "http:" && loopback)) ||
++    !token
++  )
++    throw new Error(
++      "virtual network relay requires HTTPS or loopback HTTP and a token",
++    );
++  const endpoint = base.href.replace(/\/$/u, "");
++  const send = async (path: string, body: unknown) => {
++    const response = await fetch(`${endpoint}${path}`, {
+       method: "POST",
+       headers: {
+         authorization: `Bearer ${token}`,
+         "content-type": "application/json",
+       },
+-      body: JSON.stringify(request),
++      body: JSON.stringify(body),
++      redirect: "error",
+     });
+     if (!response.ok)
+       throw new Error(`virtual network relay refused (${response.status})`);
+-    return virtualFetchResponseSchema.parse(await response.json());
++    return response;
+   };
++  const virtualFetch: VirtualFetch = async (request) =>
++    virtualFetchResponseSchema.parse(
++      await (await send("/fetch", request)).json(),
++    );
++  virtualFetch.closeSession = async (sessionId) => {
++    await send("/close", { sessionId });
++  };
++  return virtualFetch;
+ }
+diff --git a/packages/agent-sandboxes/src/wasm-provider.ts b/packages/agent-sandboxes/src/wasm-provider.ts
+index 48fc23723..b70d74c67 100644
+--- a/packages/agent-sandboxes/src/wasm-provider.ts
++++ b/packages/agent-sandboxes/src/wasm-provider.ts
+@@ -29,7 +29,7 @@ export class WasmRelayProvider implements SandboxProvider {
+   constructor(private readonly options: WasmRelayProviderOptions = {}) {}
+ 
+   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
+-    const { allowedDomains } = allowedDomainsFor(request);
++    const { url, allowedDomains } = allowedDomainsFor(request);
+     const session = request.session ?? `wasm-${randomUUID()}`;
+     let virtualFetch = this.options.virtualFetch;
+     if (!virtualFetch) {
+@@ -42,8 +42,17 @@ export class WasmRelayProvider implements SandboxProvider {
+         this.options.relayToken,
+       );
+     }
++    const allowedOrigins = [
++      ...new Set([
++        url.origin,
++        ...allowedDomains
++          .filter((domain) => domain !== url.hostname)
++          .map((domain) => `https://${domain}`),
++      ]),
++    ];
++    const boundFetch = virtualFetch;
+     const browser = new WasmDomDriver({
+-      virtualFetch,
++      virtualFetch: (input) => boundFetch({ ...input, allowedOrigins }),
+       sessionId: session,
+       allowedDomains,
+     });
+@@ -52,7 +61,13 @@ export class WasmRelayProvider implements SandboxProvider {
+       session,
+       browser,
+       allowedDomains,
+-      close: () => browser.close(),
++      close: async () => {
++        try {
++          await browser.close();
++        } finally {
++          await boundFetch.closeSession?.(session);
++        }
++      },
+     };
+   }
+ }
