@@ -21,7 +21,7 @@ number, or a number carried over from
 - Implementation head: _pending: fill from `git rev-parse HEAD` at integration
   time._
 - Toolchain: Rust 1.88 (`cargo +1.88.0`), Node ≥ 22, pnpm 9.15.0, Turbo 2.9.14,
-  Biome 1.9.4, Vitest 4.1.11, Playwright 1.64.1 — as pinned in `AGENTS.md` §2.
+  Biome 1.9.4, Vitest (see `package.json`), Playwright 1.64.1 — versions are canonical in `package.json` / `rust-toolchain.toml` (`AGENTS.md` §2 points there).
 
 ## Delivered behavior
 

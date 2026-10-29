@@ -12,13 +12,15 @@ to the standing routines in `ops/routines/` (`docs/contributing/agent-routines.m
 Fetch `origin/main`, then:
 
 ```bash
+git worktree add -b <branch> <worktree-dir> origin/main
 ```
 
 `git worktree` shares this clone's object database. Do not `git clone` a
 second full copy of the repository, and do not nest the worktree inside
-`<worktree>` or commit it as files of that checkout. Leave
+the primary checkout or commit it as files of that checkout. Leave
 a checkout with `MERGE_HEAD` set alone: do not commit, abort, or finish that
 merge to make room for the task. One task, one branch stack. Leave unrelated
+dirty worktrees untouched.
 
 ### Shared caches
 
@@ -36,8 +38,9 @@ The disk stays near full. A new worktree gets source only.
 
 ### Swarm
 
-Independent slices run together as a workflow. The standing entry point is
-a task-specific script when the slices are fixed). Each slice is one agent
+Independent slices run together as a workflow (the standing entry point is
+`.grok/workflows/task-swarm.rhai`, or a task-specific script when the slices
+are fixed). Each slice is one agent
 with a self-contained prompt and a disjoint set of files. Agents write only
 inside the task worktree. The parent integrates, reviews, and is the only
 one who opens pull requests.
@@ -61,12 +64,15 @@ committer is GitHub and the ruleset sees a verified signature. A local
 is `unknown_key` and cannot merge. Omit an author override on the mutation.
 `expectedHeadOid` is `origin/main` for the first commit and the previous
 commit on the stack after that. The local git identity, when a tool needs
+one, is your own configured identity and signing key; it is never recorded
+in repository files.
 
 ### After each commit
 
 Run `df -h /`. Delete scratch under `/tmp` that this commit created, and any
-build output that exists only because of that commit. Leave
-worktrees, and the primary checkout's uncommitted work in place. Remove a
+build output that exists only because of that commit. Leave unrelated
+worktrees, running local services, and the primary checkout's uncommitted
+work in place. Remove a
 task worktree only after its branch has been squash-merged and its remote
 branch deleted (`git worktree remove`, then `git worktree prune`).
 
@@ -96,3 +102,5 @@ This section is how the work is hosted. It does not waive those gates.
 `ops/routines/*.md` and `docs/contributing/agent-routines.md` are the local
 task queue. Each routine starts with this same worktree, shared-cache, swarm,
 stack, disk-check, and squash-merge sequence. A routine that edits the tree
+does that work in its own `<worktree-dir>`, with independent findings fanned
+out through `.grok/workflows/task-swarm.rhai`.

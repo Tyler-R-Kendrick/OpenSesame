@@ -3,7 +3,7 @@
 # Nothing in this file gates a merge. The deterministic audit gates
 # (`pnpm audit:osv`, `audit:cargo-audit`, `audit:cve-lite`, `audit:gitleaks`,
 # `audit:semgrep`, `audit:ast-grep`, …) remain local scripts and git hooks —
-# see AGENTS.md §8 and docs/security/tooling-evaluation.md. This workflow
+# see AGENTS.md §6/§8 and docs/security/tooling-evaluation.md. This workflow
 # keeps package-level source audits and dashboard checks visible on a schedule,
 # where a hidden red is visible without a local checkout:
 #

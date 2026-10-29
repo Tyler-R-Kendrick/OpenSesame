@@ -3,7 +3,8 @@
 Read [`DESIGN.md`](../../DESIGN.md) before drawing a control. An action that
 executes is an icon key. A word on a button face is a design failure.
 `scripts/quality/design-lint.mjs` (`pnpm lint:design`) and `impeccable detect` hold
-new code to that, and both run in `.githooks/pre-commit`.
+new code to that, and both run in `.githooks/pre-commit` (impeccable only
+when the optional skill is installed; the design lint always runs).
 
 ## Native dropdowns
 

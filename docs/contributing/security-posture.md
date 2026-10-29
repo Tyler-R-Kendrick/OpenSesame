@@ -45,6 +45,8 @@ codex-security --version
 
 Routine reviews must target explicit security-boundary paths or a committed
 diff. Never start a bare, uncapped repository-wide scan. Use the stored ChatGPT
+sign-in with a low-cost model and low reasoning by default so reviews consume
+the subscription allowance and preserve it for coverage. Do not use
 `--auth auto`: unattended scans give API keys precedence. Use `--auth api-key`
 only when the human explicitly requests API billing. Set one shared budget
 before permitting network access, run preflight first, and retain artifacts
@@ -55,7 +57,9 @@ codex-security scan <clean-checkout> \
   --path <security-boundary> \
   --path <another-security-boundary> \
   --auth chatgpt \
+  --model <low-cost-model> --effort low \
   --mode standard \
+  --max-cost 15 \
   --fail-on-severity high \
   --headless --verbose \
   --output-dir <trusted-state-dir> --archive-existing \
@@ -65,11 +69,11 @@ codex-security scan <clean-checkout> \
 # authentication method, output directory, and maxCostUsd in preflight output.
 ```
 
-not a separate allowance per path. The cap is a ceiling, not a promise that
-the scan will finish.
-Raising it or running a whole-repository scan requires explicit human approval.
-With CLI `0.1.16` at `xhigh`, prior runs demonstrated why: a full scan consumed
-`10/70` files. Use `--path` to split intentionally selected security boundaries
+The `--max-cost 15` cap is shared by every repeated `--path` in that
+invocation; it is not a separate allowance per path. The cap is a ceiling, not
+a promise that the scan will finish. Raising it or running a whole-repository
+scan requires explicit human approval: prior uncapped runs exhausted budgets
+after scanning only a small fraction of the tree. Use `--path` to split intentionally selected security boundaries
 when a complete diff cannot fit the approved budget. Record any lower reasoning
 effort as a coverage limitation.
 
@@ -122,6 +126,8 @@ bwrap --unshare-user --uid 0 --gid 0 --tmpfs / --dev /dev --proc /proc \
   --chdir /workspace <scanner-binary> scan /workspace \
   --path <security-boundary> --path <another-security-boundary> \
   --auth chatgpt \
+  --model <low-cost-model> --effort low \
+  --max-cost 15 \
   --headless --verbose --output-dir /state --archive-existing --dry-run
 ```
 
