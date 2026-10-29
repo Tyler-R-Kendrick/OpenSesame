@@ -31,9 +31,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
           test "$(git rev-parse HEAD^{tree})" = a64ca35498944e38f527e68ed70dce5d497f4852
-          printf '%s  %s\n' d03a99dcd97fe6a22fad5f032457ecf9a8b55eeaf1d63b2b9272d79ffbf51422 ../controller/.github/verify-inputs/2241-owner-availability.patch | sha256sum --check
+          printf '%s  %s\n' c4cc803f45ce7e03a8262dce5c75e40ff8c9484187844e5a56193cf9770dd6cc ../controller/.github/verify-inputs/2241-owner-availability.patch | sha256sum --check
           git apply --index ../controller/.github/verify-inputs/2241-owner-availability.patch
-          test "$(git write-tree)" = 65403f81c73073eec30756e63bc46924e01bc8c2
+          test "$(git write-tree)" = dbd12f8f734b6c91925a0be3a5d3248124e17b08
           git diff --exit-code
       - name: Install frozen dependencies
         working-directory: candidate
@@ -42,19 +42,19 @@ jobs:
         working-directory: candidate
         run: |
           set -euo pipefail
-          pnpm exec biome check apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
-          pnpm lint:anti-slop:files apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+          pnpm exec biome check apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+          pnpm lint:anti-slop:files apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
       - name: Typecheck and exercise owner and availability
         working-directory: candidate
         run: |
           set -euo pipefail
           pnpm --filter @opensesame/pages typecheck
-          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx src/sections/connections/connect/native-catalog-configuration-descriptor.test.ts src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx src/sections/connections/connect/native-catalog-configuration-descriptor.test.ts src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
       - name: Verify candidate unchanged
         if: always()
         working-directory: candidate
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
-          test "$(git write-tree)" = 65403f81c73073eec30756e63bc46924e01bc8c2
+          test "$(git write-tree)" = dbd12f8f734b6c91925a0be3a5d3248124e17b08
           git diff --exit-code

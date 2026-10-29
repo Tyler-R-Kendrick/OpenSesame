@@ -1,8 +1,8 @@
 diff --git a/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts b/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
-index de6c8423a7db21555518e41c97233dfbe193a851..9a6381b4708632ee29c1a2b9f0f6dad353bcc692 100644
+index de6c8423a7db21555518e41c97233dfbe193a851..fd22015d5ae58d316bce9210b6207652d3bdc7ac 100644
 --- a/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
 +++ b/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
-@@ -1,4 +1,8 @@
+@@ -1,6 +1,11 @@
  import { generateKeyPairSync } from "node:crypto";
 +import {
 +  readDeviceRows,
@@ -10,13 +10,20 @@ index de6c8423a7db21555518e41c97233dfbe193a851..9a6381b4708632ee29c1a2b9f0f6dad3
 +} from "@opensesame/app-core/lib/device-connector-records.js";
  import { deviceProviderRevokers } from "@opensesame/app-core/lib/device-connectors.js";
  import { modelMemoryBackend } from "@opensesame/app-core/lib/hosted-model.test-support.js";
++import { kvSeams } from "@opensesame/app-core/lib/kv.js";
  import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
-@@ -108,3 +112,72 @@ it("refuses to publish a local configuration for a retired form owner", async ()
+ import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
+ import { afterEach, beforeEach, expect, it, vi } from "vitest";
+@@ -108,3 +113,76 @@ it("refuses to publish a local configuration for a retired form owner", async ()
    ).rejects.toThrow();
    expect(fetcher).not.toHaveBeenCalled();
  });
 +
 +it("does not commit a form retired while its local configuration waits for the storage lock", async () => {
++  // The shared model fixture stubs durable writes without a pre-commit hook.
++  // Restore both real KV operations so this tests the actual publication fence.
++  vi.mocked(kvSeams.kvGet).mockRestore();
++  vi.mocked(kvSeams.kvSetDurable).mockRestore();
 +  const fetcher = activate();
 +  let unlock = () => {};
 +  let lockEntered = () => {};
@@ -84,6 +91,22 @@ index de6c8423a7db21555518e41c97233dfbe193a851..9a6381b4708632ee29c1a2b9f0f6dad3
 +  expect(readDeviceRows()).toHaveLength(1);
 +  expect(fetcher).not.toHaveBeenCalled();
 +});
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx
+index abf76a69ac9009f115cd3958f8ae5ecf2deb0b0f..9b699d5f021a8e1af3b9922544147f66b0420345 100644
+--- a/apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx
+@@ -158,7 +158,10 @@ function useNativeForm(props: Props) {
+         setValues(nativeFieldValues(method.fields, values, false));
+         onFlash({
+           tone: "ok",
+-          text: `${descriptor.name} access verified and saved on this device.`,
++          text:
++            method.id === "native-local"
++              ? `${descriptor.name} configuration validated locally and saved on this device. Provider access was not checked.`
++              : `${descriptor.name} access verified and saved on this device.`,
+         });
+       } else {
+         onFlash({
 diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx
 index abe80a1e8c72b836c8dcfa4f0c399d66e9228f1d..7ccd4c4fe797bfa3b3f96408ebe694ef3a1f2a67 100644
 --- a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx
@@ -129,6 +152,54 @@ index abe80a1e8c72b836c8dcfa4f0c399d66e9228f1d..7ccd4c4fe797bfa3b3f96408ebe694ef
 +    genuine.mockRestore();
 +    withdrawn.mockRestore();
 +  }
++});
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..4922d5b9cccb599a4c7dbe134eece7bc11442b44
+--- /dev/null
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
+@@ -0,0 +1,42 @@
++/** @vitest-environment jsdom */
++import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
++import { render, screen, waitFor } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { MemoryRouter } from "react-router";
++import { expect, it, vi } from "vitest";
++import { bindNativeCatalogConfigurationRuntime } from "../../../modules/connectors.external/native-catalog-configuration-runtime.js";
++import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
++import {
++  connectorIntegration,
++  installConnectorIntegration,
++  integrationProvider,
++} from "./native-connector-integration.test-support.js";
++
++installConnectorIntegration();
++
++it("saves E2B configuration locally without claiming a provider access check", async () => {
++  const fixture = connectorIntegration();
++  bindNativeCatalogConfigurationRuntime(fixture.activation);
++  const onFlash = vi.fn();
++  render(
++    <MemoryRouter>
++      <NativeConnectorPanels
++        provider={integrationProvider("e2b")}
++        connection={null}
++        onFlash={onFlash}
++        onChanged={() => {}}
++      />
++    </MemoryRouter>,
++  );
++  await userEvent.click(
++    screen.getByRole("button", { name: "Verify and connect E2B" }),
++  );
++  await waitFor(() => expect(readDeviceRows()).toHaveLength(1));
++  await waitFor(() =>
++    expect(onFlash).toHaveBeenCalledWith({
++      tone: "ok",
++      text: "E2B configuration validated locally and saved on this device. Provider access was not checked.",
++    }),
++  );
++  expect(fixture.requests).toHaveLength(0);
 +});
 diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx
 index c6b7ac94b660a72e23506a0323532ddae44a4d54..4ddc90b301bd74aab7703d2830f7f1ca6cfc23bc 100644
