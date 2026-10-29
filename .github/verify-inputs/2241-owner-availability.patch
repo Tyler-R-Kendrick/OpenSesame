@@ -1,0 +1,228 @@
+diff --git a/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts b/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+index de6c8423a7db21555518e41c97233dfbe193a851..fd22015d5ae58d316bce9210b6207652d3bdc7ac 100644
+--- a/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
++++ b/apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+@@ -1,6 +1,11 @@
+ import { generateKeyPairSync } from "node:crypto";
++import {
++  readDeviceRows,
++  withDeviceConfigurationLock,
++} from "@opensesame/app-core/lib/device-connector-records.js";
+ import { deviceProviderRevokers } from "@opensesame/app-core/lib/device-connectors.js";
+ import { modelMemoryBackend } from "@opensesame/app-core/lib/hosted-model.test-support.js";
++import { kvSeams } from "@opensesame/app-core/lib/kv.js";
+ import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
+ import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
+ import { afterEach, beforeEach, expect, it, vi } from "vitest";
+@@ -108,3 +113,76 @@ it("refuses to publish a local configuration for a retired form owner", async ()
+   ).rejects.toThrow();
+   expect(fetcher).not.toHaveBeenCalled();
+ });
++
++it("does not commit a form retired while its local configuration waits for the storage lock", async () => {
++  // The shared model fixture stubs durable writes without a pre-commit hook.
++  // Restore both real KV operations so this tests the actual publication fence.
++  vi.mocked(kvSeams.kvGet).mockRestore();
++  vi.mocked(kvSeams.kvSetDurable).mockRestore();
++  const fetcher = activate();
++  let unlock = () => {};
++  let lockEntered = () => {};
++  const entered = new Promise<void>((resolve) => {
++    lockEntered = resolve;
++  });
++  const gate = new Promise<void>((resolve) => {
++    unlock = resolve;
++  });
++  const held = withDeviceConfigurationLock(async () => {
++    lockEntered();
++    await gate;
++  });
++  await entered;
++  const owner = new AbortController();
++  let ownerChecks = 0;
++  const input = {
++    providerId: "e2b",
++    method: "native-local" as const,
++    displayName: "Local E2B",
++    parameters: {},
++    credentials: {},
++    requestedScopes: {},
++    targetIds: {},
++    owner: {
++      signal: owner.signal,
++      assertCurrent: () => {
++        ownerChecks += 1;
++        owner.signal.throwIfAborted();
++      },
++    },
++  };
++  let settled = false;
++  const pending = nativeConnectorDriver("native-local", "e2b")
++    .configure(input)
++    .then(
++      () => {
++        settled = true;
++        return false;
++      },
++      () => {
++        settled = true;
++        return true;
++      },
++    );
++  try {
++    await vi.waitFor(() => expect(ownerChecks).toBeGreaterThanOrEqual(2));
++    expect(settled).toBe(false);
++    owner.abort();
++  } finally {
++    unlock();
++  }
++  await held;
++  expect(await pending).toBe(true);
++  expect(readDeviceRows()).toHaveLength(0);
++  const active = new AbortController();
++  const saved = await nativeConnectorDriver("native-local", "e2b").configure({
++    ...input,
++    owner: {
++      signal: active.signal,
++      assertCurrent: () => active.signal.throwIfAborted(),
++    },
++  });
++  expect(saved.status).toBe("connected");
++  expect(readDeviceRows()).toHaveLength(1);
++  expect(fetcher).not.toHaveBeenCalled();
++});
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx
+index abf76a69ac9009f115cd3958f8ae5ecf2deb0b0f..9b699d5f021a8e1af3b9922544147f66b0420345 100644
+--- a/apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx
+@@ -158,7 +158,10 @@ function useNativeForm(props: Props) {
+         setValues(nativeFieldValues(method.fields, values, false));
+         onFlash({
+           tone: "ok",
+-          text: `${descriptor.name} access verified and saved on this device.`,
++          text:
++            method.id === "native-local"
++              ? `${descriptor.name} configuration validated locally and saved on this device. Provider access was not checked.`
++              : `${descriptor.name} access verified and saved on this device.`,
+         });
+       } else {
+         onFlash({
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx
+index abe80a1e8c72b836c8dcfa4f0c399d66e9228f1d..7ccd4c4fe797bfa3b3f96408ebe694ef3a1f2a67 100644
+--- a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx
+@@ -1,4 +1,5 @@
+ import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
++import * as nativeDrivers from "@opensesame/app-core/lib/native-connector-drivers.js";
+ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+ import { expect, it, vi } from "vitest";
+ import { nativeSettingsDescriptor } from "./NativeConnectorPanels.js";
+@@ -17,3 +18,35 @@ it("withholds a compiled token form without a genuine vault session", () => {
+     genuine.mockRestore();
+   }
+ });
++
++it("exposes compiled local runtime configuration only with a genuine vault and active capability", () => {
++  const genuine = vi
++    .spyOn(vaultStore, "isGenuineSession")
++    .mockReturnValue(true);
++  const withdrawn = vi
++    .spyOn(nativeDrivers, "nativeConnectorWithdrawn")
++    .mockReturnValue(false);
++  try {
++    for (const id of ["vercel-sandbox", "e2b", "browserbase-cdp"]) {
++      const provider = catalogProvider(id);
++      if (!provider) throw new Error(`Missing ${id} catalog row`);
++      expect(nativeSettingsDescriptor(provider)?.methods[0]).toMatchObject({
++        id: "native-local",
++        available: true,
++      });
++      genuine.mockReturnValue(false);
++      expect(nativeSettingsDescriptor(provider)?.methods[0]?.available).toBe(
++        false,
++      );
++      genuine.mockReturnValue(true);
++      withdrawn.mockReturnValue(true);
++      expect(nativeSettingsDescriptor(provider)?.methods[0]?.available).toBe(
++        false,
++      );
++      withdrawn.mockReturnValue(false);
++    }
++  } finally {
++    genuine.mockRestore();
++    withdrawn.mockRestore();
++  }
++});
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..4922d5b9cccb599a4c7dbe134eece7bc11442b44
+--- /dev/null
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
+@@ -0,0 +1,42 @@
++/** @vitest-environment jsdom */
++import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
++import { render, screen, waitFor } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { MemoryRouter } from "react-router";
++import { expect, it, vi } from "vitest";
++import { bindNativeCatalogConfigurationRuntime } from "../../../modules/connectors.external/native-catalog-configuration-runtime.js";
++import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
++import {
++  connectorIntegration,
++  installConnectorIntegration,
++  integrationProvider,
++} from "./native-connector-integration.test-support.js";
++
++installConnectorIntegration();
++
++it("saves E2B configuration locally without claiming a provider access check", async () => {
++  const fixture = connectorIntegration();
++  bindNativeCatalogConfigurationRuntime(fixture.activation);
++  const onFlash = vi.fn();
++  render(
++    <MemoryRouter>
++      <NativeConnectorPanels
++        provider={integrationProvider("e2b")}
++        connection={null}
++        onFlash={onFlash}
++        onChanged={() => {}}
++      />
++    </MemoryRouter>,
++  );
++  await userEvent.click(
++    screen.getByRole("button", { name: "Verify and connect E2B" }),
++  );
++  await waitFor(() => expect(readDeviceRows()).toHaveLength(1));
++  await waitFor(() =>
++    expect(onFlash).toHaveBeenCalledWith({
++      tone: "ok",
++      text: "E2B configuration validated locally and saved on this device. Provider access was not checked.",
++    }),
++  );
++  expect(fixture.requests).toHaveLength(0);
++});
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx
+index c6b7ac94b660a72e23506a0323532ddae44a4d54..4ddc90b301bd74aab7703d2830f7f1ca6cfc23bc 100644
+--- a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx
+@@ -7,6 +7,7 @@ import type {
+ } from "@opensesame/app-core/lib/connections.js";
+ import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
+ import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
++import { nativeCatalogConfiguration } from "@opensesame/app-core/lib/native-catalog-configuration.js";
+ import {
+   compiledApiKeyRoute,
+   compiledOidcRoute,
+@@ -119,7 +120,11 @@ export function nativeSettingsDescriptor(
+       has: (method, id) =>
+         method === "oidc"
+           ? compiledOidcRoute(id) && !nativeConnectorWithdrawn(method)
+-          : compiledApiKeyRoute(id) && !closed,
++          : method === "native-local"
++            ? nativeCatalogConfiguration(id) !== null &&
++              !nativeConnectorWithdrawn(method) &&
++              vaultStore.isGenuineSession()
++            : compiledApiKeyRoute(id) && !closed,
+     });
+   const callbackUrl = new URL(
+     `${import.meta.env.BASE_URL}auth/native-connector.html`,

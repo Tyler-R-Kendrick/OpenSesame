@@ -1,0 +1,73 @@
+name: Connector local availability visual proof
+on:
+  push:
+    branches: [review/2241-local-availability-visual-20261029]
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-local-availability-visual-20261029'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        phase: [before, after]
+    env:
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      EVIDENCE_DIR: ${{ github.workspace }}/work/local-availability-${{ matrix.phase }}
+    steps:
+      - name: Checkout exact reviewed source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 0cab13b48795c979b45564589d1650e39b57216f
+          persist-credentials: false
+      - name: Checkout capture controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          path: work/local-availability-tools
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify immutable source and capture code
+        env:
+          PHASE: ${{ matrix.phase }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
+          test "$(git rev-parse HEAD^{tree})" = a64ca35498944e38f527e68ed70dce5d497f4852
+          printf '%s  %s\n' 297ad55ea1d9f5cf20737e1708863cf3c9ab69e3a4445cc2cf7c6f97025cd66d work/local-availability-tools/scripts/review/2241-local-availability-visual.mjs | sha256sum --check
+          printf '%s  %s\n' c4cc803f45ce7e03a8262dce5c75e40ff8c9484187844e5a56193cf9770dd6cc work/local-availability-tools/.github/verify-inputs/2241-owner-availability.patch | sha256sum --check
+          if [ "$PHASE" = after ]; then
+            git apply --index work/local-availability-tools/.github/verify-inputs/2241-owner-availability.patch
+            test "$(git write-tree)" = dbd12f8f734b6c91925a0be3a5d3248124e17b08
+          fi
+          git diff --exit-code
+          mkdir -p "$EVIDENCE_DIR"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source-commit.txt"
+          git write-tree > "$EVIDENCE_DIR/source-tree.txt"
+          sha256sum pnpm-lock.yaml > "$EVIDENCE_DIR/lock-sha256.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build real Pages distribution
+        run: pnpm --filter @opensesame/pages exec vite build
+      - name: Capture real guest and protected vault flows
+        env:
+          PHASE: ${{ matrix.phase }}
+        run: node work/local-availability-tools/scripts/review/2241-local-availability-visual.mjs "$PHASE" "$GITHUB_WORKSPACE" "$EVIDENCE_DIR"
+      - name: Upload unapproved review evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: connector-local-availability-${{ matrix.phase }}
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
