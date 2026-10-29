@@ -13,7 +13,7 @@ jobs:
       - name: Checkout exact signed stack
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: 9c0ff9a1275d534d24e0d82b086383da57e864fb
+          ref: 33548d6ce4b78181c191a778d7babe3d83039ec3
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
         with:
@@ -24,8 +24,8 @@ jobs:
       - name: Verify immutable candidate
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 9c0ff9a1275d534d24e0d82b086383da57e864fb
-          test "$(git rev-parse HEAD^{tree})" = 7d8159e1d2bbc86e2832701a70e145261012b028
+          test "$(git rev-parse HEAD)" = 33548d6ce4b78181c191a778d7babe3d83039ec3
+          test "$(git rev-parse HEAD^{tree})" = 871d13ca1b086bc4fa75a071a71afde4026eb10c
           test -z "$(git status --porcelain)"
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -55,6 +55,6 @@ jobs:
         if: always()
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 9c0ff9a1275d534d24e0d82b086383da57e864fb
-          test "$(git rev-parse HEAD^{tree})" = 7d8159e1d2bbc86e2832701a70e145261012b028
+          test "$(git rev-parse HEAD)" = 33548d6ce4b78181c191a778d7babe3d83039ec3
+          test "$(git rev-parse HEAD^{tree})" = 871d13ca1b086bc4fa75a071a71afde4026eb10c
           git diff --exit-code
