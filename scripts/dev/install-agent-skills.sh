@@ -40,10 +40,10 @@ if command -v flock >/dev/null 2>&1; then
   fi
 fi
 
-# Snapshot which tracked adapter/lock files are already dirty, so the
-# restore at the end only touches installer side effects, never local work.
+# Tracked configuration and ignored personal settings may be edited while an
+# install is running. Never reset or rewrite them after the install; report
+# tracked changes so they can be reviewed instead.
 TRACKED=".codex/hooks.json .claude/settings.json skills-lock.json"
-DIRTY_BEFORE=$(git status --porcelain -- $TRACKED 2>/dev/null | cut -c4- | sort || true)
 
 # 1. Install missing catalogue skills at upstream latest
 #    (lock key stitch::x installs as stitch-x/). Explicit agents only:
@@ -63,11 +63,11 @@ if ! missing=$(node -e "
   missing=""
 fi
 if [ -n "$missing" ]; then
-  printf '%s\n' "$missing" | while IFS="$(printf '\t')" read -r name source; do
+  while IFS="$(printf '\t')" read -r name source; do
     echo "install-agent-skills: adding $name from $source (latest)"
     timeout --kill-after=15 300 npx -y "$SKILLS_CLI" add "$source" -s "$name" -a claude-code -a grok --full-depth -y </dev/null \
-      || warn "could not install optional skill $name"
-  done
+      || degrade "could not install optional skill $name"
+  done <<< "$missing"
 fi
 
 # 2. Refresh everything already installed to upstream latest.
@@ -94,47 +94,9 @@ if [ ! -f .agents/skills/design-system/SKILL.md ] && [ -f .claude/skills/design-
   cp -r .claude/skills/design-system/. .agents/skills/design-system/
 fi
 
-# 5. Remove hook registrations installers wrote into ignored roots
-#    (older host installs, other tools), preserving unrelated hooks: only
-#    the impeccable entries are stripped from shared manifests, and only
-#    single-purpose impeccable.json manifests are deleted. Tracked files
-#    are never touched.
-for f in .grok/hooks/impeccable.json .github/hooks/impeccable.json; do
-  if [ -f "$f" ] && grep -qi impeccable "$f" && ! git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
-    rm -f "$f"
-    echo "install-agent-skills: removed installer-written hook manifest $f"
-  fi
-done
-for f in .cursor/hooks.json .claude/settings.local.json; do
-  if [ -f "$f" ] && ! git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
-    HOOK_FILE="$f" node -e "
-      const fs = require('fs');
-      const path = process.env.HOOK_FILE;
-      try {
-        const data = JSON.parse(fs.readFileSync(path, 'utf8'));
-        let changed = false;
-        for (const [event, groups] of Object.entries(data.hooks ?? {})) {
-          data.hooks[event] = (groups ?? [])
-            .map((g) => {
-              if (!Array.isArray(g.hooks)) {
-                return /impeccable/u.test(g.command ?? '') ? (changed = true, null) : g;
-              }
-              const kept = g.hooks.filter((h) => !/impeccable/u.test(h.command ?? ''));
-              if (kept.length !== g.hooks.length) changed = true;
-              return kept.length ? { ...g, hooks: kept } : null;
-            })
-            .filter(Boolean);
-          if (!data.hooks[event].length) delete data.hooks[event];
-        }
-        if (changed) {
-          if (data.hooks && !Object.keys(data.hooks).length) delete data.hooks;
-          fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
-          console.log('install-agent-skills: stripped impeccable hooks from ' + path);
-        }
-      } catch { /* unparseable user settings: leave untouched */ }
-    " || true
-  fi
-done
+# 5. Do not alter personal hook settings. Impeccable is explicitly invoked
+#    with --no-hooks above; other pre-existing registrations belong to their
+#    owner and may be changed concurrently while the installers run.
 
 # 6. Container Chromium patch for scandinavian-design verifiers: the tracked
 #    repo previously carried this as a patched .claude variant; installed
@@ -158,19 +120,12 @@ if [ -n "${PLAYWRIGHT_CHROMIUM:-}" ] || [ -x /opt/pw-browsers/chromium ]; then
 fi
 
 # 7. Installers materialize real copies in harness mirrors; collapse them
-#    to links (this also removes stale mirrors of uninstalled optional
-#    skills). Then restore tracked adapters/lock that installers rewrite —
-#    but only files that were clean before this run; pre-existing local
-#    edits are left alone. Installed content floats to latest; tracked
-#    files change only in reviewed commits.
+#    to links without resetting tracked files. A reset would also erase edits
+#    made while this long-running script was active.
 node scripts/dev/sync-agent-skills.mjs || degrade "skill mirror sync reported problems"
-for f in $TRACKED; do
-  if printf '%s\n' "$DIRTY_BEFORE" | grep -qx "$f"; then
-    warn "leaving locally modified $f untouched (installer changes not reverted)"
-  else
-    git checkout -- "$f" 2>/dev/null || true
-  fi
-done
+if [ -n "$(git status --porcelain -- $TRACKED 2>/dev/null)" ]; then
+  degrade "tracked skill configuration is modified; review changes before committing"
+fi
 
 # 8. Record currency durably, then gate. A failed check degrades the run
 #    (recorded + warned) instead of failing container start; CI gates the
