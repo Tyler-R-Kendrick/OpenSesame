@@ -13,6 +13,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: f7f92cd7b702b791f2db765bba04c947eaea097b
+          fetch-depth: 2
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
@@ -46,55 +47,3 @@ jobs:
           test "$(git rev-parse HEAD^{tree})" = 58785d469cafd6ea78aa8251f22acf66cb4947ae
           git diff --exit-code
           git diff --cached --exit-code
-  visual:
-    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-quality-proof-20261029'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    env:
-      VITE_BASE: /OpenSesame/
-      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-      EVIDENCE_DIR: ${{ github.workspace }}/work/connector-quality-visual
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: f7f92cd7b702b791f2db765bba04c947eaea097b
-          persist-credentials: false
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: ${{ github.sha }}
-          path: work/connector-quality-tools
-          persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
-        with:
-          node-version: 24
-      - name: Verify exact source and capture code
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = f7f92cd7b702b791f2db765bba04c947eaea097b
-          test "$(git rev-parse HEAD^{tree})" = 58785d469cafd6ea78aa8251f22acf66cb4947ae
-          printf '%s  %s\n' e2adb89f54677bb706da8518a85f33bce4abf2f4d92507147c14a1fd8a23db59 work/connector-quality-tools/scripts/review/2241-local-availability-visual.mjs | sha256sum --check
-          mkdir -p "$EVIDENCE_DIR"
-          git rev-parse HEAD > "$EVIDENCE_DIR/source-commit.txt"
-          git rev-parse HEAD^{tree} > "$EVIDENCE_DIR/source-tree.txt"
-      - name: Install frozen graph
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Build and measure shipped Pages bundle
-        run: |
-          set -euo pipefail
-          node scripts/lib/ci-pages-build.mjs
-          node scripts/quality/bundle-budget-gate.mjs
-      - name: Build rich capability profile for real browser
-        env:
-          OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
-        run: pnpm --filter @opensesame/pages exec vite build
-      - name: Exercise and capture real Pages
-        run: node work/connector-quality-tools/scripts/review/2241-local-availability-visual.mjs after "$GITHUB_WORKSPACE" "$EVIDENCE_DIR"
-      - name: Upload unapproved evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
-        with:
-          name: connector-quality-visual
-          path: ${{ env.EVIDENCE_DIR }}
-          retention-days: 14
-          if-no-files-found: error
