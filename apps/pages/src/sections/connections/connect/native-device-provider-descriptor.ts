@@ -10,9 +10,18 @@ import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
 import { nativeCatalogConfiguration } from "@opensesame/app-core/lib/native-catalog-configuration.js";
+import {
+  compiledApiKeyRoute,
+  compiledOidcRoute,
+} from "@opensesame/app-core/lib/native-connector-availability.js";
+import {
+  hasNativeConnectorDriver,
+  nativeConnectorWithdrawn,
+} from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { nativeCatalogConfigurationDescriptor } from "./native-catalog-configuration-descriptor.js";
 import type {
   NativeConnectorDescriptor,
@@ -22,6 +31,22 @@ import type {
 export type NativeDeviceAvailability = {
   has: (method: NativeMethod, providerId: string) => boolean;
 };
+
+/** Production route availability for device catalog rows, by method. */
+export function productionDeviceAvailability(
+  apiKeyClosed: boolean,
+): NativeDeviceAvailability {
+  return {
+    has: (method, id) =>
+      !nativeConnectorWithdrawn(method) &&
+      (method === "oidc"
+        ? compiledOidcRoute(id)
+        : method === "native-local"
+          ? hasNativeConnectorDriver(method, id) &&
+            vaultStore.isGenuineSession()
+          : compiledApiKeyRoute(id) && !apiKeyClosed),
+  };
+}
 
 function existingSpecializedRoad(providerId: string): boolean {
   return (

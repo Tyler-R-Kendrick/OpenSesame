@@ -7,11 +7,7 @@ import type {
 } from "@opensesame/app-core/lib/connections.js";
 import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
-import { nativeCatalogConfiguration } from "@opensesame/app-core/lib/native-catalog-configuration.js";
-import {
-  compiledApiKeyRoute,
-  compiledOidcRoute,
-} from "@opensesame/app-core/lib/native-connector-availability.js";
+import { compiledApiKeyRoute } from "@opensesame/app-core/lib/native-connector-availability.js";
 import {
   hasNativeConnectorDriver,
   nativeConnectorWithdrawn,
@@ -40,7 +36,10 @@ import type {
   NativeActionDescriptor,
   NativeConnectorDescriptor,
 } from "./native-connector-ui.js";
-import { nativeDeviceProviderDescriptor } from "./native-device-provider-descriptor.js";
+import {
+  nativeDeviceProviderDescriptor,
+  productionDeviceAvailability,
+} from "./native-device-provider-descriptor.js";
 import { nativeGithubDescriptor } from "./native-github-descriptor.js";
 import {
   nativeKeyActions,
@@ -116,16 +115,10 @@ export function nativeSettingsDescriptor(
     return nativeKeyDescriptor(provider, apiAvailable, keyed.ui(provider.id));
   const plan = connectPlan(provider.id);
   if (!plan)
-    return nativeDeviceProviderDescriptor(provider.id, {
-      has: (method, id) =>
-        method === "oidc"
-          ? compiledOidcRoute(id) && !nativeConnectorWithdrawn(method)
-          : method === "native-local"
-            ? nativeCatalogConfiguration(id) !== null &&
-              !nativeConnectorWithdrawn(method) &&
-              vaultStore.isGenuineSession()
-            : compiledApiKeyRoute(id) && !closed,
-    });
+    return nativeDeviceProviderDescriptor(
+      provider.id,
+      productionDeviceAvailability(closed),
+    );
   const callbackUrl = new URL(
     `${import.meta.env.BASE_URL}auth/native-connector.html`,
     window.location.origin,
