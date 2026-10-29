@@ -27,21 +27,41 @@ test("catalogue failure degrades currency, while a successful install remains ok
     join(root, "scripts/dev/install-agent-skills.sh"),
   );
   put("scripts/dev/sync-agent-skills.mjs", "");
-  put("skills-lock.json", JSON.stringify({ skills: { demo: { source: "example/demo" } } }));
+  put(
+    "skills-lock.json",
+    JSON.stringify({ skills: { demo: { source: "example/demo" } } }),
+  );
   put(".codex/hooks.json", "{}\n");
   put(".claude/settings.json", "{}\n");
   put(".gitignore", ".agents/\nbin/\n");
   execFileSync("git", ["init", "-q", root]);
   execFileSync("git", ["-C", root, "add", "."]);
-  execFileSync("git", ["-C", root, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"]);
-  put("bin/npx", '#!/bin/sh\nif [ "$2" = skills@1.7.4 ] && [ "$3" = add ]; then exit 1; fi\nexit 0\n');
+  execFileSync("git", [
+    "-C",
+    root,
+    "-c",
+    "user.name=test",
+    "-c",
+    "user.email=test@example.invalid",
+    "commit",
+    "-qm",
+    "fixture",
+  ]);
+  put(
+    "bin/npx",
+    '#!/bin/sh\nif [ "$2" = skills@1.7.4 ] && [ "$3" = add ]; then exit 1; fi\nexit 0\n',
+  );
   chmodSync(join(root, "bin/npx"), 0o755);
-  const run = () => execFileSync("bash", ["scripts/dev/install-agent-skills.sh"], {
-    cwd: root,
-    env: { ...process.env, PATH: `${join(root, "bin")}:${process.env.PATH}` },
-    stdio: "pipe",
-  });
-  const status = () => JSON.parse(readFileSync(join(root, ".agents/.skills-currency.json"), "utf8")).status;
+  const run = () =>
+    execFileSync("bash", ["scripts/dev/install-agent-skills.sh"], {
+      cwd: root,
+      env: { ...process.env, PATH: `${join(root, "bin")}:${process.env.PATH}` },
+      stdio: "pipe",
+    });
+  const status = () =>
+    JSON.parse(
+      readFileSync(join(root, ".agents/.skills-currency.json"), "utf8"),
+    ).status;
   run();
   assert.equal(status(), "degraded");
   put(".agents/skills/demo/SKILL.md", "# Demo\n");
