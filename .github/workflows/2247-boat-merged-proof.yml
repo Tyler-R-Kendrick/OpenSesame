@@ -14,14 +14,14 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
-          ref: 8b37b7475dda5c6d893860c1761fa3e65ad01f40
+          ref: 6843958dfbe76f2ef380dfaa1b38ec46612e930c
       - name: Verify immutable candidate
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 8b37b7475dda5c6d893860c1761fa3e65ad01f40
-          test "$(git rev-parse HEAD^{tree})" = 848d91250bc0b5952955fda505fa90eea22ca5b5
-          test "$(git rev-parse HEAD^)" = 7e2b44d22673abdf710f5e611887b663744f1868
+          test "$(git rev-parse HEAD)" = 6843958dfbe76f2ef380dfaa1b38ec46612e930c
+          test "$(git rev-parse HEAD^{tree})" = 84c136af1482c429d3953366333796163ded8bec
+          test "$(git rev-parse HEAD^)" = 0b29eafc45d725ee20656d38a8b1276300a5094c
           git diff --exit-code
           git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
@@ -36,7 +36,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          files=(packages/cli/src/boat-provider-state.ts packages/cli/src/boat-provider-state.test.ts packages/cli/src/boat-provider-state-process.test.ts packages/cli/src/boat-provider-state-interrupted.test.ts packages/cli/src/password-reset-boat-retry.test.ts packages/cli/src/password-reset-sandbox-provider.ts packages/cli/src/password-reset-provider.test.ts packages/cli/src/password-reset-local-runtime.ts packages/cli/src/password-reset-local-verification.ts packages/cli/src/password-reset-provider-verification.test.ts packages/cli/src/password-reset-claim.ts packages/cli/src/password-reset-claim.test.ts packages/agent-sandboxes/src/boat-provider.ts packages/agent-sandboxes/src/boat-provider.test.ts packages/agent-sandboxes/src/boat-provider-host.test.ts packages/agent-sandboxes/src/boat-readiness.ts packages/agent-sandboxes/src/boat-client.ts packages/agent-sandboxes/src/boat-endpoints.ts packages/agent-sandboxes/e2e/boat.spec.ts packages/agent-sandboxes/src/boat-registration-state.ts packages/agent-sandboxes/src/boat-state-resumption.test.ts)
+          files=(packages/cli/src/boat-provider-state.ts packages/cli/src/boat-provider-state.test.ts packages/cli/src/boat-provider-state-process.test.ts packages/cli/src/boat-provider-state-interrupted.test.ts packages/cli/src/password-reset-boat-retry.test.ts packages/cli/src/password-reset-sandbox-provider.ts packages/cli/src/password-reset-provider.test.ts packages/cli/src/password-reset-local-runtime.ts packages/cli/src/password-reset-local-verification.ts packages/cli/src/password-reset-provider-verification.test.ts packages/cli/src/password-reset-claim.ts packages/cli/src/password-reset-claim.test.ts packages/agent-sandboxes/src/boat-provider.ts packages/agent-sandboxes/src/boat-provider.test.ts packages/agent-sandboxes/src/boat-provider-host.test.ts packages/agent-sandboxes/src/boat-readiness.ts packages/agent-sandboxes/src/boat-provider-options.ts packages/agent-sandboxes/src/boat-consumed-claim.test.ts packages/agent-sandboxes/src/boat-auth.ts packages/agent-sandboxes/src/boat-auth.test.ts packages/agent-sandboxes/src/boat-client.ts packages/agent-sandboxes/src/boat-endpoints.ts packages/agent-sandboxes/e2e/boat.spec.ts packages/agent-sandboxes/src/boat-registration-state.ts packages/agent-sandboxes/src/boat-state-resumption.test.ts)
           pnpm exec biome check "${files[@]}"
           pnpm lint:anti-slop:files "${files[@]}"
           pnpm exec oxlint -c tools/quality/oxlint.complexity.jsonc "${files[@]}"
@@ -71,6 +71,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^{tree})" = 848d91250bc0b5952955fda505fa90eea22ca5b5
+          test "$(git rev-parse HEAD^{tree})" = 84c136af1482c429d3953366333796163ded8bec
           git diff --exit-code
           git diff --cached --exit-code
