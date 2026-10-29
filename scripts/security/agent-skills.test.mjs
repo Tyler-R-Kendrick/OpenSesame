@@ -206,6 +206,30 @@ test("sync removes a stale mirror of an uninstalled optional skill", (t) => {
   assert.equal(existsSync(join(f.root, ".claude/skills/opt-example")), false);
 });
 
+test("sync prunes dangling mirror links left by an upstream removal", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  f.put(".agents/skills/opt-example/SKILL.md", "# Opt\n");
+  f.put(".claude/skills/opt-example/SKILL.md", "# Variant\n");
+  symlinkSync(
+    "../../../.agents/skills/opt-example/removed-upstream.md",
+    join(f.root, ".claude/skills/opt-example/removed-upstream.md"),
+    "file",
+  );
+  syncAgentSkills(f.root);
+  assert.equal(
+    existsSync(join(f.root, ".claude/skills/opt-example/removed-upstream.md")),
+    false,
+  );
+  assert.equal(
+    readFileSync(join(f.root, ".claude/skills/opt-example/SKILL.md"), "utf8"),
+    "# Variant\n",
+  );
+});
+
 test("unlisted canonical warns locally and fails in CI", (t) => {
   const f = fixture(t);
   writeProfiles(f, { core: { skills: [] } });
