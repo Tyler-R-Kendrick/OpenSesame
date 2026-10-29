@@ -1,0 +1,76 @@
+name: Reviewed CLI provider security proof
+on:
+  push:
+    branches: [review/boat-integrated-after-skills-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/boat-integrated-after-skills-proof-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+          ref: 2c94fe0aae6291b9bb7eadad4e8e228cde91f292
+      - name: Verify immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 2c94fe0aae6291b9bb7eadad4e8e228cde91f292
+          test "$(git rev-parse HEAD^{tree})" = 35436f076ba16176b73c7ae47ce29e52996fd826
+          test "$(git rev-parse HEAD^)" = 2d8ad2307d3a2b535f6b09a37d35aee7c08ba8b1
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Install frozen dependencies
+        id: install
+        run: pnpm install --frozen-lockfile
+      - name: Format and strict quality for changed files
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(packages/cli/src/boat-provider-state.ts packages/cli/src/boat-provider-state.test.ts packages/cli/src/boat-provider-state-process.test.ts packages/cli/src/boat-provider-state-interrupted.test.ts packages/cli/src/password-reset-boat-retry.test.ts packages/cli/src/password-reset-sandbox-provider.ts packages/cli/src/password-reset-provider.test.ts packages/cli/src/password-reset-local-runtime.ts packages/cli/src/password-reset-local-verification.ts packages/cli/src/password-reset-provider-verification.test.ts packages/cli/src/password-reset-claim.ts packages/cli/src/password-reset-claim.test.ts packages/agent-sandboxes/src/boat-provider.ts packages/agent-sandboxes/src/boat-provider.test.ts packages/agent-sandboxes/src/boat-provider-host.test.ts packages/agent-sandboxes/src/boat-readiness.ts packages/agent-sandboxes/src/boat-provider-options.ts packages/agent-sandboxes/src/boat-consumed-claim.test.ts packages/agent-sandboxes/src/boat-auth.ts packages/agent-sandboxes/src/boat-auth.test.ts packages/agent-sandboxes/src/boat-client.ts packages/agent-sandboxes/src/boat-endpoints.ts packages/agent-sandboxes/e2e/boat.spec.ts packages/agent-sandboxes/src/boat-registration-state.ts packages/agent-sandboxes/src/boat-state-resumption.test.ts)
+          pnpm exec biome check "${files[@]}"
+          pnpm lint:anti-slop:files "${files[@]}"
+          pnpm exec oxlint -c tools/quality/oxlint.complexity.jsonc "${files[@]}"
+      - name: Typecheck sandbox package
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm --filter @opensesame/agent-sandboxes typecheck
+      - name: Typecheck CLI
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm --filter @opensesame/cli typecheck
+      - name: Boat claim and provider regressions
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm --filter @opensesame/agent-sandboxes test
+      - name: Private filesystem and subprocess regressions
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm --filter @opensesame/cli exec vitest run src/boat-provider-state.test.ts src/boat-provider-state-interrupted.test.ts src/boat-provider-state-process.test.ts src/password-reset-boat-retry.test.ts src/password-reset-provider.test.ts src/password-reset-provider-verification.test.ts src/password-reset-claim.test.ts
+      - name: Real browser sandbox suite
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x /usr/bin/google-chrome
+          cd packages/cua-password-reset
+          AGENT_BROWSER="$(realpath node_modules/.bin/agent-browser)"
+          export AGENT_BROWSER AGENT_BROWSER_CHROME=/usr/bin/google-chrome
+          cd ../agent-sandboxes
+          pnpm exec playwright test
+      - name: Full structural quality gate
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm quality:gate
+      - name: Verify source remains unchanged
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 35436f076ba16176b73c7ae47ce29e52996fd826
+          git diff --exit-code
+          git diff --cached --exit-code
