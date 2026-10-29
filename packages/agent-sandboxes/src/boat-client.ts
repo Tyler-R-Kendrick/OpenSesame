@@ -157,6 +157,10 @@ export interface RunCommandOptions {
   timeoutSeconds?: number;
 }
 
+function validDeletionTime(value: number, minimum: number): boolean {
+  return Number.isInteger(value) && value >= minimum && value <= 86_400_000;
+}
+
 export class BoatClient {
   private readonly origin: string;
   private readonly fetchImpl: typeof fetch;
@@ -171,15 +175,9 @@ export class BoatClient {
     this.deletionRequestTimeoutMs = options.deletionRequestTimeoutMs ?? 10_000;
     this.deletionPollIntervalMs = options.deletionPollIntervalMs ?? 1_000;
     if (
-      !Number.isInteger(this.deletionTimeoutMs) ||
-      this.deletionTimeoutMs < 0 ||
-      this.deletionTimeoutMs > 86_400_000 ||
-      !Number.isInteger(this.deletionRequestTimeoutMs) ||
-      this.deletionRequestTimeoutMs < 1 ||
-      this.deletionRequestTimeoutMs > 86_400_000 ||
-      !Number.isInteger(this.deletionPollIntervalMs) ||
-      this.deletionPollIntervalMs < 1 ||
-      this.deletionPollIntervalMs > 86_400_000
+      !validDeletionTime(this.deletionTimeoutMs, 0) ||
+      !validDeletionTime(this.deletionRequestTimeoutMs, 1) ||
+      !validDeletionTime(this.deletionPollIntervalMs, 1)
     )
       throw new Error("boat: invalid deletion polling settings");
   }

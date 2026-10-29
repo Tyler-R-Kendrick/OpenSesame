@@ -58,6 +58,32 @@ function readBody(
   });
 }
 
+function isCreateSandbox(path: string, method: string | undefined): boolean {
+  return path === "/api/v1/sandboxes" && method === "POST";
+}
+
+function handleDelete(
+  request: import("node:http").IncomingMessage,
+  path: string,
+  deleted: string[],
+  send: (status: number, payload: BoatJsonValue) => void,
+): void {
+  if (request.headers["x-ascii-confirm-delete"] !== "bx_23456789") {
+    send(409, { ok: false });
+    return;
+  }
+  deleted.push(path);
+  send(202, {
+    ok: true,
+    operation: {
+      id: "bdop_0123456789abcdef0123456789abcdef",
+      kind: "sandbox",
+      targetId: "bx_23456789",
+      status: "pending",
+    },
+  });
+}
+
 function startFakeBoat(): Promise<FakeBoat> {
   const state = { claimed: false, billed: false };
   const commandHistory: string[] = [];
@@ -83,7 +109,7 @@ function startFakeBoat(): Promise<FakeBoat> {
         else send(400, { error: "authorization_pending" });
       } else if (path === "/api/boat/billing/checkout") {
         send(200, { url: "https://checkout.stripe.com/session" });
-      } else if (path === "/api/v1/sandboxes" && request.method === "POST") {
+      } else if (isCreateSandbox(path, request.method)) {
         if (!state.billed) {
           send(402, {
             ok: false,
@@ -150,20 +176,7 @@ function startFakeBoat(): Promise<FakeBoat> {
           },
         });
       } else if (request.method === "DELETE") {
-        if (request.headers["x-ascii-confirm-delete"] !== "bx_23456789") {
-          send(409, { ok: false });
-          return;
-        }
-        deleted.push(path);
-        send(202, {
-          ok: true,
-          operation: {
-            id: "bdop_0123456789abcdef0123456789abcdef",
-            kind: "sandbox",
-            targetId: "bx_23456789",
-            status: "pending",
-          },
-        });
+        handleDelete(request, path, deleted, send);
       } else {
         send(404, { ok: false });
       }

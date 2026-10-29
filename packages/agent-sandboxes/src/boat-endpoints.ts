@@ -66,6 +66,67 @@ export function boatCheckoutUrl(value: string, origin: string): string {
 
 export type BoatHostedRelay = { url: string; cookie?: string };
 
+function isBareRoot(url: URL): boolean {
+  return !url.username && !url.password && !url.hash && url.pathname === "/";
+}
+
+function loopbackApi(api: URL, origin: string): boolean {
+  return (
+    isLoopback(api) && api.protocol === "http:" && literalLoopbackHttp(origin)
+  );
+}
+
+function loopbackBase(base: URL, api: URL, sandboxUrl: string): boolean {
+  return (
+    isLoopback(base) &&
+    literalLoopbackHttp(sandboxUrl) &&
+    base.protocol === "http:" &&
+    base.origin === api.origin &&
+    isBareRoot(base) &&
+    !base.search
+  );
+}
+
+function loopbackHost(
+  url: URL,
+  api: URL,
+  hosted: string,
+  port: number,
+): boolean {
+  return (
+    isLoopback(url) &&
+    literalLoopbackHttp(hosted) &&
+    url.protocol === "http:" &&
+    url.hostname === api.hostname &&
+    Number(url.port) === port &&
+    isBareRoot(url) &&
+    !url.search
+  );
+}
+
+function validSandboxBase(base: URL, label: string): boolean {
+  return (
+    base.protocol === "https:" &&
+    !base.port &&
+    isBareRoot(base) &&
+    !base.search &&
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(label)
+  );
+}
+
+function validHostedDestination(
+  url: URL,
+  label: string,
+  port: number,
+): boolean {
+  return (
+    url.protocol === "https:" &&
+    !url.port &&
+    isBareRoot(url) &&
+    url.hostname === `${label}-${port}.on.boat.dev`
+  );
+}
+
 /** Bind a protected port to the authenticated sandbox's documented base URL. */
 export function boatHostedRelay(
   hosted: string,
@@ -77,28 +138,9 @@ export function boatHostedRelay(
   const base = parseEndpoint(sandboxUrl);
   const url = parseEndpoint(hosted);
   if (
-    isLoopback(api) &&
-    api.protocol === "http:" &&
-    isLoopback(base) &&
-    isLoopback(url) &&
-    literalLoopbackHttp(origin) &&
-    literalLoopbackHttp(sandboxUrl) &&
-    literalLoopbackHttp(hosted) &&
-    base.protocol === "http:" &&
-    base.origin === api.origin &&
-    base.pathname === "/" &&
-    !base.username &&
-    !base.password &&
-    !base.search &&
-    !base.hash &&
-    url.protocol === "http:" &&
-    url.hostname === api.hostname &&
-    Number(url.port) === port &&
-    !url.username &&
-    !url.password &&
-    !url.search &&
-    !url.hash &&
-    url.pathname === "/"
+    loopbackApi(api, origin) &&
+    loopbackBase(base, api, sandboxUrl) &&
+    loopbackHost(url, api, hosted, port)
   ) {
     url.protocol = "ws:";
     return { url: url.href };
@@ -108,21 +150,8 @@ export function boatHostedRelay(
     ? base.hostname.slice(0, -suffix.length)
     : "";
   if (
-    base.protocol !== "https:" ||
-    base.port ||
-    base.username ||
-    base.password ||
-    base.search ||
-    base.hash ||
-    base.pathname !== "/" ||
-    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(label) ||
-    url.protocol !== "https:" ||
-    url.port ||
-    url.username ||
-    url.password ||
-    url.hash ||
-    url.pathname !== "/" ||
-    url.hostname !== `${label}-${port}${suffix}`
+    !validSandboxBase(base, label) ||
+    !validHostedDestination(url, label, port)
   )
     throw new Error("boat: invalid hosted relay destination");
   const entries = [...url.searchParams.entries()];
