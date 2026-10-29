@@ -51,7 +51,11 @@ type Element = DomElement;
 const ACTIVE_CAPTCHA =
   /verify you are human|verify you(?:'|’)re human|i(?:'|’)m not a robot|not a robot|select all (?:images|squares|tiles)|captcha (?:challenge|required|verification)|performing security verification|checking your browser/iu;
 
-function staticChallengePhrase(text: string): string | null {
+/**
+ * The canonical phrase for an active human challenge found in page copy,
+ * or null. Shared by DOM-level drivers so every lane parks identically.
+ */
+export function staticChallengePhrase(text: string): string | null {
   if (ACTIVE_CAPTCHA.test(text)) return "CAPTCHA verify you are human";
   if (/passkey|security key/iu.test(text))
     return "Passkey security key required";
