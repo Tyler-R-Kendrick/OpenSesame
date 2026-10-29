@@ -339,7 +339,7 @@ index 9a13fd3883a9bf2c1442c95b44f74ec825293998..2165b6ce97fce339d062f6cab372fe1e
  }
  
 diff --git a/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx b/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
-index c6b3ed8574f622e89cf5d99014747214efa50fa2..91c845353c2b5e45909d204cf50fde47951f9305 100644
+index c6b3ed8574f622e89cf5d99014747214efa50fa2..1c774376e4d643f90f6d5d044d415b143797a7dc 100644
 --- a/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
 +++ b/apps/pages/src/tutorial/__tests__/a11y/keyboard-operability.test.tsx
 @@ -170,6 +170,25 @@ describe("keyboard operability", () => {
@@ -383,7 +383,7 @@ index c6b3ed8574f622e89cf5d99014747214efa50fa2..91c845353c2b5e45909d204cf50fde47
 +    if (!summary) throw new Error("Project disclosure needs its summary");
 +    expect(summary.tagName).toBe("SUMMARY");
 +    expect(summary?.textContent).toBe("About this project");
-+    expect(summary?.getAttribute("tabindex")).toBeNull();
++    expect(summary?.getAttribute("tabindex")).toBe("0");
 +    expect(project.open).toBe(false);
 +    const links = [...project.querySelectorAll<HTMLAnchorElement>("a[href]")];
 +    expect(links).toHaveLength(10);
@@ -432,7 +432,7 @@ index 6897d3873367193766075f0fd49090bced020dbf..993435d9d11167a7eff4a83254a38cad
 +}
 diff --git a/apps/pages/src/tutorial/ui/ProjectLinks.tsx b/apps/pages/src/tutorial/ui/ProjectLinks.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..fb60c68e2653baed03bd09a49348088ecf26acb3
+index 0000000000000000000000000000000000000000..420777b3b767d7b6651febc897300ae3709a322b
 --- /dev/null
 +++ b/apps/pages/src/tutorial/ui/ProjectLinks.tsx
 @@ -0,0 +1,50 @@
@@ -473,7 +473,7 @@ index 0000000000000000000000000000000000000000..fb60c68e2653baed03bd09a49348088e
 +export function ProjectLinks() {
 +  return (
 +    <details className="support__project">
-+      <summary>About this project</summary>
++      <summary tabIndex={0}>About this project</summary>
 +      <ul className="support__project-links">
 +        {ABOUT_LINKS.map((link) => (
 +          <li key={link.label}>
