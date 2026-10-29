@@ -81,6 +81,34 @@ describe("domain recipes", () => {
     expect(stepDrift(step, wrongKind)).toBe(true);
   });
 
+  it("relocates a recorded masked-password step only when one password field exists", () => {
+    const step = {
+      id: "password",
+      primitive: "fill-field" as const,
+      ref: "e9",
+      expectedLabel: "[masked password]",
+      purpose: "new-password" as const,
+    };
+    expect(
+      resolveStepRef(
+        step,
+        observation([
+          { ref: "e18", kind: "button", label: "Save password" },
+          { ref: "e19", kind: "password", label: "New password" },
+        ]),
+      ),
+    ).toBe("e19");
+    expect(
+      resolveStepRef(
+        step,
+        observation([
+          { ref: "e19", kind: "password", label: "New password" },
+          { ref: "e20", kind: "password", label: "Confirm new password" },
+        ]),
+      ),
+    ).toBeNull();
+  });
+
   it("refuses to rebind a generic masked password label", () => {
     const step = {
       id: "password",

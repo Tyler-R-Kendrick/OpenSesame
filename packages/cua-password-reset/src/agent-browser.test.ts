@@ -8,7 +8,9 @@ import {
   BrowserStepExecutor,
   type BrowserStepPorts,
   type ExactFormProxyPort,
+  parseAgentBrowserSnapshot,
 } from "./agent-browser.js";
+import { detectChallenge } from "./decisions.js";
 import { ORIGIN, observation } from "./test-support.js";
 import type { ProxyProof, RecipeStep, ResetRun } from "./types.js";
 
@@ -218,6 +220,24 @@ describe("agent-browser adapter", () => {
     expect(JSON.stringify(vi.mocked(spawn).mock.calls)).not.toContain(
       "REAL_PASSWORD_CANARY",
     );
+  });
+
+  it("surfaces static challenge copy as one canonical text field", () => {
+    const output = JSON.stringify({
+      success: true,
+      data: {
+        snapshot:
+          '- paragraph\n  - StaticText "CAPTCHA verify you are human UNTRUSTED_PAGE_WORDS"\n- textbox "Email" [ref=e2]',
+        refs: { e2: { role: "textbox", name: "Email" } },
+      },
+    });
+    const parsed = parseAgentBrowserSnapshot(output, ORIGIN);
+    expect(parsed.fields).toEqual([
+      { ref: "e2", kind: "email", label: "Email" },
+      { ref: "e3", kind: "text", label: "CAPTCHA verify you are human" },
+    ]);
+    expect(JSON.stringify(parsed)).not.toContain("UNTRUSTED_PAGE_WORDS");
+    expect(detectChallenge(parsed)).toBe("captcha");
   });
 
   it("does not reflect secret-bearing child stderr into errors", async () => {

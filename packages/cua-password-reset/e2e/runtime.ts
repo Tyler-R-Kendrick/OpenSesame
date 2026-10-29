@@ -203,6 +203,7 @@ export function proxy(page: Page): ExactFormProxyPort {
 export interface RuntimeDriverOptions {
   challenge?: Challenge;
   store?: CheckpointJournal;
+  recipe?: ResetRun["recipe"];
   withProxy?: boolean;
   proxyPort?: ExactFormProxyPort;
   /** Refs observed from the real driver, keyed by recipe step id. */
@@ -244,6 +245,7 @@ export function runtimeForDriver(
   const store = options.store ?? new MemoryCheckpointJournal();
   const withProxy = options.withProxy ?? false;
   const initial = resetRun(site, challenge);
+  if (options.recipe) initial.recipe = options.recipe;
   if (options.refs) {
     for (const step of initial.recipe.steps) {
       const ref = options.refs[step.id];

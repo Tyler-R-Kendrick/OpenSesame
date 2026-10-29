@@ -49,11 +49,20 @@ export function resolveStepRef(
   );
   if (exact && kindCompatible(step, exact) && labelMatches(exact))
     return exact.ref;
-  if (
-    step.expectedLabel === undefined ||
-    step.expectedLabel === "[masked password]"
-  )
-    return null;
+  if (step.expectedLabel === undefined) return null;
+  // A masked password label carries no identity: it matches every password
+  // field. Recorded recipes always carry it, so refusing it outright makes
+  // them unreplayable whenever a driver renumbers refs — but rebinding to
+  // just any password field could fill the candidate into a
+  // current-password box. Relocate only to the single password field whose
+  // real label names this step's purpose; anything else stays drift.
+  if (step.expectedLabel === "[masked password]") {
+    if (step.purpose !== "new-password") return null;
+    const named = observation.fields.filter(
+      (field) => field.kind === "password" && /\bnew\b/iu.test(field.label),
+    );
+    return named.length === 1 ? (named[0]?.ref ?? null) : null;
+  }
   const candidates = observation.fields.filter(
     (field) => kindCompatible(step, field) && labelMatches(field),
   );
