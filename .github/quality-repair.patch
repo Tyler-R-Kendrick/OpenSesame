@@ -1,0 +1,302 @@
+diff --git a/apps/pages/src/modules/ai.password-reset/TakeoverPanel.test.tsx b/apps/pages/src/modules/ai.password-reset/TakeoverPanel.test.tsx
+index fa7539ef8..51a31ca9f 100644
+--- a/apps/pages/src/modules/ai.password-reset/TakeoverPanel.test.tsx
++++ b/apps/pages/src/modules/ai.password-reset/TakeoverPanel.test.tsx
+@@ -14,7 +14,11 @@ import {
+ import { MemoryRouter, NavLink, Route, Routes } from "react-router";
+ import { afterEach, describe, expect, it, vi } from "vitest";
+ import { TakeoverPanel } from "./TakeoverPanel.js";
+-import type { TakeoverClient } from "./takeover-client.js";
++import type {
++  AgentRun,
++  ClaimedStep,
++  TakeoverClient,
++} from "./takeover-client.js";
+ 
+ afterEach(() => {
+   cleanup();
+@@ -36,7 +40,7 @@ function fakeClient(initialControl: string) {
+   });
+   const client = {
+     authenticate: vi.fn(async () => {}),
+-    getRun: vi.fn(async (id: string) => run(id)),
++    getRun: vi.fn(async (id: string): Promise<AgentRun> => run(id)),
+     listHookRecords: vi.fn(async () => []),
+     requestHandoff: vi.fn(async () => run()),
+     takeControl: vi.fn(async () => {
+@@ -47,21 +51,15 @@ function fakeClient(initialControl: string) {
+       state.control = "resume_requested";
+       return run();
+     }),
+-    claimStep: vi.fn(async () => ({
+-      run_id: "run-9",
+-      seq: 4,
+-      request: { step: "submit", selector: "#save" },
+-    })),
++    claimStep: vi.fn(
++      async (): Promise<ClaimedStep | null> => ({
++        run_id: "run-9",
++        seq: 4,
++        request: { step: "submit", selector: "#save" },
++      }),
++    ),
+     settleStep: vi.fn(async () => {}),
+-  } as unknown as TakeoverClient & {
+-    authenticate: ReturnType<typeof vi.fn>;
+-    getRun: ReturnType<typeof vi.fn>;
+-    requestHandoff: ReturnType<typeof vi.fn>;
+-    takeControl: ReturnType<typeof vi.fn>;
+-    release: ReturnType<typeof vi.fn>;
+-    claimStep: ReturnType<typeof vi.fn>;
+-    settleStep: ReturnType<typeof vi.fn>;
+-  };
++  } satisfies TakeoverClient;
+   return client;
+ }
+ 
+diff --git a/apps/pages/src/modules/ai.password-reset/TakeoverPanel.tsx b/apps/pages/src/modules/ai.password-reset/TakeoverPanel.tsx
+index 65b870332..b47946013 100644
+--- a/apps/pages/src/modules/ai.password-reset/TakeoverPanel.tsx
++++ b/apps/pages/src/modules/ai.password-reset/TakeoverPanel.tsx
+@@ -20,16 +20,26 @@ import {
+   takeoverActions,
+ } from "./takeover-client.js";
+ 
+-const STATE_WORDS: Record<string, string> = {
+-  awaiting_human: "Parked — waiting for you",
+-  handoff_requested: "Handoff requested — the agent is parking",
+-  suspended: "Suspended — take over to re-attach",
+-  human_driving: "You are driving",
+-  resume_requested: "Handed back — the agent is re-checking the page",
+-  agent_driving: "The agent is driving",
+-};
++function stateWords(state: string): string {
++  switch (state) {
++    case "awaiting_human":
++      return "Parked — waiting for you";
++    case "handoff_requested":
++      return "Handoff requested — the agent is parking";
++    case "suspended":
++      return "Suspended — take over to re-attach";
++    case "human_driving":
++      return "You are driving";
++    case "resume_requested":
++      return "Handed back — the agent is re-checking the page";
++    case "agent_driving":
++      return "The agent is driving";
++    default:
++      return state;
++  }
++}
+ 
+-type Act = (run: () => Promise<unknown>) => Promise<void>;
++type Act = (run: () => Promise<AgentRun> | Promise<void>) => Promise<void>;
+ 
+ function useTakeoverRun(client: TakeoverClient, runId: string) {
+   const [run, setRun] = useState<AgentRun | null>(null);
+@@ -331,8 +341,7 @@ export function TakeoverPanel({
+     <section aria-label="Browser takeover">
+       <h1>Browser takeover</h1>
+       <p>
+-        {run.origin ?? "Provider site"} ·{" "}
+-        {STATE_WORDS[run.control_state] ?? run.control_state}
++        {run.origin ?? "Provider site"} · {stateWords(run.control_state)}
+         {run.blocked_reason ? ` · ${run.blocked_reason}` : ""}
+       </p>
+       <ControlButtons
+diff --git a/apps/pages/src/modules/ai.password-reset/runtime.test.ts b/apps/pages/src/modules/ai.password-reset/runtime.test.ts
+index 9d981f3cf..72af9a6f6 100644
+--- a/apps/pages/src/modules/ai.password-reset/runtime.test.ts
++++ b/apps/pages/src/modules/ai.password-reset/runtime.test.ts
+@@ -1,52 +1,50 @@
+ import { VAULT_RESET_RUNS_KEY } from "@opensesame/app-core/lib/password-reset/vault-run-tracker.js";
+-import { beforeEach, describe, expect, it, vi } from "vitest";
+-
+-const activation = {
+-  disposed: () => false,
+-  handle: () => ({}),
+-  register: vi.fn(),
+-  onDispose: vi.fn(),
+-};
+-vi.mock("../activation.js", () => ({
+-  createActivation: () => activation,
+-}));
+-vi.mock("./panel.js", () => ({ PasswordResetMailPanel: () => null }));
+-vi.mock("./scan.js", () => ({
+-  createPasswordResetScan: () => ({ start: vi.fn() }),
+-}));
+-vi.mock("./rotation-relay.js", () => ({
+-  createHostResetRunNoticeBridge: () => ({ start: vi.fn() }),
+-  installPasswordResetRotationRelay: () => vi.fn(),
+-}));
+-vi.mock("./vault-ui.js", () => ({
+-  installPasswordResetVaultUiSeams: () => vi.fn(),
+-}));
+-
++import { describe, expect, it } from "vitest";
++import { createTestContext } from "../test-context.js";
+ import { capabilityRuntime } from "./runtime.js";
+ 
+ describe("password reset runtime", () => {
+-  beforeEach(() => {
+-    activation.register.mockClear();
+-  });
+-
+   it("hydrates tracked jobs before registering the notice bridge", async () => {
+-    const hydrate = vi.fn(async () => {});
+-    await capabilityRuntime.activate({ hydrate } as never);
+-    expect(hydrate).toHaveBeenCalledWith([VAULT_RESET_RUNS_KEY]);
+-    expect(hydrate.mock.invocationCallOrder[0]).toBeLessThan(
+-      activation.register.mock.invocationCallOrder[0] ?? 0,
+-    );
++    const context = createTestContext();
++    let releaseHydration: () => void = () => {
++      throw new Error("hydration was not started");
++    };
++    const barrier = new Promise<void>((resolve) => {
++      releaseHydration = resolve;
++    });
++    const activation = capabilityRuntime.activate({
++      ...context.ctx,
++      hydrate: async (keys) => {
++        await barrier;
++        await context.ctx.hydrate(keys);
++      },
++    });
++    expect(context.registered).toEqual([]);
++    releaseHydration();
++    const handle = await activation;
++    try {
++      expect(context.hydrated).toEqual([[VAULT_RESET_RUNS_KEY]]);
++      expect(context.entries("background-job")).toContainEqual(
++        expect.objectContaining({ id: "password-reset-run-notices" }),
++      );
++    } finally {
++      handle.dispose();
++    }
+   });
+ 
+   it("registers the takeover route through the approved capability", async () => {
+-    await capabilityRuntime.activate({ hydrate: vi.fn() } as never);
+-    expect(activation.register).toHaveBeenCalledWith(
+-      "route",
+-      expect.objectContaining({
+-        id: "password-reset-takeover",
+-        path: "/runs/:runId",
+-        framed: true,
+-      }),
+-    );
++    const context = createTestContext();
++    const handle = await capabilityRuntime.activate(context.ctx);
++    try {
++      expect(context.entries("route")).toContainEqual(
++        expect.objectContaining({
++          id: "password-reset-takeover",
++          path: "/runs/:runId",
++          framed: true,
++        }),
++      );
++    } finally {
++      handle.dispose();
++    }
+   });
+ });
+diff --git a/apps/pages/src/modules/ai.password-reset/takeover-client.test.ts b/apps/pages/src/modules/ai.password-reset/takeover-client.test.ts
+index 644101f08..e75fcc8f2 100644
+--- a/apps/pages/src/modules/ai.password-reset/takeover-client.test.ts
++++ b/apps/pages/src/modules/ai.password-reset/takeover-client.test.ts
+@@ -98,9 +98,10 @@ describe("takeover client", () => {
+       "/api/v1/agent/runs/run-9/steps/4/outcome",
+       { outcome: { outcome: "done" } },
+     );
+-    await expect(
+-      api.settleStep("run-9", 4, { outcome: "dom", text: "x" } as never),
+-    ).rejects.toThrow(/cannot report/u);
++    const unsupported = { outcome: "dom", text: "x" };
++    await expect(api.settleStep("run-9", 4, unsupported)).rejects.toThrow(
++      /cannot report/u,
++    );
+   });
+ 
+   it("claim returns null on 204", async () => {
+diff --git a/apps/pages/src/sections/connections/SettingsPage.roads.test-support.tsx b/apps/pages/src/sections/connections/SettingsPage.roads.test-support.tsx
+index e2a3cfef6..0eed16258 100644
+--- a/apps/pages/src/sections/connections/SettingsPage.roads.test-support.tsx
++++ b/apps/pages/src/sections/connections/SettingsPage.roads.test-support.tsx
+@@ -3,6 +3,7 @@ import type {
+   Provider,
+ } from "@opensesame/app-core/lib/connections.js";
+ import { CATALOG_ROW_JSON } from "@opensesame/app-core/lib/connector-catalog.generated.js";
++import { providerFromView } from "@opensesame/app-core/lib/connector-catalog.js";
+ import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+ import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+ import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+@@ -33,7 +34,7 @@ installConnectorIntegration();
+ export function provider(id: string): Provider {
+   const providers =
+     id === "azure-kms"
+-      ? CATALOG_ROW_JSON.map((row) => JSON.parse(row) as Provider)
++      ? CATALOG_ROW_JSON.map((row) => providerFromView(JSON.parse(row)))
+       : mergeVercelCatalog(getBundledProviders());
+   const found = connectionRouteProvider(providers, id);
+   if (!found) throw new Error(`${id} is not bundled`);
+diff --git a/packages/app-core/src/lib/native-api-target.test.ts b/packages/app-core/src/lib/native-api-target.test.ts
+index c38e2607c..7db6f373c 100644
+--- a/packages/app-core/src/lib/native-api-target.test.ts
++++ b/packages/app-core/src/lib/native-api-target.test.ts
+@@ -1,10 +1,9 @@
+ import { describe, expect, it } from "vitest";
+-import type { ProviderVerification } from "./connect-provider-auth-schema.js";
+ import type { NativeApiTarget } from "./native-api-target.js";
+ import { providerUrl } from "./native-api-target.js";
+ 
+ function target(
+-  parameters: Record<string, string>,
++  parameters: NativeApiTarget["parameters"],
+   publicParameters: readonly string[] = Object.keys(parameters),
+ ): NativeApiTarget {
+   return {
+@@ -12,7 +11,17 @@ function target(
+     providerName: "Obsidian",
+     profile: {
+       auth: null,
+-      verify: null as unknown as ProviderVerification,
++      verify: {
++        method: "GET",
++        url: "https://example.test/",
++        headers: {},
++        body: null,
++        accountField: null,
++        auth: null,
++        success: [],
++        requiredFields: [],
++        errorFields: [],
++      },
+       templateParams: [],
+       additionalCredentials: [],
+     },
+diff --git a/packages/app-core/src/lib/native-connector-availability.test.ts b/packages/app-core/src/lib/native-connector-availability.test.ts
+index cfd3c73d4..d1736f33d 100644
+--- a/packages/app-core/src/lib/native-connector-availability.test.ts
++++ b/packages/app-core/src/lib/native-connector-availability.test.ts
+@@ -12,10 +12,17 @@ import {
+ } from "./native-connector-drivers.js";
+ 
+ const driver: NativeConnectorDriver = {
+-  cleanup: { classification: () => ({}) } as never,
++  cleanup: {
++    classification: () => ({ publicParameters: [], privateCredentials: [] }),
++    cleanup: async () => "local-credential-forgotten",
++  },
+   supports: () => true,
+-  configure: async () => ({}) as never,
+-  verify: async () => ({}) as never,
++  configure: async () => {
++    throw new Error("not used in this test");
++  },
++  verify: async () => {
++    throw new Error("not used in this test");
++  },
+   invoke: async () => ({ label: "", items: [] }),
+ };
+ 
