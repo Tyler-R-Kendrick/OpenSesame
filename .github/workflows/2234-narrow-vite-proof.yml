@@ -1,0 +1,63 @@
+name: Review narrow Vite 6.4.5 native distribution
+on:
+  push:
+    branches: [review/2234-narrow-vite-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2234-narrow-vite-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout exact candidate parent
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: ae450dbce41860c69f0fa3f6f1ae40dce28b6126
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify and apply exact candidate
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ae450dbce41860c69f0fa3f6f1ae40dce28b6126
+          printf '%s  %s\n' 5531cee4ae5140eb470dbbed94cb980918573c50ddfa822b1296fd8ead191e7a ../controller/.github/verify-inputs/2234-narrow-ae.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2234-narrow-ae.patch
+          test "$(git write-tree)" = e356c8b319f10c9f7857fda0e69a18cf4d9fc8a4
+          git diff --exit-code
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: |
+          test "$(pnpm --version)" = 9.15.0
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Cold build and verify native distribution
+        working-directory: candidate
+        run: node --input-type=module -e 'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
+      - name: Verify source after build
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ae450dbce41860c69f0fa3f6f1ae40dce28b6126
+          test "$(git write-tree)" = e356c8b319f10c9f7857fda0e69a18cf4d9fc8a4
+          git diff --exit-code
+      - name: Retain result
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: vite-645-narrow-native-proof
+          if-no-files-found: ignore
+          retention-days: 7
+          path: candidate/.cache/pwa-tailscale-native-http/work/**/result.json
