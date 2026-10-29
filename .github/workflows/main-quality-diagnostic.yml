@@ -1,0 +1,39 @@
+name: Diagnose main quality regression locations
+on:
+  push:
+    branches: [review/main-quality-diagnostic-20261029]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/main-quality-diagnostic-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ac9a724c60e970da7a84fa49e7bd02a271194816
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify exact source
+        run: test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+      - name: Install frozen graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Report precise affected lint diagnostics
+        run: |
+          pnpm exec oxlint --config oxlint.config.ts --disable-nested-config --report-unused-disable-directives-severity=error --deny-warnings --no-error-on-unmatched-pattern \
+            apps/pages/src/modules/ai.password-reset/rotation-relay.ts \
+            apps/pages/src/modules/ai.password-reset/runtime.test.ts \
+            apps/pages/src/modules/ai.password-reset/takeover-client.test.ts \
+            apps/pages/src/modules/ai.password-reset/takeover-client.ts \
+            apps/pages/src/modules/ai.password-reset/TakeoverPanel.test.tsx \
+            apps/pages/src/modules/ai.password-reset/TakeoverPanel.tsx \
+            apps/pages/src/sections/connections/SettingsPage.roads.test-support.tsx \
+            packages/app-core/src/lib/native-api-target.test.ts \
+            packages/app-core/src/lib/native-connector-availability.test.ts \
+            packages/app-core/src/lib/password-reset/rotation-handoff.ts \
+            packages/cua-password-reset/src/discovery.ts \
+            scripts/security/map-composed-go-sarif.mjs
