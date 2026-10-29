@@ -1,0 +1,465 @@
+diff --git a/apps/pages/scripts/tailscale-wasm-assets.test.mjs b/apps/pages/scripts/tailscale-wasm-assets.test.mjs
+index c88af878f..c576b3814 100644
+--- a/apps/pages/scripts/tailscale-wasm-assets.test.mjs
++++ b/apps/pages/scripts/tailscale-wasm-assets.test.mjs
+@@ -15,7 +15,7 @@ test.skipIf(process.arch !== "x64")(
+   { timeout: 1_500_000 },
+   async () => {
+     const assets = await loadTailscaleAssets();
+-    assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6770196);
++    assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6769039);
+     assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8078);
+     assert.match(
+       assets.get(TAILSCALE_ASSETS.runtime).toString(),
+diff --git a/apps/pages/src/lib/capabilities/tailscale-artifacts.json b/apps/pages/src/lib/capabilities/tailscale-artifacts.json
+index 5c6fdc1b1..a518b4c1e 100644
+--- a/apps/pages/src/lib/capabilities/tailscale-artifacts.json
++++ b/apps/pages/src/lib/capabilities/tailscale-artifacts.json
+@@ -3,20 +3,20 @@
+     "version": "native-b31d8a75a-go1.27.3",
+     "browserSDKVersion": "1.102.3-3-tb31d8a75a-g5e651e16f",
+     "browserSDKHash": "318a91bdbc32d4aa57a7ffa554368d390e96bf7128419b4561f98001e86e3795",
+-    "gzipHash": "4bb9e3614cd730997210f9523a60310158afd659b867e9bea602cb0cfecaa9e5",
+-    "wasmHash": "df8e2c5d2d0a8f37e18b6624b9fb378bf75946793d8af390efea938a6194ea4d",
++    "gzipHash": "abeb150da8f6e2b8d9e643f1e89c1640330773b35b5c585e6873bb9c0a077c3e",
++    "wasmHash": "8f8352474f59639f54ee5d693307ee974cf182f1b08a196593d975e4e79e4011",
+     "runtimeHash": "3e61b3267aa67a553c289335805e5947e2f80935f782d3d6bcb30adb15674017",
+     "nativeHTTPHash": "1992487ea59d7d1745441fd77e538fba3d0086aefd72ceafb43446068211e54f"
+   },
+   "native": {
+-    "sourceMetadataSha256": "955b2bc983e17f19372b3ddfda23d3aeed7cd24cba182d9a6d4069b84d64dc96",
+-    "manifestSha256": "699bcc1c49bb6e4d23d2d926502dee2567a1b190688963e9b5435e10b6f7d140",
++    "sourceMetadataSha256": "628e085e889a11c71ca27e0ea45d8a8c179ae4feb8551da585ee15dfca47bf71",
++    "manifestSha256": "ab5a292d1f04c1165dc8a928b9b7ef262cf753a2144c8d66528e2536dd3f1476",
+     "sourceCommit": "b31d8a75af155bcf19853d1a66041782d13e56ae",
+     "compilerCommit": "7ef7b403648ac3a9481a6e88e8b894eff50b0167",
+     "publicRootsVersion": "v0.0.0-20261014201258-cf169cd0986f"
+   },
+   "assets": {
+-    "wasm": "tailscale/main-4bb9e3614cd73099.wasm.gz",
++    "wasm": "tailscale/main-abeb150da8f6e2b8.wasm.gz",
+     "runtime": "tailscale/go-runtime-3e61b3267aa67a55.js",
+     "nativeHTTP": "tailscale/native-http-1992487ea59d7d17.js",
+     "license": "tailscale/LICENSE.txt",
+diff --git a/scripts/security/map-composed-go-sarif.mjs b/scripts/security/map-composed-go-sarif.mjs
+index 91f38ebfb..6455a2c4d 100644
+--- a/scripts/security/map-composed-go-sarif.mjs
++++ b/scripts/security/map-composed-go-sarif.mjs
+@@ -63,9 +63,11 @@ const groups = [
+   [
+     "nativeNode",
+     (name) =>
+-      name.startsWith("native-extra-dns")
+-        ? "ipn/ipnlocal"
+-        : "cmd/tsconnect/wasm",
++      name === "derp-custom-roots_test.go"
++        ? "derp/derphttp"
++        : name.startsWith("native-extra-dns")
++          ? "ipn/ipnlocal"
++          : "cmd/tsconnect/wasm",
+   ],
+   ["publicTrust", () => "cmd/tsconnect/nativehttp"],
+   [
+diff --git a/scripts/security/map-composed-go-sarif.test.mjs b/scripts/security/map-composed-go-sarif.test.mjs
+index f6485a34c..814623d69 100644
+--- a/scripts/security/map-composed-go-sarif.test.mjs
++++ b/scripts/security/map-composed-go-sarif.test.mjs
+@@ -25,6 +25,7 @@ const entries = [
+   ["nativeNode", "native-ssh-keys_test.go", "cmd/tsconnect/wasm"],
+   ["nativeNode", "nodessh_js.go", "cmd/tsconnect/wasm"],
+   ["nativeNode", "native-extra-dns.go", "ipn/ipnlocal"],
++  ["nativeNode", "derp-custom-roots_test.go", "derp/derphttp"],
+   ["publicTrust", "public-roots.go", "cmd/tsconnect/nativehttp"],
+   ["peerGET", "peer-get.go", "cmd/tsconnect/nativehttp"],
+   ["peerGET", "nodepeerget_js.go", "cmd/tsconnect/wasm"],
+@@ -95,6 +96,10 @@ test("maps exact committed overlay bytes while retaining all upstream findings a
+       mappings.get(`${staged}/cmd/tsconnect/wasm/${name}`),
+       `${root}/${name}`,
+     );
++  assert.equal(
++    mappings.get(`${staged}/derp/derphttp/derp-custom-roots_test.go`),
++    `${root}/derp-custom-roots_test.go`,
++  );
+   const source = `${staged}/cmd/tsconnect/wasm/nodepeer.go`;
+   const target = `${root}/nodepeer.go`;
+   const upstream = `${staged}/ipn/ipnlocal/c2n.go`;
+@@ -336,6 +341,13 @@ test("rejects staged, tracked, manifest and source identity changes", (t) => {
+   f.write(ssh, "replaced key verifier\n");
+   assert.throws(() => overlayMap(f.directory, f.sha), /differs/);
+   f.write(ssh, readFileSync(join(f.directory, root, "native-ssh-keys.go")));
++  const derp = `${staged}/derp/derphttp/derp-custom-roots_test.go`;
++  f.write(derp, "changed DERP test\n");
++  assert.throws(() => overlayMap(f.directory, f.sha), /differs/);
++  f.write(
++    derp,
++    readFileSync(join(f.directory, root, "derp-custom-roots_test.go")),
++  );
+   f.write(tracked, "changed\n");
+   assert.throws(() => overlayMap(f.directory, f.sha), /differs/);
+   f.write(tracked, original);
+diff --git a/tools/pwa-tailscale-native-http/apply-native-patch.mjs b/tools/pwa-tailscale-native-http/apply-native-patch.mjs
+index 512083765..7abfbaf67 100644
+--- a/tools/pwa-tailscale-native-http/apply-native-patch.mjs
++++ b/tools/pwa-tailscale-native-http/apply-native-patch.mjs
+@@ -12,6 +12,7 @@ const targets = {
+     "cmd/tsconnect/wasm/wasm_js.go",
+     "net/tsdial/tsdial.go",
+     "ipn/ipnlocal/node_backend.go",
++    "derp/derphttp/derphttp_client.go",
+   ],
+   "disable-logtail.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
+   "native-peer-get.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
+diff --git a/tools/pwa-tailscale-native-http/apply-native-patch.test.mjs b/tools/pwa-tailscale-native-http/apply-native-patch.test.mjs
+index c0d70d512..9f693f266 100644
+--- a/tools/pwa-tailscale-native-http/apply-native-patch.test.mjs
++++ b/tools/pwa-tailscale-native-http/apply-native-patch.test.mjs
+@@ -245,6 +245,7 @@ test(
+       "cmd/tsconnect/wasm/wasm_js.go",
+       "net/tsdial/tsdial.go",
+       "ipn/ipnlocal/node_backend.go",
++      "derp/derphttp/derphttp_client.go",
+     ];
+     const patch = paths
+       .map((path) => `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-old\n+new\n`)
+diff --git a/tools/pwa-tailscale-native-http/build.mjs b/tools/pwa-tailscale-native-http/build.mjs
+index 9b5c0b5f3..d777a3a97 100644
+--- a/tools/pwa-tailscale-native-http/build.mjs
++++ b/tools/pwa-tailscale-native-http/build.mjs
+@@ -264,6 +264,36 @@ async function stageNativeHttp() {
+   nativeHttpStaged = true;
+   await criticalPins("native-http-staged");
+ }
++async function verifyDerpCustomRoots() {
++  const derpResults = join(logs, "derp-host-results.log");
++  await execute(
++    join(compiler, "bin/go"),
++    [
++      "test",
++      "-json",
++      "-count=1",
++      "-timeout=60s",
++      "-run",
++      "^TestDERPCustomRoots$",
++      "./derp/derphttp",
++    ],
++    "native-derp-host-test",
++    undefined,
++    { stdoutPath: derpResults },
++  );
++  const derpEvents = (await readFile(derpResults, "utf8"))
++    .trim()
++    .split("\n")
++    .map((line) => JSON.parse(line));
++  if (
++    !derpEvents.some(
++      (event) =>
++        event.Action === "pass" && event.Test === "TestDERPCustomRoots",
++    )
++  )
++    throw new Error("The DERP custom-root host test did not run.");
++}
++
+ async function run() {
+   buildStage = "fresh-output";
+   await freshOutput();
+@@ -297,6 +327,7 @@ async function run() {
+     ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/wasm"],
+     "native-node-host-test",
+   );
++  await verifyDerpCustomRoots();
+   const baseline = await build("baseline");
+   const repeated = await build("baseline-repeat");
+   if (baseline.sha256 !== repeated.sha256)
+diff --git a/tools/pwa-tailscale-native-http/compose-native.test.mjs b/tools/pwa-tailscale-native-http/compose-native.test.mjs
+index da62f1466..13342f734 100644
+--- a/tools/pwa-tailscale-native-http/compose-native.test.mjs
++++ b/tools/pwa-tailscale-native-http/compose-native.test.mjs
+@@ -51,6 +51,7 @@ async function fixture() {
+     "net/tsdial/tsdial.go",
+     "net/tlsdial/tlsdial.go",
+     "ipn/ipnlocal/node_backend.go",
++    "derp/derphttp/derphttp_client.go",
+     "licenses/tailscale.md",
+   ]) {
+     await mkdir(dirname(join(source, name)), { recursive: true });
+diff --git a/tools/pwa-tailscale-native-http/derp-custom-roots_test.go b/tools/pwa-tailscale-native-http/derp-custom-roots_test.go
+new file mode 100644
+index 000000000..d909b27ce
+--- /dev/null
++++ b/tools/pwa-tailscale-native-http/derp-custom-roots_test.go
+@@ -0,0 +1,129 @@
++// Staged into the pinned upstream derphttp package to verify custom roots.
++package derphttp
++
++import (
++	"context"
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/tls"
++	"crypto/x509"
++	"crypto/x509/pkix"
++	"encoding/pem"
++	"math/big"
++	"net"
++	"testing"
++	"time"
++
++	"tailscale.com/net/bakedroots"
++	"tailscale.com/tailcfg"
++)
++
++func TestDERPCustomRoots(t *testing.T) {
++	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	now := time.Now()
++	caTemplate := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "DERP review CA"}, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
++	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &key.PublicKey, key)
++	if err != nil {
++		t.Fatal(err)
++	}
++	ca, err := x509.ParseCertificate(caDER)
++	if err != nil {
++		t.Fatal(err)
++	}
++	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
++	wrongKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	wrongTemplate := &x509.Certificate{SerialNumber: big.NewInt(3), Subject: pkix.Name{CommonName: "unrelated DERP review CA"}, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
++	wrongDER, err := x509.CreateCertificate(rand.Reader, wrongTemplate, wrongTemplate, &wrongKey.PublicKey, wrongKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++	wrongPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: wrongDER})
++	makeServer := func(t *testing.T, dns string, expired bool) tls.Certificate {
++		t.Helper()
++		notAfter := now.Add(time.Hour)
++		if expired {
++			notAfter = now.Add(-time.Hour)
++		}
++		leaf := &x509.Certificate{SerialNumber: big.NewInt(2), DNSNames: []string{dns}, NotBefore: now.Add(-2 * time.Hour), NotAfter: notAfter, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
++		der, err := x509.CreateCertificate(rand.Reader, leaf, ca, &key.PublicKey, key)
++		if err != nil {
++			t.Fatal(err)
++		}
++		return tls.Certificate{Certificate: [][]byte{der, caDER}, PrivateKey: key}
++	}
++	for _, tc := range []struct {
++		name, serverName, certName, leafName  string
++		baked, expired, success               bool
++		untrusted, noConfig, insecureForTests bool
++	}{
++		{"empty CertName uses SNI and custom root", "front.example", "", "front.example", false, false, true, false, false, false},
++		{"same CertName preserves custom root", "backend.example", "backend.example", "backend.example", false, false, true, false, false, false},
++		{"different CertName preserves custom root", "front.example", "backend.example", "backend.example", false, false, true, false, false, false},
++		{"different CertName rejects untrusted root", "front.example", "backend.example", "backend.example", false, false, false, true, false, false},
++		{"different CertName rejects missing custom configuration", "front.example", "backend.example", "backend.example", false, false, false, false, true, false},
++		{"test mode with distinct CertName still verifies", "front.example", "backend.example", "other.example", false, false, false, false, false, true},
++		{"different CertName uses baked root", "front.example", "backend.example", "backend.example", true, false, true, false, false, false},
++		{"different CertName rejects unrelated baked root", "front.example", "backend.example", "backend.example", true, false, false, true, false, false},
++		{"different CertName rejects wrong hostname with custom root", "front.example", "backend.example", "other.example", false, false, false, false, false, false},
++		{"different CertName rejects wrong hostname with baked root", "front.example", "backend.example", "other.example", true, false, false, false, false, false},
++		{"different CertName rejects expired cert with custom root", "front.example", "backend.example", "backend.example", false, true, false, false, false, false},
++		{"different CertName rejects expired cert with baked root", "front.example", "backend.example", "backend.example", true, true, false, false, false, false},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			if tc.baked {
++				baked := caPEM
++				if tc.untrusted {
++					baked = wrongPEM
++				}
++				bakedroots.ResetForTest(t, baked)
++			}
++			cert := makeServer(t, tc.leafName, tc.expired)
++			roots := x509.NewCertPool()
++			if !tc.untrusted && !tc.baked {
++				roots.AddCert(ca)
++			}
++			var config *tls.Config
++			if !tc.noConfig {
++				config = &tls.Config{RootCAs: roots}
++			}
++			originalRoots := roots.Clone()
++			dialer := &Client{TLSConfig: config}
++			node := &tailcfg.DERPNode{HostName: tc.serverName, CertName: tc.certName, InsecureForTests: tc.insecureForTests}
++			client, server := net.Pipe()
++			defer client.Close()
++			defer server.Close()
++			deadline := time.Now().Add(5 * time.Second)
++			if err := client.SetDeadline(deadline); err != nil {
++				t.Fatal(err)
++			}
++			if err := server.SetDeadline(deadline); err != nil {
++				t.Fatal(err)
++			}
++			seenSNI := make(chan string, 1)
++			serverTLS := tls.Server(server, &tls.Config{Certificates: []tls.Certificate{cert}, GetConfigForClient: func(info *tls.ClientHelloInfo) (*tls.Config, error) { seenSNI <- info.ServerName; return nil, nil }})
++			serverDone := make(chan error, 1)
++			go func() { serverDone <- serverTLS.Handshake() }()
++			clientTLS := dialer.tlsClient(client, node)
++			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
++			defer cancel()
++			err := clientTLS.HandshakeContext(ctx)
++			if config != nil && (config.RootCAs != roots || !roots.Equal(originalRoots)) {
++				t.Fatal("caller custom roots were mutated")
++			}
++			if (err == nil) != tc.success {
++				t.Fatalf("handshake error %v; expected success %v", err, tc.success)
++			}
++			if got := <-seenSNI; got != tc.serverName {
++				t.Fatalf("SNI %q, want %q", got, tc.serverName)
++			}
++			<-serverDone
++		})
++	}
++}
+diff --git a/tools/pwa-tailscale-native-http/native-node.patch b/tools/pwa-tailscale-native-http/native-node.patch
+index 64e45c5db..29e1b0c0a 100644
+--- a/tools/pwa-tailscale-native-http/native-node.patch
++++ b/tools/pwa-tailscale-native-http/native-node.patch
+@@ -95,3 +95,12 @@
+  	}
+  }
+  
++--- a/derp/derphttp/derphttp_client.go
+++++ b/derp/derphttp/derphttp_client.go
++@@ -672,0 +673,6 @@
+++				// Config captures custom roots in its verifier, then clears RootCAs.
+++				// SetConfigExpectedCert replaces that verifier for a distinct name;
+++				// restore the roots so the replacement verifier can capture them.
+++				if c.TLSConfig != nil && tlsConf.ServerName != "" && tlsConf.ServerName != node.CertName {
+++					tlsConf.RootCAs = c.TLSConfig.RootCAs
+++				}
+diff --git a/tools/pwa-tailscale-native-http/preparation-diagnostics.mjs b/tools/pwa-tailscale-native-http/preparation-diagnostics.mjs
+index ad1ed1132..bfff407cf 100644
+--- a/tools/pwa-tailscale-native-http/preparation-diagnostics.mjs
++++ b/tools/pwa-tailscale-native-http/preparation-diagnostics.mjs
+@@ -39,6 +39,8 @@ const innerLogs = [
+   "baseline",
+   "native-http-host-test",
+   "native-node-host-test",
++  "native-derp-host-test",
++  "derp-host-results",
+   "disable-remote-logtail",
+   "native-node-patch",
+   "native-ssh-patch",
+diff --git a/tools/pwa-tailscale-native-http/source.json b/tools/pwa-tailscale-native-http/source.json
+index 60f5a2762..3f93bb079 100644
+--- a/tools/pwa-tailscale-native-http/source.json
++++ b/tools/pwa-tailscale-native-http/source.json
+@@ -174,7 +174,7 @@
+       },
+       {
+         "path": "native-node.patch",
+-        "sha256": "cefc688e60359533459c0675ce3e1a1ae49f1eea9baf0440f61c1f26e5ff1749"
++        "sha256": "4db0a5d0c7c174569983c4c80d509348e22010e217b5f74c00bde14547c68ecb"
+       },
+       {
+         "path": "nodepeer.go",
+@@ -203,11 +203,15 @@
+       {
+         "path": "nodessh_js.go",
+         "sha256": "34a6fdfefa18013e10225115c963c361e710483c7f82059bd380a1752574a71d"
++      },
++      {
++        "path": "derp-custom-roots_test.go",
++        "sha256": "18d301dceb50a449422b99438095f8681a5ac7d97079dff89129f2511233ea2d"
+       }
+     ],
+     "stagingHelper": {
+       "path": "stage-native-node.mjs",
+-      "sha256": "36a8dae55be16fc535d06565673755837d971d0dbd3134aa0b15c0647d51bafd"
++      "sha256": "e64b29eb046dc3f771608bbe9cf483a4ba30077b4c06b74796df6a8b06e18884"
+     },
+     "patchTargets": [
+       {
+@@ -224,6 +228,11 @@
+         "path": "ipn/ipnlocal/node_backend.go",
+         "beforeSha256": "6e5bd3f1091437cbbbdc3256d2c4e22b95e4373595ed140d38c9d589a542881b",
+         "afterSha256": "a0832d65b115e3c3cb763a5b2833f80efd7e13d3d4db81f7219461202c7a8cf2"
++      },
++      {
++        "path": "derp/derphttp/derphttp_client.go",
++        "beforeSha256": "32e6e38145afc4f382bf2b76b9e9d8e9c593be71f22e82a4a90220ec39834506",
++        "afterSha256": "c9fb0f090d175d0fa0e3a80d4597cdb24b3f2669d1786e2295c17574948f4903"
+       }
+     ],
+     "configuration": {
+@@ -515,7 +524,7 @@
+     "files": [
+       {
+         "path": "build.mjs",
+-        "sha256": "78ca3e97f4c3cc8db9959208ebfdee439f1afdc3b900ca5967541393e5e324b6"
++        "sha256": "9ec92c5db8dd07f9f3b2ebb397cfa95be6568f0e3452325898982b4b3d9d5cec"
+       },
+       {
+         "path": "compose-native.mjs",
+@@ -527,7 +536,7 @@
+       },
+       {
+         "path": "compose-native.test.mjs",
+-        "sha256": "85697f3abd5b96c2cc7938144f70ced45f4d1648ae0e46af92d978f193214bcd"
++        "sha256": "f5711e4a14a6c5905de2095309906748b847e9726db300f757487bc284c04582"
+       },
+       {
+         "path": "compress-wasm.mjs",
+@@ -547,7 +556,7 @@
+       },
+       {
+         "path": "preparation-diagnostics.mjs",
+-        "sha256": "67961b1a457961b8583e8cdddb76b7d3ea09ac28fe2428130522d55c03292852"
++        "sha256": "458c2aae4ef30730a3dbe6f659a870d1140077d8baa4bb254321ca658c127b2f"
+       },
+       {
+         "path": "build-failure-context.test.mjs",
+@@ -559,11 +568,11 @@
+       },
+       {
+         "path": "apply-native-patch.mjs",
+-        "sha256": "49ce7ced4f20222b5cd4184128b8740be88a17b0071d0bf1d3a49f989a6013e6"
++        "sha256": "509adc30f47f3b10152de63c94f59574b2b1955be455c662d629cb85d4f579cc"
+       },
+       {
+         "path": "apply-native-patch.test.mjs",
+-        "sha256": "13baf3fafd415548fd7dfa856025315093b95feb480330a178b9c048c145fe68"
++        "sha256": "029916fb098baaf411a49b8f3b2565201c73f3595d4b21a555c91c8d674ce192"
+       },
+       {
+         "path": "compressor-archive.mjs",
+diff --git a/tools/pwa-tailscale-native-http/stage-native-node.mjs b/tools/pwa-tailscale-native-http/stage-native-node.mjs
+index 11997348f..9f1f1b0a2 100644
+--- a/tools/pwa-tailscale-native-http/stage-native-node.mjs
++++ b/tools/pwa-tailscale-native-http/stage-native-node.mjs
+@@ -21,11 +21,13 @@ const nodeNames = [
+   "native-ssh-keys.go",
+   "native-ssh-keys_test.go",
+   "nodessh_js.go",
++  "derp-custom-roots_test.go",
+ ];
+ const patchTargets = [
+   "cmd/tsconnect/wasm/wasm_js.go",
+   "net/tsdial/tsdial.go",
+   "ipn/ipnlocal/node_backend.go",
++  "derp/derphttp/derphttp_client.go",
+ ];
+ 
+ function requirePaths(files, expected) {
+@@ -40,9 +42,11 @@ export function stagedNativeNodePath(source, name) {
+   if (!nodeNames.includes(name) || !name.endsWith(".go"))
+     throw new Error("Native Go staging path is outside the fixed scope.");
+   const directory =
+-    name === "native-extra-dns.go" || name === "native-extra-dns_test.go"
+-      ? "ipn/ipnlocal"
+-      : "cmd/tsconnect/wasm";
++    name === "derp-custom-roots_test.go"
++      ? "derp/derphttp"
++      : name === "native-extra-dns.go" || name === "native-extra-dns_test.go"
++        ? "ipn/ipnlocal"
++        : "cmd/tsconnect/wasm";
+   return join(source, directory, name);
+ }
+ 
