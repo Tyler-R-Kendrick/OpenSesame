@@ -44,7 +44,10 @@ try {
             assert.equal(fields, 0, `${id}: guest fields`);
             assert.equal(actions, 0, `${id}: guest connect action`);
           }
-          if (phase === "after" && session === "genuine") assert.ok(fields > 0, `${id}: genuine configuration fields`);
+          if (phase === "after" && session === "genuine") {
+            if (id === "e2b") assert.ok(actions > 0, `${id}: genuine configuration action`);
+            else assert.ok(fields > 0, `${id}: genuine configuration fields`);
+          }
           await page.screenshot({ path: path.join(out, `${phase}-${session}-${label}-${id}.png`), fullPage: true });
           results.push({ phase, session, label, width, height, id, fields, actions });
           if (session === "genuine") {
