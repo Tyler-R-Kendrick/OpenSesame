@@ -1,0 +1,61 @@
+name: Review connector contract and OAuth scope enforcement
+on:
+  push:
+    branches: [review/2241-rebased-combined-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-rebased-combined-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: 178353da4e8bd90b90ffb8f6462403d37b5e19e9
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify source and candidate
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 178353da4e8bd90b90ffb8f6462403d37b5e19e9
+          test "$(git rev-parse HEAD^{tree})" = 2634a24940450a86353003281f7b693fb2635201
+          printf '%s  %s\n' 6326b76f02baf422badca34dde282b9c92c6ca462963c9e7213b9136fec99a53 ../controller/.github/verify-inputs/2241-rebased-combined.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2241-rebased-combined.patch
+          test "$(git write-tree)" = 725a17c237c36c35983892a437586af8e9c761ca
+          git diff --exit-code
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check affected formatting and types
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/native-oauth-client-scopes.ts packages/app-core/src/lib/native-oauth-client-exchange.ts packages/app-core/src/lib/native-oauth-client.test.ts packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts packages/app-core/src/lib/native-connector-view.ts packages/app-core/src/lib/native-connector-records.storage.test.ts packages/app-core/src/lib/native-oauth-resource.ts packages/app-core/src/lib/native-oauth-mcp-resource.ts packages/app-core/src/lib/native-google-wallet-configuration.ts packages/app-core/src/lib/native-google-wallet-policy.test.ts packages/app-core/src/lib/native-catalog-configuration-validation.ts packages/app-core/scripts/emit-google-wallet-configuration.mjs packages/app-core/scripts/emit-google-wallet-configuration.d.mts packages/wallet/src/config.ts packages/wallet/src/google-wallet-policy.ts packages/wallet/src/google-wallet-policy.generated.ts packages/wallet/src/google-wallet-policy.test.ts
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/wallet typecheck
+      - name: Run real token exchange and storage tests
+        working-directory: candidate
+        run: pnpm --filter @opensesame/app-core exec vitest run src/lib/native-oauth-client-google-exchange.test.ts src/lib/native-oauth-client.test.ts src/lib/native-connector-records.storage.test.ts src/lib/native-oauth-resource-acceptance.test.ts src/lib/native-oauth-resource.test.ts src/lib/native-oauth-mcp.integration.test.ts src/lib/native-oauth-mcp-binding.integration.test.ts src/lib/native-google-wallet-policy.test.ts src/lib/native-catalog-configuration.test.ts
+      - name: Run wallet tests
+        working-directory: candidate
+        run: pnpm --filter @opensesame/wallet test
+      - name: Check candidate unchanged
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 178353da4e8bd90b90ffb8f6462403d37b5e19e9
+          test "$(git write-tree)" = 725a17c237c36c35983892a437586af8e9c761ca
+          git diff --exit-code

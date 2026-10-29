@@ -1,0 +1,1293 @@
+diff --git a/packages/app-core/package.json b/packages/app-core/package.json
+index f4eeb3b42..365129ef6 100644
+--- a/packages/app-core/package.json
++++ b/packages/app-core/package.json
+@@ -14,7 +14,7 @@
+   "scripts": {
+     "typecheck": "tsc --noEmit",
+     "test": "vitest run",
+-    "generate:catalog": "node scripts/emit-connector-catalog.mjs && biome format --write src/lib/connector-catalog.generated.ts src/lib/ai-model-provider-ids.generated.ts",
++    "generate:catalog": "node scripts/emit-connector-catalog.mjs && node scripts/emit-google-wallet-configuration.mjs && biome format --write src/lib/connector-catalog.generated.ts src/lib/ai-model-provider-ids.generated.ts ../wallet/src/google-wallet-policy.generated.ts",
+     "generate:quorum-types": "node scripts/emit-quorum-types.mjs && biome format --write src/lib/quorum/item-types.generated.ts",
+     "generate:reset-mail-types": "node scripts/emit-reset-mail-types.mjs && biome format --write src/lib/password-reset/mail-type.generated.ts",
+     "generate:connect": "node scripts/emit-connect-presets.mjs && node scripts/emit-google-account-policy.mjs && biome format --write src/lib/connect-presets.generated.ts src/lib/native-google-account-policy.generated.ts",
+diff --git a/packages/app-core/scripts/emit-google-wallet-configuration.d.mts b/packages/app-core/scripts/emit-google-wallet-configuration.d.mts
+new file mode 100644
+index 000000000..b9ac7ca05
+--- /dev/null
++++ b/packages/app-core/scripts/emit-google-wallet-configuration.d.mts
+@@ -0,0 +1,9 @@
++import type { JsonValue } from "@opensesame/os-domain";
++export function googleWalletConfigurationPolicy(
++  policy?: JsonValue,
++  catalog?: JsonValue,
++): JsonValue;
++export function renderGoogleWalletConfigurationPolicy(
++  policy?: JsonValue,
++  catalog?: JsonValue,
++): string;
+diff --git a/packages/app-core/scripts/emit-google-wallet-configuration.mjs b/packages/app-core/scripts/emit-google-wallet-configuration.mjs
+new file mode 100644
+index 000000000..67434f7cb
+--- /dev/null
++++ b/packages/app-core/scripts/emit-google-wallet-configuration.mjs
+@@ -0,0 +1,137 @@
++#!/usr/bin/env node
++/** Compile Google Wallet configuration rules from the shared connector catalog. */
++import { readFileSync, writeFileSync } from "node:fs";
++import { dirname, join } from "node:path";
++import { fileURLToPath } from "node:url";
++import { isJsonObject, isString } from "../../../scripts/lib/json-boundary.mjs";
++
++const here = dirname(fileURLToPath(import.meta.url));
++const source = join(
++  here,
++  "../../../spec/connectors/google-wallet-configuration.json",
++);
++const catalogPath = join(here, "../../../spec/connectors/catalog.json");
++const output = join(here, "../../wallet/src/google-wallet-policy.generated.ts");
++
++export function googleWalletConfigurationPolicy(
++  policy = JSON.parse(readFileSync(source, "utf8")),
++  catalog = JSON.parse(readFileSync(catalogPath, "utf8")),
++) {
++  if (!isJsonObject(catalog) || !Array.isArray(catalog.providers))
++    throw new Error("Invalid connector catalog");
++  const rows = catalog.providers.filter(
++    (row) => isJsonObject(row) && row.id === "google-wallet",
++  );
++  if (rows.length !== 1) throw new Error("Expected one Google Wallet provider");
++  const row = rows[0];
++  if (
++    !isJsonObject(policy) ||
++    policy.provider_id !== row.id ||
++    !Array.isArray(row.connection_configuration_fields)
++  )
++    throw new Error("Missing Google Wallet configuration policy");
++  const fields = row.connection_configuration_fields;
++  for (const [name, secret] of [
++    ["issuer_id", false],
++    ["class_id", false],
++    ["service_account_email", false],
++    ["service_account_key", true],
++  ]) {
++    if (
++      fields.filter(
++        (field) =>
++          isJsonObject(field) &&
++          field.name === name &&
++          field.secret === secret &&
++          field.required === true,
++      ).length !== 1
++    )
++      throw new Error(`Invalid Google Wallet field: ${name}`);
++  }
++  const semantics = policy.semantics;
++  if (
++    !isJsonObject(semantics) ||
++    semantics.regex_dialect !== "ecmascript" ||
++    semantics.length_unit !== "utf16_code_units" ||
++    semantics.pem_whitespace !== "ecmascript" ||
++    semantics.private_key_validation !== "pem_then_webcrypto_import" ||
++    semantics.pem_envelope_stage !==
++      "strip_ecmascript_whitespace_then_base64_decode" ||
++    semantics.wallet_config_stage !== "pem_envelope_only" ||
++    semantics.native_storage_stage !== "webcrypto_pkcs8_rsa_import" ||
++    semantics.native_input_normalization !== "as_provided" ||
++    semantics.wallet_env_normalization !== "trim_each_value_and_lowercase_email"
++  )
++    throw new Error("Unsupported Google Wallet policy semantics");
++  const issuer = policy.issuer_id;
++  const walletClass = policy.class_id;
++  const email = policy.service_account_email;
++  const key = policy.service_account_key;
++  if (
++    !isJsonObject(issuer) ||
++    !isJsonObject(walletClass) ||
++    !isJsonObject(email) ||
++    !isJsonObject(key) ||
++    !isString(issuer.pattern) ||
++    !isString(walletClass.suffix_pattern) ||
++    walletClass.qualification !== "unqualified-or-this-issuer" ||
++    !isString(walletClass.issuer_separator) ||
++    walletClass.issuer_separator.length === 0 ||
++    !isString(email.pattern) ||
++    !Number.isSafeInteger(email.max_length) ||
++    email.max_length < 1 ||
++    key.format !== "pkcs8" ||
++    key.algorithm !== "RSASSA-PKCS1-v1_5" ||
++    key.hash !== "SHA-256" ||
++    key.usage !== "sign" ||
++    key.escaped_newlines !== true ||
++    !Number.isSafeInteger(key.max_raw_length) ||
++    key.max_raw_length < 1 ||
++    !isString(key.pem_pattern)
++  )
++    throw new Error("Invalid Google Wallet configuration policy");
++  for (const pattern of [
++    issuer.pattern,
++    walletClass.suffix_pattern,
++    email.pattern,
++    key.pem_pattern,
++  ])
++    new RegExp(pattern);
++  return {
++    issuer: { pattern: issuer.pattern },
++    walletClass: {
++      qualification: walletClass.qualification,
++      suffixPattern: walletClass.suffix_pattern,
++      issuerSeparator: walletClass.issuer_separator,
++    },
++    email: { pattern: email.pattern, maxLength: email.max_length },
++    key: {
++      format: key.format,
++      algorithm: key.algorithm,
++      hash: key.hash,
++      usage: key.usage,
++      maxRawLength: key.max_raw_length,
++      pemPattern: key.pem_pattern,
++      escapedNewlines: key.escaped_newlines,
++    },
++  };
++}
++
++export function renderGoogleWalletConfigurationPolicy(policySource, catalog) {
++  const policy = googleWalletConfigurationPolicy(policySource, catalog);
++  return [
++    "// Generated by scripts/emit-google-wallet-configuration.mjs from",
++    "// spec/connectors/google-wallet-configuration.json — do not edit.",
++    "export const GOOGLE_WALLET_CONFIGURATION_POLICY = Object.freeze({",
++    ...Object.entries(policy).map(
++      ([name, value]) => `  ${name}: Object.freeze(${JSON.stringify(value)}),`,
++    ),
++    "});",
++    "",
++  ].join("\n");
++}
++
++if (process.argv[1] === fileURLToPath(import.meta.url)) {
++  writeFileSync(output, renderGoogleWalletConfigurationPolicy());
++  console.log(`wrote ${output}`);
++}
+diff --git a/packages/app-core/src/lib/native-catalog-configuration-validation.ts b/packages/app-core/src/lib/native-catalog-configuration-validation.ts
+index 94632cbc1..83ee23c05 100644
+--- a/packages/app-core/src/lib/native-catalog-configuration-validation.ts
++++ b/packages/app-core/src/lib/native-catalog-configuration-validation.ts
+@@ -2,47 +2,12 @@ import {
+   safeNativeConnectorIcon,
+   safeProviderText,
+ } from "./native-api-verify.js";
+-import { base64ToBytes } from "./native-base64.js";
+ import type { NativeCatalogConfiguration } from "./native-catalog-contract.js";
+ import type { NativeDriverInput } from "./native-connector-drivers.js";
+-
+-const PEM =
+-  /^-----BEGIN PRIVATE KEY-----\s*([A-Za-z0-9+/=\s]{200,32768})-----END PRIVATE KEY-----\s*$/;
+-
+-function validateGoogleWalletPublic(parameters: Record<string, string>): void {
+-  const issuer = parameters.issuer_id ?? "";
+-  const classId = parameters.class_id ?? "";
+-  const email = parameters.service_account_email ?? "";
+-  if (!/^\d{6,32}$/.test(issuer))
+-    throw new Error("Enter the numeric Google Wallet issuer id");
+-  const prefix = `${issuer}.`;
+-  const qualified = classId.startsWith(prefix);
+-  const suffix = qualified ? classId.slice(prefix.length) : classId;
+-  if (
+-    (classId.includes(".") && !qualified) ||
+-    !/^[A-Za-z0-9._-]+$/.test(suffix)
+-  )
+-    throw new Error("Enter a Google Wallet class id belonging to this issuer");
+-  if (email.length > 320 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+-    throw new Error("Enter a valid service account email");
+-}
+-
+-async function validateGoogleWalletKey(raw: string): Promise<void> {
+-  try {
+-    if (raw.length > 32768) throw new Error("Key too large");
+-    const pem = raw.replace(/\\n/g, "\n").trim();
+-    const body = PEM.exec(pem)?.[1]?.replace(/\s+/g, "") ?? "";
+-    await crypto.subtle.importKey(
+-      "pkcs8",
+-      base64ToBytes(body),
+-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+-      false,
+-      ["sign"],
+-    );
+-  } catch {
+-    throw new Error("Enter a valid PKCS#8 RSA private key");
+-  }
+-}
++import {
++  validateGoogleWalletKey,
++  validateGoogleWalletPublic,
++} from "./native-google-wallet-configuration.js";
+ 
+ export async function validateNativeCatalogValues(
+   contract: NativeCatalogConfiguration,
+diff --git a/packages/app-core/src/lib/native-connector-records.storage.test.ts b/packages/app-core/src/lib/native-connector-records.storage.test.ts
+index c52b0ec1c..5a03ff5a1 100644
+--- a/packages/app-core/src/lib/native-connector-records.storage.test.ts
++++ b/packages/app-core/src/lib/native-connector-records.storage.test.ts
+@@ -362,6 +362,31 @@ it("does not treat requested permissions as granted permissions", async () => {
+   );
+ });
+ 
++it("recognizes Google account scope aliases without treating other scopes as granted", async () => {
++  diskBackend();
++  const record = input();
++  record.configuration.providerId = "google-drive";
++  const requested = [
++    "openid",
++    "https://www.googleapis.com/auth/userinfo.email",
++  ];
++  record.configuration.requestedScopes = { user: requested };
++  const metadata = required(record.runtime.grants[0]);
++  metadata.permissionState = "known";
++  metadata.grantedScopes = ["openid", "email"];
++  const grant = required(record.privateState.grants.user);
++  grant.providerId = "google-drive";
++  grant.scopes = ["openid", "email"];
++  expect((await saveNativeConnector(record, classification)).status).toBe(
++    "connected",
++  );
++  requested.push("https://www.googleapis.com/auth/drive.readonly");
++  record.connectionId = "native-2";
++  expect((await saveNativeConnector(record, classification)).status).toBe(
++    "reauthorize",
++  );
++});
++
+ it("sanitizes invalid sealed records instead of returning parser messages or credentials", async () => {
+   const backend = diskBackend();
+   await saveNativeConnector(input(), classification);
+diff --git a/packages/app-core/src/lib/native-connector-view.ts b/packages/app-core/src/lib/native-connector-view.ts
+index 404dba178..01901a509 100644
+--- a/packages/app-core/src/lib/native-connector-view.ts
++++ b/packages/app-core/src/lib/native-connector-view.ts
+@@ -4,7 +4,7 @@ import type {
+   NativePrivateState,
+   NativeRuntime,
+ } from "./native-connector-schema.js";
+-import { requiredResourceScopes } from "./native-oauth-client-scopes.js";
++import { hasRequiredResourceScopes } from "./native-oauth-client-scopes.js";
+ 
+ export type NativeConnectorStatus =
+   | "configuration"
+@@ -93,9 +93,11 @@ function requiresReauthorization(
+       grant.needsReauth ||
+       (grant.expiresAt !== null && grant.expiresAt <= Date.now()) ||
+       (grant.permissionState === "known" &&
+-        requiredResourceScopes(
++        !hasRequiredResourceScopes(
++          configuration.providerId,
+           configuration.requestedScopes[grant.actor] ?? [],
+-        ).some((scope) => !grant.grantedScopes.includes(scope))),
++          grant.grantedScopes,
++        )),
+   );
+ }
+ 
+diff --git a/packages/app-core/src/lib/native-google-wallet-configuration.ts b/packages/app-core/src/lib/native-google-wallet-configuration.ts
+new file mode 100644
+index 000000000..5f300af9e
+--- /dev/null
++++ b/packages/app-core/src/lib/native-google-wallet-configuration.ts
+@@ -0,0 +1,38 @@
++import {
++  GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY,
++  googleWalletPemParts,
++  googleWalletPublicFailure,
++} from "@opensesame/wallet/google-wallet-policy";
++import { base64ToBytes } from "./native-base64.js";
++
++export function validateGoogleWalletPublic(
++  parameters: Record<string, string>,
++): void {
++  const failure = googleWalletPublicFailure(
++    parameters.issuer_id ?? "",
++    parameters.class_id ?? "",
++    parameters.service_account_email ?? "",
++  );
++  if (failure === "issuer_id")
++    throw new Error("Enter the numeric Google Wallet issuer id");
++  if (failure === "class_id")
++    throw new Error("Enter a Google Wallet class id belonging to this issuer");
++  if (failure === "service_account_email")
++    throw new Error("Enter a valid service account email");
++}
++
++export async function validateGoogleWalletKey(raw: string): Promise<void> {
++  try {
++    const parts = googleWalletPemParts(raw);
++    if (!parts) throw new Error("Invalid private key envelope");
++    await crypto.subtle.importKey(
++      POLICY.key.format,
++      base64ToBytes(parts.body),
++      { name: POLICY.key.algorithm, hash: POLICY.key.hash },
++      false,
++      [POLICY.key.usage],
++    );
++  } catch {
++    throw new Error("Enter a valid PKCS#8 RSA private key");
++  }
++}
+diff --git a/packages/app-core/src/lib/native-google-wallet-policy.test.ts b/packages/app-core/src/lib/native-google-wallet-policy.test.ts
+new file mode 100644
+index 000000000..d1ac22847
+--- /dev/null
++++ b/packages/app-core/src/lib/native-google-wallet-policy.test.ts
+@@ -0,0 +1,99 @@
++import { generateKeyPairSync } from "node:crypto";
++import { readFileSync } from "node:fs";
++import { fileURLToPath } from "node:url";
++import { GOOGLE_WALLET_CONFIGURATION_POLICY } from "@opensesame/wallet/google-wallet-policy";
++import { describe, expect, it } from "vitest";
++import { googleWalletConfigurationPolicy } from "../../scripts/emit-google-wallet-configuration.mjs";
++import {
++  validateGoogleWalletKey,
++  validateGoogleWalletPublic,
++} from "./native-google-wallet-configuration.js";
++
++const vectors = JSON.parse(
++  readFileSync(
++    fileURLToPath(
++      new URL(
++        "../../../../spec/conformance/google-wallet-configuration.json",
++        import.meta.url,
++      ),
++    ),
++    "utf8",
++  ),
++);
++
++describe("Google Wallet shared configuration policy", () => {
++  it("matches the shared catalog without drift", () => {
++    expect(GOOGLE_WALLET_CONFIGURATION_POLICY).toEqual(
++      googleWalletConfigurationPolicy(),
++    );
++    for (const value of Object.values(GOOGLE_WALLET_CONFIGURATION_POLICY))
++      expect(Object.isFrozen(value)).toBe(true);
++  });
++
++  it("rejects an unsupported class qualification policy", () => {
++    const policy = JSON.parse(
++      readFileSync(
++        fileURLToPath(
++          new URL(
++            "../../../../spec/connectors/google-wallet-configuration.json",
++            import.meta.url,
++          ),
++        ),
++        "utf8",
++      ),
++    );
++    policy.class_id.qualification = "arbitrary-issuer";
++    expect(() => googleWalletConfigurationPolicy(policy)).toThrow();
++  });
++
++  it("replays shared public-field conformance vectors", () => {
++    expect(vectors.provider_id).toBe("google-wallet");
++    for (const item of vectors.public_cases) {
++      const validate = () =>
++        validateGoogleWalletPublic({
++          issuer_id: item.issuer_id,
++          class_id: item.class_id,
++          service_account_email: item.service_account_email,
++        });
++      if (item.accepted) expect(validate, item.name).not.toThrow();
++      else expect(validate, item.name).toThrow();
++    }
++  });
++
++  it("replays shared private-key conformance vectors", async () => {
++    const pair = generateKeyPairSync("rsa", { modulusLength: 2048 });
++    const pkcs8 = pair.privateKey
++      .export({ type: "pkcs8", format: "pem" })
++      .toString();
++    const pkcs1 = pair.privateKey
++      .export({ type: "pkcs1", format: "pem" })
++      .toString();
++    const ec = generateKeyPairSync("ec", { namedCurve: "P-384" })
++      .privateKey.export({ type: "pkcs8", format: "pem" })
++      .toString();
++    const keys = new Map<string, string>([
++      ["generated_pkcs8_rsa", pkcs8],
++      ["generated_pkcs8_rsa_escaped", pkcs8.replace(/\n/g, "\\n")],
++      ["generated_pkcs1_rsa", pkcs1],
++      ["not-a-private-key", "not-a-private-key"],
++      ["oversized", "a".repeat(32769)],
++      [
++        "invalid_der",
++        `-----BEGIN PRIVATE KEY-----\n${"A".repeat(256)}\n-----END PRIVATE KEY-----`,
++      ],
++      ["generated_ec_pkcs8", ec],
++    ]);
++    for (const item of vectors.key_cases) {
++      const key = keys.get(item.value);
++      if (key === undefined)
++        throw new Error(`Unknown key fixture ${item.value}`);
++      if (item.accepted)
++        await expect(
++          validateGoogleWalletKey(key),
++          item.name,
++        ).resolves.toBeUndefined();
++      else
++        await expect(validateGoogleWalletKey(key), item.name).rejects.toThrow();
++    }
++  });
++});
+diff --git a/packages/app-core/src/lib/native-oauth-client-exchange.ts b/packages/app-core/src/lib/native-oauth-client-exchange.ts
+index ce7b80458..5c232807c 100644
+--- a/packages/app-core/src/lib/native-oauth-client-exchange.ts
++++ b/packages/app-core/src/lib/native-oauth-client-exchange.ts
+@@ -19,8 +19,8 @@ import {
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
+ import {
++  hasRequiredResourceScopes,
+   offlineConsentValid,
+-  requiredResourceScopes,
+ } from "./native-oauth-client-scopes.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import { nativeOAuthHttp } from "./native-oauth-http.js";
+@@ -257,13 +257,20 @@ export async function exchangeNativeOAuthClient(
+     );
+     await recordDefinitiveRejection(claim, response);
+     const receipt = issued(response.body, response.status, pending);
++    const scopeValid =
++      receipt.grant.scopes === null ||
++      hasRequiredResourceScopes(
++        pending.providerId,
++        pending.scopes,
++        receipt.grant.scopes,
++      );
+     await journalNativeOAuthGrant(
+       id,
+       claim.obligation.id,
+       receipt.grant,
+       nativeOAuthClientClassification,
+       {
+-        protocol_valid: String(receipt.valid),
++        protocol_valid: String(receipt.valid && scopeValid),
+         requested_scopes: JSON.stringify(pending.scopes),
+       },
+     );
+@@ -277,13 +284,7 @@ export async function exchangeNativeOAuthClient(
+     if (readNativeOAuthClientSecret(id, owner) !== secret)
+       throw new NativeOAuthError("expired");
+     if (!receipt.valid) throw new NativeOAuthError("provider");
+-    if (
+-      receipt.grant.scopes &&
+-      requiredResourceScopes(pending.scopes).some(
+-        (scope) => !receipt.grant.scopes?.includes(scope),
+-      )
+-    )
+-      throw new NativeOAuthError("scope");
++    if (!scopeValid) throw new NativeOAuthError("scope");
+     return { connectionId: id, intentId: claim.obligation.id };
+   } finally {
+     release();
+diff --git a/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts b/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts
+new file mode 100644
+index 000000000..c36642b66
+--- /dev/null
++++ b/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts
+@@ -0,0 +1,126 @@
++import { afterEach, expect, it } from "vitest";
++import { updateNativeConnector } from "./native-connector-store.js";
++import { GOOGLE_ACCOUNT_POLICY } from "./native-google-account-policy.generated.js";
++import {
++  beginNativeOAuthClient,
++  configureNativeOAuthClient,
++  nativeOAuthClientClassification,
++} from "./native-oauth-client-config.js";
++import { exchangeNativeOAuthClient } from "./native-oauth-client-exchange.js";
++import { nativeOAuthClientFixture } from "./native-oauth-client.test-support.js";
++import { verifyNativeOAuthMcpResource } from "./native-oauth-mcp-operations.js";
++import { verifyNativeOAuthResource } from "./native-oauth-resource.js";
++import {
++  nativeOAuthGuard,
++  requireNativeOAuthRecord,
++} from "./native-oauth-session.js";
++
++const EMAIL_URL = "https://www.googleapis.com/auth/userinfo.email";
++const closing: (() => Promise<void>)[] = [];
++afterEach(async () => {
++  for (const close of closing.splice(0).reverse()) await close();
++});
++
++async function googleExchange(requested: string[], issued: string) {
++  const fixture = await nativeOAuthClientFixture("none");
++  closing.push(fixture.close);
++  const localToken = fixture.input.parameters.token_endpoint;
++  if (!localToken) throw new Error("Missing local token endpoint");
++  const localFetch = fixture.owner.transport.fetch;
++  const redirected: typeof fetch = async (input, init) => {
++    const request = new Request(input, init);
++    if (request.url !== GOOGLE_ACCOUNT_POLICY.endpoints.token_endpoint)
++      throw new Error("Unexpected provider endpoint");
++    return localFetch(localToken, {
++      method: request.method,
++      headers: request.headers,
++      body: await request.text(),
++      signal: request.signal,
++    });
++  };
++  fixture.owner.transport.fetch = redirected;
++  fixture.owner.transport.settleCredentialMutation = redirected;
++  fixture.input.providerId = "google-drive";
++  fixture.input.parameters = {
++    client_id: fixture.input.parameters.client_id ?? "",
++    ...GOOGLE_ACCOUNT_POLICY.endpoints,
++    token_auth_method: "none",
++    resource_parameter: "omit",
++  };
++  fixture.input.requestedScopes.user = requested;
++  fixture.state.resourceParameter = "omit";
++  fixture.state.scope = issued;
++  const saved = await configureNativeOAuthClient(fixture.input, fixture.owner);
++  const authorization = new URL(
++    await beginNativeOAuthClient(saved.connectionId, fixture.owner),
++  );
++  fixture.state.challenge =
++    authorization.searchParams.get("code_challenge") ?? "";
++  const search = new URLSearchParams({
++    native_state: authorization.searchParams.get("state") ?? "",
++    native_code: "one-use-code",
++  }).toString();
++  return { ...fixture, saved, search };
++}
++
++it.each<{ requested: string[]; issued: string }>([
++  { requested: ["openid", EMAIL_URL], issued: `openid ${EMAIL_URL}` },
++  { requested: ["openid", EMAIL_URL], issued: "openid email" },
++  { requested: ["openid", "email"], issued: `openid ${EMAIL_URL}` },
++])(
++  "exchanges equivalent Google account scopes end to end",
++  async ({ requested, issued }) => {
++    const f = await googleExchange(requested, issued);
++    const receipt = await exchangeNativeOAuthClient(f.search, f.owner);
++    expect(f.requests).toHaveLength(1);
++    expect(
++      requireNativeOAuthRecord(receipt.connectionId).privateState.recovery[0]
++        ?.grant?.scopes,
++    ).toEqual(["openid", "email"]);
++  },
++);
++
++it("rejects an over-scoped Google token after retaining its credentials", async () => {
++  const f = await googleExchange(
++    ["openid", EMAIL_URL],
++    `openid ${EMAIL_URL} https://www.googleapis.com/auth/drive.readonly`,
++  );
++  await expect(
++    exchangeNativeOAuthClient(f.search, f.owner),
++  ).rejects.toMatchObject({
++    code: "provider",
++  });
++  const record = requireNativeOAuthRecord(f.saved.connectionId);
++  expect(record.privateState.recovery[0]).toMatchObject({
++    credentials: { protocol_valid: "false" },
++    grant: { accessToken: "issued-access-1" },
++  });
++});
++
++it("rejects legacy over-scoped Google grants before resource or MCP requests", async () => {
++  const f = await googleExchange(["openid", EMAIL_URL], `openid ${EMAIL_URL}`);
++  const receipt = await exchangeNativeOAuthClient(f.search, f.owner);
++  const record = requireNativeOAuthRecord(receipt.connectionId);
++  await updateNativeConnector(
++    receipt.connectionId,
++    nativeOAuthGuard(record),
++    nativeOAuthClientClassification(),
++    (current) => {
++      const grant = current.privateState.recovery[0]?.grant;
++      if (!grant) throw new Error("Missing retained grant");
++      grant.scopes = [
++        "openid",
++        "email",
++        "https://www.googleapis.com/auth/drive.readonly",
++      ];
++      return current;
++    },
++  );
++  await expect(
++    verifyNativeOAuthResource(receipt.connectionId, f.owner),
++  ).rejects.toMatchObject({ code: "scope" });
++  await expect(
++    verifyNativeOAuthMcpResource(receipt.connectionId, f.owner),
++  ).rejects.toMatchObject({ code: "scope" });
++  expect(f.requests).toHaveLength(1);
++});
+diff --git a/packages/app-core/src/lib/native-oauth-client-scopes.ts b/packages/app-core/src/lib/native-oauth-client-scopes.ts
+index 787651aa6..b8870e46a 100644
+--- a/packages/app-core/src/lib/native-oauth-client-scopes.ts
++++ b/packages/app-core/src/lib/native-oauth-client-scopes.ts
+@@ -1,3 +1,5 @@
++import { normalizeGoogleDriveAccountScopes } from "./native-google-drive-account.js";
++
+ export function offlineConsentValid(
+   requested: readonly string[],
+   issued: readonly string[] | null,
+@@ -15,3 +17,18 @@ export function requiredResourceScopes(
+ ): readonly string[] {
+   return requested.filter((scope) => scope !== "offline_access");
+ }
++
++/** Compare equivalent provider scope spellings without broadening the requested set. */
++export function hasRequiredResourceScopes(
++  providerId: string,
++  requested: readonly string[],
++  granted: readonly string[],
++): boolean {
++  const required =
++    normalizeGoogleDriveAccountScopes(
++      providerId,
++      requiredResourceScopes(requested),
++    ) ?? [];
++  const issued = normalizeGoogleDriveAccountScopes(providerId, granted) ?? [];
++  return required.every((scope) => issued.includes(scope));
++}
+diff --git a/packages/app-core/src/lib/native-oauth-client.test.ts b/packages/app-core/src/lib/native-oauth-client.test.ts
+index 21b43668b..5e2d3c357 100644
+--- a/packages/app-core/src/lib/native-oauth-client.test.ts
++++ b/packages/app-core/src/lib/native-oauth-client.test.ts
+@@ -20,6 +20,8 @@ import {
+   CLIENT_SECRET,
+   nativeOAuthClientFixture,
+ } from "./native-oauth-client.test-support.js";
++import { verifyNativeOAuthMcpResource } from "./native-oauth-mcp-operations.js";
++import { verifyNativeOAuthResource } from "./native-oauth-resource.js";
+ import {
+   nativeOAuthGuard,
+   requireNativeOAuthRecord,
+@@ -308,9 +310,38 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
+     await expect(
+       exchangeNativeOAuthClient(f.search, f.owner),
+     ).rejects.toMatchObject({ code: "scope" });
+-    expect(
+-      requireNativeOAuthRecord(f.saved.connectionId).privateState.grants,
+-    ).toEqual({});
++    const record = requireNativeOAuthRecord(f.saved.connectionId);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: { phase: "verify", protocol_valid: "false" },
++      grant: { accessToken: "issued-access-1", scopes: ["different:scope"] },
++    });
++    await expect(
++      verifyNativeOAuthResource(f.saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "cleanup" });
++    await expect(
++      verifyNativeOAuthMcpResource(f.saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "cleanup" });
++    // Old records can contain an under-scoped grant marked protocol-valid.
++    // Both verification paths must reject it before using the token.
++    await updateNativeConnector(
++      record.connectionId,
++      nativeOAuthGuard(record),
++      nativeOAuthClientClassification(),
++      (current) => {
++        const intent = current.privateState.recovery[0];
++        if (!intent?.credentials) throw new Error("Missing retained grant");
++        intent.credentials.protocol_valid = "true";
++        return current;
++      },
++    );
++    await expect(
++      verifyNativeOAuthResource(f.saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "scope" });
++    await expect(
++      verifyNativeOAuthMcpResource(f.saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "scope" });
++    expect(f.requests).toHaveLength(1);
+   });
+   it("preserves the exact revision/CAS and refuses configuration edits with a pending authorization", async () => {
+     const f = await setup("client_secret_post");
+diff --git a/packages/app-core/src/lib/native-oauth-mcp-resource.ts b/packages/app-core/src/lib/native-oauth-mcp-resource.ts
+index a420ed0b6..17a9fc0f1 100644
+--- a/packages/app-core/src/lib/native-oauth-mcp-resource.ts
++++ b/packages/app-core/src/lib/native-oauth-mcp-resource.ts
+@@ -7,6 +7,7 @@ import {
+   updateNativeConnector,
+ } from "./native-connector-store.js";
+ import type { NativeProviderTransport } from "./native-connector-transport.js";
++import { isGoogleDriveAccountScopeSet } from "./native-google-drive-account.js";
+ import {
+   type NativeMcpDiscovery,
+   NativeMcpSession,
+@@ -21,6 +22,7 @@ import {
+   nativeOAuthClientTarget,
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
++import { hasRequiredResourceScopes } from "./native-oauth-client-scopes.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import {
+   nativeOAuthGuard,
+@@ -48,6 +50,19 @@ function actualGrant(
+     (grant.expiresAt !== null && grant.expiresAt <= Date.now())
+   )
+     throw new NativeOAuthError("expired");
++  if (
++    !isGoogleDriveAccountScopeSet(
++      record.configuration.providerId,
++      grant.scopes,
++    ) ||
++    (grant.scopes !== null &&
++      !hasRequiredResourceScopes(
++        record.configuration.providerId,
++        record.configuration.requestedScopes[grant.actor] ?? [],
++        grant.scopes,
++      ))
++  )
++    throw new NativeOAuthError("scope");
+   const saved = [
+     record.privateState.grants.user,
+     ...record.privateState.recovery
+diff --git a/packages/app-core/src/lib/native-oauth-resource.ts b/packages/app-core/src/lib/native-oauth-resource.ts
+index 054362561..3b641e126 100644
+--- a/packages/app-core/src/lib/native-oauth-resource.ts
++++ b/packages/app-core/src/lib/native-oauth-resource.ts
+@@ -9,6 +9,7 @@ import {
+   updateNativeConnector,
+ } from "./native-connector-store.js";
+ import type { NativeProviderTransport } from "./native-connector-transport.js";
++import { isGoogleDriveAccountScopeSet } from "./native-google-drive-account.js";
+ import {
+   type NativeOAuthClientOwner,
+   assertNativeOAuthClientOwner,
+@@ -17,6 +18,7 @@ import {
+   nativeOAuthClientTarget,
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
++import { hasRequiredResourceScopes } from "./native-oauth-client-scopes.js";
+ import { commitNativeOAuthGrant } from "./native-oauth-commit.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import {
+@@ -40,6 +42,19 @@ function actualResource(
+     (grant.expiresAt !== null && grant.expiresAt <= Date.now())
+   )
+     throw new NativeOAuthError("expired");
++  if (
++    !isGoogleDriveAccountScopeSet(
++      record.configuration.providerId,
++      grant.scopes,
++    ) ||
++    (grant.scopes !== null &&
++      !hasRequiredResourceScopes(
++        record.configuration.providerId,
++        record.configuration.requestedScopes[grant.actor] ?? [],
++        grant.scopes,
++      ))
++  )
++    throw new NativeOAuthError("scope");
+   return target.resource;
+ }
+ function resourceTransport(
+diff --git a/packages/wallet/package.json b/packages/wallet/package.json
+index 63f07bd06..c2aaccc90 100644
+--- a/packages/wallet/package.json
++++ b/packages/wallet/package.json
+@@ -16,6 +16,10 @@
+     "./config": {
+       "types": "./src/config.ts",
+       "default": "./src/config.ts"
++    },
++    "./google-wallet-policy": {
++      "types": "./src/google-wallet-policy.ts",
++      "default": "./src/google-wallet-policy.ts"
+     }
+   },
+   "scripts": {
+diff --git a/packages/wallet/src/config.ts b/packages/wallet/src/config.ts
+index c3a595f65..8d3446bec 100644
+--- a/packages/wallet/src/config.ts
++++ b/packages/wallet/src/config.ts
+@@ -22,6 +22,13 @@
+  * ever reads what the environment supplies.
+  */
+ 
++import {
++  GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY,
++  googleWalletPemParts,
++  googleWalletPublicFailure,
++  normalizeGoogleWalletPem,
++} from "./google-wallet-policy.js";
++
+ /** Environment variable names, in the repository's `OPENSESAME_` namespace. */
+ export const GOOGLE_WALLET_ENV = {
+   issuerId: "OPENSESAME_WALLET_GOOGLE_ISSUER_ID",
+@@ -73,19 +80,6 @@ function read(env: WalletEnvSource, name: string): string {
+   return (env[name] ?? "").trim();
+ }
+ 
+-/**
+- * Normalize a PEM that travelled through an environment variable.
+- *
+- * A PKCS#8 key is multi-line and most secret stores, `.env` loaders, and
+- * container orchestrators either preserve the newlines or replace them with the
+- * two characters `\` and `n`. Accepting both is not laxity: the alternative is
+- * an operator silently pasting the escaped form, the key failing to import, and
+- * the resulting error pointing at signing rather than at configuration.
+- */
+-function normalizePem(raw: string): string {
+-  return raw.includes("-----BEGIN") ? raw.replace(/\\n/gu, "\n") : raw;
+-}
+-
+ /**
+  * Compose the fully qualified class id.
+  *
+@@ -96,8 +90,8 @@ function normalizePem(raw: string): string {
+  * belonging to somebody else.
+  */
+ function qualifyClassId(issuerId: string, raw: string): string {
+-  const dot = raw.indexOf(".");
+-  if (dot < 0) return `${issuerId}.${raw}`;
++  const dot = raw.indexOf(POLICY.walletClass.issuerSeparator);
++  if (dot < 0) return `${issuerId}${POLICY.walletClass.issuerSeparator}${raw}`;
+   const prefix = raw.slice(0, dot);
+   if (prefix !== issuerId) {
+     throw new WalletConfigError(
+@@ -204,7 +198,10 @@ export function parseGoogleWalletConfig(
+   // Google issuer ids are numeric. Checking that here turns "somebody pasted
+   // the class id into the issuer slot" into a startup error rather than a
+   // rejected save link that a human discovers at the door.
+-  if (!/^\d{6,32}$/u.test(issuerId)) {
++  if (
++    googleWalletPublicFailure(issuerId, "placeholder", "x@example.test") ===
++    "issuer_id"
++  ) {
+     throw new WalletConfigError(
+       `${GOOGLE_WALLET_ENV.issuerId} must be the numeric Google-assigned issuer id.`,
+       [GOOGLE_WALLET_ENV.issuerId],
+@@ -213,8 +210,10 @@ export function parseGoogleWalletConfig(
+ 
+   const classSuffixSource = read(env, GOOGLE_WALLET_ENV.classId);
+   const classId = qualifyClassId(issuerId, classSuffixSource);
+-  const suffix = classId.slice(issuerId.length + 1);
+-  if (!/^[A-Za-z0-9._-]+$/u.test(suffix)) {
++  if (
++    googleWalletPublicFailure(issuerId, classId, "x@example.test") ===
++    "class_id"
++  ) {
+     throw new WalletConfigError(
+       `${GOOGLE_WALLET_ENV.classId} suffix may only contain letters, digits, ".", "_" and "-".`,
+       [GOOGLE_WALLET_ENV.classId],
+@@ -226,8 +225,8 @@ export function parseGoogleWalletConfig(
+     GOOGLE_WALLET_ENV.serviceAccountEmail,
+   ).toLowerCase();
+   if (
+-    serviceAccountEmail.length > 320 ||
+-    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(serviceAccountEmail)
++    googleWalletPublicFailure(issuerId, classId, serviceAccountEmail) ===
++    "service_account_email"
+   ) {
+     throw new WalletConfigError(
+       `${GOOGLE_WALLET_ENV.serviceAccountEmail} must be the service account's client email address.`,
+@@ -235,9 +234,9 @@ export function parseGoogleWalletConfig(
+     );
+   }
+ 
+-  const serviceAccountKeyPem = normalizePem(
+-    read(env, GOOGLE_WALLET_ENV.serviceAccountKeyPem),
+-  );
++  const rawKey = read(env, GOOGLE_WALLET_ENV.serviceAccountKeyPem);
++  const keyParts = googleWalletPemParts(rawKey);
++  const serviceAccountKeyPem = normalizeGoogleWalletPem(rawKey);
+   if (/-----BEGIN RSA PRIVATE KEY-----/u.test(serviceAccountKeyPem)) {
+     // gitleaks:allow -- PEM delimiter validation, not private key material
+     // PKCS#1. Google's own service-account JSON ships PKCS#8, so seeing this
+@@ -248,7 +247,7 @@ export function parseGoogleWalletConfig(
+       [GOOGLE_WALLET_ENV.serviceAccountKeyPem],
+     );
+   }
+-  if (!/^-----BEGIN PRIVATE KEY-----/u.test(serviceAccountKeyPem)) {
++  if (!keyParts) {
+     throw new WalletConfigError(
+       `${GOOGLE_WALLET_ENV.serviceAccountKeyPem} must be a PKCS#8 PEM private key.`,
+       [GOOGLE_WALLET_ENV.serviceAccountKeyPem],
+diff --git a/packages/wallet/src/google-wallet-policy.generated.ts b/packages/wallet/src/google-wallet-policy.generated.ts
+new file mode 100644
+index 000000000..2c4323a4c
+--- /dev/null
++++ b/packages/wallet/src/google-wallet-policy.generated.ts
+@@ -0,0 +1,24 @@
++// Generated by scripts/emit-google-wallet-configuration.mjs from
++// spec/connectors/google-wallet-configuration.json — do not edit.
++export const GOOGLE_WALLET_CONFIGURATION_POLICY = Object.freeze({
++  issuer: Object.freeze({ pattern: "^\\d{6,32}$" }),
++  walletClass: Object.freeze({
++    qualification: "unqualified-or-this-issuer",
++    suffixPattern: "^[A-Za-z0-9._-]+$",
++    issuerSeparator: ".",
++  }),
++  email: Object.freeze({
++    pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
++    maxLength: 320,
++  }),
++  key: Object.freeze({
++    format: "pkcs8",
++    algorithm: "RSASSA-PKCS1-v1_5",
++    hash: "SHA-256",
++    usage: "sign",
++    maxRawLength: 32768,
++    pemPattern:
++      "^-----BEGIN PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]{200,32768})-----END PRIVATE KEY-----\\s*$",
++    escapedNewlines: true,
++  }),
++});
+diff --git a/packages/wallet/src/google-wallet-policy.test.ts b/packages/wallet/src/google-wallet-policy.test.ts
+new file mode 100644
+index 000000000..f956b0234
+--- /dev/null
++++ b/packages/wallet/src/google-wallet-policy.test.ts
+@@ -0,0 +1,88 @@
++import { generateKeyPairSync } from "node:crypto";
++import { readFileSync } from "node:fs";
++import { fileURLToPath } from "node:url";
++import { expect, it } from "vitest";
++import { GOOGLE_WALLET_ENV, parseGoogleWalletConfig } from "./config.js";
++import {
++  GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY,
++  googleWalletPemParts,
++} from "./google-wallet-policy.js";
++
++const vectors = JSON.parse(
++  readFileSync(
++    fileURLToPath(
++      new URL(
++        "../../../spec/conformance/google-wallet-configuration.json",
++        import.meta.url,
++      ),
++    ),
++    "utf8",
++  ),
++);
++const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey;
++const pkcs8 = rsa.export({ type: "pkcs8", format: "pem" }).toString();
++const pkcs1 = rsa.export({ type: "pkcs1", format: "pem" }).toString();
++const ec = generateKeyPairSync("ec", { namedCurve: "P-384" })
++  .privateKey.export({ type: "pkcs8", format: "pem" })
++  .toString();
++const keys = new Map<string, string>([
++  ["generated_pkcs8_rsa", pkcs8],
++  ["generated_pkcs8_rsa_escaped", pkcs8.replace(/\n/g, "\\n")],
++  ["generated_pkcs1_rsa", pkcs1],
++  ["not-a-private-key", "not-a-private-key"],
++  ["oversized", "a".repeat(32769)],
++  [
++    "invalid_der",
++    `-----BEGIN PRIVATE KEY-----\n${"A".repeat(256)}\n-----END PRIVATE KEY-----`,
++  ],
++  ["generated_ec_pkcs8", ec],
++]);
++
++function config(issuer: string, classId: string, email: string, key = pkcs8) {
++  return parseGoogleWalletConfig({
++    [GOOGLE_WALLET_ENV.issuerId]: issuer,
++    [GOOGLE_WALLET_ENV.classId]: classId,
++    [GOOGLE_WALLET_ENV.serviceAccountEmail]: email,
++    [GOOGLE_WALLET_ENV.serviceAccountKeyPem]: key,
++    [GOOGLE_WALLET_ENV.publicBaseUrl]: "https://example.test",
++    [GOOGLE_WALLET_ENV.origins]: "https://example.test",
++  });
++}
++
++it("replays shared public-field vectors through the wallet parser", () => {
++  for (const item of vectors.public_cases) {
++    const parse = () =>
++      config(item.issuer_id, item.class_id, item.service_account_email);
++    if (item.wallet_accepted ?? item.accepted)
++      expect(parse, item.name).not.toThrow();
++    else expect(parse, item.name).toThrow();
++  }
++});
++
++it("replays shared key-envelope and RSA-import vectors", async () => {
++  for (const item of vectors.key_cases) {
++    const raw = keys.get(item.value);
++    if (raw === undefined) throw new Error(`Unknown key fixture ${item.value}`);
++    const parts = googleWalletPemParts(raw);
++    expect(parts !== null, item.name).toBe(item.pem_accepted ?? item.accepted);
++    const parse = () => config("123456", "pass", "x@example.test", raw);
++    if (item.pem_accepted ?? item.accepted)
++      expect(parse, item.name).not.toThrow();
++    else expect(parse, item.name).toThrow();
++    if (parts) {
++      const bytes = Uint8Array.from(atob(parts.body), (character) =>
++        character.charCodeAt(0),
++      );
++      const imported = crypto.subtle.importKey(
++        POLICY.key.format,
++        bytes,
++        { name: POLICY.key.algorithm, hash: POLICY.key.hash },
++        false,
++        [POLICY.key.usage],
++      );
++      if (item.accepted)
++        await expect(imported, item.name).resolves.toBeDefined();
++      else await expect(imported, item.name).rejects.toThrow();
++    }
++  }
++});
+diff --git a/packages/wallet/src/google-wallet-policy.ts b/packages/wallet/src/google-wallet-policy.ts
+new file mode 100644
+index 000000000..45d10429e
+--- /dev/null
++++ b/packages/wallet/src/google-wallet-policy.ts
+@@ -0,0 +1,51 @@
++/** Shared Google Wallet configuration rules compiled from the connector spec. */
++import { GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY } from "./google-wallet-policy.generated.js";
++
++export type GoogleWalletFieldFailure =
++  | "issuer_id"
++  | "class_id"
++  | "service_account_email";
++
++export function googleWalletPublicFailure(
++  issuer: string,
++  classId: string,
++  email: string,
++): GoogleWalletFieldFailure | null {
++  if (!new RegExp(POLICY.issuer.pattern).test(issuer)) return "issuer_id";
++  if (POLICY.walletClass.qualification !== "unqualified-or-this-issuer")
++    throw new Error("Unsupported Google Wallet class qualification");
++  const prefix = `${issuer}${POLICY.walletClass.issuerSeparator}`;
++  const qualified = classId.startsWith(prefix);
++  const suffix = qualified ? classId.slice(prefix.length) : classId;
++  if (
++    (classId.includes(POLICY.walletClass.issuerSeparator) && !qualified) ||
++    !new RegExp(POLICY.walletClass.suffixPattern).test(suffix)
++  )
++    return "class_id";
++  if (
++    email.length > POLICY.email.maxLength ||
++    !new RegExp(POLICY.email.pattern).test(email)
++  )
++    return "service_account_email";
++  return null;
++}
++
++export function normalizeGoogleWalletPem(raw: string): string {
++  return POLICY.key.escapedNewlines && raw.includes("-----BEGIN")
++    ? raw.replace(/\\n/g, "\n")
++    : raw;
++}
++
++/** Validate the PEM envelope; callers must also perform the specified key import. */
++export function googleWalletPemParts(
++  raw: string,
++): { pem: string; body: string } | null {
++  if (raw.length > POLICY.key.maxRawLength) return null;
++  const pem = normalizeGoogleWalletPem(raw).trim();
++  const body = new RegExp(POLICY.key.pemPattern)
++    .exec(pem)?.[1]
++    ?.replace(/\s+/g, "");
++  return body ? { pem, body } : null;
++}
++
++export { GOOGLE_WALLET_CONFIGURATION_POLICY } from "./google-wallet-policy.generated.js";
+diff --git a/spec/conformance/google-wallet-configuration.json b/spec/conformance/google-wallet-configuration.json
+new file mode 100644
+index 000000000..dcbd2a78b
+--- /dev/null
++++ b/spec/conformance/google-wallet-configuration.json
+@@ -0,0 +1,157 @@
++{
++  "provider_id": "google-wallet",
++  "public_cases": [
++    {
++      "name": "unqualified class",
++      "issuer_id": "123456",
++      "class_id": "travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "qualified class",
++      "issuer_id": "123456",
++      "class_id": "123456.travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "wrong issuer",
++      "issuer_id": "123456",
++      "class_id": "654321.travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "short issuer",
++      "issuer_id": "12345",
++      "class_id": "travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "oversized issuer",
++      "issuer_id": "111111111111111111111111111111111",
++      "class_id": "travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "unsafe class",
++      "issuer_id": "123456",
++      "class_id": "pass/../../x",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "empty suffix",
++      "issuer_id": "123456",
++      "class_id": "123456.",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "invalid email",
++      "issuer_id": "123456",
++      "class_id": "travel-pass",
++      "service_account_email": "service@@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "oversized email",
++      "issuer_id": "123456",
++      "class_id": "travel-pass",
++      "service_account_email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "qualified class with dotted suffix",
++      "issuer_id": "123456",
++      "class_id": "123456.pass.v1",
++      "service_account_email": "service@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "dotted unqualified class",
++      "issuer_id": "123456",
++      "class_id": "pass.v1",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "non-ASCII digits rejected",
++      "issuer_id": "１２３４５６",
++      "class_id": "pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "unicode email accepted",
++      "issuer_id": "123456",
++      "class_id": "pass",
++      "service_account_email": "ümlaut@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "email astral length counts UTF-16 units",
++      "issuer_id": "123456",
++      "class_id": "pass",
++      "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "email astral length over limit",
++      "issuer_id": "123456",
++      "class_id": "pass",
++      "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "wallet email case folding can expand length",
++      "issuer_id": "123456",
++      "class_id": "pass",
++      "service_account_email": "İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ@example.invalid",
++      "accepted": true,
++      "wallet_accepted": false
++    }
++  ],
++  "key_cases": [
++    {
++      "name": "valid RSA PKCS8",
++      "value": "generated_pkcs8_rsa",
++      "accepted": true
++    },
++    {
++      "name": "escaped newline PKCS8",
++      "value": "generated_pkcs8_rsa_escaped",
++      "accepted": true
++    },
++    {
++      "name": "PKCS1 RSA",
++      "value": "generated_pkcs1_rsa",
++      "accepted": false
++    },
++    {
++      "name": "invalid key",
++      "value": "not-a-private-key",
++      "accepted": false
++    },
++    {
++      "name": "oversized key",
++      "value": "oversized",
++      "accepted": false
++    },
++    {
++      "name": "malformed DER after valid PEM envelope",
++      "value": "invalid_der",
++      "pem_accepted": true,
++      "accepted": false
++    },
++    {
++      "name": "PKCS8 EC is not RSA",
++      "value": "generated_ec_pkcs8",
++      "pem_accepted": true,
++      "accepted": false
++    }
++  ]
++}
+diff --git a/spec/connectors/google-wallet-configuration.json b/spec/connectors/google-wallet-configuration.json
+new file mode 100644
+index 000000000..7b7ab0efe
+--- /dev/null
++++ b/spec/connectors/google-wallet-configuration.json
+@@ -0,0 +1,35 @@
++{
++  "provider_id": "google-wallet",
++  "issuer_id": {
++    "pattern": "^\\d{6,32}$"
++  },
++  "class_id": {
++    "suffix_pattern": "^[A-Za-z0-9._-]+$",
++    "issuer_separator": ".",
++    "qualification": "unqualified-or-this-issuer"
++  },
++  "service_account_email": {
++    "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
++    "max_length": 320
++  },
++  "service_account_key": {
++    "format": "pkcs8",
++    "algorithm": "RSASSA-PKCS1-v1_5",
++    "hash": "SHA-256",
++    "usage": "sign",
++    "max_raw_length": 32768,
++    "pem_pattern": "^-----BEGIN PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]{200,32768})-----END PRIVATE KEY-----\\s*$",
++    "escaped_newlines": true
++  },
++  "semantics": {
++    "regex_dialect": "ecmascript",
++    "length_unit": "utf16_code_units",
++    "pem_whitespace": "ecmascript",
++    "private_key_validation": "pem_then_webcrypto_import",
++    "pem_envelope_stage": "strip_ecmascript_whitespace_then_base64_decode",
++    "wallet_config_stage": "pem_envelope_only",
++    "native_storage_stage": "webcrypto_pkcs8_rsa_import",
++    "native_input_normalization": "as_provided",
++    "wallet_env_normalization": "trim_each_value_and_lowercase_email"
++  }
++}
