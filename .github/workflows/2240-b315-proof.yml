@@ -1,0 +1,30 @@
+name: CodeQL review record exact proof
+on:
+  push:
+    branches: [review/2240-proof-b315-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2240-proof-b315-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ca71def1e835d54c8c90af9b439b0d2ff3ab7ff5
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify exact candidate and review gates
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ca71def1e835d54c8c90af9b439b0d2ff3ab7ff5
+          test "$(git rev-parse HEAD^{tree})" = 14f1bc0333e4d61f0a3df84a8b51960f9ec14ad9
+          test "$(git rev-parse HEAD^)" = b315dc17837d2eadd056b1b54dc2a0b68ce19380
+          node --test scripts/release/check-codeql-artifacts.test.mjs scripts/release/check-codeql-sarif.test.mjs scripts/release/candidate-policy-scanner.test.mjs
+          git diff --exit-code
+          git diff --cached --exit-code
