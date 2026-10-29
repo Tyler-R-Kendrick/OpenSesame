@@ -1,0 +1,49 @@
+name: Vite after CI change native proof
+on:
+  push:
+    branches: [review/vite-after-ci-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/vite-after-ci-proof-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: de5e58c7a47a4b01bea8e9bf9424db04a4472aa0
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify exact source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = de5e58c7a47a4b01bea8e9bf9424db04a4472aa0
+          test "$(git rev-parse HEAD^{tree})" = 4a7a82f378f376596030d3acf4a2bc449d29c201
+          test "$(git rev-parse HEAD^)" = 8597bc05ade72ff507257a7525c33344060815b9
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Install frozen graph
+        run: |
+          set -euo pipefail
+          test "$(pnpm --version)" = 9.15.0
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Cold build and verify native distribution
+        run: node --input-type=module -e 'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
+      - name: Verify packaged native assets and composition guards
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run apps/pages/scripts/tailscale-wasm-assets.test.mjs
+          node --test --test-name-pattern='child environment retains proxy/CA policy|root overlay paths cannot|wrong root bytes' tools/pwa-tailscale-native-http/compose-native.test.mjs
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 4a7a82f378f376596030d3acf4a2bc449d29c201
+          git diff --exit-code
+          git diff --cached --exit-code
