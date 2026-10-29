@@ -1,0 +1,124 @@
+diff --git a/packages/agent-sandboxes/src/boat-hosted-destination.test.ts b/packages/agent-sandboxes/src/boat-hosted-destination.test.ts
+new file mode 100644
+index 000000000..0eafbf789
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-hosted-destination.test.ts
+@@ -0,0 +1,118 @@
++import { afterEach, expect, it } from "vitest";
++import { WebSocketServer } from "ws";
++import { z } from "zod";
++import { BoatSandboxProvider } from "./boat-provider.js";
++
++const frameSchema = z.object({
++  type: z.string().optional(),
++  token: z.string().optional(),
++  id: z.number().optional(),
++  method: z.string().optional(),
++  value: z.string().optional(),
++});
++
++let attacker: WebSocketServer | undefined;
++afterEach(async () => {
++  if (!attacker) return;
++  for (const client of attacker.clients) client.terminate();
++  await new Promise<void>((resolve) => attacker?.close(() => resolve()));
++  attacker = undefined;
++});
++
++it("rejects a hosted relay URL outside the allocated sandbox before sending credentials", async () => {
++  let receivedBearer = false;
++  let receivedSecret = false;
++  let connections = 0;
++  attacker = new WebSocketServer({ port: 0, host: "127.0.0.1" });
++  await new Promise<void>((resolve) => attacker?.once("listening", resolve));
++  const address = attacker.address();
++  if (!address || typeof address === "string")
++    throw new Error("missing test port");
++  attacker.on("connection", (socket) => {
++    connections += 1;
++    socket.on("message", (data) => {
++      const frame = frameSchema.parse(JSON.parse(data.toString()));
++      if (frame.type === "auth") {
++        receivedBearer ||= Boolean(frame.token);
++        socket.send(JSON.stringify({ id: 0, ok: true }));
++      } else if (frame.id !== undefined) {
++        if (
++          frame.method === "fillSecret" &&
++          frame.value === "synthetic-password-canary"
++        )
++          receivedSecret = true;
++        socket.send(JSON.stringify({ id: frame.id, ok: true }));
++      }
++    });
++  });
++  const respond = (body: unknown) =>
++    new Response(JSON.stringify(body), {
++      status: 200,
++      headers: { "content-type": "application/json" },
++    });
++  const provider = new BoatSandboxProvider({
++    apiToken: "synthetic-boat-key",
++    agentCommand: "fake-agent",
++    pollIntervalMs: 1,
++    fetchImpl: async (input, init) => {
++      const path = new URL(input.toString()).pathname;
++      if (path.endsWith("/sandboxes") && init?.method === "POST")
++        return respond({
++          ok: true,
++          sandbox: { id: "bx_23456789", state: "provisioning" },
++        });
++      if (path.endsWith("/sandboxes/bx_23456789") && init?.method === "GET")
++        return respond({
++          ok: true,
++          sandbox: {
++            id: "bx_23456789",
++            state: "ready",
++            url: "https://victim.on.boat.dev",
++          },
++        });
++      if (path.endsWith("/commands"))
++        return respond({
++          ok: true,
++          type: "command.started",
++          success: true,
++          processId: 7,
++        });
++      if (path.endsWith("/host"))
++        return respond({
++          ok: true,
++          url: `http://127.0.0.1:${address.port}`,
++          port: 8787,
++          isProtected: true,
++          access: "private",
++        });
++      if (init?.method === "DELETE")
++        return respond({
++          ok: true,
++          operation: {
++            id: `bdop_${"a".repeat(32)}`,
++            kind: "sandbox",
++            targetId: "bx_23456789",
++            status: "completed",
++          },
++        });
++      throw new Error(`unexpected fake endpoint: ${path}`);
++    },
++  });
++  let failure: unknown;
++  try {
++    const sandbox = await provider.allocate({
++      origin: "https://accounts.example.test",
++    });
++    await sandbox.browser.fillSecret("e1", "synthetic-password-canary");
++    await sandbox.close();
++  } catch (error) {
++    failure = error;
++  }
++  process.stdout.write(
++    `BOAT_RELAY_PROBE bearer=${receivedBearer} secret=${receivedSecret} connections=${connections}\n`,
++  );
++  expect(receivedBearer).toBe(false);
++  expect(receivedSecret).toBe(false);
++  expect(connections).toBe(0);
++  expect(failure).toBeInstanceOf(Error);
++});

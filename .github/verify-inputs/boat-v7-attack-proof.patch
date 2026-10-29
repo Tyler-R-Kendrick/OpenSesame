@@ -1,0 +1,2175 @@
+diff --git a/packages/agent-sandboxes/README.md b/packages/agent-sandboxes/README.md
+index 443a2595d..4885f9393 100644
+--- a/packages/agent-sandboxes/README.md
++++ b/packages/agent-sandboxes/README.md
+@@ -29,8 +29,10 @@ lives and how its traffic reaches the site.
+   providers throw `SandboxClaimRequiredError` with only a verification
+   URL and short code, so callers surface it through the existing
+   human-intervention channel (notifications queue + toast).
+-- Navigation is pinned to the ceremony origin host plus explicit extras
+-  in every lane.
++- Hostname filters on navigation are not a network firewall. A page's
++  scripts, redirects and subrequests may reach other destinations; use an
++  independently enforced outbound policy when the site or network is not
++  trusted.
+ 
+ ## Honest limits
+ 
+@@ -47,5 +49,11 @@ lives and how its traffic reaches the site.
+ - The Boat lane needs an operator-configured agent start command
+   (`BOAT_RELAY_AGENT_COMMAND`), typically run from a saved snapshot
+   with this package installed. Sandboxes are created with none of the
+-  account's secrets, monitoring off, snapshots off, and are deleted
+-  on close so session cookies die with the run.
++  account's secrets, monitoring off and snapshots off. Close waits for
++  Boat to confirm deletion. If it raises `BoatDeletionPendingError`, retain
++  its operation and sandbox IDs and resume with the provider's
++  `waitForDeletion`; erasure is not confirmed until that call succeeds.
++  Failed allocation can report a pending cleanup inside an `AggregateError`;
++  retain and resume that operation in the same way. If no valid deletion
++  receipt is available, `BoatDeletionUnconfirmedError` retains the sandbox ID
++  for checking cleanup with Boat.
+diff --git a/packages/agent-sandboxes/e2e/boat.spec.ts b/packages/agent-sandboxes/e2e/boat.spec.ts
+index 2a1dc75e5..a0fbffa11 100644
+--- a/packages/agent-sandboxes/e2e/boat.spec.ts
++++ b/packages/agent-sandboxes/e2e/boat.spec.ts
+@@ -27,7 +27,7 @@ import { MockResetSite } from "./mock-site.js";
+ 
+ const CLAIM = {
+   user_code: "123456",
+-  verification_uri: "https://boat.test/claim?claim_attempt_token=x",
++  verification_uri: "/api/boat/agent/identity/claim?claim_attempt_token=x",
+   expires_in: 600,
+   interval: 5,
+ };
+@@ -42,6 +42,7 @@ interface FakeBoat {
+   /** Every command string Boat was asked to run ("command history"). */
+   commandHistory: string[];
+   deleted: string[];
++  deletion: { polls: number };
+   close: () => Promise<void>;
+ }
+ 
+@@ -61,8 +62,10 @@ function startFakeBoat(): Promise<FakeBoat> {
+   const state = { claimed: false, billed: false };
+   const commandHistory: string[] = [];
+   const deleted: string[] = [];
++  const deletion = { polls: 0 };
+   let agent: RunningBoatAgent | null = null;
+   let agentEnv: Record<string, string> = {};
++  let origin = "";
+ 
+   const server: Server = createServer((request, response) => {
+     void (async () => {
+@@ -79,7 +82,7 @@ function startFakeBoat(): Promise<FakeBoat> {
+         if (state.claimed) send(200, { access_token: "boat_live" });
+         else send(400, { error: "authorization_pending" });
+       } else if (path === "/api/boat/billing/checkout") {
+-        send(200, { url: "https://checkout.test/session" });
++        send(200, { url: "https://checkout.stripe.com/session" });
+       } else if (path === "/api/v1/sandboxes" && request.method === "POST") {
+         if (!state.billed) {
+           send(402, {
+@@ -105,7 +108,11 @@ function startFakeBoat(): Promise<FakeBoat> {
+       ) {
+         send(200, {
+           ok: true,
+-          sandbox: { id: "bx_23456789", state: "ready" },
++          sandbox: {
++            id: "bx_23456789",
++            state: "ready",
++            url: origin,
++          },
+         });
+       } else if (path.endsWith("/commands")) {
+         // SAFETY: checked at the fake Boat boundary: the only sender is this test's BoatClient, which serializes CommandBody objects.
+@@ -124,10 +131,39 @@ function startFakeBoat(): Promise<FakeBoat> {
+         send(200, {
+           ok: true,
+           url: `http://127.0.0.1:${agentEnv[BOAT_AGENT_ENV.port]}`,
++          port: 8787,
++          isProtected: true,
++          access: "private",
++        });
++      } else if (
++        path ===
++        "/api/v1/deletion-operations/bdop_0123456789abcdef0123456789abcdef"
++      ) {
++        deletion.polls += 1;
++        send(200, {
++          ok: true,
++          operation: {
++            id: "bdop_0123456789abcdef0123456789abcdef",
++            kind: "sandbox",
++            targetId: "bx_23456789",
++            status: "completed",
++          },
+         });
+       } else if (request.method === "DELETE") {
++        if (request.headers["x-ascii-confirm-delete"] !== "bx_23456789") {
++          send(409, { ok: false });
++          return;
++        }
+         deleted.push(path);
+-        send(200, { ok: true });
++        send(202, {
++          ok: true,
++          operation: {
++            id: "bdop_0123456789abcdef0123456789abcdef",
++            kind: "sandbox",
++            targetId: "bx_23456789",
++            status: "pending",
++          },
++        });
+       } else {
+         send(404, { ok: false });
+       }
+@@ -139,11 +175,13 @@ function startFakeBoat(): Promise<FakeBoat> {
+       const address = server.address();
+       const port =
+         address instanceof Object && "port" in address ? address.port : 0;
++      origin = `http://127.0.0.1:${port}`;
+       resolve({
+-        origin: `http://127.0.0.1:${port}`,
++        origin,
+         state,
+         commandHistory,
+         deleted,
++        deletion,
+         close: async () => {
+           await agent?.close();
+           await new Promise<void>((done) => server.close(() => done()));
+@@ -172,35 +210,44 @@ test("full reset in a Boat sandbox: claim gate, in-sandbox relay, secret-free hi
+     expect(claimError).toBeInstanceOf(SandboxClaimRequiredError);
+     // SAFETY: checked immediately above with toBeInstanceOf on the same value.
+     const claim = claimError as SandboxClaimRequiredError;
+-    expect(claim.verificationUri).toBe(CLAIM.verification_uri);
++    expect(claim.verificationUri).toBe(
++      `${boat.origin}${CLAIM.verification_uri}`,
++    );
+     expect(claim.userCode).toBe("123456");
+ 
+     // The person claims the agent and finishes checkout; retrying the
+     // same allocation now succeeds end to end.
+     boat.state.claimed = true;
+     boat.state.billed = true;
+-    const sandbox = await provider.allocate({ origin: site.origin });
++    const sandbox = await test.step("allocate and authenticate relay", () =>
++      provider.allocate({ origin: site.origin }));
+     expect(sandbox.provider).toBe("boat");
+     expect(sandbox.session).toBe("bx_23456789");
+ 
+     const runtime = runtimeForDriver(sandbox.browser, site, true);
+-    const parked = await runtime.runner.start(runtime.initial);
++    const parked = await test.step("start reset and park for human", () =>
++      runtime.runner.start(runtime.initial));
+     expect(parked.status).toBe("awaiting_human");
+-    const finished = await runtime.runner.resumeAfterHuman(parked);
++    const finished = await test.step("resume reset after human", () =>
++      runtime.runner.resumeAfterHuman(parked));
+     expect(finished.status).toBe("succeeded");
+     expect(site.submissions).toBe(1);
+-    await expectNewPasswordAccepted(runtime.custody, site);
++    await test.step("verify new password", () =>
++      expectNewPasswordAccepted(runtime.custody, site));
+     const journalText = JSON.stringify(await runtime.store.load("run-1"));
+     expect(journalText).not.toContain(PEPPER);
+ 
+-    await sandbox.close();
++    await test.step("close sandbox", () => sandbox.close());
+     expect(boat.deleted).toEqual(["/api/v1/sandboxes/bx_23456789"]);
++    expect(boat.deletion.polls).toBe(1);
+     // Boat's retained command history contains exactly the operator's
+     // agent start command — no secret ever crossed as a command.
+     expect(boat.commandHistory).toEqual(["opensesame-boat-agent"]);
+     expect(boat.commandHistory.join("\n")).not.toContain(PEPPER);
+   } finally {
+-    await boat.close();
+-    await site.stop();
++    await test.step("stop fake services", async () => {
++      await boat.close();
++      await site.stop();
++    });
+   }
+ });
+diff --git a/packages/agent-sandboxes/src/boat-agent.ts b/packages/agent-sandboxes/src/boat-agent.ts
+index accb0e9d1..372b806f7 100644
+--- a/packages/agent-sandboxes/src/boat-agent.ts
++++ b/packages/agent-sandboxes/src/boat-agent.ts
+@@ -10,6 +10,7 @@
+  * secrets arrive later, per fill, over the relay itself.
+  */
+ 
++import type { BrowserDriver } from "@opensesame/cua-password-reset";
+ import { LocalSandboxProvider } from "./local-provider.js";
+ import { type RunningRelayServer, startRelayServer } from "./relay-server.js";
+ 
+@@ -53,23 +54,43 @@ export async function startBoatRelayAgent(
+     origin,
+     extraAllowedDomains: extras,
+   });
++  let browserClose: Promise<void> | undefined;
++  const closeBrowser = async () => {
++    browserClose ??= sandbox.close();
++    try {
++      await browserClose;
++    } catch (error) {
++      browserClose = undefined;
++      throw error;
++    }
++  };
++  const driver: BrowserDriver = {
++    open: (url) => sandbox.browser.open(url),
++    snapshot: () => sandbox.browser.snapshot(),
++    click: (ref) => sandbox.browser.click(ref),
++    fill: (ref, value) => sandbox.browser.fill(ref, value),
++    fillSecret: (ref, value) => sandbox.browser.fillSecret(ref, value),
++    close: closeBrowser,
++  };
++  const pageUrl = sandbox.browser.pageUrl?.bind(sandbox.browser);
++  if (pageUrl) driver.pageUrl = pageUrl;
+   let server: RunningRelayServer;
+   try {
+     server = await startRelayServer({
+       host: "127.0.0.1",
+       port,
+       token,
+-      driver: sandbox.browser,
++      driver,
+     });
+   } catch (error) {
+-    await sandbox.close();
++    await closeBrowser();
+     throw error;
+   }
+   return {
+     port: server.port,
+     close: async () => {
+       await server.close();
+-      await sandbox.close();
++      await closeBrowser();
+     },
+   };
+ }
+diff --git a/packages/agent-sandboxes/src/boat-auth.test.ts b/packages/agent-sandboxes/src/boat-auth.test.ts
+index dcde3e0d8..d528f22ac 100644
+--- a/packages/agent-sandboxes/src/boat-auth.test.ts
++++ b/packages/agent-sandboxes/src/boat-auth.test.ts
+@@ -52,7 +52,8 @@ function fakeAuth(responses: FakeBody[]) {
+ 
+ const CLAIM = {
+   user_code: "123456",
+-  verification_uri: "https://boat.test/claim?claim_attempt_token=x",
++  verification_uri:
++    "https://boat.test/api/boat/agent/identity/claim?claim_attempt_token=x",
+   expires_in: 600,
+   interval: 5,
+ };
+diff --git a/packages/agent-sandboxes/src/boat-auth.ts b/packages/agent-sandboxes/src/boat-auth.ts
+index 7b34967d5..a685b2ea0 100644
+--- a/packages/agent-sandboxes/src/boat-auth.ts
++++ b/packages/agent-sandboxes/src/boat-auth.ts
+@@ -11,6 +11,7 @@
+  */
+ 
+ import { z } from "zod";
++import { boatClaimUrl, boatOrigin } from "./boat-endpoints.js";
+ 
+ export interface BoatAuthOptions {
+   /** Boat origin; must match the host auth.md was fetched from. */
+@@ -80,11 +81,12 @@ interface IdentityBody {
+ function claimFrom(
+   claimToken: string,
+   claim: z.infer<typeof claimBlockSchema>,
++  origin: string,
+ ): BoatClaimMaterials {
+   return {
+     claimToken,
+     userCode: claim.user_code,
+-    verificationUri: claim.verification_uri,
++    verificationUri: boatClaimUrl(claim.verification_uri, origin),
+     expiresIn: claim.expires_in,
+     interval: claim.interval,
+   };
+@@ -95,7 +97,7 @@ export class BoatAgentAuth {
+   private readonly fetchImpl: typeof fetch;
+ 
+   constructor(options: BoatAuthOptions = {}) {
+-    this.origin = (options.origin ?? "https://boat.dev").replace(/\/$/u, "");
++    this.origin = boatOrigin(options.origin ?? "https://boat.dev");
+     this.fetchImpl = options.fetchImpl ?? fetch;
+   }
+ 
+@@ -104,6 +106,7 @@ export class BoatAgentAuth {
+       method: "POST",
+       headers: { "content-type": "application/json" },
+       body: JSON.stringify(body),
++      redirect: "error",
+     });
+     const raw: unknown = await response.json().catch(() => null);
+     if (!response.ok)
+@@ -121,6 +124,7 @@ export class BoatAgentAuth {
+         method: "POST",
+         headers: { "content-type": "application/x-www-form-urlencoded" },
+         body: form.toString(),
++        redirect: "error",
+       },
+     );
+     const parsed = tokenResponseSchema.parse(
+@@ -158,7 +162,11 @@ export class BoatAgentAuth {
+     if (parsed.identity_assertion)
+       registration.identityAssertion = parsed.identity_assertion;
+     if (parsed.claim)
+-      registration.claim = claimFrom(parsed.claim_token, parsed.claim);
++      registration.claim = claimFrom(
++        parsed.claim_token,
++        parsed.claim,
++        this.origin,
++      );
+     return registration;
+   }
+ 
+@@ -172,7 +180,7 @@ export class BoatAgentAuth {
+       email,
+     });
+     const parsed = claimResponseSchema.parse(raw);
+-    return claimFrom(parsed.claim_token ?? claimToken, parsed);
++    return claimFrom(parsed.claim_token ?? claimToken, parsed, this.origin);
+   }
+ 
+   /** One claim-grant poll. Throws `BoatClaimPendingError` while waiting. */
+diff --git a/packages/agent-sandboxes/src/boat-client.test.ts b/packages/agent-sandboxes/src/boat-client.test.ts
+index 1bd87506b..7524cc9c4 100644
+--- a/packages/agent-sandboxes/src/boat-client.test.ts
++++ b/packages/agent-sandboxes/src/boat-client.test.ts
+@@ -1,5 +1,11 @@
+ import { describe, expect, it } from "vitest";
+-import { BoatApiError, BoatClient, type BoatJsonValue } from "./boat-client.js";
++import {
++  BoatApiError,
++  BoatClient,
++  type BoatClientOptions,
++  BoatDeletionPendingError,
++  type BoatJsonValue,
++} from "./boat-client.js";
+ 
+ async function captureError<T>(run: () => Promise<T>): Promise<Error> {
+   try {
+@@ -23,7 +29,10 @@ type Handler = (request: RecordedRequest) => {
+   body: BoatJsonValue;
+ };
+ 
+-function fakeClient(handler: Handler) {
++function fakeClient(
++  handler: Handler,
++  options: Partial<BoatClientOptions> = {},
++) {
+   const requests: RecordedRequest[] = [];
+   const fetchImpl = async (url: string, init?: RequestInit) => {
+     const request: RecordedRequest = {
+@@ -42,6 +51,7 @@ function fakeClient(handler: Handler) {
+   return {
+     // SAFETY: checked at the fake-fetch boundary: the mock implements exactly the (url, init) call shapes the client sends.
+     client: new BoatClient({
++      ...options,
+       origin: "https://boat.test",
+       fetchImpl: fetchImpl as typeof fetch,
+     }),
+@@ -119,9 +129,22 @@ describe("BoatClient", () => {
+           body: {
+             ok: true,
+             url: "https://bx-8787.on.boat.dev?_token=hidden",
++            port: 8787,
++            isProtected: true,
++            access: "private",
+           },
+         };
+-      return { body: { ok: true } };
++      return {
++        body: {
++          ok: true,
++          operation: {
++            id: "bdop_0123456789abcdef0123456789abcdef",
++            kind: "sandbox",
++            targetId: "bx_23456789",
++            status: "completed",
++          },
++        },
++      };
+     });
+     await expect(
+       client.startDetachedCommand("boat_key", "bx_23456789", "run-agent"),
+@@ -139,14 +162,152 @@ describe("BoatClient", () => {
+     });
+     await client.deleteSandbox("boat_key", "bx_23456789");
+     expect(requests[2]?.method).toBe("DELETE");
++    expect(requests[2]?.headers.get("x-ascii-confirm-delete")).toBe(
++      "bx_23456789",
++    );
++  });
++
++  it("refuses a mismatched sandbox identity and an unprotected or wrong port", async () => {
++    const { client: mismatch } = fakeClient(() => ({
++      body: { ok: true, sandbox: { id: "bx_98765432", state: "ready" } },
++    }));
++    await expect(
++      mismatch.getSandbox("boat_key", "bx_23456789"),
++    ).rejects.toThrow("identity mismatch");
++    for (const hosted of [
++      {
++        ok: true,
++        url: "https://a-8787.on.boat.dev",
++        port: 8787,
++        isProtected: false,
++        access: "public",
++      },
++      {
++        ok: true,
++        url: "https://a-1234.on.boat.dev?_token=t",
++        port: 1234,
++        isProtected: true,
++        access: "private",
++      },
++    ]) {
++      const { client } = fakeClient(() => ({ body: hosted }));
++      await expect(
++        client.hostPort("boat_key", "bx_23456789", 8787),
++      ).rejects.toThrow();
++    }
++  });
++
++  it("waits for the exact accepted deletion operation to finish", async () => {
++    const id = "bdop_0123456789abcdef0123456789abcdef";
++    let polls = 0;
++    const { client, requests } = fakeClient(
++      (request) => ({
++        status: request.method === "DELETE" ? 202 : 200,
++        body: {
++          ok: true,
++          operation: {
++            id,
++            kind: "sandbox",
++            targetId: "bx_23456789",
++            status:
++              request.method === "DELETE" || ++polls === 1
++                ? "pending"
++                : "completed",
++          },
++        },
++      }),
++      { deletionTimeoutMs: 1_000, deletionPollIntervalMs: 1 },
++    );
++    await client.deleteSandbox("boat_key", "bx_23456789");
++    expect(polls).toBe(2);
++    expect(requests[0]?.headers.get("x-ascii-confirm-delete")).toBe(
++      "bx_23456789",
++    );
++    expect(requests[1]?.url).toBe(
++      `https://boat.test/api/v1/deletion-operations/${id}`,
++    );
++  });
++
++  it("reports a resumable pending deletion when blocked, wrong, or unavailable", async () => {
++    const id = "bdop_0123456789abcdef0123456789abcdef";
++    for (const mode of ["blocked", "wrong", "unavailable"] as const) {
++      const { client } = fakeClient(
++        (request) => {
++          if (request.method !== "DELETE" && mode === "unavailable")
++            throw new Error("network unavailable");
++          return {
++            status: request.method === "DELETE" ? 202 : 200,
++            body: {
++              ok: true,
++              operation: {
++                id,
++                kind: "sandbox",
++                targetId:
++                  request.method !== "DELETE" && mode === "wrong"
++                    ? "bx_98765432"
++                    : "bx_23456789",
++                status: request.method === "DELETE" ? "pending" : "blocked",
++              },
++            },
++          };
++        },
++        { deletionTimeoutMs: 10, deletionPollIntervalMs: 1 },
++      );
++      const error = await captureError(() =>
++        client.deleteSandbox("boat_key", "bx_23456789"),
++      );
++      expect(error).toBeInstanceOf(BoatDeletionPendingError);
++      // SAFETY: this branch has just established the exact error class.
++      const pending = error as BoatDeletionPendingError;
++      expect(pending.operationId).toBe(id);
++      expect(pending.sandboxId).toBe("bx_23456789");
++    }
++  });
++
++  it("bounds a stalled deletion poll and returns its resumable operation ID", async () => {
++    const id = "bdop_0123456789abcdef0123456789abcdef";
++    const request: typeof fetch = async (_input, init) => {
++      if (init?.method === "DELETE")
++        return new Response(
++          JSON.stringify({
++            ok: true,
++            operation: {
++              id,
++              kind: "sandbox",
++              targetId: "bx_23456789",
++              status: "pending",
++            },
++          }),
++          { status: 202 },
++        );
++      return new Promise<Response>((_resolve, reject) => {
++        init?.signal?.addEventListener(
++          "abort",
++          () => reject(new Error("aborted")),
++          { once: true },
++        );
++      });
++    };
++    const client = new BoatClient({
++      origin: "https://boat.test",
++      deletionTimeoutMs: 20,
++      deletionPollIntervalMs: 1,
++      fetchImpl: request,
++    });
++    const error = await captureError(() =>
++      client.deleteSandbox("boat_key", "bx_23456789"),
++    );
++    expect(error).toBeInstanceOf(BoatDeletionPendingError);
++    // SAFETY: the error class was checked immediately above.
++    expect((error as BoatDeletionPendingError).operationId).toBe(id);
+   });
+ 
+   it("starts billing checkout outside /api/v1", async () => {
+     const { client, requests } = fakeClient(() => ({
+-      body: { url: "https://checkout.test/session" },
++      body: { url: "https://checkout.stripe.com/session" },
+     }));
+     await expect(client.createCheckout("boat_key")).resolves.toBe(
+-      "https://checkout.test/session",
++      "https://checkout.stripe.com/session",
+     );
+     expect(requests[0]?.url).toBe(
+       "https://boat.test/api/boat/billing/checkout",
+diff --git a/packages/agent-sandboxes/src/boat-client.ts b/packages/agent-sandboxes/src/boat-client.ts
+index d87e8cc55..6c13bad61 100644
+--- a/packages/agent-sandboxes/src/boat-client.ts
++++ b/packages/agent-sandboxes/src/boat-client.ts
+@@ -9,16 +9,29 @@
+  */
+ 
+ import { z } from "zod";
++import { requestBoatDeletion, waitForBoatDeletion } from "./boat-deletion.js";
++import { boatCheckoutUrl, boatOrigin } from "./boat-endpoints.js";
++import { boatApiError } from "./boat-error.js";
++export { BoatApiError } from "./boat-error.js";
++export {
++  BoatDeletionPendingError,
++  BoatDeletionUnconfirmedError,
++} from "./boat-deletion.js";
+ 
+ export interface BoatClientOptions {
+   /** Boat origin; staging and self-hosted control planes differ. */
+   origin?: string;
+   fetchImpl?: typeof fetch;
++  /** Maximum time to wait for Boat's asynchronous data deletion. */
++  deletionTimeoutMs?: number;
++  deletionRequestTimeoutMs?: number;
++  deletionPollIntervalMs?: number;
+ }
+ 
+ export interface BoatSandbox {
+   id: string;
+   state: string;
++  url?: string | null | undefined;
+ }
+ 
+ export interface CreateSandboxInput {
+@@ -63,6 +76,7 @@ const boatJsonValueSchema: z.ZodType<BoatJsonValue> = z.lazy(() =>
+ const sandboxSchema = z.object({
+   id: z.string(),
+   state: z.string(),
++  url: z.string().nullable().optional(),
+ });
+ 
+ const createSandboxResponseSchema = z.object({
+@@ -96,39 +110,18 @@ const checkoutResponseSchema = z.object({ url: z.string() });
+ const hostPortResponseSchema = z.object({
+   ok: z.literal(true),
+   url: z.string(),
++  port: z.number().int(),
++  isProtected: z.literal(true),
++  access: z.literal("private"),
+ });
+ 
+-const errorEnvelopeSchema = z.object({
+-  ok: z.literal(false),
+-  code: z.string().optional(),
+-  message: z.string().optional(),
+-  error: z
+-    .object({
+-      code: z.string().optional(),
+-      message: z.string().optional(),
+-    })
+-    .optional(),
+-});
+-
+-/** A Boat API error with its stable machine-readable code. */
+-export class BoatApiError extends Error {
+-  readonly code: string;
+-  readonly status: number;
+-
+-  constructor(input: { code: string; status: number; message: string }) {
+-    super(`boat: ${input.message} (${input.code})`);
+-    this.name = "BoatApiError";
+-    this.code = input.code;
+-    this.status = input.status;
+-  }
+-}
+-
+ interface RequestOptions {
+   method: string;
+   path: string;
+   accessToken: string;
+   body?: CreateSandboxBody | CommandBody | HostPortBody;
+   idempotencyKey?: string;
++  signal?: AbortSignal;
+ }
+ 
+ interface CreateSandboxBody {
+@@ -157,6 +150,7 @@ type BoatRequestHeaders = {
+   authorization: string;
+   "content-type": string;
+   "idempotency-key"?: string;
++  "x-ascii-confirm-delete"?: string;
+ };
+ 
+ export interface RunCommandOptions {
+@@ -166,10 +160,28 @@ export interface RunCommandOptions {
+ export class BoatClient {
+   private readonly origin: string;
+   private readonly fetchImpl: typeof fetch;
++  private readonly deletionTimeoutMs: number;
++  private readonly deletionRequestTimeoutMs: number;
++  private readonly deletionPollIntervalMs: number;
+ 
+   constructor(options: BoatClientOptions = {}) {
+-    this.origin = (options.origin ?? "https://boat.dev").replace(/\/$/u, "");
++    this.origin = boatOrigin(options.origin ?? "https://boat.dev");
+     this.fetchImpl = options.fetchImpl ?? fetch;
++    this.deletionTimeoutMs = options.deletionTimeoutMs ?? 30_000;
++    this.deletionRequestTimeoutMs = options.deletionRequestTimeoutMs ?? 10_000;
++    this.deletionPollIntervalMs = options.deletionPollIntervalMs ?? 1_000;
++    if (
++      !Number.isInteger(this.deletionTimeoutMs) ||
++      this.deletionTimeoutMs < 0 ||
++      this.deletionTimeoutMs > 86_400_000 ||
++      !Number.isInteger(this.deletionRequestTimeoutMs) ||
++      this.deletionRequestTimeoutMs < 1 ||
++      this.deletionRequestTimeoutMs > 86_400_000 ||
++      !Number.isInteger(this.deletionPollIntervalMs) ||
++      this.deletionPollIntervalMs < 1 ||
++      this.deletionPollIntervalMs > 86_400_000
++    )
++      throw new Error("boat: invalid deletion polling settings");
+   }
+ 
+   get apiOrigin(): string {
+@@ -183,7 +195,18 @@ export class BoatClient {
+     };
+     if (options.idempotencyKey)
+       headers["idempotency-key"] = options.idempotencyKey;
+-    const init: RequestInit = { method: options.method, headers };
++    if (options.method === "DELETE") {
++      const id = options.path.split("/").at(-1) ?? "";
++      if (!/^bx_[23456789abcdefghjkmnpqrstuvwxyz]{8}$/u.test(id))
++        throw new Error("boat: invalid sandbox id");
++      headers["x-ascii-confirm-delete"] = id;
++    }
++    const init: RequestInit = {
++      method: options.method,
++      headers,
++      redirect: "error",
++    };
++    if (options.signal) init.signal = options.signal;
+     if (options.body !== undefined) init.body = JSON.stringify(options.body);
+     const response = await this.fetchImpl(
+       `${this.origin}/api/v1${options.path}`,
+@@ -192,18 +215,7 @@ export class BoatClient {
+     const raw = boatJsonValueSchema.parse(
+       await response.json().catch(() => null),
+     );
+-    if (!response.ok) {
+-      const parsed = errorEnvelopeSchema.safeParse(raw);
+-      const code =
+-        (parsed.success
+-          ? (parsed.data.code ?? parsed.data.error?.code)
+-          : undefined) ?? `http_${response.status}`;
+-      const message =
+-        (parsed.success
+-          ? (parsed.data.message ?? parsed.data.error?.message)
+-          : undefined) ?? `HTTP ${response.status}`;
+-      throw new BoatApiError({ code, status: response.status, message });
+-    }
++    if (!response.ok) throw boatApiError(raw, response.status);
+     return raw;
+   }
+ 
+@@ -242,7 +254,10 @@ export class BoatClient {
+       path: `/sandboxes/${encodeURIComponent(sandboxId)}`,
+       accessToken,
+     });
+-    return getSandboxResponseSchema.parse(raw).sandbox;
++    const sandbox = getSandboxResponseSchema.parse(raw).sandbox;
++    if (sandbox.id !== sandboxId)
++      throw new Error("boat: sandbox identity mismatch");
++    return sandbox;
+   }
+ 
+   async resumeSandbox(accessToken: string, sandboxId: string): Promise<void> {
+@@ -304,7 +319,9 @@ export class BoatClient {
+       accessToken,
+       body: { port, localhost: true },
+     });
+-    return hostPortResponseSchema.parse(raw).url;
++    const hosted = hostPortResponseSchema.parse(raw);
++    if (hosted.port !== port) throw new Error("boat: hosted port mismatch");
++    return hosted.url;
+   }
+ 
+   async stopSandbox(accessToken: string, sandboxId: string): Promise<void> {
+@@ -329,20 +346,53 @@ export class BoatClient {
+           "content-type": "application/json",
+         },
+         body: JSON.stringify({ kind: "subscription" }),
++        redirect: "error",
+       },
+     );
+     if (!response.ok)
+       throw new Error(
+         `boat: checkout request failed (HTTP ${response.status})`,
+       );
+-    return checkoutResponseSchema.parse(await response.json()).url;
++    return boatCheckoutUrl(
++      checkoutResponseSchema.parse(await response.json()).url,
++      this.origin,
++    );
+   }
+ 
+   async deleteSandbox(accessToken: string, sandboxId: string): Promise<void> {
+-    await this.request({
+-      method: "DELETE",
+-      path: `/sandboxes/${encodeURIComponent(sandboxId)}`,
+-      accessToken,
+-    });
++    const accepted = await requestBoatDeletion(
++      sandboxId,
++      this.deletionRequestTimeoutMs,
++      (signal) =>
++        this.request({
++          method: "DELETE",
++          path: `/sandboxes/${encodeURIComponent(sandboxId)}`,
++          accessToken,
++          signal,
++        }),
++    );
++    if (accepted.status === "completed") return;
++    await this.waitForDeletion(accessToken, sandboxId, accepted.id);
++  }
++
++  /** Resume checking an accepted deletion after BoatDeletionPendingError. */
++  async waitForDeletion(
++    accessToken: string,
++    sandboxId: string,
++    operationId: string,
++  ): Promise<void> {
++    await waitForBoatDeletion(
++      sandboxId,
++      operationId,
++      this.deletionTimeoutMs,
++      this.deletionPollIntervalMs,
++      (id, signal) =>
++        this.request({
++          method: "GET",
++          path: `/deletion-operations/${id}`,
++          accessToken,
++          signal,
++        }),
++    );
+   }
+ }
+diff --git a/packages/agent-sandboxes/src/boat-deletion.test.ts b/packages/agent-sandboxes/src/boat-deletion.test.ts
+new file mode 100644
+index 000000000..8ae9901c1
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-deletion.test.ts
+@@ -0,0 +1,215 @@
++import { expect, it } from "vitest";
++import {
++  BoatClient,
++  BoatDeletionPendingError,
++  BoatDeletionUnconfirmedError,
++  type BoatJsonValue,
++} from "./boat-client.js";
++import { BoatSandboxProvider } from "./boat-provider.js";
++
++it("resumes a previously accepted deletion with the provider's credential", async () => {
++  const id = "bdop_0123456789abcdef0123456789abcdef";
++  let authorization = "";
++  const fetchImpl: typeof fetch = async (_input, init) => {
++    authorization = new Headers(init?.headers).get("authorization") ?? "";
++    return new Response(
++      JSON.stringify({
++        ok: true,
++        operation: {
++          id,
++          kind: "sandbox",
++          targetId: "bx_23456789",
++          status: "completed",
++        },
++      }),
++      { status: 200 },
++    );
++  };
++  const client = new BoatClient({
++    origin: "https://boat.test",
++    fetchImpl,
++    deletionPollIntervalMs: 1,
++  });
++  const provider = new BoatSandboxProvider({ client, apiToken: "boat-key" });
++  await provider.waitForDeletion("bx_23456789", id);
++  expect(authorization).toBe("Bearer boat-key");
++});
++
++it("preserves a resumable deletion receipt when failed allocation cleanup is pending", async () => {
++  const id = "bdop_0123456789abcdef0123456789abcdef";
++  let completed = false;
++  const fetchImpl: typeof fetch = async (input, init) => {
++    const path = new URL(
++      input instanceof Request ? input.url : input.toString(),
++    ).pathname;
++    let body: BoatJsonValue;
++    if (path === "/api/v1/sandboxes")
++      body = {
++        ok: true,
++        sandbox: { id: "bx_23456789", state: "provisioning" },
++      };
++    else if (path.endsWith("/commands"))
++      body = { ok: true, type: "command.started", success: true, processId: 1 };
++    else if (path.endsWith("/host"))
++      body = {
++        ok: true,
++        port: 8787,
++        isProtected: true,
++        access: "private",
++        url: "https://other-8787.on.boat.dev?_token=hidden",
++      };
++    else if (init?.method === "DELETE" || path.includes("deletion-operations"))
++      body = {
++        ok: true,
++        operation: {
++          id,
++          kind: "sandbox",
++          targetId: "bx_23456789",
++          status: completed ? "completed" : "pending",
++        },
++      };
++    else
++      body = {
++        ok: true,
++        sandbox: {
++          id: "bx_23456789",
++          state: "ready",
++          url: "https://machine.on.boat.dev",
++        },
++      };
++    return new Response(JSON.stringify(body), {
++      status: init?.method === "DELETE" ? 202 : 200,
++    });
++  };
++  const client = new BoatClient({
++    origin: "https://boat.test",
++    fetchImpl,
++    deletionTimeoutMs: 100,
++    deletionPollIntervalMs: 1,
++  });
++  const provider = new BoatSandboxProvider({
++    client,
++    origin: "https://boat.test",
++    apiToken: "boat-key",
++    agentCommand: "agent",
++  });
++  let observed: Error | null = null;
++  try {
++    await provider.allocate({ origin: "https://accounts.example.test" });
++  } catch (error) {
++    if (error instanceof Error) observed = error;
++    else throw error;
++  }
++  expect(observed).toBeInstanceOf(AggregateError);
++  if (!(observed instanceof AggregateError))
++    throw new Error("expected cleanup aggregate");
++  const pending = observed.errors.find(
++    (item) => item instanceof BoatDeletionPendingError,
++  );
++  expect(pending).toBeInstanceOf(BoatDeletionPendingError);
++  if (!(pending instanceof BoatDeletionPendingError))
++    throw new Error("missing deletion receipt");
++  expect(pending.operationId).toBe(id);
++  completed = true;
++  await provider.waitForDeletion(pending.sandboxId, pending.operationId);
++});
++
++it.each(["reject", "malformed", "mismatch", "stall"] as const)(
++  "keeps the sandbox ID when the initial DELETE is %s",
++  async (mode) => {
++    const fetchImpl: typeof fetch = async (_input, _init) => {
++      if (mode === "reject") throw new Error("transport failure");
++      if (mode === "stall") return new Promise<Response>(() => {});
++      if (mode === "malformed")
++        return new Response("invalid JSON", { status: 202 });
++      return new Response(
++        JSON.stringify({
++          ok: true,
++          operation: {
++            id: "bdop_0123456789abcdef0123456789abcdef",
++            kind: "sandbox",
++            targetId: "bx_98765432",
++            status: "pending",
++          },
++        }),
++        { status: 202 },
++      );
++    };
++    const client = new BoatClient({
++      origin: "https://boat.test",
++      fetchImpl,
++      deletionRequestTimeoutMs: 30,
++    });
++    let caught: Error | null = null;
++    try {
++      await client.deleteSandbox("boat-key", "bx_23456789");
++    } catch (error) {
++      if (error instanceof Error) caught = error;
++      else throw error;
++    }
++    expect(caught).toBeInstanceOf(BoatDeletionUnconfirmedError);
++    if (!(caught instanceof BoatDeletionUnconfirmedError))
++      throw new Error("missing cleanup identity");
++    expect(caught.sandboxId).toBe("bx_23456789");
++  },
++);
++
++it("exposes the sandbox ID if allocation fails and the DELETE receipt is unavailable", async () => {
++  const fetchImpl: typeof fetch = async (input, init) => {
++    const path = new URL(
++      input instanceof Request ? input.url : input.toString(),
++    ).pathname;
++    let body: BoatJsonValue;
++    if (path === "/api/v1/sandboxes")
++      body = {
++        ok: true,
++        sandbox: { id: "bx_23456789", state: "provisioning" },
++      };
++    else if (path.endsWith("/commands"))
++      body = { ok: true, type: "command.started", success: true, processId: 1 };
++    else if (path.endsWith("/host"))
++      body = {
++        ok: true,
++        port: 8787,
++        isProtected: true,
++        access: "private",
++        url: "https://other-8787.on.boat.dev?_token=hidden",
++      };
++    else if (init?.method === "DELETE")
++      throw new Error("network failure after DELETE");
++    else
++      body = {
++        ok: true,
++        sandbox: {
++          id: "bx_23456789",
++          state: "ready",
++          url: "https://machine.on.boat.dev",
++        },
++      };
++    return new Response(JSON.stringify(body), { status: 200 });
++  };
++  const client = new BoatClient({ origin: "https://boat.test", fetchImpl });
++  const provider = new BoatSandboxProvider({
++    client,
++    origin: "https://boat.test",
++    apiToken: "boat-key",
++    agentCommand: "agent",
++  });
++  let caught: Error | null = null;
++  try {
++    await provider.allocate({ origin: "https://accounts.example.test" });
++  } catch (error) {
++    if (error instanceof Error) caught = error;
++    else throw error;
++  }
++  expect(caught).toBeInstanceOf(AggregateError);
++  if (!(caught instanceof AggregateError))
++    throw new Error("expected cleanup aggregate");
++  const unconfirmed = caught.errors.find(
++    (item) => item instanceof BoatDeletionUnconfirmedError,
++  );
++  expect(unconfirmed).toBeInstanceOf(BoatDeletionUnconfirmedError);
++  if (!(unconfirmed instanceof BoatDeletionUnconfirmedError))
++    throw new Error("missing sandbox identity");
++  expect(unconfirmed.sandboxId).toBe("bx_23456789");
++});
+diff --git a/packages/agent-sandboxes/src/boat-deletion.ts b/packages/agent-sandboxes/src/boat-deletion.ts
+new file mode 100644
+index 000000000..0963b01a1
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-deletion.ts
+@@ -0,0 +1,121 @@
++/** Accepted deletion is not the same as completed data erasure. */
++import { z } from "zod";
++import type { BoatJsonValue } from "./boat-client.js";
++
++const deletionOperationSchema = z.object({
++  ok: z.literal(true),
++  operation: z.object({
++    id: z.string().regex(/^bdop_[a-f0-9]{32}$/u),
++    kind: z.literal("sandbox"),
++    targetId: z.string(),
++    status: z.enum(["pending", "processing", "blocked", "completed"]),
++  }),
++});
++
++/** No trustworthy operation receipt was obtained; the sandbox ID remains actionable. */
++export class BoatDeletionUnconfirmedError extends Error {
++  constructor(readonly sandboxId: string) {
++    super(
++      "boat: sandbox deletion was not confirmed; inspect the sandbox in Boat",
++    );
++    this.name = "BoatDeletionUnconfirmedError";
++  }
++}
++
++export async function requestBoatDeletion(
++  sandboxId: string,
++  timeoutMs: number,
++  send: (signal: AbortSignal) => Promise<BoatJsonValue>,
++) {
++  if (!/^bx_[23456789abcdefghjkmnpqrstuvwxyz]{8}$/u.test(sandboxId))
++    throw new Error("boat: invalid sandbox id");
++  const controller = new AbortController();
++  let timer: ReturnType<typeof setTimeout> | undefined;
++  const timeout = new Promise<never>((_resolve, reject) => {
++    timer = setTimeout(() => {
++      controller.abort();
++      reject(new BoatDeletionUnconfirmedError(sandboxId));
++    }, timeoutMs);
++  });
++  try {
++    const raw = await Promise.race([send(controller.signal), timeout]);
++    return parseBoatDeletionReceipt(raw, sandboxId);
++  } catch {
++    throw new BoatDeletionUnconfirmedError(sandboxId);
++  } finally {
++    if (timer) clearTimeout(timer);
++  }
++}
++
++/** Deletion was accepted but erasure has not been confirmed. */
++export class BoatDeletionPendingError extends Error {
++  constructor(
++    readonly operationId: string,
++    readonly sandboxId: string,
++  ) {
++    super(
++      "boat: sandbox deletion is not yet confirmed; check the deletion operation",
++    );
++    this.name = "BoatDeletionPendingError";
++  }
++}
++
++export function parseBoatDeletionReceipt(
++  raw: BoatJsonValue,
++  sandboxId: string,
++) {
++  const parsed = deletionOperationSchema.safeParse(raw);
++  if (!parsed.success || parsed.data.operation.targetId !== sandboxId)
++    throw new Error(
++      "boat: deletion completion is not confirmed; invalid operation receipt",
++    );
++  return parsed.data.operation;
++}
++
++export async function waitForBoatDeletion(
++  sandboxId: string,
++  operationId: string,
++  timeoutMs: number,
++  intervalMs: number,
++  read: (operationId: string, signal: AbortSignal) => Promise<BoatJsonValue>,
++): Promise<void> {
++  if (
++    !/^bdop_[a-f0-9]{32}$/u.test(operationId) ||
++    !/^bx_[23456789abcdefghjkmnpqrstuvwxyz]{8}$/u.test(sandboxId)
++  )
++    throw new Error("boat: invalid deletion identity");
++  const deadline = performance.now() + timeoutMs;
++  while (performance.now() < deadline) {
++    const remaining = deadline - performance.now();
++    await new Promise<void>((resolve) =>
++      setTimeout(resolve, Math.min(intervalMs, remaining)),
++    );
++    const timeLeft = Math.ceil(deadline - performance.now());
++    if (timeLeft <= 0) break;
++    const controller = new AbortController();
++    let timer: ReturnType<typeof setTimeout> | undefined;
++    const timeout = new Promise<never>((_resolve, reject) => {
++      timer = setTimeout(() => {
++        controller.abort();
++        reject(new BoatDeletionPendingError(operationId, sandboxId));
++      }, timeLeft);
++    });
++    let raw: BoatJsonValue;
++    try {
++      raw = await Promise.race([read(operationId, controller.signal), timeout]);
++    } catch {
++      throw new BoatDeletionPendingError(operationId, sandboxId);
++    } finally {
++      if (timer) clearTimeout(timer);
++    }
++    const parsed = deletionOperationSchema.safeParse(raw);
++    if (
++      !parsed.success ||
++      parsed.data.operation.id !== operationId ||
++      parsed.data.operation.targetId !== sandboxId
++    )
++      throw new BoatDeletionPendingError(operationId, sandboxId);
++    if (parsed.data.operation.status === "completed") return;
++  }
++  throw new BoatDeletionPendingError(operationId, sandboxId);
++}
+diff --git a/packages/agent-sandboxes/src/boat-endpoints.test.ts b/packages/agent-sandboxes/src/boat-endpoints.test.ts
+new file mode 100644
+index 000000000..67348e02e
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-endpoints.test.ts
+@@ -0,0 +1,164 @@
++import { describe, expect, it } from "vitest";
++import {
++  boatCheckoutUrl,
++  boatClaimUrl,
++  boatHostedRelay,
++  boatOrigin,
++} from "./boat-endpoints.js";
++
++describe("Boat endpoint trust", () => {
++  it("requires HTTPS for remote control planes and refuses credentials or paths", () => {
++    expect(boatOrigin("https://boat.dev/")).toBe("https://boat.dev");
++    expect(boatOrigin("http://127.0.0.1:1234")).toBe("http://127.0.0.1:1234");
++    for (const value of [
++      "http://boat.dev",
++      "http://localhost:1",
++      "http://127.1:1",
++      "http://0x7f000001:1",
++      "http://0177.0.0.1:1",
++      "https://user:pass@boat.dev",
++      "https://boat.dev/path",
++      "https://boat.dev/?x=1",
++    ]) {
++      expect(() => boatOrigin(value)).toThrow();
++    }
++  });
++  it("binds claim links to the control plane and checkout to Stripe", () => {
++    expect(
++      boatClaimUrl(
++        "/api/boat/agent/identity/claim?claim_attempt_token=x",
++        "https://boat.dev",
++      ),
++    ).toBe(
++      "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=x",
++    );
++    expect(() =>
++      boatClaimUrl(
++        "https://evil.test/api/boat/agent/identity/claim",
++        "https://boat.dev",
++      ),
++    ).toThrow();
++    expect(() =>
++      boatClaimUrl("https://boat.dev/other", "https://boat.dev"),
++    ).toThrow();
++    expect(
++      boatCheckoutUrl(
++        "https://checkout.stripe.com/c/pay/example",
++        "https://boat.dev",
++      ),
++    ).toContain("checkout.stripe.com");
++    for (const value of [
++      "http://checkout.stripe.com/",
++      "https://checkout.stripe.com.evil.test/",
++      "https://evil.test/",
++    ])
++      expect(() => boatCheckoutUrl(value, "https://boat.dev")).toThrow();
++  });
++  it("binds the protected WSS route to the same authenticated sandbox and port", () => {
++    expect(
++      boatHostedRelay(
++        "https://swift-otter-8787.on.boat.dev/?_token=secret",
++        "https://swift-otter.on.boat.dev",
++        "https://boat.dev",
++        8787,
++      ),
++    ).toEqual({
++      url: "wss://swift-otter-8787.on.boat.dev/",
++      cookie: "_port_auth=secret",
++    });
++    for (const value of [
++      "http://swift-otter-8787.on.boat.dev/?_token=secret",
++      "https://other-8787.on.boat.dev/?_token=secret",
++      "https://swift-otter-1234.on.boat.dev/?_token=secret",
++      "https://swift-otter-8787.on.boat.dev.evil.test/?_token=secret",
++      "https://swift-otter-8787.on.boat.dev/?_token=one&_token=two",
++      "https://swift-otter-8787.on.boat.dev/?_token=secret%3Bother%3Dvalue",
++      "https://swift-otter-8787.on.boat.dev/?_token=secret&next=x",
++      "https://swift-otter-8787.on.boat.dev/",
++    ])
++      expect(() =>
++        boatHostedRelay(
++          value,
++          "https://swift-otter.on.boat.dev",
++          "https://boat.dev",
++          8787,
++        ),
++      ).toThrow();
++    expect(
++      boatHostedRelay(
++        "http://127.0.0.1:8787",
++        "http://127.0.0.1:12345",
++        "http://127.0.0.1:12345",
++        8787,
++      ),
++    ).toEqual({ url: "ws://127.0.0.1:8787/" });
++    expect(() =>
++      boatHostedRelay(
++        "http://127.0.0.1:9999",
++        "http://127.0.0.1:12345",
++        "http://127.0.0.1:12345",
++        8787,
++      ),
++    ).toThrow();
++    expect(() =>
++      boatHostedRelay(
++        "http://127.0.0.1:8787",
++        "http://127.0.0.1:9999",
++        "http://127.0.0.1:12345",
++        8787,
++      ),
++    ).toThrow();
++    expect(() =>
++      boatHostedRelay(
++        "http://127.0.0.1:1234",
++        "http://127.0.0.1",
++        "https://boat.dev",
++        8787,
++      ),
++    ).toThrow();
++  });
++});
++
++it.each([307, 308])(
++  "does not follow credential-bearing %s control-plane redirects",
++  async (status) => {
++    const { createServer } = await import("node:http");
++    const { BoatAgentAuth } = await import("./boat-auth.js");
++    const { BoatClient } = await import("./boat-client.js");
++    let redirected = 0;
++    const server = createServer((request, response) => {
++      if (request.url === "/sink") {
++        redirected += 1;
++        response.writeHead(200).end("{}");
++        return;
++      }
++      response.writeHead(status, { location: "/sink" }).end();
++    });
++    await new Promise<void>((resolve) =>
++      server.listen(0, "127.0.0.1", resolve),
++    );
++    try {
++      const address = server.address();
++      if (!(address instanceof Object)) throw new Error("missing address");
++      const origin = `http://127.0.0.1:${address.port}`;
++      await expect(
++        new BoatAgentAuth({ origin }).requestClaim(
++          "claim-secret",
++          "person@example.test",
++        ),
++      ).rejects.toThrow();
++      await expect(
++        new BoatAgentAuth({ origin }).exchangeAssertion("assertion-secret"),
++      ).rejects.toThrow();
++      await expect(
++        new BoatClient({ origin }).createCheckout("access-secret"),
++      ).rejects.toThrow();
++      await expect(
++        new BoatClient({ origin }).getSandbox("access-secret", "bx_23456789"),
++      ).rejects.toThrow();
++      expect(redirected).toBe(0);
++    } finally {
++      await new Promise<void>((resolve) => server.close(() => resolve()));
++    }
++  },
++);
+diff --git a/packages/agent-sandboxes/src/boat-endpoints.ts b/packages/agent-sandboxes/src/boat-endpoints.ts
+new file mode 100644
+index 000000000..9c6f1bf2a
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-endpoints.ts
+@@ -0,0 +1,136 @@
++/** Boat control-plane and returned URLs are credential boundaries. */
++const isLoopback = (url: URL) =>
++  url.hostname === "127.0.0.1" || url.hostname === "[::1]";
++const literalLoopbackHttp = (value: string) =>
++  /^http:\/\/(?:127\.0\.0\.1|\[::1\])(?::[0-9]+)?\/?$/iu.test(value);
++
++function parseEndpoint(value: string, base?: string): URL {
++  try {
++    return new URL(value, base);
++  } catch {
++    // Never expose returned URLs: hosted URLs can contain credentials.
++    throw new Error("boat: invalid endpoint URL");
++  }
++}
++
++export function boatOrigin(value: string): string {
++  const url = parseEndpoint(value);
++  if (
++    url.username ||
++    url.password ||
++    url.search ||
++    url.hash ||
++    url.pathname !== "/" ||
++    (url.protocol !== "https:" &&
++      !(
++        url.protocol === "http:" &&
++        isLoopback(url) &&
++        literalLoopbackHttp(value)
++      ))
++  )
++    throw new Error("boat: invalid control-plane origin");
++  return url.origin;
++}
++
++export function boatClaimUrl(value: string, origin: string): string {
++  const url = parseEndpoint(value, origin);
++  if (
++    url.origin !== origin ||
++    url.username ||
++    url.password ||
++    url.hash ||
++    url.pathname !== "/api/boat/agent/identity/claim"
++  )
++    throw new Error("boat: invalid claim URL");
++  return url.href;
++}
++
++export function boatCheckoutUrl(value: string, origin: string): string {
++  const url = parseEndpoint(value, origin);
++  const development =
++    isLoopback(parseEndpoint(origin)) && url.origin === origin;
++  if (
++    url.username ||
++    url.password ||
++    url.hash ||
++    !(
++      development ||
++      (url.protocol === "https:" &&
++        url.hostname === "checkout.stripe.com" &&
++        !url.port)
++    )
++  )
++    throw new Error("boat: invalid checkout URL");
++  return url.href;
++}
++
++export type BoatHostedRelay = { url: string; cookie?: string };
++
++/** Bind a protected port to the authenticated sandbox's documented base URL. */
++export function boatHostedRelay(
++  hosted: string,
++  sandboxUrl: string,
++  origin: string,
++  port: number,
++): BoatHostedRelay {
++  const api = parseEndpoint(origin);
++  const base = parseEndpoint(sandboxUrl);
++  const url = parseEndpoint(hosted);
++  if (
++    isLoopback(api) &&
++    api.protocol === "http:" &&
++    isLoopback(base) &&
++    isLoopback(url) &&
++    literalLoopbackHttp(origin) &&
++    literalLoopbackHttp(sandboxUrl) &&
++    literalLoopbackHttp(hosted) &&
++    base.protocol === "http:" &&
++    base.origin === api.origin &&
++    base.pathname === "/" &&
++    !base.username &&
++    !base.password &&
++    !base.search &&
++    !base.hash &&
++    url.protocol === "http:" &&
++    url.hostname === api.hostname &&
++    Number(url.port) === port &&
++    !url.username &&
++    !url.password &&
++    !url.search &&
++    !url.hash &&
++    url.pathname === "/"
++  ) {
++    url.protocol = "ws:";
++    return { url: url.href };
++  }
++  const suffix = ".on.boat.dev";
++  const label = base.hostname.endsWith(suffix)
++    ? base.hostname.slice(0, -suffix.length)
++    : "";
++  if (
++    base.protocol !== "https:" ||
++    base.port ||
++    base.username ||
++    base.password ||
++    base.search ||
++    base.hash ||
++    base.pathname !== "/" ||
++    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(label) ||
++    url.protocol !== "https:" ||
++    url.port ||
++    url.username ||
++    url.password ||
++    url.hash ||
++    url.pathname !== "/" ||
++    url.hostname !== `${label}-${port}${suffix}`
++  )
++    throw new Error("boat: invalid hosted relay destination");
++  const entries = [...url.searchParams.entries()];
++  const token =
++    entries.length === 1 && entries[0]?.[0] === "_token" ? entries[0][1] : "";
++  if (!/^[\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]+$/u.test(token))
++    throw new Error("boat: invalid hosted relay credential");
++  url.search = "";
++  url.protocol = "wss:";
++  return { url: url.href, cookie: `_port_auth=${token}` };
++}
+diff --git a/packages/agent-sandboxes/src/boat-error.ts b/packages/agent-sandboxes/src/boat-error.ts
+new file mode 100644
+index 000000000..4ad2b2765
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-error.ts
+@@ -0,0 +1,36 @@
++import { z } from "zod";
++import type { BoatJsonValue } from "./boat-client.js";
++
++const errorEnvelopeSchema = z.object({
++  ok: z.literal(false),
++  code: z.string().optional(),
++  message: z.string().optional(),
++  error: z
++    .object({ code: z.string().optional(), message: z.string().optional() })
++    .optional(),
++});
++
++/** A Boat API error with its stable machine-readable code. */
++export class BoatApiError extends Error {
++  readonly code: string;
++  readonly status: number;
++  constructor(input: { code: string; status: number; message: string }) {
++    super(`boat: ${input.message} (${input.code})`);
++    this.name = "BoatApiError";
++    this.code = input.code;
++    this.status = input.status;
++  }
++}
++
++export function boatApiError(raw: BoatJsonValue, status: number): BoatApiError {
++  const parsed = errorEnvelopeSchema.safeParse(raw);
++  const code =
++    (parsed.success
++      ? (parsed.data.code ?? parsed.data.error?.code)
++      : undefined) ?? `http_${status}`;
++  const message =
++    (parsed.success
++      ? (parsed.data.message ?? parsed.data.error?.message)
++      : undefined) ?? `HTTP ${status}`;
++  return new BoatApiError({ code, status, message });
++}
+diff --git a/packages/agent-sandboxes/src/boat-hosted-destination.test.ts b/packages/agent-sandboxes/src/boat-hosted-destination.test.ts
+new file mode 100644
+index 000000000..0eafbf789
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-hosted-destination.test.ts
+@@ -0,0 +1,118 @@
++import { afterEach, expect, it } from "vitest";
++import { WebSocketServer } from "ws";
++import { z } from "zod";
++import { BoatSandboxProvider } from "./boat-provider.js";
++
++const frameSchema = z.object({
++  type: z.string().optional(),
++  token: z.string().optional(),
++  id: z.number().optional(),
++  method: z.string().optional(),
++  value: z.string().optional(),
++});
++
++let attacker: WebSocketServer | undefined;
++afterEach(async () => {
++  if (!attacker) return;
++  for (const client of attacker.clients) client.terminate();
++  await new Promise<void>((resolve) => attacker?.close(() => resolve()));
++  attacker = undefined;
++});
++
++it("rejects a hosted relay URL outside the allocated sandbox before sending credentials", async () => {
++  let receivedBearer = false;
++  let receivedSecret = false;
++  let connections = 0;
++  attacker = new WebSocketServer({ port: 0, host: "127.0.0.1" });
++  await new Promise<void>((resolve) => attacker?.once("listening", resolve));
++  const address = attacker.address();
++  if (!address || typeof address === "string")
++    throw new Error("missing test port");
++  attacker.on("connection", (socket) => {
++    connections += 1;
++    socket.on("message", (data) => {
++      const frame = frameSchema.parse(JSON.parse(data.toString()));
++      if (frame.type === "auth") {
++        receivedBearer ||= Boolean(frame.token);
++        socket.send(JSON.stringify({ id: 0, ok: true }));
++      } else if (frame.id !== undefined) {
++        if (
++          frame.method === "fillSecret" &&
++          frame.value === "synthetic-password-canary"
++        )
++          receivedSecret = true;
++        socket.send(JSON.stringify({ id: frame.id, ok: true }));
++      }
++    });
++  });
++  const respond = (body: unknown) =>
++    new Response(JSON.stringify(body), {
++      status: 200,
++      headers: { "content-type": "application/json" },
++    });
++  const provider = new BoatSandboxProvider({
++    apiToken: "synthetic-boat-key",
++    agentCommand: "fake-agent",
++    pollIntervalMs: 1,
++    fetchImpl: async (input, init) => {
++      const path = new URL(input.toString()).pathname;
++      if (path.endsWith("/sandboxes") && init?.method === "POST")
++        return respond({
++          ok: true,
++          sandbox: { id: "bx_23456789", state: "provisioning" },
++        });
++      if (path.endsWith("/sandboxes/bx_23456789") && init?.method === "GET")
++        return respond({
++          ok: true,
++          sandbox: {
++            id: "bx_23456789",
++            state: "ready",
++            url: "https://victim.on.boat.dev",
++          },
++        });
++      if (path.endsWith("/commands"))
++        return respond({
++          ok: true,
++          type: "command.started",
++          success: true,
++          processId: 7,
++        });
++      if (path.endsWith("/host"))
++        return respond({
++          ok: true,
++          url: `http://127.0.0.1:${address.port}`,
++          port: 8787,
++          isProtected: true,
++          access: "private",
++        });
++      if (init?.method === "DELETE")
++        return respond({
++          ok: true,
++          operation: {
++            id: `bdop_${"a".repeat(32)}`,
++            kind: "sandbox",
++            targetId: "bx_23456789",
++            status: "completed",
++          },
++        });
++      throw new Error(`unexpected fake endpoint: ${path}`);
++    },
++  });
++  let failure: unknown;
++  try {
++    const sandbox = await provider.allocate({
++      origin: "https://accounts.example.test",
++    });
++    await sandbox.browser.fillSecret("e1", "synthetic-password-canary");
++    await sandbox.close();
++  } catch (error) {
++    failure = error;
++  }
++  process.stdout.write(
++    `BOAT_RELAY_PROBE bearer=${receivedBearer} secret=${receivedSecret} connections=${connections}\n`,
++  );
++  expect(receivedBearer).toBe(false);
++  expect(receivedSecret).toBe(false);
++  expect(connections).toBe(0);
++  expect(failure).toBeInstanceOf(Error);
++});
+diff --git a/packages/agent-sandboxes/src/boat-provider.test.ts b/packages/agent-sandboxes/src/boat-provider.test.ts
+index 4d21ac5ff..390246a8f 100644
+--- a/packages/agent-sandboxes/src/boat-provider.test.ts
++++ b/packages/agent-sandboxes/src/boat-provider.test.ts
+@@ -21,7 +21,8 @@ import { SandboxClaimRequiredError } from "./types.js";
+ 
+ const CLAIM = {
+   user_code: "123456",
+-  verification_uri: "https://boat.test/claim?claim_attempt_token=x",
++  verification_uri:
++    "http://127.0.0.1:12345/api/boat/agent/identity/claim?claim_attempt_token=x",
+   expires_in: 600,
+   interval: 5,
+ };
+@@ -76,7 +77,7 @@ function errorEnvelope(status: number, code: string) {
+   };
+ }
+ 
+-function fakeBoat() {
++function fakeBoat(wrongRelayToken = false) {
+   const state = { claimed: false, billed: false };
+   const requests: RecordedRequest[] = [];
+   const driver = new StubDriver();
+@@ -97,7 +98,7 @@ function fakeBoat() {
+         ? respond({ access_token: "boat_live" })
+         : respond({ error: "authorization_pending" }, 400);
+     if (path === "/api/boat/billing/checkout")
+-      return respond({ url: "https://checkout.test/session" });
++      return respond({ url: "https://checkout.stripe.com/session" });
+     return null;
+   };
+ 
+@@ -126,10 +127,18 @@ function fakeBoat() {
+     if (path === "/api/v1/sandboxes/bx_23456789" && method === "GET")
+       return respond({
+         ok: true,
+-        sandbox: { id: "bx_23456789", state: "ready" },
++        sandbox: {
++          id: "bx_23456789",
++          state: "ready",
++          url: "http://127.0.0.1:12345",
++        },
+       });
+     if (path.endsWith("/commands")) {
+-      relay = await startRelayServer({ token: relayToken, driver });
++      relay = await startRelayServer({
++        port: 8787,
++        token: wrongRelayToken ? "wrong-token" : relayToken,
++        driver,
++      });
+       return respond({
+         ok: true,
+         type: "command.started",
+@@ -141,8 +150,20 @@ function fakeBoat() {
+       return respond({
+         ok: true,
+         url: `http://127.0.0.1:${relay?.port ?? 0}`,
++        port: 8787,
++        isProtected: true,
++        access: "private",
++      });
++    if (method === "DELETE")
++      return respond({
++        ok: true,
++        operation: {
++          id: "bdop_0123456789abcdef0123456789abcdef",
++          kind: "sandbox",
++          targetId: "bx_23456789",
++          status: "completed",
++        },
+       });
+-    if (method === "DELETE") return respond({ ok: true });
+     return null;
+   };
+ 
+@@ -168,7 +189,7 @@ function fakeBoat() {
+     driver,
+     // SAFETY: checked at the fake-fetch boundary: the mock implements exactly the (url, init) call shapes the Boat clients send.
+     provider: new BoatSandboxProvider({
+-      origin: "https://boat.test",
++      origin: "http://127.0.0.1:12345",
+       fetchImpl: fetchImpl as typeof fetch,
+       claimEmail: "person@example.test",
+       agentCommand: "opensesame-boat-agent",
+@@ -193,6 +214,107 @@ describe("BoatSandboxProvider", () => {
+     ).rejects.toThrow("agent start command");
+   });
+ 
++  it("refuses an unrelated hosted port and cleans up before any relay connection", async () => {
++    const { createServer } = await import("node:http");
++    let sinkConnections = 0;
++    const sink = createServer((_request, response) => {
++      sinkConnections += 1;
++      response.writeHead(200).end();
++    });
++    await new Promise<void>((resolve) => sink.listen(0, "127.0.0.1", resolve));
++    try {
++      const address = sink.address();
++      if (!(address instanceof Object)) throw new Error("missing sink address");
++      let deleted = false;
++      const fakeFetch: typeof fetch = async (input, init) => {
++        const path = new URL(
++          input instanceof Request ? input.url : input.toString(),
++        ).pathname;
++        let body: BoatJsonValue;
++        if (path === "/api/v1/sandboxes" && init?.method === "POST")
++          body = {
++            ok: true,
++            sandbox: { id: "bx_23456789", state: "provisioning" },
++          };
++        else if (path.endsWith("/commands"))
++          body = {
++            ok: true,
++            type: "command.started",
++            success: true,
++            processId: 7,
++          };
++        else if (path.endsWith("/host"))
++          body = {
++            ok: true,
++            port: 8787,
++            isProtected: true,
++            access: "private",
++            url: `http://127.0.0.1:${address.port}`,
++          };
++        else if (init?.method === "DELETE") {
++          deleted = true;
++          expect(new Headers(init.headers).get("x-ascii-confirm-delete")).toBe(
++            "bx_23456789",
++          );
++          body = {
++            ok: true,
++            operation: {
++              id: "bdop_0123456789abcdef0123456789abcdef",
++              kind: "sandbox",
++              targetId: "bx_23456789",
++              status: "completed",
++            },
++          };
++        } else
++          body = {
++            ok: true,
++            sandbox: {
++              id: "bx_23456789",
++              state: "ready",
++              url: "https://machine.on.boat.dev",
++            },
++          };
++        return new Response(JSON.stringify(body), { status: 200 });
++      };
++      const provider = new BoatSandboxProvider({
++        origin: "https://boat.test",
++        apiToken: "boat-key",
++        agentCommand: "agent",
++        fetchImpl: fakeFetch,
++      });
++      await expect(
++        provider.allocate({ origin: "https://accounts.example.test" }),
++      ).rejects.toThrow("invalid hosted relay destination");
++      expect(sinkConnections).toBe(0);
++      expect(deleted).toBe(true);
++    } finally {
++      await new Promise<void>((resolve) => sink.close(() => resolve()));
++    }
++  });
++
++  it("rejects relay authentication failure before allocation and deletes the sandbox", async () => {
++    const boat = fakeBoat(true);
++    try {
++      await expect(
++        boat.provider.allocate({ origin: "https://accounts.example.test" }),
++      ).rejects.toBeInstanceOf(SandboxClaimRequiredError);
++      boat.state.claimed = true;
++      boat.state.billed = true;
++      await expect(
++        boat.provider.allocate({ origin: "https://accounts.example.test" }),
++      ).rejects.toThrow("relay authentication failed");
++      expect(
++        boat.requests.some(
++          (entry) =>
++            entry.method === "DELETE" &&
++            entry.path === "/api/v1/sandboxes/bx_23456789",
++        ),
++      ).toBe(true);
++    } finally {
++      await boat.closeRelay();
++    }
++  });
++
+   it("walks claim, then billing, then drives the relay with no secrets in commands", async () => {
+     const boat = fakeBoat();
+     const request = { origin: "https://accounts.example.test" };
+@@ -217,7 +339,9 @@ describe("BoatSandboxProvider", () => {
+       expect(billingError).toBeInstanceOf(SandboxClaimRequiredError);
+       // SAFETY: checked immediately above with toBeInstanceOf on the same value.
+       const billing = billingError as SandboxClaimRequiredError;
+-      expect(billing.verificationUri).toBe("https://checkout.test/session");
++      expect(billing.verificationUri).toBe(
++        "https://checkout.stripe.com/session",
++      );
+ 
+       // 3. Billed: allocation completes and the browser is the relay.
+       boat.state.billed = true;
+diff --git a/packages/agent-sandboxes/src/boat-provider.ts b/packages/agent-sandboxes/src/boat-provider.ts
+index 9f3becf74..9237450e6 100644
+--- a/packages/agent-sandboxes/src/boat-provider.ts
++++ b/packages/agent-sandboxes/src/boat-provider.ts
+@@ -33,7 +33,8 @@ import {
+   BoatClient,
+   type BoatClientOptions,
+ } from "./boat-client.js";
+-import { relayDriverOverWebSocket } from "./relay-driver.js";
++import { boatClaimUrl, boatHostedRelay, boatOrigin } from "./boat-endpoints.js";
++import { closeBoatRelay, connectBoatRelay } from "./boat-relay.js";
+ import {
+   type AllocatedSandbox,
+   type SandboxAllocationRequest,
+@@ -68,6 +69,8 @@ export interface BoatProviderOptions {
+   keepSandbox?: boolean;
+   readyTimeoutMs?: number;
+   agentReadyTimeoutMs?: number;
++  /** Maximum time to wait for the relay to close before deleting the sandbox. */
++  relayCloseTimeoutMs?: number;
+   pollIntervalMs?: number;
+ }
+ 
+@@ -87,6 +90,13 @@ export class BoatSandboxProvider implements SandboxProvider {
+   private claimMaterials: BoatClaimMaterials | undefined;
+ 
+   constructor(private readonly options: BoatProviderOptions = {}) {
++    if (
++      options.relayCloseTimeoutMs !== undefined &&
++      (!Number.isInteger(options.relayCloseTimeoutMs) ||
++        options.relayCloseTimeoutMs < 1 ||
++        options.relayCloseTimeoutMs > 30_000)
++    )
++      throw new Error("boat: invalid relay close timeout");
+     this.accessToken =
+       options.apiToken ??
+       process.env.BOAT_API_KEY ??
+@@ -97,7 +107,7 @@ export class BoatSandboxProvider implements SandboxProvider {
+   }
+ 
+   private get origin(): string {
+-    return (this.options.origin ?? "https://boat.dev").replace(/\/$/u, "");
++    return boatOrigin(this.options.origin ?? "https://boat.dev");
+   }
+ 
+   private get claimEmail(): string | undefined {
+@@ -123,7 +133,7 @@ export class BoatSandboxProvider implements SandboxProvider {
+     const claim = materials ?? this.claimMaterials;
+     if (claim)
+       throw new SandboxClaimRequiredError({
+-        verificationUri: claim.verificationUri,
++        verificationUri: boatClaimUrl(claim.verificationUri, this.origin),
+         userCode: claim.userCode,
+       });
+     throw new SandboxClaimRequiredError({
+@@ -219,12 +229,15 @@ export class BoatSandboxProvider implements SandboxProvider {
+     }
+   }
+ 
+-  private async waitReady(token: string, sandboxId: string): Promise<void> {
++  private async waitReady(token: string, sandboxId: string): Promise<string> {
+     const deadline = Date.now() + (this.options.readyTimeoutMs ?? 180_000);
+     const interval = this.options.pollIntervalMs ?? 2_000;
+     for (;;) {
+       const sandbox = await this.client().getSandbox(token, sandboxId);
+-      if (READY_STATES.has(sandbox.state)) return;
++      if (READY_STATES.has(sandbox.state)) {
++        if (!sandbox.url) throw new Error("boat: sandbox has no base URL");
++        return sandbox.url;
++      }
+       if (sandbox.state === "error")
+         throw new Error(`boat: sandbox ${sandboxId} entered error state`);
+       if (Date.now() > deadline)
+@@ -234,12 +247,19 @@ export class BoatSandboxProvider implements SandboxProvider {
+   }
+ 
+   /** Wait until the in-sandbox relay accepts a WebSocket upgrade. */
+-  private async waitForRelay(webSocketUrl: string): Promise<void> {
++  private async waitForRelay(
++    webSocketUrl: string,
++    cookie?: string,
++  ): Promise<void> {
+     const deadline = Date.now() + (this.options.agentReadyTimeoutMs ?? 60_000);
+     const interval = this.options.pollIntervalMs ?? 1_000;
+     for (;;) {
+       const opened = await new Promise<boolean>((resolve) => {
+-        const probe = new WebSocket(webSocketUrl);
++        const probe = new WebSocket(webSocketUrl, {
++          followRedirects: false,
++          handshakeTimeout: 10_000,
++          headers: cookie ? { cookie } : {},
++        });
+         probe.once("open", () => {
+           probe.close();
+           resolve(true);
+@@ -253,6 +273,12 @@ export class BoatSandboxProvider implements SandboxProvider {
+     }
+   }
+ 
++  /** Resume an accepted deletion after BoatDeletionPendingError. */
++  async waitForDeletion(sandboxId: string, operationId: string): Promise<void> {
++    const token = await this.ensureAccessToken();
++    await this.client().waitForDeletion(token, sandboxId, operationId);
++  }
++
+   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
+     const agentCommand =
+       this.options.agentCommand ?? process.env.BOAT_RELAY_AGENT_COMMAND;
+@@ -282,28 +308,46 @@ export class BoatSandboxProvider implements SandboxProvider {
+     // The claim flow may have rotated the token during creation.
+     const liveToken = this.accessToken ?? token;
+     try {
+-      await this.waitReady(liveToken, sandboxId);
++      const sandboxUrl = await this.waitReady(liveToken, sandboxId);
+       await client.startDetachedCommand(liveToken, sandboxId, agentCommand);
+       const hostedUrl = await client.hostPort(liveToken, sandboxId, RELAY_PORT);
+-      const webSocketUrl = hostedUrl.replace(/^http/u, "ws");
+-      await this.waitForRelay(webSocketUrl);
+-      const browser = relayDriverOverWebSocket(webSocketUrl, {
+-        token: relayToken,
+-      });
++      const relay = boatHostedRelay(
++        hostedUrl,
++        sandboxUrl,
++        this.origin,
++        RELAY_PORT,
++      );
++      await this.waitForRelay(relay.url, relay.cookie);
++      const connection = await connectBoatRelay(
++        relay.url,
++        relayToken,
++        relay.cookie,
++      );
++      const browser = connection.browser;
+       return {
+         provider: this.id,
+         session: sandboxId,
+         browser,
+         allowedDomains,
+         close: async () => {
+-          await browser.close().catch(() => {});
++          await closeBoatRelay(
++            connection,
++            this.options.relayCloseTimeoutMs ?? 5_000,
++          );
+           if (this.options.keepSandbox)
+             await client.stopSandbox(liveToken, sandboxId);
+           else await client.deleteSandbox(liveToken, sandboxId);
+         },
+       };
+     } catch (error) {
+-      await client.deleteSandbox(liveToken, sandboxId).catch(() => {});
++      try {
++        await client.deleteSandbox(liveToken, sandboxId);
++      } catch (cleanupError) {
++        throw new AggregateError(
++          [error, cleanupError],
++          "boat: allocation failed and sandbox cleanup is not confirmed",
++        );
++      }
+       throw error;
+     }
+   }
+diff --git a/packages/agent-sandboxes/src/boat-relay.test.ts b/packages/agent-sandboxes/src/boat-relay.test.ts
+new file mode 100644
+index 000000000..ac7ccb04c
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-relay.test.ts
+@@ -0,0 +1,93 @@
++import { createServer } from "node:http";
++import { expect, it } from "vitest";
++import { WebSocketServer } from "ws";
++import type { BoatJsonValue } from "./boat-client.js";
++import { BoatSandboxProvider } from "./boat-provider.js";
++
++it("deletes the sandbox when an authenticated relay never answers close", async () => {
++  const server = createServer((_request, response) =>
++    response.writeHead(404).end(),
++  );
++  const sockets = new WebSocketServer({ server });
++  sockets.on("connection", (socket) => {
++    let authenticated = false;
++    socket.on("message", () => {
++      if (!authenticated) {
++        authenticated = true;
++        socket.send(JSON.stringify({ id: 0, ok: true }));
++      }
++      // After auth, deliberately ignore every command, including close.
++    });
++  });
++  await new Promise<void>((resolve) =>
++    server.listen(8787, "127.0.0.1", resolve),
++  );
++  try {
++    let deleted = false;
++    const fetchImpl: typeof fetch = async (input, init) => {
++      const path = new URL(
++        input instanceof Request ? input.url : input.toString(),
++      ).pathname;
++      let body: BoatJsonValue;
++      if (path === "/api/v1/sandboxes")
++        body = {
++          ok: true,
++          sandbox: { id: "bx_23456789", state: "provisioning" },
++        };
++      else if (path.endsWith("/commands"))
++        body = {
++          ok: true,
++          type: "command.started",
++          success: true,
++          processId: 1,
++        };
++      else if (path.endsWith("/host"))
++        body = {
++          ok: true,
++          port: 8787,
++          isProtected: true,
++          access: "private",
++          url: "http://127.0.0.1:8787",
++        };
++      else if (init?.method === "DELETE") {
++        deleted = true;
++        body = {
++          ok: true,
++          operation: {
++            id: "bdop_0123456789abcdef0123456789abcdef",
++            kind: "sandbox",
++            targetId: "bx_23456789",
++            status: "completed",
++          },
++        };
++      } else
++        body = {
++          ok: true,
++          sandbox: {
++            id: "bx_23456789",
++            state: "ready",
++            url: "http://127.0.0.1:12345",
++          },
++        };
++      return new Response(JSON.stringify(body), {
++        status: init?.method === "DELETE" ? 202 : 200,
++      });
++    };
++    const provider = new BoatSandboxProvider({
++      origin: "http://127.0.0.1:12345",
++      fetchImpl,
++      apiToken: "boat-key",
++      agentCommand: "agent",
++      relayCloseTimeoutMs: 20,
++    });
++    const sandbox = await provider.allocate({
++      origin: "https://accounts.example.test",
++    });
++    await sandbox.close();
++    expect(deleted).toBe(true);
++  } finally {
++    for (const socket of sockets.clients) socket.terminate();
++    sockets.close();
++    await new Promise<void>((resolve) => server.close(() => resolve()));
++  }
++});
+diff --git a/packages/agent-sandboxes/src/boat-relay.ts b/packages/agent-sandboxes/src/boat-relay.ts
+new file mode 100644
+index 000000000..5d0594f33
+--- /dev/null
++++ b/packages/agent-sandboxes/src/boat-relay.ts
+@@ -0,0 +1,75 @@
++import WebSocket from "ws";
++import { RelayBrowserDriver, webSocketRelayTransport } from "./relay-driver.js";
++import { parseRelayResponse } from "./relay-protocol.js";
++
++export interface BoatRelayConnection {
++  browser: RelayBrowserDriver;
++  terminate(): void;
++}
++
++export async function connectBoatRelay(
++  url: string,
++  token: string,
++  cookie?: string,
++): Promise<BoatRelayConnection> {
++  const socket = new WebSocket(url, {
++    followRedirects: false,
++    handshakeTimeout: 10_000,
++    headers: cookie ? { cookie } : {},
++  });
++  const ready = new Promise<void>((resolve, reject) => {
++    socket.addEventListener("open", () =>
++      socket.send(JSON.stringify({ type: "auth", token })),
++    );
++    socket.addEventListener("message", (event) => {
++      const response = parseRelayResponse(String(event.data));
++      if (!response)
++        return reject(new Error("boat: relay authentication failed"));
++      if (response.id !== 0) return;
++      if (response.ok) resolve();
++      else reject(new Error("boat: relay authentication failed"));
++    });
++    socket.addEventListener("error", () =>
++      reject(new Error("boat: relay connection failed")),
++    );
++    socket.addEventListener("close", () =>
++      reject(new Error("boat: relay connection closed")),
++    );
++  });
++  const timeout = setTimeout(() => socket.terminate(), 10_000);
++  try {
++    await ready;
++  } catch (error) {
++    socket.terminate();
++    throw error;
++  } finally {
++    clearTimeout(timeout);
++  }
++  // SAFETY: ws implements the send, close, and addEventListener methods consumed by this transport.
++  const browser = new RelayBrowserDriver(
++    webSocketRelayTransport(
++      socket as Parameters<typeof webSocketRelayTransport>[0],
++      ready,
++    ),
++  );
++  return { browser, terminate: () => socket.terminate() };
++}
++
++/** Always terminate the socket and continue sandbox cleanup after a bounded wait. */
++export async function closeBoatRelay(
++  relay: BoatRelayConnection,
++  timeoutMs: number,
++): Promise<void> {
++  let timeout: ReturnType<typeof setTimeout> | undefined;
++  try {
++    await Promise.race([
++      relay.browser.close().catch(() => {}),
++      new Promise<void>((resolve) => {
++        timeout = setTimeout(resolve, timeoutMs);
++      }),
++    ]);
++  } finally {
++    if (timeout) clearTimeout(timeout);
++    relay.terminate();
++  }
++}
