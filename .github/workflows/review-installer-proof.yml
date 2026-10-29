@@ -1,0 +1,19 @@
+name: Installer data preservation proof
+on:
+  push:
+    branches: [review/installer-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  installer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: e006b3989981250f3f81dd8843458a209d46fe9d
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - run: node --test scripts/security/install-agent-skills.test.mjs
