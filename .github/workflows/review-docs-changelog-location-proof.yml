@@ -27,8 +27,8 @@ jobs:
           test "$(git rev-parse HEAD)" = 8de7781cc26a8c9885dcc259967119e85d2924aa
           test "$(git rev-parse HEAD^{tree})" = 89c1f2407c28fe8cec1072bce864ba774db23a08
           test -f docs/CHANGELOG.md && test ! -e CHANGELOG.md
-          rg -F '](docs/CHANGELOG.md)' README.md
-          rg -F '/blob/main/docs/CHANGELOG.md' apps/pages/src/tutorial/ui/ProjectLinks.tsx apps/pages/src/tutorial/ui/project-links.test.tsx
+          grep -F '](docs/CHANGELOG.md)' README.md
+          grep -F '/blob/main/docs/CHANGELOG.md' apps/pages/src/tutorial/ui/ProjectLinks.tsx apps/pages/src/tutorial/ui/project-links.test.tsx
           if git grep -n '/blob/main/CHANGELOG.md\|](CHANGELOG.md)'; then exit 1; fi
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
