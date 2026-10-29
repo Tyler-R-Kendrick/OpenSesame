@@ -17,6 +17,7 @@ import {
 import { createLocalPasswordResetEffects } from "./password-reset-local-runtime.js";
 import type { ResetRuntimeContext } from "./password-reset-runtime.js";
 import {
+  createSandboxProvider,
   loadBoatProviderState,
   saveBoatProviderState,
 } from "./password-reset-sandbox-provider.js";
@@ -98,6 +99,13 @@ describe("sandbox provider configuration", () => {
       loadCommand(await configDir(config)),
     );
     expect(loaded.config.runtime.provider).toBe("cloudflare");
+  });
+
+  it("refuses Cloudflare allocation before accessing provider credentials", async () => {
+    const provider = createSandboxProvider("cloudflare");
+    await expect(
+      provider.allocate({ origin: "https://accounts.example.test" }),
+    ).rejects.toThrow("CDP browser provider is temporarily unavailable");
   });
 
   it("refuses a sandbox provider on an external runtime module", async () => {
