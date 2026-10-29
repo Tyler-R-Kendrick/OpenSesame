@@ -31,7 +31,7 @@ it("offers the ten project documents only from unlocked Support", async () => {
   expect(
     within(panel).getByRole("link", { name: "Changelog" }).getAttribute("href"),
   ).toBe(
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/CHANGELOG.md",
+    "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/CHANGELOG.md",
   );
   expect(
     within(panel)

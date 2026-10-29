@@ -26,7 +26,7 @@ const ABOUT_LINKS: readonly AboutLink[] = [
     href: `${REPO_URL}/security/advisories/new`,
   },
   { label: "Report a bug", href: `${REPO_URL}/issues` },
-  { label: "Changelog", href: `${REPO_URL}/blob/main/CHANGELOG.md` },
+  { label: "Changelog", href: `${REPO_URL}/blob/main/docs/CHANGELOG.md` },
   { label: "License: MIT", href: `${REPO_URL}/blob/main/LICENSE` },
   { label: "Source code", href: REPO_URL },
 ];

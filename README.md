@@ -28,7 +28,7 @@ without running a backend.
 - **How to contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Report a bug:** [GitHub Issues](https://github.com/Tyler-R-Kendrick/OpenSesame/issues)
 - **Report a vulnerability:** [SECURITY.md](SECURITY.md) · [open a private advisory](https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new)
-- **Changelog:** [CHANGELOG.md](CHANGELOG.md)
+- **Changelog:** [CHANGELOG.md](docs/CHANGELOG.md)
 - **License:** MIT — [LICENSE](LICENSE)
 
 ---
