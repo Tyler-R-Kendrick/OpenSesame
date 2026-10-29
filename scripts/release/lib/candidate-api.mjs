@@ -27,6 +27,22 @@ const SCANNER_CONFIG_NAMES = new Set([
   "osv-scanner.toml",
 ]);
 const REQUIRED_SECURITY_POLICY_FILES = [
+  "tools/pwa-tailscale-native-http/source.json",
+  "packages/app-core/scripts/sops-oracle/oracle.mjs",
+  "apps/android/scripts/build-core.sh",
+  "crates/authenticator-core/src/bin/uniffi-bindgen.rs",
+  "crates/authenticator-core/src/lib.rs",
+  "apps/android/android/settings.gradle.kts",
+  "apps/android/android/build.gradle.kts",
+  "apps/android/android/app/build.gradle.kts",
+  "apps/android/android/gradle.properties",
+  "scripts/test/live-turn/go.mod",
+  "scripts/test/live-turn/go.sum",
+  "Cargo.toml",
+  "Cargo.lock",
+  "rust-toolchain.toml",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
   ".github/codeql/codeql-config.yml",
   ".gitleaks.toml",
   ".cargo/audit.toml",
@@ -45,10 +61,56 @@ function scannerHelper(path, prefix) {
   );
 }
 
+// These inputs can select build logic, compilers or dependencies executed by
+// CodeQL. Bind candidate copies to the controller; equality is only a drift
+// guard, not proof that compiled-language extraction is isolated.
+function extractionBuildInput(path) {
+  const parts = path.split("/");
+  const name = parts.at(-1);
+  return (
+    ((path === "package.json" ||
+      /^(?:apps|packages|examples|tests|tools)\//.test(path)) &&
+      name === "package.json") ||
+    [
+      "Cargo.toml",
+      "Cargo.lock",
+      "go.mod",
+      "go.sum",
+      "go.work",
+      "go.work.sum",
+      "build.rs",
+      ".npmrc",
+      ".pnpmfile.cjs",
+    ].includes(name) ||
+    ["rust-toolchain.toml", "pnpm-lock.yaml", "pnpm-workspace.yaml"].includes(
+      path,
+    ) ||
+    /(?:^|\/)gradle\.properties$/.test(path) ||
+    /\.gradle(?:\.kts)?$/.test(name) ||
+    parts.includes("buildSrc") ||
+    path.startsWith("apps/android/android/gradle/") ||
+    path.startsWith("apps/android/scripts/") ||
+    path.startsWith("crates/authenticator-core/") ||
+    (path.startsWith("packages/app-core/scripts/sops-oracle/") &&
+      /\.(?:mjs|cjs|js|json)$/.test(name)) ||
+    path === "tools/pwa-tailscale-native-http/source.json"
+  );
+}
+
+function securityHelperPath(path) {
+  return (
+    scannerHelper(path, "scripts/test/live-turn/") ||
+    (path.startsWith("tools/pwa-tailscale-native-http/") &&
+      /\.(?:mjs|cjs|js|sh|py)$/.test(path)) ||
+    (path.startsWith("scripts/security/") && !path.includes(".test."))
+  );
+}
+
 function scannerPolicyPath(path) {
   const parts = path.split("/");
   const name = parts.at(-1);
   return (
+    extractionBuildInput(path) ||
     SCANNER_CONFIG_NAMES.has(name) ||
     path.startsWith(".github/codeql/") ||
     parts.includes(".semgrep") ||
@@ -59,9 +121,7 @@ function scannerPolicyPath(path) {
     path === "scripts/fuzz/jazzer-gate.sh" ||
     path === "scripts/lib/fuzz-directory.sh" ||
     (path.startsWith("scripts/audit/") && !path.includes(".test.")) ||
-    scannerHelper(path, "scripts/test/live-turn/") ||
-    scannerHelper(path, "tools/pwa-tailscale-native-http/") ||
-    (path.startsWith("scripts/security/") && !path.includes(".test."))
+    securityHelperPath(path)
   );
 }
 
