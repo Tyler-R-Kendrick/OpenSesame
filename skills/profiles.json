@@ -3,7 +3,10 @@
   "description": "Skill ownership tiers. core skills are first-party, live in skills/, and must always be present. Optional profiles are third-party, canonical under .agents/skills/ (or .agents/skills-optional/ when installed separately), and may be absent without failing core validation. See skills/README.md.",
   "canonical": {
     "core": "skills/",
-    "optional": [".agents/skills/", ".agents/skills-optional/"]
+    "optional": [
+      ".agents/skills/",
+      ".agents/skills-optional/"
+    ]
   },
   "profiles": {
     "core": {
@@ -46,9 +49,7 @@
       "skills": [
         "design-system",
         "design-taste-frontend",
-        "minimalist-ui",
         "react-vite-dashboard",
-        "redesign-existing-projects",
         "remotion",
         "scandinavian-design",
         "shadcn",
@@ -61,7 +62,9 @@
         "shadcn-ui",
         "stitch-react-native"
       ],
-      "scratchOnly": ["shadcn"]
+      "scratchOnly": [
+        "shadcn"
+      ]
     }
   }
 }
