@@ -41,12 +41,17 @@ for an uninstalled optional skill is skipped by the checker; removing it is
 the harness owner's job. An unlisted or core name without a canonical install
 still fails.
 
-Provenance: 22 of the 24 third-party skills are pinned in
+Provenance: 20 of the 22 third-party skills are pinned in
 [`skills-lock.json`](../skills-lock.json). The exceptions are `design-system`
 (a TypeUI pull, which also declares frontmatter `name: minimal`) and
 `impeccable` (its own `npx impeccable` updater); the install script restores
 both. The tiers say what is a default; presence on disk is a local install
 choice, and a fresh clone has only the core profile until install runs.
+Lock hashes detect upstream updates, they do not pin revisions: restoring
+optional profiles floats to latest upstream (accepted for optional design
+tooling; upstream removals — e.g. taste-skill's retired `minimalist-ui` and
+`redesign-existing-projects` in Oct 2026 — are dropped from the catalogue in
+reviewed commits). Anything a build or gate depends on must be core.
 
 ## Using OpenSesame
 
@@ -97,9 +102,7 @@ as the contract for `apps/pages` (`DESIGN.md` wins on any conflict).
 |---|---|
 | `design-system` | Generic TypeUI design-system tokens. Declares frontmatter `name: minimal`. Not in `skills-lock.json`. |
 | `design-taste-frontend` | Landing pages, portfolios, and redesigns. Its own body excludes dashboards and multi-step product UI. |
-| `minimalist-ui` | Warm-monochrome editorial/bento aesthetic. |
 | `react-vite-dashboard` | Unused stack: TanStack Query + Web3 dashboards. Not used by this app. |
-| `redesign-existing-projects` | Audit-first redesign of an existing CSS/vanilla project. |
 | `remotion` | Unused stack: Remotion walkthrough videos. Not used by this app. |
 | `scandinavian-design` | Black-and-white restraint, invoke-only (`disable-model-invocation`). |
 | `shadcn` | Scratch-only: restyles shadcn/ui from `DESIGN.md` outside the repo to test its completeness, never in `apps/pages`. |

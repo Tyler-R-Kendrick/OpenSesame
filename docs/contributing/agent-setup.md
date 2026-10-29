@@ -59,7 +59,7 @@ ln -s ~/.agents/skills/<name> ~/.claude/skills/<name>   # per skill
 
 Project skills work the same way in-repo: `.agents/skills/` is canonical,
 `.claude/skills/` and `.grok/skills/` hold relative symlinks plus real
-harness variants (`impeccable`, `minimalist-ui`, `scandinavian-design`
+harness variants (`impeccable`, `scandinavian-design`
 under `.claude/skills/`). Run `node scripts/dev/sync-agent-skills.mjs`
 after adding a project skill; `--check` verifies mirrors. Do not delete a
 mirror link until that harness version is verified to discover
