@@ -19,8 +19,8 @@ import {
   readNativeOAuthClientSecret,
 } from "./native-oauth-client-config.js";
 import {
+  admissibleGrantScopes,
   offlineConsentValid,
-  requiredResourceScopes,
 } from "./native-oauth-client-scopes.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import { nativeOAuthHttp } from "./native-oauth-http.js";
@@ -257,13 +257,18 @@ export async function exchangeNativeOAuthClient(
     );
     await recordDefinitiveRejection(claim, response);
     const receipt = issued(response.body, response.status, pending);
+    const scopeValid = admissibleGrantScopes(
+      pending.providerId,
+      pending.scopes,
+      receipt.grant.scopes,
+    );
     await journalNativeOAuthGrant(
       id,
       claim.obligation.id,
       receipt.grant,
       nativeOAuthClientClassification,
       {
-        protocol_valid: String(receipt.valid),
+        protocol_valid: String(receipt.valid && scopeValid),
         requested_scopes: JSON.stringify(pending.scopes),
       },
     );
@@ -277,13 +282,7 @@ export async function exchangeNativeOAuthClient(
     if (readNativeOAuthClientSecret(id, owner) !== secret)
       throw new NativeOAuthError("expired");
     if (!receipt.valid) throw new NativeOAuthError("provider");
-    if (
-      receipt.grant.scopes &&
-      requiredResourceScopes(pending.scopes).some(
-        (scope) => !receipt.grant.scopes?.includes(scope),
-      )
-    )
-      throw new NativeOAuthError("scope");
+    if (!scopeValid) throw new NativeOAuthError("scope");
     return { connectionId: id, intentId: claim.obligation.id };
   } finally {
     release();

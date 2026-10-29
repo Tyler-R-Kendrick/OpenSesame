@@ -4,7 +4,7 @@ import type {
   NativePrivateState,
   NativeRuntime,
 } from "./native-connector-schema.js";
-import { requiredResourceScopes } from "./native-oauth-client-scopes.js";
+import { admissibleGrantScopes } from "./native-oauth-client-scopes.js";
 
 export type NativeConnectorStatus =
   | "configuration"
@@ -93,9 +93,11 @@ function requiresReauthorization(
       grant.needsReauth ||
       (grant.expiresAt !== null && grant.expiresAt <= Date.now()) ||
       (grant.permissionState === "known" &&
-        requiredResourceScopes(
+        !admissibleGrantScopes(
+          configuration.providerId,
           configuration.requestedScopes[grant.actor] ?? [],
-        ).some((scope) => !grant.grantedScopes.includes(scope))),
+          grant.grantedScopes,
+        )),
   );
 }
 
