@@ -1,0 +1,58 @@
+name: Reviewed Boat security on main
+on:
+  push:
+    branches: [review/boat-security-main-7e-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/boat-security-main-7e-proof-20261029' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 391ea89488958f572d1913bcbd812cc670a8a87a
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 391ea89488958f572d1913bcbd812cc670a8a87a
+          test "$(git rev-parse HEAD^{tree})" = 7347f7d7c86e55e30bbdf6584d0a9ff7b9233ec0
+          test "$(git rev-parse HEAD^)" = 7e2b44d22673abdf710f5e611887b663744f1868
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify sandbox package
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/agent-sandboxes typecheck
+          pnpm --filter @opensesame/agent-sandboxes test
+      - name: Run real browser Boat flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x /usr/bin/google-chrome
+          cd packages/cua-password-reset
+          AGENT_BROWSER="$(realpath node_modules/.bin/agent-browser)"
+          export AGENT_BROWSER AGENT_BROWSER_CHROME=/usr/bin/google-chrome
+          cd ../agent-sandboxes
+          pnpm exec playwright test e2e/boat.spec.ts
+      - name: Verify full structural quality
+        run: pnpm quality:gate
+      - name: Verify candidate remains unchanged
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 391ea89488958f572d1913bcbd812cc670a8a87a
+          test "$(git rev-parse HEAD^{tree})" = 7347f7d7c86e55e30bbdf6584d0a9ff7b9233ec0
+          git diff --exit-code
+          git diff --cached --exit-code
