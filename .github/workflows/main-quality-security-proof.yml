@@ -30,9 +30,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
-          printf '%s  %s\n' 93dd6640e8754d310558d7e8f2eace3b7f8d97a5ebd034d39a51d3e614d85292 ../controller/.github/verify-inputs/main-quality-security.patch | sha256sum --check
+          printf '%s  %s\n' 6810f93ab3ae616b2a64276b5cb773c7bd834acc4624dd6aff0bb7679b9ae2ab ../controller/.github/verify-inputs/main-quality-security.patch | sha256sum --check
           git apply --index ../controller/.github/verify-inputs/main-quality-security.patch
-          test "$(git write-tree)" = 949c13429449a4a8e54f1a5379dbaa679379d18c
+          test "$(git write-tree)" = b055d68c48aa6664ca15b8e50fc273669047de23
           git diff --exit-code
       - name: Install frozen graph
         working-directory: candidate
@@ -54,5 +54,5 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
-          test "$(git write-tree)" = 949c13429449a4a8e54f1a5379dbaa679379d18c
+          test "$(git write-tree)" = b055d68c48aa6664ca15b8e50fc273669047de23
           git diff --exit-code

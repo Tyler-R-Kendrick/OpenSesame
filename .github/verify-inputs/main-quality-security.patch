@@ -31,7 +31,7 @@ index 68fea58e4..aabb25ba7 100644
    if (
      !["https:", "http:"].includes(entry.protocol) ||
 diff --git a/scripts/security/map-composed-go-sarif.mjs b/scripts/security/map-composed-go-sarif.mjs
-index 91f38ebfb..39623aec4 100644
+index 91f38ebfb..a3f01c055 100644
 --- a/scripts/security/map-composed-go-sarif.mjs
 +++ b/scripts/security/map-composed-go-sarif.mjs
 @@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
@@ -105,13 +105,13 @@ index 91f38ebfb..39623aec4 100644
      for (const [key, child] of Object.entries(value)) {
        if (
          (key === "artifactLocation" || key === "analysisTarget") &&
-@@ -246,11 +247,11 @@ function countResults(run, mappings, summary) {
+@@ -246,11 +247,10 @@ function countResults(run, mappings, summary) {
      summary.findings++;
      const location = result.locations?.[0]?.physicalLocation?.artifactLocation;
      const uri = location?.uri ?? run.artifacts[location?.index]?.location?.uri;
 -    if (typeof uri !== "string" || !mappings.has(uri))
-+    if (!isString(uri) || !mappings.has(uri))
-       summary.unmappedPrimaryFindings++;
+-      summary.unmappedPrimaryFindings++;
++    if (!isString(uri) || !mappings.has(uri)) summary.unmappedPrimaryFindings++;
      visitReferences(result, (child) => {
        const referenced = child.uri ?? run.artifacts[child.index]?.location?.uri;
 -      if (typeof referenced !== "string" || !mappings.has(referenced))
@@ -119,20 +119,21 @@ index 91f38ebfb..39623aec4 100644
          summary.unmappedResultLocations++;
      });
    }
-@@ -271,7 +272,7 @@ function inspectRun(run, mappings, locations, summary) {
+@@ -271,8 +271,7 @@ function inspectRun(run, mappings, locations, summary) {
  function rewriteLocations(locations, mappings) {
    let count = 0;
    for (const location of new Set(locations)) {
 -    if (typeof location.uri !== "string" || !mappings.has(location.uri))
-+    if (!isString(location.uri) || !mappings.has(location.uri))
-       continue;
+-      continue;
++    if (!isString(location.uri) || !mappings.has(location.uri)) continue;
      if (location.uriBaseId !== "%SRCROOT%")
        throw new Error("Unexpected staged URI base");
+     location.uri = mappings.get(location.uri);
 diff --git a/scripts/security/map-composed-go-sarif.test.mjs b/scripts/security/map-composed-go-sarif.test.mjs
-index f6485a34c..2c3f1598f 100644
+index f6485a34c..ff79f491d 100644
 --- a/scripts/security/map-composed-go-sarif.test.mjs
 +++ b/scripts/security/map-composed-go-sarif.test.mjs
-@@ -396,3 +396,24 @@ test("rejects a staged URI with an unexpected base", () => {
+@@ -396,3 +396,27 @@ test("rejects a staged URI with an unexpected base", () => {
      /URI base/,
    );
  });
@@ -155,5 +156,8 @@ index f6485a34c..2c3f1598f 100644
 +  const report = make({ uri: source, uriBaseId: "%SRCROOT%" });
 +  const summary = mapReport(report, new Map([[source, target]]));
 +  assert.equal(summary.mappedLocations, 1);
-+  assert.equal(report.runs[0].results[0].nested[0].artifactLocation.uri, target);
++  assert.equal(
++    report.runs[0].results[0].nested[0].artifactLocation.uri,
++    target,
++  );
 +});
