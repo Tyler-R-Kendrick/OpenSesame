@@ -12,6 +12,7 @@ import { appendStatusNotice, dismissNotice, listNotices } from "../notices.js";
 import {
   listVaultResetRuns,
   setVaultResetRunPhase,
+  vaultResetRunFor,
 } from "./vault-run-tracker.js";
 
 export type AgentRunView = {
@@ -76,7 +77,7 @@ async function syncOne(
     return;
   }
   if (agentRun && !agentRun.closed_at) {
-    dismissNotice(agentRunNoticeId(agentRun.id));
+    dismissNotice(agentRunNoticeId(record.runId ?? agentRun.id));
     if (record.phase === "needs-you")
       setVaultResetRunPhase(record.scope, record.itemId, "in-progress", null);
     return;
@@ -85,7 +86,7 @@ async function syncOne(
 }
 
 function parkNotice(record: TrackedRecord, agentRun: AgentRunView): void {
-  const noticeId = agentRunNoticeId(agentRun.id);
+  const noticeId = agentRunNoticeId(record.runId ?? agentRun.id);
   if (!listNotices().some((notice) => notice.id === noticeId)) {
     appendStatusNotice({
       id: noticeId,
@@ -115,8 +116,9 @@ async function settleFromJob(
   if (!jobId) return;
   const job = await deps.getRotationJob(jobId).catch(() => null);
   if (signal?.aborted) return;
+  if (vaultResetRunFor(record.scope, record.itemId)?.runId !== jobId) return;
   if (job?.status !== "succeeded" && job?.status !== "failed") return;
-  if (agentRun) dismissNotice(agentRunNoticeId(agentRun.id));
+  dismissNotice(agentRunNoticeId(jobId));
   if (job.status === "succeeded") {
     setVaultResetRunPhase(record.scope, record.itemId, "done", null);
   } else {

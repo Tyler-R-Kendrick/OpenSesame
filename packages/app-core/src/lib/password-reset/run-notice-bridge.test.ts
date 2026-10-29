@@ -56,8 +56,8 @@ describe("reset run notice bridge", () => {
       ]),
     );
     off();
-    expect(arrivals).toEqual(["agent-run:run-9"]);
-    const notice = listNotices().find((n) => n.id === "agent-run:run-9");
+    expect(arrivals).toEqual(["agent-run:job-1"]);
+    const notice = listNotices().find((n) => n.id === "agent-run:job-1");
     expect(notice?.tone).toBe("warn");
     expect(notice?.title).toBe("Password reset needs you");
     expect(vaultResetRunFor("personal", "item-1")?.phase).toBe("needs-you");
@@ -72,7 +72,7 @@ describe("reset run notice bridge", () => {
     await syncResetRunNotices(parked);
     await syncResetRunNotices(parked);
     expect(
-      listNotices().filter((n) => n.id === "agent-run:run-9"),
+      listNotices().filter((n) => n.id === "agent-run:job-1"),
     ).toHaveLength(1);
   });
 
@@ -85,15 +85,21 @@ describe("reset run notice bridge", () => {
       deps([{ id: "run-9", job_id: "job-1", control_state: "agent_driving" }]),
     );
     expect(
-      listNotices().find((n) => n.id === "agent-run:run-9"),
+      listNotices().find((n) => n.id === "agent-run:job-1"),
     ).toBeUndefined();
     expect(vaultResetRunFor("personal", "item-1")?.phase).toBe("in-progress");
   });
 
-  it("marks done only when the rotation job itself succeeded", async () => {
+  it("marks done and dismisses a parked notice even without a Host listing", async () => {
     trackedRun();
+    await syncResetRunNotices(
+      deps([{ id: "run-9", job_id: "job-1", control_state: "awaiting_human" }]),
+    );
     await syncResetRunNotices(deps([], "succeeded"));
     expect(vaultResetRunFor("personal", "item-1")).toBeNull();
+    expect(
+      listNotices().find((notice) => notice.id === "agent-run:job-1"),
+    ).toBeUndefined();
   });
 
   it("marks failed and announces it once", async () => {
@@ -132,7 +138,7 @@ describe("reset run notice bridge", () => {
     );
     expect(vaultResetRunFor("personal", "item-1")?.phase).toBe("failed");
     expect(
-      listNotices().some((notice) => notice.id === "agent-run:run-9"),
+      listNotices().some((notice) => notice.id === "agent-run:job-1"),
     ).toBe(false);
   });
 
@@ -152,6 +158,33 @@ describe("reset run notice bridge", () => {
       getRotationJob: vi.fn(async () => null),
     });
     expect(vaultResetRunFor("personal", "item-1")?.phase).toBe("in-progress");
+  });
+
+  it("ignores a terminal response after the tracked job is retried", async () => {
+    trackedRun();
+    let answer!: (job: { id: string; status: string }) => void;
+    const pending = new Promise<{ id: string; status: string }>((resolve) => {
+      answer = resolve;
+    });
+    const syncing = syncResetRunNotices({
+      listAgentRuns: vi.fn(async () => []),
+      getRotationJob: () => pending,
+    });
+    setVaultResetRunPhase(
+      "personal",
+      "item-1",
+      "in-progress",
+      null,
+      new Date(),
+      "job-2",
+    );
+    answer({ id: "job-1", status: "failed" });
+    await syncing;
+    expect(vaultResetRunFor("personal", "item-1")).toMatchObject({
+      phase: "in-progress",
+      runId: "job-2",
+    });
+    expect(listNotices()).toHaveLength(0);
   });
 
   it("publishes no effects when stopped during a pending Host response", async () => {
