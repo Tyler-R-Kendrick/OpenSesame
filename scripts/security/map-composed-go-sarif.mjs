@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isJsonObject, isString } from "../lib/json-boundary.mjs";
 import {
   REVIEWED_NATIVE_RESULTS,
   reviewedResultDigest,
@@ -84,7 +85,7 @@ function assertKnownGroups(pins) {
       !known.has(group) &&
       Array.isArray(section?.files) &&
       section.files.some(
-        (file) => typeof file?.path === "string" && file.path.endsWith(".go"),
+        (file) => isString(file?.path) && file.path.endsWith(".go"),
       )
     )
       throw new Error(`Unrecognized Go overlay group ${group}`);
@@ -92,7 +93,7 @@ function assertKnownGroups(pins) {
 }
 
 function addOverlay(root, sha, file, directory, destinations) {
-  if (typeof file?.path !== "string") throw new Error("Malformed overlay path");
+  if (!isString(file?.path)) throw new Error("Malformed overlay path");
   if (!file.path.endsWith(".go")) return;
   if (
     !/^[A-Za-z0-9_-]+\.go$/.test(file.path) ||
@@ -158,7 +159,7 @@ function assertIndexedReference(location, artifacts) {
   )
     throw new Error("Invalid SARIF artifact index");
   const referenced = artifacts[location.index]?.location;
-  if (!referenced || typeof referenced.uri !== "string")
+  if (!referenced || !isString(referenced.uri))
     throw new Error("Missing indexed SARIF artifact");
   if (
     (location.uri !== undefined && location.uri !== referenced.uri) ||
@@ -169,11 +170,11 @@ function assertIndexedReference(location, artifacts) {
 }
 
 function assertReference(location, artifacts) {
-  if (!location || typeof location !== "object" || Array.isArray(location))
+  if (!isJsonObject(location))
     throw new Error("Invalid SARIF artifact location");
   if (location.index !== undefined) {
     assertIndexedReference(location, artifacts);
-  } else if (typeof location.uri !== "string") {
+  } else if (!isString(location.uri)) {
     throw new Error("SARIF artifact location has no URI or index");
   }
 }
@@ -207,7 +208,7 @@ function collectArtifacts(run, mappings, locations) {
       throw new Error("SARIF artifact has an inconsistent self index");
     locations.push(location);
     const original = location?.uri;
-    if (typeof original !== "string") continue;
+    if (!isString(original)) continue;
     const final = mappings.get(original) ?? original;
     const key = `${location.uriBaseId ?? ""}\0${final}`;
     if (artifactUris.has(key))
@@ -220,11 +221,11 @@ function visitReferences(root, visit) {
   const pending = [root];
   while (pending.length) {
     const value = pending.pop();
-    if (!value || typeof value !== "object") continue;
     if (Array.isArray(value)) {
       pending.push(...value);
       continue;
     }
+    if (!isJsonObject(value)) continue;
     for (const [key, child] of Object.entries(value)) {
       if (
         (key === "artifactLocation" || key === "analysisTarget") &&
@@ -246,11 +247,10 @@ function countResults(run, mappings, summary) {
     summary.findings++;
     const location = result.locations?.[0]?.physicalLocation?.artifactLocation;
     const uri = location?.uri ?? run.artifacts[location?.index]?.location?.uri;
-    if (typeof uri !== "string" || !mappings.has(uri))
-      summary.unmappedPrimaryFindings++;
+    if (!isString(uri) || !mappings.has(uri)) summary.unmappedPrimaryFindings++;
     visitReferences(result, (child) => {
       const referenced = child.uri ?? run.artifacts[child.index]?.location?.uri;
-      if (typeof referenced !== "string" || !mappings.has(referenced))
+      if (!isString(referenced) || !mappings.has(referenced))
         summary.unmappedResultLocations++;
     });
   }
@@ -271,8 +271,7 @@ function inspectRun(run, mappings, locations, summary) {
 function rewriteLocations(locations, mappings) {
   let count = 0;
   for (const location of new Set(locations)) {
-    if (typeof location.uri !== "string" || !mappings.has(location.uri))
-      continue;
+    if (!isString(location.uri) || !mappings.has(location.uri)) continue;
     if (location.uriBaseId !== "%SRCROOT%")
       throw new Error("Unexpected staged URI base");
     location.uri = mappings.get(location.uri);
