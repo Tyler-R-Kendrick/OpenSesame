@@ -123,6 +123,22 @@ function permittedOAuthFields(
   return fields.filter((field) => !googleAccountForbiddenFields.has(field.id));
 }
 
+function oauthScopeGroups(
+  preset: OauthPreset,
+  accountOnly = false,
+): NativeMethodDescriptor["scopeGroups"] {
+  return [
+    {
+      actor: "user",
+      label: "Permissions",
+      choices: preset.scopes,
+      requiredScopes: accountOnly
+        ? [...GOOGLE_ACCOUNT_POLICY.scopes]
+        : undefined,
+    },
+  ];
+}
+
 export function nativeOAuthResourceDescriptor(
   preset: OauthPreset,
   callbackUrl: string,
@@ -209,16 +225,7 @@ export function nativeOAuthResourceDescriptor(
       ],
       options.accountOnly,
     ),
-    scopeGroups: [
-      {
-        actor: "user",
-        label: "Permissions",
-        choices: preset.scopes,
-        requiredScopes: options.accountOnly
-          ? [...GOOGLE_ACCOUNT_POLICY.scopes]
-          : undefined,
-      },
-    ],
+    scopeGroups: oauthScopeGroups(preset, options.accountOnly),
     links: preset.consoleUrl
       ? [{ label: "Register an application", url: preset.consoleUrl }]
       : [],
