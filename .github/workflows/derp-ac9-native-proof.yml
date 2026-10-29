@@ -1,0 +1,78 @@
+name: Review DERP custom roots exact native rebuild
+on:
+  push:
+    branches: [review/derp-ac9-native-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/derp-ac9-native-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout guarded controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout exact main parent
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: ac9a724c60e970da7a84fa49e7bd02a271194816
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify and apply exact source patch
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          printf '%s  %s\n' c34ab3b121d08c7032c17803aaff093dc8529548a89895569d27b704e1e885d2 ../controller/.github/verify-inputs/derp-ac9.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/derp-ac9.patch
+          test "$(git write-tree)" = dd1704045cecdeff9687014bfacbe4fd7023be9e
+          git diff --exit-code
+      - name: Install frozen build dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Compose exact pinned native distribution
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native-input"
+          node -e 'const p=require("./tools/pwa-tailscale-native-http/source.json"); if(p.source.commit!=="b31d8a75af155bcf19853d1a66041782d13e56ae" || p.source.archiveSha256!=="2bddc92dbecd97af4f522f4a9ef44013d10b84a176c906d1d0a739e6a40ed630") process.exit(1); for(const x of [p.source,p.compiler]) {if(!/^https:\/\//.test(x.archiveURL)||!/^[0-9a-f]{64}$/.test(x.archiveSha256)) process.exit(1); console.log(x.archiveURL); console.log(x.archiveSha256)}' > "$RUNNER_TEMP/native-input/pins"
+          mapfile -t pins < "$RUNNER_TEMP/native-input/pins"
+          test "${#pins[@]}" = 4
+          for n in 0 2; do
+            i=$((n / 2))
+            curl --fail --show-error --location --proto '=https' --proto-redir '=https' --max-time 120 --max-filesize 1073741824 --output "$RUNNER_TEMP/native-input/$i.tar.gz" -- "${pins[$n]}"
+            printf '%s  %s\n' "${pins[$((n + 1))]}" "$RUNNER_TEMP/native-input/$i.tar.gz" | sha256sum --check
+          done
+          node tools/pwa-tailscale-native-http/build.mjs "$RUNNER_TEMP/native-input/0.tar.gz" "$RUNNER_TEMP/native-input/1.tar.gz" "$GITHUB_WORKSPACE/candidate/.native-proof"
+      - name: Verify source and output identity
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ac9a724c60e970da7a84fa49e7bd02a271194816
+          test "$(git write-tree)" = dd1704045cecdeff9687014bfacbe4fd7023be9e
+          git diff --exit-code
+          find .native-proof/artifacts -type f -exec sha256sum {} \;
+          find .native-proof/artifacts -type f -exec wc -c {} \;
+      - name: Retain exact native manifest and build results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: derp-ac9-native-proof
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            candidate/.native-proof/artifacts/native-artifacts.json
+            candidate/.native-proof/result.json
+            candidate/.native-proof/logs/derp-host-results.log
