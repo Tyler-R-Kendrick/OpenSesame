@@ -22,8 +22,15 @@ function inside(root, path) {
 function files(root, directory) {
   const result = new Map();
   function visit(path, name) {
-    inside(root, path);
     const stat = lstatSync(path);
+    // A dangling symlink (upstream removed the target in a latest
+    // refresh) is stale install output, not a checker crash: record it
+    // as null so sync can prune it.
+    if (stat.isSymbolicLink() && !existsSync(path)) {
+      result.set(name, null);
+      return;
+    }
+    inside(root, path);
     if (stat.isDirectory()) {
       for (const entry of readdirSync(path).sort())
         visit(join(path, entry), name ? `${name}/${entry}` : entry);
@@ -50,6 +57,12 @@ function same(left, right) {
 function syncSharedFiles({ root, source, mirror, original, installed, check }) {
   const changes = [];
   for (const [file, value] of installed) {
+    if (value === null) {
+      const stale = join(mirror, file);
+      changes.push(relative(root, stale));
+      if (!check) rmSync(stale, { force: true });
+      continue;
+    }
     if (!same(value, original.get(file))) continue;
     const destination = join(mirror, file);
     const expected = relative(dirname(destination), join(source, file));
@@ -176,33 +189,37 @@ function syncMirror(root, agent, name, check, profiles) {
   return [relative(root, mirror)];
 }
 
+function reportUnlisted(base, name) {
+  // Strict in CI (fresh tree: an unlisted canonical is a catalogue
+  // bug). Locally, a personal or stale install must not block every
+  // commit via the git hooks; warn instead.
+  if (process.env.CI === "true")
+    throw new Error(`${base}/${name} is not listed in skills/profiles.json`);
+  console.error(
+    `agent skills: warning: ${base}/${name} is not listed in skills/profiles.json (ignored locally, fails in CI)`,
+  );
+}
+function checkCatalogueDir(root, profiles, base) {
+  const dir = join(root, base);
+  if (!existsSync(dir)) return;
+  for (const name of readdirSync(dir).sort()) {
+    const stat = lstatSync(join(dir, name));
+    if (!stat.isDirectory() && !stat.isSymbolicLink()) continue;
+    if (!profiles.all.has(name)) reportUnlisted(base, name);
+  }
+}
+function checkCatalogue(root, profiles) {
+  if (!profiles) return;
+  for (const base of [".agents/skills", ".agents/skills-optional"])
+    checkCatalogueDir(root, profiles, base);
+}
+
 /** Deduplicate existing registered mirrors; never discard agent-specific variants. */
 export function syncAgentSkills(directory, { check = false } = {}) {
   const root = resolve(directory);
   const profiles = loadProfiles(root);
   checkCore(root, profiles);
-  if (profiles) {
-    for (const base of [".agents/skills", ".agents/skills-optional"]) {
-      const dir = join(root, base);
-      if (!existsSync(dir)) continue;
-      for (const name of readdirSync(dir).sort()) {
-        const stat = lstatSync(join(dir, name));
-        if (!stat.isDirectory() && !stat.isSymbolicLink()) continue;
-        if (!profiles.all.has(name)) {
-          // Strict in CI (fresh tree: an unlisted canonical is a catalogue
-          // bug). Locally, a personal or stale install must not block every
-          // commit via the git hooks; warn instead.
-          if (process.env.CI === "true")
-            throw new Error(
-              `${base}/${name} is not listed in skills/profiles.json`,
-            );
-          console.error(
-            `agent skills: warning: ${base}/${name} is not listed in skills/profiles.json (ignored locally, fails in CI)`,
-          );
-        }
-      }
-    }
-  }
+  checkCatalogue(root, profiles);
   const changes = [];
   for (const agent of [".claude", ".grok"]) {
     const mirrors = join(root, agent, "skills");
