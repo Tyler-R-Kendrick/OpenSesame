@@ -24,6 +24,7 @@ import { bindBridgeRuntime, carriedByBridge } from "./bridge-runtime.js";
 import { captureBrowserNodeTransport } from "./browser-node-transport.js";
 import { bindLinearRuntime } from "./linear-runtime.js";
 import { bindNativeApiRuntime } from "./native-api-runtime.js";
+import { bindNativeCatalogConfigurationRuntime } from "./native-catalog-configuration-runtime.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";
 import { bindNativeModelKeys } from "./native-model-keys-runtime.js";
 import { bindNativeModelRuntime } from "./native-model-runtime.js";
@@ -312,5 +313,6 @@ function bindGenuineProviderRuntime(
   bindNativeOAuthRuntime(activation);
   bindNativeTwitchValidation(activation);
   bindNativeVaultRuntime(activation);
+  bindNativeCatalogConfigurationRuntime(activation);
   bindNativeCleanupRuntime(activation, ["vault", "openbao", "github", "s3"]);
 }
