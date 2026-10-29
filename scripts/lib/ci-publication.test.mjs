@@ -58,7 +58,8 @@ describe("publication authority", () => {
     }
     const qualification = stage.steps.find(
       (step) =>
-        step.name === "Revalidate original build and every prerequisite receipt",
+        step.name ===
+        "Revalidate original build and every prerequisite receipt",
     );
     expect(qualification).toBeDefined();
     expect(qualification.env?.GH_TOKEN).toBeUndefined();
