@@ -1,0 +1,62 @@
+name: Verify fail-closed Cloudflare browser containment
+on:
+  push:
+    branches: [review/quality-boat-containment-focused-connectors-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/quality-boat-containment-focused-connectors-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact signed stack
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 2540033e43fb31ba5d587915e707cf427d63eddc
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify immutable candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 2540033e43fb31ba5d587915e707cf427d63eddc
+          test "$(git rev-parse HEAD^{tree})" = 0b818800adb4b57b9ac64d743cbe0cd3c15fe329
+          test -z "$(git status --porcelain)"
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Complete repository anti-slop gate
+        run: pnpm lint:anti-slop
+      - name: Package tests and workflow contract
+        run: |
+          set -euo pipefail
+          ruby -e 'require "yaml"; ARGV.each { |file| YAML.parse_file(file) }' .github/workflows/ci.yml .github/workflows/ci-prerelease-checks.yml .github/workflows/full-suite.yml
+          pnpm --filter @opensesame/agent-sandboxes typecheck
+          pnpm --filter @opensesame/agent-sandboxes test
+          pnpm --filter @opensesame/cli typecheck
+          pnpm --filter @opensesame/cli exec vitest run src/password-reset-provider.test.ts src/password-reset-provider-verification.test.ts
+          pnpm exec vitest run scripts/lib/ci-cd-triggers.test.mjs
+      - name: Unfiltered real-browser provider suite
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
+        run: |
+          set -euo pipefail
+          test -x "$PLAYWRIGHT_CHROMIUM"
+          export AGENT_BROWSER="$PWD/packages/cua-password-reset/node_modules/.bin/agent-browser"
+          test -x "$AGENT_BROWSER"
+          pnpm --fail-if-no-match --filter @opensesame/agent-sandboxes test:e2e
+      - name: Full quality gate
+        if: success() || failure()
+        run: pnpm quality:gate
+      - name: Verify immutable source after tests
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 2540033e43fb31ba5d587915e707cf427d63eddc
+          test "$(git rev-parse HEAD^{tree})" = 0b818800adb4b57b9ac64d743cbe0cd3c15fe329
+          git diff --exit-code
