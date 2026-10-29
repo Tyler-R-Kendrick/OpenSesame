@@ -16,6 +16,10 @@ import {
   requireNativeMcpRecord,
 } from "./native-mcp-records.js";
 import { NativeMcpError } from "./native-mcp-target.js";
+import {
+  offlineConsentValid,
+  requiredResourceScopes,
+} from "./native-oauth-client-scopes.js";
 import { nativeOAuthGuard } from "./native-oauth-session.js";
 
 export async function markNativeMcpRefused(
@@ -35,6 +39,23 @@ export async function markNativeMcpRefused(
     },
   );
 }
+/** Enforce selected permissions before any grant is sent to the MCP resource. */
+export function assertNativeMcpGrantScopes(
+  record: NativeConnectorRecord,
+  grant?: NativeGrant,
+): void {
+  if (!grant) return;
+  const requested = record.configuration.requestedScopes.user ?? [];
+  if (
+    !offlineConsentValid(requested, grant.scopes, grant.refreshToken) ||
+    (grant.scopes !== null &&
+      requiredResourceScopes(requested).some(
+        (scope) => !grant.scopes?.includes(scope),
+      ))
+  )
+    throw new NativeMcpError("permission");
+}
+
 export async function nativeMcpRecordSession(
   record: NativeConnectorRecord,
   transport: NativeProviderTransport,
@@ -48,6 +69,7 @@ export async function nativeMcpRecordSession(
   );
   const binding = nativeMcpRecordBinding(record.configuration);
   const grant = issuedGrant ?? record.privateState.grants.user;
+  assertNativeMcpGrantScopes(record, grant);
   if (grant && grant.expiresAt !== null && grant.expiresAt <= Date.now())
     throw new NativeMcpError("authorization");
   const assertCurrent = () => {

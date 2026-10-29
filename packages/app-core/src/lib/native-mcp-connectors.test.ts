@@ -290,7 +290,7 @@ describe("sealed native MCP connector lifecycle", () => {
       }),
     ).rejects.toMatchObject({ code: "response" });
   });
-  it("offers explicit provider-side confirmation for an indeterminate exchange after its deadline", async () => {
+  it("keeps an indeterminate exchange after its deadline", async () => {
     const context = await mcpConnectorFixture({ tokenFailure: true });
     await beginNativeMcpAuthorization(context.id);
     await expect(
@@ -299,10 +299,11 @@ describe("sealed native MCP connector lifecycle", () => {
     const initial = requireNativeMcpRecord(context.id);
     const recoveryId = initial.privateState.recovery[0].id;
     expect(
-      nativeMcpRevocationInstructions(context.id, recoveryId).canConfirm,
+      (await nativeMcpRevocationInstructions(context.id, recoveryId))
+        .canConfirm,
     ).toBe(false);
     await expect(
-      attestNativeMcpRevocation(context.id, recoveryId),
+      attestNativeMcpRevocation(context.id, recoveryId, initial.revision),
     ).rejects.toThrow();
     await updateNativeConnector(
       context.id,
@@ -314,21 +315,18 @@ describe("sealed native MCP connector lifecycle", () => {
         return record;
       },
     );
-    const instructions = nativeMcpRevocationInstructions(
+    const instructions = await nativeMcpRevocationInstructions(
       context.id,
       recoveryId,
     );
-    expect(instructions.canConfirm).toBe(true);
-    expect(instructions.message).toContain(
-      "does not verify provider revocation",
-    );
-    const confirmed = await attestNativeMcpRevocation(context.id, recoveryId);
-    expect(confirmed.status).toBe("configuration");
-    expect(confirmed.verifiedAt).toBeNull();
-    expect(confirmed.grants).toEqual([]);
-    expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
-      [],
-    );
+    expect(instructions.canConfirm).toBe(false);
+    expect(instructions.message).toContain("could still finish");
+    await expect(
+      attestNativeMcpRevocation(context.id, recoveryId, instructions.revision),
+    ).rejects.toThrow();
+    expect(
+      requireNativeMcpRecord(context.id).privateState.recovery,
+    ).toHaveLength(1);
   });
   it("refuses human attestation while an already submitted credential mutation remains in flight", async () => {
     const context = await mcpConnectorFixture({ tokenFailure: true });
@@ -353,13 +351,14 @@ describe("sealed native MCP connector lifecycle", () => {
     const release = markNativeOAuthMutationInFlight(context.id, recoveryId);
     try {
       await expect(
-        attestNativeMcpRevocation(context.id, recoveryId),
+        attestNativeMcpRevocation(context.id, recoveryId, initial.revision),
       ).rejects.toThrow();
     } finally {
       release();
     }
     expect(
-      nativeMcpRevocationInstructions(context.id, recoveryId).canConfirm,
-    ).toBe(true);
+      (await nativeMcpRevocationInstructions(context.id, recoveryId))
+        .canConfirm,
+    ).toBe(false);
   });
 });
