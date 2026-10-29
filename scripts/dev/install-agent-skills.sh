@@ -139,19 +139,23 @@ done
 # 6. Container Chromium patch for scandinavian-design verifiers: the tracked
 #    repo previously carried this as a patched .claude variant; installed
 #    copies are patched in place instead (ignored output, re-applied after
-#    every update) and the patch is verified, not assumed.
+#    every update) and the patch is verified, not assumed. Container-only:
+#    outside the container the canonical `channel: 'chrome'` (system Chrome)
+#    must stay, or local verifiers would launch a nonexistent executable.
 PATCH_OK="true"
-for f in .agents/skills/scandinavian-design/scripts/density.js \
-         .agents/skills/scandinavian-design/scripts/lines.js \
-         .agents/skills/scandinavian-design/scripts/tints.js; do
-  if [ -f "$f" ]; then
-    perl -pi -e "s/channel: 'chrome',/executablePath: process.env.PLAYWRIGHT_CHROMIUM || '\/opt\/pw-browsers\/chromium',/" "$f"
-    if grep -q "channel: 'chrome'," "$f"; then
-      PATCH_OK="false"
-      degrade "scandinavian-design Chromium patch did not apply to $f (upstream format changed?)"
+if [ -n "${PLAYWRIGHT_CHROMIUM:-}" ] || [ -x /opt/pw-browsers/chromium ]; then
+  for f in .agents/skills/scandinavian-design/scripts/density.js \
+           .agents/skills/scandinavian-design/scripts/lines.js \
+           .agents/skills/scandinavian-design/scripts/tints.js; do
+    if [ -f "$f" ]; then
+      perl -pi -e "s/channel: 'chrome',/executablePath: process.env.PLAYWRIGHT_CHROMIUM || '\/opt\/pw-browsers\/chromium',/" "$f"
+      if grep -q "channel: 'chrome'," "$f"; then
+        PATCH_OK="false"
+        degrade "scandinavian-design Chromium patch did not apply to $f (upstream format changed?)"
+      fi
     fi
-  fi
-done
+  done
+fi
 
 # 7. Installers materialize real copies in harness mirrors; collapse them
 #    to links (this also removes stale mirrors of uninstalled optional
