@@ -1,5 +1,6 @@
-# Do not set auth.preferred_method = "api_key" when using device login alongside
-# a Cursor Runtime Secret XAI_API_KEY. That preference, like the runtime key
-# itself, shadows OIDC in ~/.grok/auth.json (a depleted key shows 403 or
-# "Not signed in"). Run grok through scripts/dev/grok-headless.sh so the key
-# is unset for the invocation, and check scripts/dev/grok-preflight.sh first.
+# Project scope: no settings are set here. Grok auth/model routing is
+# personal operator setup — see docs/contributing/agent-setup.md.
+# Do not set auth.preferred_method = "api_key" when using device login
+# alongside a Cursor Runtime Secret XAI_API_KEY: that preference, like the
+# runtime key itself, shadows OIDC in ~/.grok/auth.json. Run grok through
+# scripts/dev/grok-headless.sh and check scripts/dev/grok-preflight.sh first.

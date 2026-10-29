@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "description": "Skill ownership tiers. core skills are first-party, live in skills/, and must always be present. Optional profiles are third-party, canonical under .agents/skills/ (or .agents/skills-optional/ when installed separately), and may be absent without failing core validation. See skills/README.md.",
+  "canonical": {
+    "core": "skills/",
+    "optional": [".agents/skills/", ".agents/skills-optional/"]
+  },
+  "profiles": {
+    "core": {
+      "tier": "first-party-default",
+      "required": true,
+      "skills": [
+        "install-anti-slop",
+        "local-debug-session",
+        "opensesame-apis",
+        "opensesame-chrome-extension",
+        "opensesame-clis",
+        "opensesame-mcps",
+        "security-review",
+        "visual-evidence"
+      ]
+    },
+    "reusable-optional": {
+      "tier": "reusable-optional",
+      "required": false,
+      "skills": [
+        "design-md",
+        "enhance-prompt",
+        "gdp-ts",
+        "impeccable",
+        "site-md",
+        "stitch-code-to-design",
+        "stitch-extract-design-md",
+        "stitch-extract-static-html",
+        "stitch-generate-design",
+        "stitch-loop",
+        "stitch-manage-design-system",
+        "stitch-react-components",
+        "stitch-upload-to-stitch",
+        "taste-design"
+      ]
+    },
+    "design-experiment-optional": {
+      "tier": "design-experiment-optional",
+      "required": false,
+      "skills": [
+        "design-system",
+        "design-taste-frontend",
+        "minimalist-ui",
+        "react-vite-dashboard",
+        "redesign-existing-projects",
+        "remotion",
+        "scandinavian-design",
+        "shadcn",
+        "shadcn-ui",
+        "stitch-react-native"
+      ],
+      "unusedStack": [
+        "react-vite-dashboard",
+        "remotion",
+        "shadcn-ui",
+        "stitch-react-native"
+      ],
+      "scratchOnly": ["shadcn"]
+    }
+  }
+}

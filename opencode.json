@@ -4,7 +4,7 @@
     "storybook": {
       "type": "remote",
       "url": "http://localhost:6006/mcp",
-      "enabled": true
+      "enabled": false
     },
     "stitch": {
       "type": "remote",
@@ -12,7 +12,7 @@
       "headers": {
         "X-Goog-Api-Key": "{env:STITCH_API_KEY}"
       },
-      "enabled": true
+      "enabled": false
     },
     "shadcn": {
       "type": "local",

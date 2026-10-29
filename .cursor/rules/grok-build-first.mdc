@@ -1,47 +1,13 @@
 ---
-description: Tier 1 — delegate coding to Grok Build CLI until weekly limit; orchestrator plans, reviews, tests, and ships
-alwaysApply: true
+description: Operator model routing (tier 1) — see docs/contributing/agent-setup.md
+alwaysApply: false
 ---
 
-# Grok Build first (tier 1)
+# Grok Build first (tier 1) — operator scope
 
-OpenSesame Cloud Agents use a **three-tier coding chain** (see also
-`.cursor/rules/kimi-first.mdc` for tier 2). **All implementation edits go
-through tier 1 while Grok Build quota allows.** The Cursor agent orchestrates:
-plan, review, test, provenance, and PRs — it does not hand-write product code
-while tier 1 is available.
-
-## Tier 1 — Grok Build CLI
-
-1. On agent start, install subscription auth with
-   `bash scripts/dev/grok-install-subscription-auth.sh` (from
-   `/cursor/stores/bot/grok/auth.json` to `~/.grok/auth.json`).
-2. Run `scripts/dev/agent-coding-preflight.sh` (or `scripts/dev/grok-preflight.sh`
-   plus `scripts/dev/grok-resolve-model.sh`) before batch coding.
-3. Resolve the model: `scripts/dev/grok-resolve-model.sh` prints the pin
-   (`grok-4.7` minimum; use a newer id from `grok models` when listed).
-4. Always delegate coding through `scripts/dev/grok-headless.sh`. It unsets
-   `XAI_API_KEY`, `GROK_CODE_XAI_API_KEY`, and `GROK_DEPLOYMENT_KEY`:
-
-   ```bash
-   model="$(scripts/dev/grok-resolve-model.sh)"
-   scripts/dev/grok-headless.sh -p "<task>" -m "$model" --always-approve --output-format json
-   ```
-
-5. **Auth:** subscription login only. Install from
-   `/cursor/stores/bot/grok/auth.json` via `grok-install-subscription-auth.sh`
-   on agent start. **Never** use `XAI_API_KEY` for Grok Build. A set API key,
-   or an API 403/credits response, is misconfiguration: unset the key and use
-   the subscription file.
-
-## When to leave tier 1 (tier 2 or 3)
-
-Fall back to tier 2 only when `grok` itself reports a subscription **weekly
-limit** or **quota**. Do not treat an API key 403 or a credits error as
-tier-1 exhaustion — that is misconfiguration (unset the key and use
-subscription auth). Then use **Kimi Code CLI (tier 2)** per `kimi-first.mdc`.
-When Kimi is also exhausted, use **Cursor (tier 3)** — Grok 4.7 for security
-testing and red-team work; Composer / auto for everything else.
-
-Record the tier used and why in the PR **Provenance** section and
-`docs/audit/2026-10-provenance.md` when material.
+Model/subscription routing is personal operator setup, not product policy.
+The tier chain, auth, and fallback rules live in
+`docs/contributing/agent-setup.md` (user-scope setup), not in `AGENTS.md`.
+This file is kept
+only as a Cursor adapter so existing references resolve; do not add
+routing, quota, or credential detail here.
