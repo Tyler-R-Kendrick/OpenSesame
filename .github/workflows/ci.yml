@@ -101,3 +101,111 @@ jobs:
             exit 1
           fi
           test ! -e "$RUNNER_TEMP/candidate-helper-ran"
+  native-cold:
+    name: Exact candidate native WASM cold build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      EXPECTED_HEAD: 0916e3e2789bf4fbfbba4cee55717222a28cd171
+    steps:
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        ref: 0916e3e2789bf4fbfbba4cee55717222a28cd171
+        persist-credentials: false
+    - name: Require the exact clean source and main release controller
+      shell: bash
+      env:
+        CONTROLLER_SHA: ${{ github.workflow_sha }}
+      run: 'export GITHUB_REF=refs/heads/main GITHUB_EVENT_NAME=workflow_dispatch
+
+        export GITHUB_WORKFLOW_REF="$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main"
+
+        set -euo pipefail
+
+        test "$GITHUB_REPOSITORY" = Tyler-R-Kendrick/OpenSesame
+
+        test "$GITHUB_REF" = refs/heads/main
+
+        test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main"
+
+        case "$GITHUB_EVENT_NAME" in schedule|workflow_dispatch) ;; *) exit 1 ;; esac
+
+        [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+        test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+
+        test -z "$(git status --porcelain --untracked-files=all)"
+
+        test ! -e .opensesame-signature-controller && test ! -L .opensesame-signature-controller
+
+        '
+    - name: Check out the main release controller as data
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: .opensesame-signature-controller
+        persist-credentials: false
+        sparse-checkout-cone-mode: false
+        sparse-checkout: 'scripts/release/check-merge-group-signature.mjs
+
+          scripts/lib/pr-signatures.mjs
+
+          '
+    - name: Verify the selected source with the main controller
+      shell: bash
+      env:
+        CONTROLLER_SHA: ${{ github.workflow_sha }}
+        GH_TOKEN: ${{ github.token }}
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+      run: 'set -euo pipefail
+
+        test "$(git -C .opensesame-signature-controller rev-parse HEAD)" = "$CONTROLLER_SHA"
+
+        controller="$RUNNER_TEMP/opensesame-signature-controller-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+        test ! -e "$controller" && test ! -L "$controller"
+
+        mv .opensesame-signature-controller "$controller"
+
+        test -z "$(git status --porcelain --untracked-files=all)"
+
+        node "$controller/scripts/release/check-merge-group-signature.mjs" "$GITHUB_REPOSITORY" "$EXPECTED_HEAD"
+
+        '
+    - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      with:
+        node-version: 24
+        package-manager-cache: false
+    - name: Install exact locked build dependencies
+      run: pnpm install --frozen-lockfile
+    - name: Build and verify all four original native phases
+      run: 'set -euo pipefail
+
+        mkdir -m 700 "$RUNNER_TEMP/pwa-native-wasm-logs"
+
+        df -h . | tee "$RUNNER_TEMP/pwa-native-wasm-logs/disk.log"
+
+        free -h | tee "$RUNNER_TEMP/pwa-native-wasm-logs/memory.log"
+
+        timeout --signal=TERM --kill-after=10s 900s node scripts/ci-native-wasm.mjs 2>&1 | tee "$RUNNER_TEMP/pwa-native-wasm-logs/validation.log"
+
+        '
+    - name: Retain exact source, raw phases, emitted assets and failure logs
+      if: always()
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      with:
+        name: pwa-native-wasm-0916e3e2789bf4fbfbba4cee55717222a28cd171-${{ github.run_attempt }}
+        retention-days: 14
+        include-hidden-files: true
+        if-no-files-found: error
+        path: '${{ runner.temp }}/pwa-native-wasm-logs
+
+          .cache/pwa-tailscale-native-http/ci-evidence
+
+          .cache/pwa-tailscale-native-http/work/*/*.log
+
+          .cache/pwa-tailscale-native-http/work/*/build/logs
+
+          '
