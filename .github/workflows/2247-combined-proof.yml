@@ -1,0 +1,65 @@
+name: Reviewed CLI provider security proof
+on:
+  push:
+    branches: [review/2247-combined-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2247-combined-proof-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+          ref: 8d4c8de2a2a9ae99baa94e29b7f7b9e6420b89ac
+      - name: Verify immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 8d4c8de2a2a9ae99baa94e29b7f7b9e6420b89ac
+          test "$(git rev-parse HEAD^{tree})" = e0d93ed8226a4bb7e2ce11121d4d66f9f918146c
+          test "$(git rev-parse HEAD^)" = 8f917d5615d489b564b5a1719e985e1d0cb0c664
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Install frozen dependencies
+        id: install
+        run: pnpm install --frozen-lockfile
+      - name: Format and strict quality for changed files
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(packages/cli/src/boat-provider-state.ts packages/cli/src/boat-provider-state.test.ts packages/cli/src/boat-provider-state-process.test.ts packages/cli/src/boat-provider-state-interrupted.test.ts packages/cli/src/password-reset-boat-retry.test.ts packages/cli/src/password-reset-sandbox-provider.ts packages/cli/src/password-reset-provider.test.ts packages/cli/src/password-reset-local-runtime.ts packages/cli/src/password-reset-local-verification.ts packages/cli/src/password-reset-provider-verification.test.ts packages/cli/src/password-reset-claim.ts packages/cli/src/password-reset-claim.test.ts packages/agent-sandboxes/src/boat-provider.ts packages/agent-sandboxes/src/boat-provider.test.ts packages/agent-sandboxes/src/boat-registration-state.ts packages/agent-sandboxes/src/boat-state-resumption.test.ts)
+          pnpm exec biome check "${files[@]}"
+          pnpm lint:anti-slop:files "${files[@]}"
+          pnpm exec oxlint -c tools/quality/oxlint.complexity.jsonc "${files[@]}"
+      - name: Typecheck sandbox package
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm --filter @opensesame/agent-sandboxes typecheck
+      - name: Typecheck CLI
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm --filter @opensesame/cli typecheck
+      - name: Boat claim and provider regressions
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm --filter @opensesame/agent-sandboxes exec vitest run src/boat-provider.test.ts src/boat-state-resumption.test.ts
+      - name: Private filesystem and subprocess regressions
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm --filter @opensesame/cli exec vitest run src/boat-provider-state.test.ts src/boat-provider-state-interrupted.test.ts src/boat-provider-state-process.test.ts src/password-reset-boat-retry.test.ts src/password-reset-provider.test.ts src/password-reset-provider-verification.test.ts src/password-reset-claim.test.ts
+      - name: Full structural quality gate
+        if: ${{ always() && steps.install.outcome == 'success' }}
+        run: pnpm quality:gate
+      - name: Verify source remains unchanged
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = e0d93ed8226a4bb7e2ce11121d4d66f9f918146c
+          git diff --exit-code
+          git diff --cached --exit-code
