@@ -134,12 +134,12 @@ library: a rule that cannot be expressed in tokens shows up as a gap.
 Skills have one canonical installation under `.agents/skills/`. First-party
 skills are canonical in `skills/`; third-party skills are optional profiles
 catalogued in `skills/profiles.json` (see `skills/README.md`), not universal
-defaults. `scripts/dev/install-agent-skills.sh` installs absent optional skills
-from a pinned, previously tracked repository snapshot after verifying their
-contents. It preserves existing installations and creates missing mirror links.
-Core validation passes with optional profiles uninstalled. Review snapshot
-updates before changing the pin. Other harnesses share relative links; do not
-install copied trees for each agent. The MCP files name the
+defaults. Most are catalogued in `skills-lock.json` and installed at latest
+(unpinned) by `scripts/dev/install-agent-skills.sh`; the exceptions are
+`design-system` and `impeccable` (its own updater). Core validation passes
+with the optional profiles uninstalled. Update that installation once, then run
+`node scripts/dev/sync-agent-skills.mjs` and its `--check` mode. Other harnesses
+share relative links; do not install copied trees for each agent. The MCP files name the
 same two servers everywhere.
 
 | Agent | Skills | MCP servers (Storybook + Stitch + shadcn) |

@@ -1,237 +1,192 @@
 #!/usr/bin/env bash
-# Install absent optional skills from the previously tracked snapshot.
-# Existing user content and hooks are never replaced or cleaned up. Refreshes
-# require a reviewed change to both the commit and the expected tree below.
-set -euo pipefail
-# Repository-local replacement refs must not substitute the pinned objects.
-export GIT_NO_REPLACE_OBJECTS=1
-readonly SOURCE_COMMIT=ae450dbce41860c69f0fa3f6f1ae40dce28b6126
-readonly SOURCE_SKILLS_TREE=8a0c19e12401350dc4d87b9b6436ceeca4acb5c4
-warn() { echo "install-agent-skills: $*" >&2; }
+# Install/refresh third-party agent skills into .agents/skills/ (+ mirrors).
+#
+# These skills are install output, not source: .gitignore covers every
+# harness root except the repo-built adapters whitelisted there, and the
+# third-party trees were removed from source control. skills-lock.json is
+# the catalogue (which skills, from which sources); skill CONTENT floats
+# to upstream latest on every run (unpinned by design for optional
+# profiles), while the installer CLIs below are version-pinned — bump
+# them deliberately. Tiers live in skills/profiles.json. First-party
+# skills in skills/ are tracked source and need no install; core
+# validation passes without any of this.
+#
+# Runs on every devcontainer start (postStartCommand, which also covers
+# first creation) and via `pnpm skills:install`. Safe to re-run; a lock
+# file (override: OPENSESAME_SKILLS_LOCK_FILE) serializes concurrent
+# runs. Per-skill failures warn and continue (optional profiles may be
+# absent, e.g. offline); the outcome is recorded in
+# .agents/.skills-currency.json instead of failing container start.
+set -uo pipefail
 
-# Anchor the .agents inode before using it as the working directory. Python's
-# fchdir works on both Linux and macOS, including when /dev/fd cannot be cd'd.
-if [[ "${1:-}" != --anchored ]]; then
-  cd "$(dirname "$0")/../.."
-  root=$(pwd -P)
-  if [[ -L .agents ]]; then warn '.agents is a symlink'; exit 1; fi
-  mkdir -p .agents
-  exec 8<.agents
-  exec python3 - "$root" <<'PYANCHOR'
-import os
-import stat
-import sys
-root = sys.argv[1]
-entry = os.lstat(os.path.join(root, ".agents"))
-opened = os.fstat(8)
-if not stat.S_ISDIR(entry.st_mode) or (entry.st_dev, entry.st_ino) != (opened.st_dev, opened.st_ino):
-    raise SystemExit("skill root changed while opening")
-os.fchdir(8)
-os.set_inheritable(8, True)
-os.execv("/bin/bash", ["bash", os.path.join(root, "scripts/dev/install-agent-skills.sh"), "--anchored", root])
-PYANCHOR
-fi
-root="${2:?missing checkout root}"
-python3 - 8 <<'PYANCHOR'
-import os
-import sys
-opened = os.fstat(int(sys.argv[1]))
-cwd = os.stat(".")
-if (cwd.st_dev, cwd.st_ino) != (opened.st_dev, opened.st_ino):
-    raise SystemExit("skill root descriptor does not match working directory")
-PYANCHOR
-if [[ -L skills ]]; then warn '.agents/skills is a symlink'; exit 1; fi
-mkdir -p skills
-exec 9<skills
-python3 - skills 9 <<'PYANCHOR'
-import os
-import stat
-import sys
-entry = os.lstat(sys.argv[1])
-opened = os.fstat(int(sys.argv[2]))
-if not stat.S_ISDIR(entry.st_mode) or (entry.st_dev, entry.st_ino) != (opened.st_dev, opened.st_ino):
-    raise SystemExit("skill directory changed while opening")
-PYANCHOR
-lock_dir=.skills-install.lockdir
-if ! mkdir "$lock_dir" 2>/dev/null; then
-  warn "installer lock exists at $lock_dir; leave it until the other installer finishes"
-  exit 1
-fi
-tmp=""
-keep_snapshot=false
-cleanup() {
-  if [[ -n "$tmp" && "$keep_snapshot" != true ]]; then rm -rf "$tmp"; fi
-  rmdir "$lock_dir" || warn "could not remove installer lock $lock_dir"
-}
-trap cleanup EXIT
-if ! git -C "$root" cat-file -e "$SOURCE_COMMIT^{commit}" 2>/dev/null; then
-  python3 - "$SOURCE_COMMIT" "$root" <<'PYFETCH' || {
-import subprocess
-import sys
-try:
-    subprocess.run(["git", "-C", sys.argv[2], "fetch", "--no-tags", "--no-write-fetch-head", "origin", sys.argv[1]], check=True, timeout=60)
-except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-    raise SystemExit(1)
-PYFETCH
-    warn 'pinned skill snapshot is unavailable; optional skills remain absent'; exit 0;
-  }
-fi
-[[ "$(git -C "$root" rev-parse "$SOURCE_COMMIT:.agents/skills")" == "$SOURCE_SKILLS_TREE" ]] || {
-  warn 'pinned skill snapshot tree does not match the pin'; exit 1;
-}
-tmp=$(mktemp -d .skill-install.XXXXXXXX)
-node - "$root/skills/profiles.json" > "$tmp/names" <<'JSPROFILES'
-  const p = JSON.parse(require('node:fs').readFileSync(process.argv[2], 'utf8'));
-  for (const profile of Object.values(p.profiles)) {
-    if (profile.required !== false) continue;
-    for (const name of profile.skills) {
-      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) throw Error("Invalid skill name");
-      console.log(name);
-    }
-  }
-JSPROFILES
-ensure_mirrors() {
-  python3 - "$1" "$root" <<'PYMIRROR'
-import os
-import sys
+# Pinned installer tool versions (skill content still floats to latest).
+SKILLS_CLI="skills@1.7.4"
+IMPECCABLE_CLI="impeccable@4.8.0"
+TYPEUI_CLI="typeui.sh@0.7.1"
 
-name = sys.argv[1]
-flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-root = os.open(sys.argv[2], flags)
-try:
-    for agent in (".claude", ".grok"):
-        try:
-            try:
-                os.mkdir(agent, dir_fd=root)
-            except FileExistsError:
-                pass
-            agent_fd = os.open(agent, flags, dir_fd=root)
-            try:
-                try:
-                    os.mkdir("skills", dir_fd=agent_fd)
-                except FileExistsError:
-                    pass
-                skills_fd = os.open("skills", flags, dir_fd=agent_fd)
-                try:
-                    try:
-                        os.symlink(f"../../.agents/skills/{name}", name, dir_fd=skills_fd)
-                    except FileExistsError:
-                        pass
-                finally:
-                    os.close(skills_fd)
-            finally:
-                os.close(agent_fd)
-        except OSError as error:
-            print(f"install-agent-skills: skipping unsafe or unavailable mirror {agent}: {error}", file=sys.stderr)
-finally:
-    os.close(root)
-PYMIRROR
-}
-while IFS= read -r name; do
-  dest="skills/$name"
-  archive_path=".agents/skills/$name"
-  if [[ -e "$dest" || -L "$dest" ]]; then
-    if [[ -f "$dest/SKILL.md" ]]; then ensure_mirrors "$name"; fi
-    continue
-  fi
-  tree="$SOURCE_COMMIT:.agents/skills/$name"
-  [[ "$(git -C "$root" cat-file -t "$tree" 2>/dev/null || true)" == tree ]] || {
-    warn "missing pinned tree for $name"; exit 1;
-  }
-  # Refuse symlinks and submodules before archive extraction. The pinned tree
-  # contains only regular files, so no archive entry can escape the staging dir.
-  if git -C "$root" ls-tree -r "$tree" | grep -vE '^100(644|755) blob [0-9a-f]{40}[[:space:]]' > "$tmp/invalid"; then
-    warn "unsupported entry in pinned tree for $name"; exit 1;
-  fi
-  mkdir -p "$tmp/stage"
-  git -C "$root" archive --format=tar "$SOURCE_COMMIT" -- "$archive_path" | tar -xf - -C "$tmp/stage"
-  [[ -f "$tmp/stage/$archive_path/SKILL.md" ]] || { warn "missing SKILL.md for $name"; exit 1; }
-  git -C "$root" ls-tree -rz "$tree" > "$tmp/entries"
-  python3 - "$tmp/entries" "$tmp/stage/$archive_path" <<'PYVERIFY'
-import hashlib
-import os
-import pathlib
-import sys
+cd "$(dirname "$0")/../.." || exit 1
+warn() { echo "install-agent-skills: WARN: $*" >&2; }
+STATUS="ok"
+degrade() { STATUS="degraded"; warn "$*"; }
 
-root = pathlib.Path(sys.argv[2])
-expected = {}
-for record in pathlib.Path(sys.argv[1]).read_bytes().split(b"\0"):
-    if not record:
-        continue
-    meta, raw_path = record.split(b"\t", 1)
-    mode, kind, oid = meta.decode("ascii").split(" ")
-    path = os.fsdecode(raw_path)
-    if mode not in ("100644", "100755") or kind != "blob":
-        raise SystemExit("unsupported pinned tree entry")
-    expected[path] = (mode, oid)
-actual = set()
-for directory, dirs, files in os.walk(root, followlinks=False):
-    base = pathlib.Path(directory)
-    for name in dirs:
-        if (base / name).is_symlink():
-            raise SystemExit("unexpected link in staged skill")
-    for name in files:
-        path = base / name
-        if path.is_symlink() or not path.is_file():
-            raise SystemExit("unexpected staged skill entry")
-        rel = str(path.relative_to(root))
-        actual.add(rel)
-        if rel not in expected:
-            raise SystemExit("unexpected staged skill file")
-        mode, oid = expected[rel]
-        data = path.read_bytes()
-        header = f"blob {len(data)}\0".encode("ascii")
-        if hashlib.sha1(header + data).hexdigest() != oid:
-            raise SystemExit("staged skill file digest mismatch")
-        if bool(path.stat().st_mode & 0o111) != (mode == "100755"):
-            raise SystemExit("staged skill executable mode mismatch")
-if actual != set(expected):
-    raise SystemExit("incomplete staged skill")
-PYVERIFY
-  # The previous tracked version uses Chrome's channel. Only newly staged,
-  # verified copies receive this fixed compatibility transformation.
-  if [[ "$name" == scandinavian-design ]]; then
-    python3 - "$tmp/stage/$archive_path" <<'PYPATCH'
-import pathlib
-import sys
-root = pathlib.Path(sys.argv[1])
-old = "channel: 'chrome',"
-new = ("...(() => {\n"
-       "      const pinned = '/opt/pw-browsers/chromium';\n"
-       "      const executablePath = process.env.PLAYWRIGHT_CHROMIUM || (fs.existsSync(pinned) ? pinned : undefined);\n"
-       "      return executablePath ? { executablePath } : { channel: 'chrome' };\n"
-       "    })(),")
-for name in ("density.js", "lines.js", "tints.js"):
-    path = root / "scripts" / name
-    source = path.read_text()
-    if source.count(old) != 1:
-        raise SystemExit(f"unexpected Chromium launcher in {name}")
-    path.write_text(source.replace(old, new))
-PYPATCH
+# Serialize concurrent runs (postStart + manual) when flock is available.
+mkdir -p .agents
+LOCK_FILE="${OPENSESAME_SKILLS_LOCK_FILE:-.agents/.skills-install.lock}"
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"$LOCK_FILE"
+  if ! flock -w 120 9; then
+    warn "another skills install is running; skipping this run"
+    exit 0
   fi
-  # Publish the fully verified staged directory through a single no-replace
-  # symlink operation. The unique private staging directory stays in place for
-  # every installed skill. An existing destination is never entered or changed.
-  snapshot_link="../${tmp##*/}/stage/$archive_path"
-  # Persist before publication so a signal after symlink creation cannot
-  # delete the snapshot behind an already discoverable skill.
-  keep_snapshot=true
-  if python3 - "$name" "$snapshot_link" <<'PYINSTALL'
-import os
-import sys
-try:
-    os.symlink(sys.argv[2], sys.argv[1], dir_fd=9)
-except FileExistsError:
-    raise SystemExit(2)
-PYINSTALL
-  then
-    echo "install-agent-skills: installed pinned snapshot of $name"
-  else
-    result=$?
-    if [[ "$result" != 2 ]]; then
-      warn "could not publish $name"
-      exit "$result"
+fi
+
+# Snapshot which tracked adapter/lock files are already dirty, so the
+# restore at the end only touches installer side effects, never local work.
+TRACKED=".codex/hooks.json .claude/settings.json skills-lock.json"
+DIRTY_BEFORE=$(git status --porcelain -- $TRACKED 2>/dev/null | cut -c4- | sort || true)
+
+# 1. Install missing catalogue skills at upstream latest
+#    (lock key stitch::x installs as stitch-x/). Explicit agents only:
+#    '*' also writes Universal (./skills/) and OpenClaw (./agent/) roots
+#    this repo does not use. Codex, Copilot, OpenCode, and Gemini
+#    discover .agents/skills natively; Claude Code and Grok need mirrors.
+if ! missing=$(node -e "
+  const fs = require('fs');
+  const lock = JSON.parse(fs.readFileSync('skills-lock.json', 'utf8'));
+  for (const [name, meta] of Object.entries(lock.skills)) {
+    const dir = name.replace('stitch::', 'stitch-');
+    if (!fs.existsSync('.agents/skills/' + dir + '/SKILL.md'))
+      console.log(name + '\t' + meta.source);
+  }
+"); then
+  degrade "could not read skills-lock.json; skipping catalogue install"
+  missing=""
+fi
+if [ -n "$missing" ]; then
+  printf '%s\n' "$missing" | while IFS="$(printf '\t')" read -r name source; do
+    echo "install-agent-skills: adding $name from $source (latest)"
+    timeout --kill-after=15 300 npx -y "$SKILLS_CLI" add "$source" -s "$name" -a claude-code -a grok --full-depth -y </dev/null \
+      || warn "could not install optional skill $name"
+  done
+fi
+
+# 2. Refresh everything already installed to upstream latest.
+timeout --kill-after=15 600 npx -y "$SKILLS_CLI" update -y </dev/null \
+  || degrade "skills update failed (offline?); keeping installed versions"
+
+# 3. impeccable ships its own installer/updater (not in skills-lock.json).
+#    Restricted providers + no hooks: hook registration belongs to tracked
+#    config (.codex/hooks.json, .claude/settings.json), never to an
+#    installer's ignored side effects.
+if [ -f .agents/skills/impeccable/SKILL.md ]; then
+  timeout --kill-after=15 600 npx -y "$IMPECCABLE_CLI" update -y --project --no-hooks </dev/null \
+    || degrade "could not update optional skill impeccable"
+else
+  timeout --kill-after=15 600 npx -y "$IMPECCABLE_CLI" install -y --project --no-hooks --providers=claude,agents,grok </dev/null \
+    || degrade "could not install optional skill impeccable"
+fi
+
+# 4. design-system is a TypeUI pull (not in skills-lock.json); re-pull latest.
+timeout --kill-after=15 300 npx -y "$TYPEUI_CLI" pull minimal -f skill -p claude-code </dev/null \
+  || degrade "could not refresh optional skill design-system"
+if [ ! -f .agents/skills/design-system/SKILL.md ] && [ -f .claude/skills/design-system/SKILL.md ]; then
+  mkdir -p .agents/skills/design-system
+  cp -r .claude/skills/design-system/. .agents/skills/design-system/
+fi
+
+# 5. Remove hook registrations installers wrote into ignored roots
+#    (older host installs, other tools), preserving unrelated hooks: only
+#    the impeccable entries are stripped from shared manifests, and only
+#    single-purpose impeccable.json manifests are deleted. Tracked files
+#    are never touched.
+for f in .grok/hooks/impeccable.json .github/hooks/impeccable.json; do
+  if [ -f "$f" ] && grep -qi impeccable "$f" && ! git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+    rm -f "$f"
+    echo "install-agent-skills: removed installer-written hook manifest $f"
+  fi
+done
+for f in .cursor/hooks.json .claude/settings.local.json; do
+  if [ -f "$f" ] && ! git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+    HOOK_FILE="$f" node -e "
+      const fs = require('fs');
+      const path = process.env.HOOK_FILE;
+      try {
+        const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+        let changed = false;
+        for (const [event, groups] of Object.entries(data.hooks ?? {})) {
+          data.hooks[event] = (groups ?? [])
+            .map((g) => {
+              if (!Array.isArray(g.hooks)) {
+                return /impeccable/u.test(g.command ?? '') ? (changed = true, null) : g;
+              }
+              const kept = g.hooks.filter((h) => !/impeccable/u.test(h.command ?? ''));
+              if (kept.length !== g.hooks.length) changed = true;
+              return kept.length ? { ...g, hooks: kept } : null;
+            })
+            .filter(Boolean);
+          if (!data.hooks[event].length) delete data.hooks[event];
+        }
+        if (changed) {
+          if (data.hooks && !Object.keys(data.hooks).length) delete data.hooks;
+          fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
+          console.log('install-agent-skills: stripped impeccable hooks from ' + path);
+        }
+      } catch { /* unparseable user settings: leave untouched */ }
+    " || true
+  fi
+done
+
+# 6. Container Chromium patch for scandinavian-design verifiers: the tracked
+#    repo previously carried this as a patched .claude variant; installed
+#    copies are patched in place instead (ignored output, re-applied after
+#    every update) and the patch is verified, not assumed.
+PATCH_OK="true"
+for f in .agents/skills/scandinavian-design/scripts/density.js \
+         .agents/skills/scandinavian-design/scripts/lines.js \
+         .agents/skills/scandinavian-design/scripts/tints.js; do
+  if [ -f "$f" ]; then
+    perl -pi -e "s/channel: 'chrome',/executablePath: process.env.PLAYWRIGHT_CHROMIUM || '\/opt\/pw-browsers\/chromium',/" "$f"
+    if grep -q "channel: 'chrome'," "$f"; then
+      PATCH_OK="false"
+      degrade "scandinavian-design Chromium patch did not apply to $f (upstream format changed?)"
     fi
   fi
-  if [[ -f "$dest/SKILL.md" ]]; then ensure_mirrors "$name"; fi
-done < "$tmp/names"
+done
+
+# 7. Installers materialize real copies in harness mirrors; collapse them
+#    to links (this also removes stale mirrors of uninstalled optional
+#    skills). Then restore tracked adapters/lock that installers rewrite —
+#    but only files that were clean before this run; pre-existing local
+#    edits are left alone. Installed content floats to latest; tracked
+#    files change only in reviewed commits.
+node scripts/dev/sync-agent-skills.mjs || degrade "skill mirror sync reported problems"
+for f in $TRACKED; do
+  if printf '%s\n' "$DIRTY_BEFORE" | grep -qx "$f"; then
+    warn "leaving locally modified $f untouched (installer changes not reverted)"
+  else
+    git checkout -- "$f" 2>/dev/null || true
+  fi
+done
+
+# 8. Record currency durably, then gate. A failed check degrades the run
+#    (recorded + warned) instead of failing container start; CI gates the
+#    fresh tracked tree separately.
+if ! node scripts/dev/sync-agent-skills.mjs --check; then
+  degrade "sync --check failed after install (see above)"
+fi
+node -e "
+  const fs = require('fs');
+  const root = '.agents/skills';
+  const installed = fs.existsSync(root)
+    ? fs.readdirSync(root).filter((n) => fs.existsSync(root + '/' + n + '/SKILL.md')).sort()
+    : [];
+  fs.writeFileSync('.agents/.skills-currency.json', JSON.stringify({
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    status: '$STATUS',
+    method: 'skills add/update (latest, unpinned) + impeccable + typeui',
+    scandinavianPatch: $PATCH_OK,
+    installed,
+  }, null, 2) + '\n');
+" || warn "could not write .agents/.skills-currency.json"
+echo "install-agent-skills: done (status: $STATUS)"

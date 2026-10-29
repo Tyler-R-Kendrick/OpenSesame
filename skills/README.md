@@ -41,14 +41,17 @@ for an uninstalled optional skill is skipped by the checker; removing it is
 the harness owner's job. An unlisted or core name without a canonical install
 still fails.
 
-Provenance: optional skills are restored from a pinned, previously tracked Git tree
-by `scripts/dev/install-agent-skills.sh`. The installer checks every staged
-file against that tree before making it discoverable. The three Scandinavian
-verifiers then receive the repository Chromium-path adjustment on first install. Updating the snapshot
-requires a reviewed commit and tree pin. Existing local skills and personal
-hooks are left untouched. The tiers say what is a default; a fresh clone has
-only the core profile until install runs. Anything a build or gate depends on
-must be core.
+Provenance: 20 of the 22 third-party skills are catalogued in
+[`skills-lock.json`](../skills-lock.json). The exceptions are `design-system`
+(a TypeUI pull, which also declares frontmatter `name: minimal`) and
+`impeccable` (its own `npx impeccable` updater); the install script restores
+both. The tiers say what is a default; presence on disk is a local install
+choice, and a fresh clone has only the core profile until install runs.
+Lock hashes detect upstream updates, they do not pin revisions: restoring
+optional profiles floats to latest upstream (accepted for optional design
+tooling; upstream removals — e.g. taste-skill's retired `minimalist-ui` and
+`redesign-existing-projects` in Oct 2026 — are dropped from the catalogue in
+reviewed commits). Anything a build or gate depends on must be core.
 
 ## Using OpenSesame
 

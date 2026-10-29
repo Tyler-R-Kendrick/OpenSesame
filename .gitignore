@@ -67,12 +67,6 @@ mutants.out.old/
 !.agents/skills/security-review
 !.agents/skills/visual-evidence
 .claude/*
-!.claude/agents/
-.claude/agents/*
-!.claude/agents/impeccable-asset-producer.md
-!.claude/agents/impeccable-documenter.md
-!.claude/agents/impeccable-finish-reviewer.md
-!.claude/agents/impeccable-manual-edit-applier.md
 !.claude/README.md
 !.claude/settings.json
 !.claude/hooks/

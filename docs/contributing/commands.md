@@ -238,7 +238,7 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # system notification carrying only { kind, action, ref }), approved and refused
 # with the keyboard and the passkey, every decision a receipt in Sessions, an
 # application signed in and revoked, and a locked vault showing nothing and
-# answering 423. Own mandatory prerelease job. Run before
+# answering 423. Own CI job, required through Bundle budgets. Run before
 # touching `device-receipts`, `device-inbox`, `local-notifications` or Receipts.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
   pnpm --filter @opensesame/pages verify:tutorials
@@ -257,7 +257,7 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # person would see it degrade to text. Run before touching a tutorial, the
 # tutorial card, the Support sheet or the target registry.
 # `TUTORIALS_SHARD=k/n` walks the kth of n slices of the library (by tutorial id);
-# slice 1 also runs Escape, the move and the gates. Prerelease CI runs three per width.
+# slice 1 also runs Escape, the move and the gates. CI runs three per width.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
   pnpm --filter @opensesame/pages verify:encrypted-search
 # Same harness, Encrypted search (ADR 0175) in the built app, at desktop and
@@ -346,8 +346,9 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # is let go) and an operator policy that refuses the Identity API's origin. About
 # 20 s. Run before touching `lib/push*.ts`, `modules/notifications.web-push`,
 # or the control-plane, notification-adapters, identity-worker and database code
-# the walk imports; prerelease CI runs its "Web Push end to end" job for the
-# selected candidate when its push area is in scope.
+# the walk imports; CI runs it as its own job, "Web Push end to end", whenever
+# the Pages build or any of that server code changes (`push` area in
+# `scripts/lib/ci-changed-areas.mjs`).
 ```
 
 Sealed-store manifest bridge (ADR 0037 §6): `opensesame pass seal manifest.json --shred`

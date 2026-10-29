@@ -60,15 +60,11 @@ ln -s ~/.agents/skills/<name> ~/.claude/skills/<name>   # per skill
 Project skills work differently in-repo: first-party source is `skills/`
 (tracked, aliased from `.agents/skills/`); third-party skills install into
 `.agents/skills/` with `.claude/skills/` and `.grok/skills/` mirrors, all
-gitignored and restored from a pinned, previously tracked repository snapshot at container start by
-`scripts/dev/install-agent-skills.sh`. The four previously tracked Impeccable Claude agent definitions remain tracked
-so its independent-review workflow can run. The installer leaves existing
-skills, mirrors and personal hooks untouched;
-it creates a mirror only if the path is absent. Newly installed Scandinavian
-verifiers use `PLAYWRIGHT_CHROMIUM` when set. Otherwise they use
-`/opt/pw-browsers/chromium` if it exists, or Playwright's Chrome channel. This adjustment happens after the pinned source bytes are verified. A stopped installer can leave
-`.agents/.skills-install.lockdir`; after confirming no install is running,
-recover with `rmdir .agents/.skills-install.lockdir` and retry the install.
+gitignored and refreshed to latest at container start by
+`scripts/dev/install-agent-skills.sh`. Harness-specific variants an
+installer writes (e.g. impeccable's Claude copy) are install output too;
+`node scripts/dev/sync-agent-skills.mjs` collapses duplicate mirrors to
+links and `--check` verifies them.
 
 ### Claude permissions (auto-allow)
 
@@ -99,8 +95,9 @@ Stitch needs your own key: `export STITCH_API_KEY=...` in your shell/dotfiles
 
 The `google-labs-code/stitch-skills` marketplace plugins
 (`stitch-design`, `stitch-build`, `stitch-utilities`) are **not**
-auto-enabled by tracked settings — the same skills restore from a pinned,
-previously tracked repository snapshot into `.agents/skills/stitch-*` at container start. To use the
+auto-enabled by tracked settings — the same skills install (latest,
+unpinned) into `.agents/skills/stitch-*` per the `skills-lock.json`
+catalogue at container start. To use the
 marketplace copies instead, enable them in your user Claude settings
 (`extraKnownMarketplaces` + `enabledPlugins` for
 `google-labs-code/stitch-skills`).
@@ -141,8 +138,8 @@ for device-login setups (see `.grok/config.toml`).
   `/home/vscode`), frozen-lockfile install in `updateContentCommand`,
   hooks in `postCreateCommand`, named volumes for cargo/pnpm/corepack.
   `postStartCommand` runs `scripts/dev/install-agent-skills.sh` only
-  (missing optional skills from the pinned snapshot into gitignored roots;
-  warns and continues offline when the snapshot is unavailable). No other `postAttach` work, no host paths, no dotfiles.
+  (latest third-party skills into gitignored roots; warns and continues
+  offline). No other `postAttach` work, no host paths, no dotfiles.
   In-container planes use `127.0.0.1` defaults (`scripts/dev/local-env.sh`).
 - **Host-agent (opt-in, not tracked):** if you run host planes, add your
   own devcontainer override with
@@ -157,9 +154,10 @@ for device-login setups (see `.grok/config.toml`).
   dotfiles revision (`git -C "$(chezmoi source-path)" checkout <rev>`).
 - Personal skills: update in `~/.agents/skills` only; links follow.
   Rollback = restore that directory; no repo change needed.
-- Project skills: change the pinned source commit and tree only in a reviewed
-  commit after reviewing all included skill contents. Existing installed
-  skills remain untouched; remove or back up a local copy before reinstalling.
+- Project skills: third-party content floats to latest at every
+  container start (`skills-lock.json` is the catalogue, not a pin).
+  Catalogue changes are reviewed commits; check
+  `.agents/.skills-currency.json` for what the last start installed.
 - Harness config changes in-repo: keep them adapter-sized. Rollback is a
   plain `git revert` of the config commit — personal state above is
   unaffected because none of it is tracked.

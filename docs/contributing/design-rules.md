@@ -76,7 +76,7 @@ Full prose moved from `AGENTS.md` §5. `AGENTS.md` §5 keeps the one-line invari
 - **Browser-local IAM must prove an actual application sign-in.** Changes to
   local identity sessions, application grants, popup transport or consent
   require `pnpm --filter @opensesame/pages verify:local-iam` against a fresh
-  Pages build, alongside the focused IAM tests. This mandatory prerelease
+  Pages build, alongside the focused IAM tests. This required Bundle budgets
   check uses separate browser origins, real encrypted storage and virtual
   WebAuthn, with keyboard-only explicit consent, session check, revocation
   and denial at desktop/mobile widths. A registration form or mocked success
@@ -88,7 +88,7 @@ Full prose moved from `AGENTS.md` §5. `AGENTS.md` §5 keeps the one-line invari
   the Web Push adapters or the Host's delivery require
   `pnpm --filter @opensesame/pages verify:push-worker` and `verify:push`
   against fresh builds (`build:push-verify` for the second). `verify:push` is
-  its own mandatory prerelease job, and runs
+  its own CI job, folded into the required Bundle budgets check, and runs
   for the server code it exercises as well as for Pages. A push worker that is
   only ever shown to a mocked enrolment, or a walk that nudges the browser, is
   not evidence.
@@ -514,7 +514,7 @@ Full prose moved from `AGENTS.md` §5. `AGENTS.md` §5 keeps the one-line invari
   the target registry require `pnpm --filter @opensesame/pages verify:tutorials`
   against a fresh Pages build (every tutorial, desktop and phone, Next and
   Back and Replay and Done, keyboard and mouse, focus handed back), and keep it
-  in the mandatory prerelease suite.
+  in the required Bundle budgets job.
 - **Every new user-facing feature is a capability, and an optional one never
   loads before consent**
   ([ADR 0130](../adr/0130-operator-controlled-capability-composition.md)).
@@ -625,3 +625,4 @@ Full prose moved from `AGENTS.md` §5. `AGENTS.md` §5 keeps the one-line invari
 - Configuration follows the `.env.schema` env-spec pattern (`@type`,
   `@required`, `@sensitive`, `@public` annotations). Never commit live
   secrets; dev signing keys and claim peppers are generated outside git.
+

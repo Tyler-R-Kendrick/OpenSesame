@@ -155,3 +155,4 @@ Session startup must never generate migrations, baselines or tracked reports.
 Clean only task-owned scratch/build output when the task finishes; preserve active
 sessions and shared caches. Run `node scripts/quality/repository-size-gate.mjs`
 before staging, and review any limit change as a policy change.
+

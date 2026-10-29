@@ -154,3 +154,4 @@ Interpret results narrowly:
 Keep scanner artifacts private. They may contain sensitive paths or threat
 models. Never publish exploit details, tokens, credentials, claim values, or
 other secret material in issues, logs, or scan reports.
+
