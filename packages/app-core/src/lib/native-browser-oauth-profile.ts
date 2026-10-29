@@ -12,6 +12,7 @@ export type {
 import { APPROVED_BROWSER_OAUTH_PROFILES } from "./native-approved-oauth-profiles.js";
 import type { NativeBrowserOAuthProfile } from "./native-browser-oauth-types.js";
 import { nativeDatabricksEndpoints } from "./native-databricks-provider.js";
+import { GOOGLE_ACCOUNT_POLICY } from "./native-google-account-policy.generated.js";
 import { nativeTenantOAuthEndpoints } from "./native-tenant-oauth.js";
 const PROFILES: readonly NativeBrowserOAuthProfile[] = [
   ...APPROVED_BROWSER_OAUTH_PROFILES,
@@ -113,10 +114,14 @@ const PROFILES: readonly NativeBrowserOAuthProfile[] = [
     revocationEndpoint: "https://oauth2.googleapis.com/revoke",
     settingsUrl: "https://myaccount.google.com/connections",
     publicParameters: [],
-    requiredScopes: [
-      "openid",
-      "https://www.googleapis.com/auth/userinfo.email",
-    ],
+    // Retain the public route's existing aliases for saved configurations while
+    // deriving its account-verification requirements from the shared policy.
+    requiredScopes: GOOGLE_ACCOUNT_POLICY.scopes.map(
+      (scope) =>
+        Object.entries(GOOGLE_ACCOUNT_POLICY.aliases).find(
+          ([, canonical]) => canonical === scope,
+        )?.[0] ?? scope,
+    ),
   },
   {
     id: "openrouter",
