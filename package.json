@@ -110,6 +110,7 @@
     "evidence:check": "node scripts/quality/evidence-gate.mjs",
     "evidence:promote": "node scripts/dev/promote-evidence.mjs",
     "repo:check": "node scripts/quality/repository-size-gate.mjs && node scripts/dev/sync-agent-skills.mjs --check",
+    "skills:install": "bash scripts/dev/install-agent-skills.sh",
     "skills:sync": "node scripts/dev/sync-agent-skills.mjs",
     "skills:check": "node scripts/dev/sync-agent-skills.mjs --check",
     "deps:install": "bash scripts/dev/install-dependencies.sh",
