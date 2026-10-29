@@ -50,7 +50,7 @@ export class BoatClaimPendingError extends Error {
   }
 }
 
-/** A one-use claim grant was rejected; other failures remain distinct. */
+/** The provider rejected a claim grant; other failures remain distinct. */
 export class BoatClaimInvalidError extends Error {
   constructor() {
     super("boat: claim grant is invalid");
