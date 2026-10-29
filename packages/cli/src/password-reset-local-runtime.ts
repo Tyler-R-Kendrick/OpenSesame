@@ -1,4 +1,8 @@
-import { SandboxClaimRequiredError } from "@opensesame/agent-sandboxes";
+import { randomUUID } from "node:crypto";
+import {
+  SandboxClaimRequiredError,
+  type SandboxProvider,
+} from "@opensesame/agent-sandboxes";
 import {
   BrowserStepExecutor,
   type BrowserStepPorts,
@@ -60,19 +64,19 @@ export async function createLocalPasswordResetEffects(
   const readSecretLine =
     options.readSecretLine ?? ((prompt) => readPasswordFromTty(prompt));
   const notify = options.notify ?? emitStderrLine;
-  const providerId = context.loaded.config.runtime.provider ?? "local";
-  const sandbox = await sandboxForRun(context, options, providerId, notify);
-  // Remote lanes verify in the allocated browser; the local lane keeps
-  // its fresh verification session. Explicit test sandboxes win.
-  const verifierOptions =
-    providerId === "local" || options.sandbox || options.verificationSandbox
-      ? options
-      : { ...options, verificationSandbox: sandbox };
+  const { sandbox, verifierOptions, getVerificationSession, closeExtra } =
+    await prepareSandboxes(context, options, notify);
   const verifier = createLocalLoginVerifier(context, verifierOptions, {
     handoff: async (challenge, current) => {
       if (options.takeover) return options.takeover.handoff(challenge, current);
+      const verificationSession = getVerificationSession();
+      const session =
+        verificationSession &&
+        /^[A-Za-z0-9_-]{1,128}$/u.test(verificationSession)
+          ? ` Session ${verificationSession}.`
+          : "";
       notify(
-        `Password verification needs you (${challenge}). Complete it in the verification browser, then press Enter.`,
+        `Password verification needs you (${challenge}).${session} Complete it in the verification browser, then press Enter.`,
       );
     },
     resume: (challenge, current) => ports.takeover.resume(challenge, current),
@@ -101,9 +105,8 @@ export async function createLocalPasswordResetEffects(
     verifyLogin: async () => (await verifyLogin()) === true,
   };
   const executor = new BrowserStepExecutor(sandbox.browser, ports);
-  const closeQuietly = async () => {
-    await Promise.allSettled([sandbox.close(), verifier.close()]);
-  };
+  const closeQuietly = () =>
+    closeSandboxes(sandbox, verifier.close, closeExtra, notify);
   return {
     execute: async (step, current, effect) => {
       try {
@@ -128,7 +131,9 @@ export async function createLocalPasswordResetEffects(
         return "unknown";
       }
     },
-    promoteCandidate: closeQuietly,
+    promoteCandidate: async () => {
+      if (!(await closeQuietly())) throw new Error("Sandbox cleanup failed");
+    },
     compensate: async () => {
       await closeQuietly();
       return "unsupported";
@@ -136,15 +141,136 @@ export async function createLocalPasswordResetEffects(
   };
 }
 
+async function closeSandboxes(
+  sandbox: LocalSandboxPort,
+  closeVerifier: () => Promise<void>,
+  closeExtra: () => Promise<void>,
+  notify: (message: string) => void,
+): Promise<boolean> {
+  const results = await Promise.allSettled([sandbox.close(), closeVerifier()]);
+  // An ambiguous duplicate allocation may refer to the reset session, so
+  // close it only after the reset close has succeeded.
+  const extra =
+    results[0]?.status === "fulfilled"
+      ? await Promise.allSettled([closeExtra()])
+      : [];
+  const failed = [...results, ...extra].some(
+    (result) => result.status === "rejected",
+  );
+  if (failed)
+    notify(
+      "Sandbox cleanup failed; retry while this process is running. After exit, provider cleanup may be needed.",
+    );
+  return !failed;
+}
+
+async function prepareSandboxes(
+  context: ResetRuntimeContext,
+  options: LocalRuntimeOptions,
+  notify: (message: string) => void,
+) {
+  const providerId = context.loaded.config.runtime.provider ?? "local";
+  let provider: SandboxProvider | undefined;
+  const getProvider = () => {
+    provider ??= (
+      options.createProvider ??
+      ((id) => createSandboxProvider(id, context.loaded.directory))
+    )(providerId);
+    return provider;
+  };
+  const sandbox = await sandboxForRun(
+    context,
+    options,
+    providerId,
+    notify,
+    getProvider,
+  );
+  const pending: LocalSandboxPort[] = [];
+  const drainExtra = async () => {
+    while (pending.length) {
+      const first = pending[0];
+      if (!first) return;
+      await first.close();
+      pending.shift();
+    }
+  };
+  let closingExtra: Promise<void> | undefined;
+  const closeExtra = async () => {
+    closingExtra ??= drainExtra().finally(() => {
+      closingExtra = undefined;
+    });
+    await closingExtra;
+  };
+  let verificationSession: string | undefined;
+  const getVerificationSession = () => verificationSession;
+  if (providerId === "local")
+    return {
+      sandbox,
+      verifierOptions: options,
+      getVerificationSession,
+      closeExtra,
+    };
+  if (options.verificationSandbox) {
+    if (sameSandbox(options.verificationSandbox, sandbox)) {
+      await closeSandboxes(sandbox, async () => {}, closeExtra, notify);
+      throw new Error("Password verification requires a separate sandbox");
+    }
+    verificationSession = options.verificationSandbox.session;
+    return {
+      sandbox,
+      verifierOptions: options,
+      getVerificationSession,
+      closeExtra,
+    };
+  }
+  const verifierOptions = {
+    createVerificationSandbox: async () => {
+      const verification = await allocateProviderSandbox(
+        context,
+        notify,
+        getProvider(),
+        `cua-verify-${randomUUID()}`,
+      );
+      if (sameSandbox(verification, sandbox)) {
+        pending.push(verification);
+        notify(
+          "Sandbox provider reused the reset session; verification was refused.",
+        );
+        throw new Error("Password verification requires a separate sandbox");
+      }
+      verificationSession = verification.session;
+      return verification;
+    },
+    onCleanupFailure: () =>
+      notify(
+        "Sandbox cleanup failed; retry while this process is running. After exit, provider cleanup may be needed.",
+      ),
+  };
+  return { sandbox, verifierOptions, getVerificationSession, closeExtra };
+}
+
+function sameSandbox(
+  first: LocalSandboxPort,
+  second: LocalSandboxPort,
+): boolean {
+  return first.session === second.session || first.browser === second.browser;
+}
+
 async function sandboxForRun(
   context: ResetRuntimeContext,
   options: LocalRuntimeOptions,
   providerId: string,
   notify: (message: string) => void,
+  getProvider: () => SandboxProvider,
 ): Promise<LocalSandboxPort> {
   if (options.sandbox) return options.sandbox;
   if (providerId !== "local")
-    return allocateProviderSandbox(context, options, notify);
+    return allocateProviderSandbox(
+      context,
+      notify,
+      getProvider(),
+      `cua-${context.run.id}`,
+    );
   const { run } = context;
   return createLocalSandbox({
     origin: run.origin,
@@ -163,21 +289,17 @@ async function sandboxForRun(
  */
 async function allocateProviderSandbox(
   context: ResetRuntimeContext,
-  options: LocalRuntimeOptions,
   notify: (message: string) => void,
+  provider: SandboxProvider,
+  session: string,
 ): Promise<LocalSandboxPort> {
   const { run } = context;
-  const providerId = context.loaded.config.runtime.provider ?? "local";
-  const provider = (
-    options.createProvider ??
-    ((id) => createSandboxProvider(id, context.loaded.directory))
-  )(providerId);
   let allocation;
   try {
     allocation = await provider.allocate({
       origin: run.origin,
       extraAllowedDomains: resetRecipeHostnames(run.recipe),
-      session: `cua-${run.id}`,
+      session,
     });
   } catch (error) {
     if (error instanceof SandboxClaimRequiredError) {
@@ -192,13 +314,24 @@ async function allocateProviderSandbox(
     throw error;
   }
   let closed = false;
+  let closing: Promise<void> | undefined;
   return {
     browser: allocation.browser,
     session: allocation.session,
     close: async () => {
       if (closed) return;
-      closed = true;
-      await allocation.close();
+      closing ??= Promise.resolve()
+        .then(() => allocation.close())
+        .then(
+          () => {
+            closed = true;
+          },
+          (error: unknown) => {
+            closing = undefined;
+            throw error;
+          },
+        );
+      await closing;
     },
   };
 }
