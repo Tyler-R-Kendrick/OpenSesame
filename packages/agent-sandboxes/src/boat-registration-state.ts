@@ -1,9 +1,9 @@
 import type { BoatClaimMaterials } from "./boat-auth.js";
+import { boatClaimUrl } from "./boat-endpoints.js";
 import type {
   BoatProviderOptions,
   BoatProviderState,
 } from "./boat-provider.js";
-import { boatClaimUrl } from "./boat-endpoints.js";
 import { SandboxClaimRequiredError } from "./types.js";
 
 type RegistrationBundle = {
