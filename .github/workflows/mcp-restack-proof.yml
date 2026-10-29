@@ -1,0 +1,55 @@
+name: MCP recovery after connector merges
+on:
+  push:
+    branches: [review/mcp-recovery-after-connectors-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/mcp-recovery-after-connectors-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: f925ad37c1a19c991f9a3f08e95dc212157e6397
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Verify immutable source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = f925ad37c1a19c991f9a3f08e95dc212157e6397
+          test "$(git rev-parse HEAD^{tree})" = 52b2971e4ad7ef97e8b20fe6cbb07fcbbc9e9fd9
+          test "$(git rev-parse HEAD^)" = b315dc17837d2eadd056b1b54dc2a0b68ce19380
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify shared boundaries and types
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/pages typecheck
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-connector-local-registration.test.ts src/lib/native-mcp-registration-lifecycle.test.ts src/lib/native-mcp-mutation-lock.test.ts src/lib/native-mcp-connectors.test.ts src/lib/native-mcp-scope-recovery.test.ts src/lib/native-mcp-refresh-recovery.test.ts src/lib/native-mcp-oauth.test.ts src/lib/native-mcp-registration-cleanup.test.ts src/lib/native-mcp-registration-retention.test.ts src/lib/native-oauth-client-google-exchange.test.ts src/lib/native-oauth-client-google-scopes.test.ts src/lib/native-oauth-client-scope-retention.test.ts
+          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/connect/NativeConnectorRevocation.test.tsx src/sections/connections/connect/NativeConnectorRecovery.test.tsx
+      - name: Verify browser crashes and delivery gate
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/pages test:mcp-cross-realm
+          pnpm exec vitest run scripts/lib/ci-bundle-shards.test.mjs scripts/lib/ci-gates.test.mjs
+      - name: Check structural quality
+        run: pnpm quality:gate
+      - name: Verify source unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 52b2971e4ad7ef97e8b20fe6cbb07fcbbc9e9fd9
+          git diff --exit-code
+          git diff --cached --exit-code
