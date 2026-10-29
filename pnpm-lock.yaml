@@ -79,8 +79,8 @@ importers:
         specifier: 0.1.0
         version: 0.1.0(oxlint@1.79.0)(typescript@5.8.3)
       '@hono/node-server':
-        specifier: 2.1.0
-        version: 2.1.0(hono@4.13.11)
+        specifier: 2.1.3
+        version: 2.1.3(hono@4.13.11)
       '@modelcontextprotocol/sdk':
         specifier: 1.32.0
         version: 1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.6)
@@ -1179,8 +1179,8 @@ importers:
         specifier: 0.1.0
         version: 0.1.0(oxlint@1.79.0)(typescript@5.8.3)
       '@hono/node-server':
-        specifier: 2.1.0
-        version: 2.1.0(hono@4.13.11)
+        specifier: 2.1.3
+        version: 2.1.3(hono@4.13.11)
       '@node-saml/node-saml':
         specifier: 5.1.0
         version: 5.1.0
@@ -3872,8 +3872,8 @@ packages:
     peerDependencies:
       hono: 4.13.11
 
-  '@hono/node-server@2.1.0':
-    resolution: {integrity: sha512-XovyyCCnBzW+zKu+z/zq8hwNs4KOR5rEMAOxo2f40Q5xoOI37IMm6MIg2COOUtUApo0i6850MTBKH2u4QLGIqg==}
+  '@hono/node-server@2.1.3':
+    resolution: {integrity: sha512-TA//nWMqPhbfdfneACk6t5a9eqbS9lABEPyKn0/xZTah3H3U2XaVg85rJFl0/Fyit0I552YDHgXGVSf3GwqbUw==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: 4.13.11
@@ -8525,6 +8525,7 @@ packages:
 
   libsql@0.5.29:
     resolution: {integrity: sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==}
+    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -12921,7 +12922,7 @@ snapshots:
     dependencies:
       hono: 4.13.11
 
-  '@hono/node-server@2.1.0(hono@4.13.11)':
+  '@hono/node-server@2.1.3(hono@4.13.11)':
     dependencies:
       hono: 4.13.11
 
@@ -13434,7 +13435,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.32.0(@cfworker/json-schema@4.1.1)(zod@4.6.6)':
     dependencies:
-      '@hono/node-server': 2.1.0(hono@4.13.11)
+      '@hono/node-server': 2.1.3(hono@4.13.11)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -17030,7 +17031,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.20.0)
+      retry-axios: 2.6.0(axios@1.20.0(debug@4.4.3))
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -19013,7 +19014,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.20.0):
+  retry-axios@2.6.0(axios@1.20.0(debug@4.4.3)):
     dependencies:
       axios: 1.20.0(debug@4.4.3)
     optional: true
