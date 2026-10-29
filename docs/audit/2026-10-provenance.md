@@ -759,3 +759,13 @@ missing Grok subscription authentication and no Kimi executable; no Grok or Kimi
 authorship is claimed. Signature, required-check and scanner integrity policies
 remain enforced. Test results and the authenticated signing prerequisite are
 recorded in the PR; no hosted qualification or merge is claimed from local tests.
+
+## OpenSSF Best Practices rebase, 2026-10-26
+
+Kimi Code K3.1 (`kimi-code/k3.1`, upstream `k3.1-pro`) rebased
+`docs/openssf-best-practices` onto current `main` and resolved one
+`SECURITY.md` wording conflict by keeping the base's direct advisory link and
+the branch's fallback contact and response commitment. The focused
+`ReleaseNotes.test.tsx` suite passed all three tests. Kimi also restored the
+intended seven-file diff after an unrelated draft stack displaced the branch;
+the displaced commit remains recoverable in the originating repository.
