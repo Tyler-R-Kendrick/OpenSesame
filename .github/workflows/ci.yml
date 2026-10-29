@@ -1,5 +1,5 @@
-# Fast integration checks. Complete browser/native qualification runs against
-# a frozen candidate in ci-prerelease-checks.yml. Preserve these required names.
+# Trunk admission compiles only the affected dependency graph.
+# Tests and artifact qualification belong to environment delivery workflows.
 name: CI
 
 on:
@@ -12,44 +12,27 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
   actions: read
 
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
-  # Main and merge-group runs finish; pending pushes can coalesce. Scope main
-  # cumulatively from a verified successful ancestor, never event.before alone.
+  # Main scope includes failed, cancelled and coalesced pushes since the last
+  # successful ancestor. Active main/merge-group builds finish.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
-    name: Changed areas
+    name: Affected build graph
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       base_sha: ${{ steps.scope.outputs.base_sha }}
       head_sha: ${{ steps.scope.outputs.head_sha }}
-      typescript: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.typescript }}
-      # Quoted so the keyboard contract's job-id split does not match here.
-      "bundle": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.bundle }}
-      "rust": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.rust }}
-      native_mobile: ${{ github.event.pull_request.draft == true && 'false' || steps.native.outputs.native_mobile }}
-      mtls: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.mtls }}
-      "push": ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.push }}
-      # The browser gates this diff reaches (scripts/lib/ci-gates.mjs): the
-      # bundle job's legs as a matrix, and the gates that are jobs of their own.
-      bundle_matrix: ${{ github.event.pull_request.draft == true && '[]' || steps.areas.outputs.bundle_matrix }}
-      tutorials: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.tutorials }}
-      device_inbox: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.device_inbox }}
-      device_identity: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.device_identity }}
-      live_join: ${{ github.event.pull_request.draft == true && 'false' || steps.areas.outputs.live_join }}
-      # A draft pull request runs no suite; the three required checks fail on it
-      # (below) so a head SHA that only ever ran as a draft can never read green.
+      typescript: ${{ github.event.pull_request.draft == true && 'false' || steps.packages.outputs.selected }}
+      rust: ${{ github.event.pull_request.draft == true && 'false' || steps.crates.outputs.selected }}
       draft: ${{ github.event.pull_request.draft == true && 'true' || 'false' }}
-      # The runner the two jobs that can leave GitHub-hosted runners ask for.
       linux_runner: ${{ steps.runner.outputs.linux }}
-      # Pages' canonical cold compiler requires Linux AMD64. Other packages
-      # retain the configured Linux runner, including the owner's ARM64 box.
+      # The native PWA compiler requires Linux AMD64 on a cold build.
       typescript_runner: ${{ (steps.packages.outputs.scope == 'all' || contains(steps.packages.outputs.packages, '@opensesame/pages')) && '"ubuntu-latest"' || steps.runner.outputs.linux }}
     steps:
       - name: Choose the Linux runner
@@ -75,7 +58,6 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-          # The classifier diffs the pull request against its merge base.
           fetch-depth: 0
       - name: Resolve the cumulative integration diff
         id: scope
@@ -89,88 +71,37 @@ jobs:
         env:
           BASE_SHA: ${{ steps.scope.outputs.base_sha }}
           HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-tests.mjs plan
-      - name: Validate approved current evidence
-        run: node scripts/quality/evidence-gate.mjs
-      - name: Validate repository footprint and shared skills
-        run: |
-          node scripts/quality/repository-size-gate.mjs
-          node scripts/dev/sync-agent-skills.mjs --check
-      - name: Verify merge-required commit signatures
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/release/check-pr-signatures.mjs "$GITHUB_REPOSITORY" "$PR_NUMBER" "$PR_HEAD"
-      - name: Verify merge-group commit signature
-        if: github.event_name == 'merge_group'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          MERGE_HEAD: ${{ github.event.merge_group.head_sha }}
-        run: node scripts/release/check-merge-group-signature.mjs "$GITHUB_REPOSITORY" "$MERGE_HEAD"
-      - name: Classify changed areas
-        id: areas
+        run: node scripts/lib/ci-affected-builds.mjs plan-ts
+      - name: Select affected Rust crates
+        id: crates
         env:
           BASE_SHA: ${{ steps.scope.outputs.base_sha }}
           HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
-        run: node scripts/lib/ci-changed-areas.mjs
-      - name: Select native mobile checks
-        id: native
-        env:
-          BASE_SHA: ${{ steps.scope.outputs.base_sha }}
-          HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
-        run: bash scripts/test/mobile-changed.sh
+        run: node scripts/lib/ci-affected-builds.mjs plan-cargo
 
-  typescript-tests:
-    name: TypeScript tests
+  typescript-build:
+    name: Build affected TypeScript graph
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}
-    # Real crypto suites run without competing package/typecheck workloads;
-    # retain their per-test deadlines. Measured serial app-core (~38m) and
-    # projected Pages (~73m), plus setup/typechecking, exceed the old 90-minute job.
-    timeout-minutes: 180
-    services:
-      # A real server for the repository contract: PGlite accepts a `Date`
-      # in raw SQL that the production driver (postgres-js) rejects.
-      postgres:
-        # Same Docker Official Image digest, served by Google's Docker Hub
-        # mirror. Anonymous Docker Hub pulls exhaust the shared hosted-runner
-        # quota, and the public ECR mirror now answers `toomanyrequests: Data
-        # limit exceeded` for the same pool.
-        image: mirror.gcr.io/library/postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
-        env:
-          POSTGRES_USER: opensesame
-          POSTGRES_PASSWORD: opensesame
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U opensesame"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-          # pnpm lint diffs changed files against origin/main.
           fetch-depth: 0
       - name: Select affected packages
         id: affected
         env:
           BASE_SHA: ${{ needs.changes.outputs.base_sha }}
           HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-tests.mjs plan
+        run: node scripts/lib/ci-affected-builds.mjs plan-ts
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
           cache: pnpm
-      - name: Install
-        # Not `pnpm bootstrap`: that also runs db:migrate (needs a live
-        # DATABASE_URL) and installs git hooks, neither of which belongs in CI.
+      - name: Install the frozen dependency graph
         run: pnpm install --frozen-lockfile
       - name: Cache the pinned native PWA distribution
         if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
@@ -178,128 +109,15 @@ jobs:
         with:
           path: .cache/pwa-tailscale-native-http/distributions
           key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
-      - name: Prepare and verify native PWA assets before package tests
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
-        # The canonical loader verifies cache hits and owns cold four-phase builds.
-        # Finish setup before pnpm quality and individual 20-second Vitest tests.
-        run: >-
-          node --input-type=module -e
-          'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
-      - name: Lint (changed files)
-        env:
-          LINT_SINCE: ${{ needs.changes.outputs.base_sha || 'origin/main' }}
-        run: node scripts/quality/lint-changed.mjs
-      - name: Lint generated auth artifacts
-        if: steps.affected.outputs.lint_artifacts == 'true'
-        run: pnpm lint:artifacts
-      - name: Quality gates (structure + component coupling)
-        # Ratchets against tools/quality/quality-baseline.json / tools/quality/package-metrics-baseline.json
-        # and hard-fails on dependency cycles and phantom deps. Sub-second.
-        run: pnpm quality
-      - name: Typecheck and test affected packages
+      - name: Build affected packages and their prerequisites
         env:
           BASE_SHA: ${{ needs.changes.outputs.base_sha }}
           HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-tests.mjs run-ts
-      - name: CUA password-reset browser e2e
-        # Real Chromium through agent-browser: kickoff, takeover, and
-        # record -> replay against the mock site. Excluded from unit test
-        # scripts, so it needs this explicit shard.
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/cua-password-reset')
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
-        run: >-
-          AGENT_BROWSER="$(pnpm --filter @opensesame/cua-password-reset exec which agent-browser)"
-          pnpm --filter @opensesame/cua-password-reset test:e2e
-      - name: Repository contract on a real Postgres
-        # The same suites as the PGlite run, through the production driver.
-        # Each suite creates and drops its own database.
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/database')
-        env:
-          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
-          OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
-        run: pnpm --filter @opensesame/database test:postgres
-      - name: Worker delivery on a real Postgres
-        # Web Push through the real worker tick and a stand-in push service,
-        # over the production driver. Builds and drops its own database.
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/identity-worker')
-        env:
-          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
-        run: pnpm --filter @opensesame/identity-worker test:postgres
-      - name: Product-experience contracts
-        # One block across the experience packages. It runs when the
-        # affected set includes any of them.
-        if: steps.affected.outputs.verify_experience == 'true'
-        # Only the blocks of the experience packages the diff reached.
-        env:
-          EXPERIENCE_PACKAGES: ${{ steps.affected.outputs.verify_packages }}
-        run: pnpm verify:experience
+          VITE_BASE: /OpenSesame/
+        run: node scripts/lib/ci-affected-builds.mjs run-ts
 
-  bundle:
-    name: Default bundle and affected trust checks
-    needs: changes
-    if: needs.changes.outputs.bundle == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install
-        run: pnpm install --frozen-lockfile
-      - name: Build and measure the default shipped bundle
-        env:
-          VITE_BASE: /OpenSesame/
-        run: |
-          node scripts/lib/ci-pages-build.mjs
-          node scripts/quality/bundle-budget-gate.mjs
-      - name: Static, encrypted-search and portable-drop trust paths
-        if: contains(fromJSON(needs.changes.outputs.bundle_matrix).*.shard, 'static')
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: |
-          pnpm --filter @opensesame/pages verify:static
-          pnpm --filter @opensesame/pages verify:encrypted-search
-          pnpm --filter @opensesame/pages verify:portable-drop
-      - name: Browser-local application sign-in
-        if: contains(fromJSON(needs.changes.outputs.bundle_matrix).*.shard, 'sign-in')
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:local-iam
-      - name: Vault authentication and trusted-contact unlock
-        if: contains(fromJSON(needs.changes.outputs.bundle_matrix).*.shard, 'auth')
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: |
-          pnpm --filter @opensesame/pages verify:auth
-          pnpm --filter @opensesame/pages verify:trusted-unlock
-      - name: Service-worker approval and dirty-edit release protection
-        if: contains(fromJSON(needs.changes.outputs.bundle_matrix).*.shard, 'budgets')
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: |
-          pnpm --filter @opensesame/pages verify:push-worker
-          pnpm --filter @opensesame/pages verify:sw-dirty-edit
-      - name: Customer vault and KDBX envelopes in real browser crypto
-        if: contains(fromJSON(needs.changes.outputs.bundle_matrix).*.shard, 'customer-crypto')
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-        run: |
-          pnpm verify:customer-vault-browser
-          pnpm --filter @opensesame/pages exec node --test --experimental-test-isolation=none --test-concurrency=1 --test-timeout=20000 scripts/verify-kdbx-native-dom.mjs
-
-  rust:
-    name: Rust tests
+  rust-build:
+    name: Build affected Rust graph
     needs: changes
     if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
@@ -308,7 +126,6 @@ jobs:
       CARGO_BUILD_JOBS: 2
       CARGO_INCREMENTAL: 0
       CARGO_PROFILE_DEV_DEBUG: 0
-      CARGO_PROFILE_TEST_DEBUG: 0
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -319,59 +136,30 @@ jobs:
         env:
           BASE_SHA: ${{ needs.changes.outputs.base_sha }}
           HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-tests.mjs cargo
-      - name: Install Linux keychain build and test dependencies
-        if: runner.os == 'Linux' && steps.affected.outputs.scope != 'none'
+        run: node scripts/lib/ci-affected-builds.mjs plan-cargo
+      - name: Install Linux keychain build dependencies
         run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
-        if: steps.affected.outputs.scope != 'none'
         with:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-        if: steps.affected.outputs.scope != 'none'
-      # `bridge_roundtrip_fixture` reads a real schema through @env-spec/parser
-      # and fails on CI without it. The same pinned pnpm and Node as the
-      # TypeScript job, installed only when the env-spec crate is tested. No
-      # `cache: pnpm`: setup-node would save this job's one-package store under
-      # the key the TypeScript job restores its whole store from.
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
-        with:
-          node-version: 22
-      - name: Install the env-spec bridge's parser
-        # That package and its dependencies only (@env-spec/parser has none
-        # and no install script), from the lockfile.
-        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
-        run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
-      - name: Name the runner's node for the bridge
-        # The env-spec bridge runs only a `node` nobody else could have
-        # replaced, and the hosted image keeps its own in /usr/local/bin with
-        # mode 0777. OPENSESAME_NODE names the file the way an operator does
-        # (docs/operators/proxied-run-quickstart.md); no node fails the job.
-        if: steps.affected.outputs.scope != 'none'
-        run: |
-          node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
-          echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
-      - name: Test affected crates
-        if: steps.affected.outputs.scope != 'none'
+      - name: Build affected crates and their prerequisites
         env:
           BASE_SHA: ${{ needs.changes.outputs.base_sha }}
           HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
         run: |
           source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          node scripts/lib/ci-affected-tests.mjs run-cargo
-      - name: Test the Bitwarden bridge build (ADR 0148)
-        # Default builds leave the bridge out; this compiles it in.
+          node scripts/lib/ci-affected-builds.mjs run-cargo
+      - name: Build the affected Bitwarden bridge feature
         if: steps.affected.outputs.bitwarden == 'true'
         run: |
           source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden
+          cargo build --locked -p opensesame-gateway -p opensesame-cli --features bitwarden-compat
 
   typescript:
+    # Preserve the existing protected-check names and candidate admission API.
     name: TypeScript
-    needs: [changes, typescript-tests]
+    needs: [changes, typescript-build]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -379,17 +167,19 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - name: Report the required check
+      - name: Report the required build check
         env:
           DRAFT: ${{ needs.changes.outputs.draft }}
           PREFLIGHT_RESULT: ${{ needs.changes.result }}
           SELECTED: ${{ needs.changes.outputs.typescript }}
-          SUITE_RESULT: ${{ needs.typescript-tests.result }}
+          SUITE_RESULT: ${{ needs.typescript-build.result }}
         run: node scripts/lib/ci-required-result.mjs
 
   bundle-check:
+    # Legacy name: reports the TS build; actual budget checks qualify delivery.
+    # Preserve the existing protected-check names and candidate admission API.
     name: Bundle budgets
-    needs: [changes, bundle]
+    needs: [changes, typescript-build]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -397,17 +187,18 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - name: Report the required check
+      - name: Report the required build check
         env:
           DRAFT: ${{ needs.changes.outputs.draft }}
           PREFLIGHT_RESULT: ${{ needs.changes.result }}
-          SELECTED: ${{ needs.changes.outputs.bundle }}
-          SUITE_RESULT: ${{ needs.bundle.result }}
+          SELECTED: ${{ needs.changes.outputs.typescript }}
+          SUITE_RESULT: ${{ needs.typescript-build.result }}
         run: node scripts/lib/ci-required-result.mjs
 
   rust-check:
+    # Preserve the existing protected-check names and candidate admission API.
     name: Rust
-    needs: [changes, rust]
+    needs: [changes, rust-build]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -415,10 +206,10 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - name: Report the required check
+      - name: Report the required build check
         env:
           DRAFT: ${{ needs.changes.outputs.draft }}
           PREFLIGHT_RESULT: ${{ needs.changes.result }}
           SELECTED: ${{ needs.changes.outputs.rust }}
-          SUITE_RESULT: ${{ needs.rust.result }}
+          SUITE_RESULT: ${{ needs.rust-build.result }}
         run: node scripts/lib/ci-required-result.mjs

@@ -44,85 +44,33 @@ const auxiliaries = [
   "codeql.yml",
   "sync-target-security.yml",
 ];
-const readyTypes =
-  "    types: [opened, synchronize, reopened, ready_for_review]";
-const draftGuard =
-  "    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}";
-
-function expectDraftAdmission(source, allowCodeqlCandidate = false) {
-  expect(source).toContain(`  pull_request:\n${readyTypes}\n`);
-  const jobs = source.split("\njobs:\n")[1];
-  expect(jobs).toBeDefined();
-  const starts = [...jobs.matchAll(/^ {2}[a-zA-Z][a-zA-Z0-9_-]*:\n/gm)];
-  expect(starts.length).toBeGreaterThan(0);
-  for (const [index, start] of starts.entries()) {
-    const block = jobs.slice(start.index, starts[index + 1]?.index);
-    if (allowCodeqlCandidate && start[0] === "  verify-sarif:\n") {
-      expect(block.split("\n")).toContain(
-        "    if: ${{ always() && inputs.source_sha }}",
-      );
-      expect(block.split("\n")).toContain(
-        "    needs: [analyze, analyze-native-go]",
-      );
-    } else {
-      expect(block.split("\n")).toContain(draftGuard);
-    }
-  }
-}
-
-describe("auxiliary pull-request suites respect draft stacks", () => {
-  it("covers every PR workflow outside the required CI reporter", () => {
+describe("heavy auxiliary suites are CD concerns", () => {
+  it("keeps every automatic trunk workflow confined to affected-build CI", () => {
     const directory = join(root, ".github/workflows");
-    const actual = readdirSync(directory)
-      .filter((name) => name.endsWith(".yml") && name !== "ci.yml")
+    const automatic = readdirSync(directory)
+      .filter((name) => name.endsWith(".yml"))
       .filter((name) =>
-        /^ {2}pull_request:/m.test(readFileSync(join(directory, name), "utf8")),
+        /^ {2}(?:pull_request|pull_request_target|push|merge_group):/m.test(
+          readFileSync(join(directory, name), "utf8"),
+        ),
       )
       .sort();
-    expect(actual).toEqual(auxiliaries);
+    expect(automatic).toEqual(["ci.yml"]);
   });
 
-  it.each(auxiliaries)("guards all jobs and starts ready PRs in %s", (name) => {
-    expectDraftAdmission(
-      readFileSync(join(root, ".github/workflows", name), "utf8"),
-      name === "codeql.yml",
-    );
-  });
-
-  it.each(auxiliaries)("rejects an unguarded job in %s", (name) => {
-    const source = readFileSync(join(root, ".github/workflows", name), "utf8");
-    expect(() =>
-      expectDraftAdmission(
-        source.replace(`${draftGuard}\n`, ""),
-        name === "codeql.yml",
-      ),
-    ).toThrow();
-  });
-
-  it.each(auxiliaries)("rejects a missing ready event in %s", (name) => {
-    const source = readFileSync(join(root, ".github/workflows", name), "utf8");
-    expect(() =>
-      expectDraftAdmission(
-        source.replace(", ready_for_review", ""),
-        name === "codeql.yml",
-      ),
-    ).toThrow();
-  });
-
-  it("rejects a CodeQL release verifier that can run for a PR", () => {
-    const source = readFileSync(
-      join(root, ".github/workflows/codeql.yml"),
+  it.each(auxiliaries)("retains candidate qualification in %s", (name) => {
+    const workflow = readFileSync(
+      join(root, ".github/workflows", name),
       "utf8",
     );
-    expect(() =>
-      expectDraftAdmission(
-        source.replace(
-          "    if: ${{ always() && inputs.source_sha }}",
-          "    if: ${{ always() }}",
-        ),
-        true,
-      ),
-    ).toThrow();
+    expect(workflow).toContain("  workflow_call:");
+    expect(workflow).toMatch(
+      /source_sha:\n(?:[^\n]*\n){0,3}[^\n]*required: true/,
+    );
+    expect(workflow).not.toMatch(
+      /^ {2}(?:pull_request|pull_request_target|push|merge_group):/m,
+    );
+    expect(workflow).toContain("ref: ${{ inputs.source_sha");
   });
 
   it("keeps drafts failing all three required CI reporters", () => {

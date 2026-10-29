@@ -47,6 +47,8 @@ export const CI_RECIPE = [
   "scripts/lib/ci-required-result.mjs",
   "scripts/lib/ci-changed-areas.mjs",
   "scripts/lib/ci-affected-tests.mjs",
+  "scripts/lib/ci-affected-builds.mjs",
+  "scripts/lib/ci-affected-graph.mjs",
   "scripts/lib/ci-scoped-tests.mjs",
   "scripts/lib/ci-gates.mjs",
   "scripts/lib/json-boundary.mjs",

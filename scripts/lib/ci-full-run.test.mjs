@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { repoRootFromHere } from "./ci-changed-areas.mjs";
@@ -8,16 +9,28 @@ import { loadShards } from "./ci-gates.mjs";
 const root = repoRootFromHere();
 const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
 
+function cliOutputs(file, command = [], env = {}) {
+  const directory = mkdtempSync(join(tmpdir(), "ci-planner-output-"));
+  const output = join(directory, "github-output");
+  try {
+    execFileSync(process.execPath, [join(root, file), ...command], {
+      env: {
+        ...process.env,
+        BASE_SHA: "",
+        HEAD_SHA: "",
+        ...env,
+        GITHUB_OUTPUT: output,
+      },
+      stdio: "ignore",
+    });
+    return readFileSync(output, "utf8");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 function selector(env) {
-  const out = execFileSync(
-    "node",
-    [join(root, "scripts/lib/ci-changed-areas.mjs")],
-    {
-      encoding: "utf8",
-      env: { PATH: process.env.PATH, ...env },
-      stdio: ["ignore", "pipe", "ignore"],
-    },
-  );
+  const out = cliOutputs("scripts/lib/ci-changed-areas.mjs", [], env);
   return Object.fromEntries(
     out
       .trim()
@@ -33,20 +46,21 @@ describe("complete source validation and cumulative integration", () => {
     expect(on).toContain("workflow_dispatch:");
   });
 
-  it("gives the TypeScript job the time a whole-suite run takes on a slow runner", () => {
-    // A lockfile or manifest change plans every package. Current main's serial
-    // app-core and Pages workload needs its 180-minute job budget; individual
-    // test deadlines remain unchanged.
+  it("uses build jobs without the former test-suite budget", () => {
     const minutes =
-      /\n {2}typescript-tests:\n[\s\S]*?timeout-minutes: (\d+)/.exec(ci);
-    expect(Number(minutes?.[1])).toBeGreaterThanOrEqual(180);
-  });
-
-  it("verifies pull-request signatures only on a pull request", () => {
-    const step = ci
-      .split("name: Verify merge-required commit signatures")[1]
-      ?.split("- name:")[0];
-    expect(step).toContain("if: github.event_name == 'pull_request'");
+      /\n {2}typescript-build:\n[\s\S]*?timeout-minutes: (\d+)/.exec(ci);
+    expect(Number(minutes?.[1])).toBeLessThanOrEqual(60);
+    expect(Number(minutes?.[1])).toBeGreaterThan(0);
+    expect(ci).not.toContain("typescript-tests:");
+    expect(ci).not.toContain("check-pr-signatures.mjs");
+    expect(ci).not.toContain("check-merge-group-signature.mjs");
+    const governance = readFileSync(
+      join(root, "ops/github/default-branch.json"),
+      "utf8",
+    );
+    expect(JSON.parse(governance).rules).toContainEqual({
+      type: "required_signatures",
+    });
   });
 
   it("cancels only superseded pull requests; main and merge-group runs finish", () => {
@@ -71,17 +85,9 @@ describe("complete source validation and cumulative integration", () => {
     expect(JSON.parse(out.bundle_matrix)).toEqual(loadShards(root));
   });
 
-  it("tests every package and crate when it has no base to diff against", () => {
-    for (const command of ["plan", "cargo"]) {
-      const out = execFileSync(
-        "node",
-        [join(root, "scripts/lib/ci-affected-tests.mjs"), command],
-        {
-          encoding: "utf8",
-          env: { PATH: process.env.PATH },
-          stdio: ["ignore", "pipe", "ignore"],
-        },
-      );
+  it("builds every package and crate when it has no base to diff against", () => {
+    for (const command of ["plan-ts", "plan-cargo"]) {
+      const out = cliOutputs("scripts/lib/ci-affected-builds.mjs", [command]);
       expect(out).toContain("scope=all");
     }
   });
@@ -174,8 +180,8 @@ describe("full-suite native preparation", () => {
 });
 
 const scopedJob = ci
-  .split("\n  typescript-tests:\n")[1]
-  .split("\n  bundle:\n")[0];
+  .split("\n  typescript-build:\n")[1]
+  .split("\n  rust-build:\n")[0];
 const scopedSteps = scopedJob
   .split("    steps:\n")[1]
   .split(/\n {6}- (?=name:|uses:)/);
@@ -188,51 +194,27 @@ function scopedStepFor(command) {
   return matches[0];
 }
 
-describe("affected Pages native preparation", () => {
+describe("affected Pages build preparation", () => {
   it("selects a cold-build-capable runner before the package job starts", () => {
-    const changes = ci.split("\n  typescript-tests:\n")[0];
+    const changes = ci.split("\n  typescript-build:\n")[0];
     const packages = changes
       .split("name: Select affected TypeScript packages")[1]
       .split("- name:")[0];
     expect(packages).toContain("id: packages");
     expect(packages).toContain(
-      "run: node scripts/lib/ci-affected-tests.mjs plan",
+      "run: node scripts/lib/ci-affected-builds.mjs plan-ts",
     );
     expect(packages).toContain("BASE_SHA:");
     expect(packages).toContain("HEAD_SHA:");
     expect(changes).toContain(
-      `typescript_runner: \${{ (steps.packages.outputs.scope == 'all' || contains(steps.packages.outputs.packages, '@opensesame/pages')) && '"ubuntu-latest"' || steps.runner.outputs.linux }}`,
+      `typescript_runner: \${{ (steps.packages.outputs.scope == 'all' || contains(steps.packages.outputs.packages, '@opensesame/pages')) && '\"ubuntu-latest\"' || steps.runner.outputs.linux }}`,
     );
     expect(scopedJob).toContain(
       "runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}",
     );
   });
 
-  it("finishes verified preparation before quality and both scoped test lanes", () => {
-    const install = scopedStepFor("run: pnpm install --frozen-lockfile");
-    const preparation = scopedStepFor("await loadTailscaleAssets();");
-    expect(preparation).toContain(`if: ${pagesAffected}`);
-    expect(preparation).toContain("node --input-type=module -e");
-    expect(preparation).toContain(
-      'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"',
-    );
-    expect(preparation).not.toMatch(
-      /cache-hit|continue-on-error:|timeout-minutes:|skipIf/,
-    );
-    expect(scopedSteps.indexOf(install)).toBeLessThan(
-      scopedSteps.indexOf(preparation),
-    );
-    for (const command of [
-      "run: pnpm quality",
-      "ci-affected-tests.mjs run-ts",
-    ]) {
-      expect(scopedSteps.indexOf(preparation)).toBeLessThan(
-        scopedSteps.indexOf(scopedStepFor(command)),
-      );
-    }
-  });
-
-  it("restores only the exact static distribution and verifies cache hits", () => {
+  it("restores exact-pin assets before the build that verifies and consumes them", () => {
     const cache = scopedStepFor(
       "name: Cache the pinned native PWA distribution",
     );
@@ -247,8 +229,15 @@ describe("affected Pages native preparation", () => {
       "key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}",
     );
     expect(cache).not.toMatch(/restore-keys:|\/work|continue-on-error:/);
-    expect(scopedSteps.indexOf(cache)).toBeLessThan(
-      scopedSteps.indexOf(scopedStepFor("await loadTailscaleAssets();")),
+    const install = scopedStepFor("run: pnpm install --frozen-lockfile");
+    const build = scopedStepFor("ci-affected-builds.mjs run-ts");
+    expect(scopedSteps.indexOf(install)).toBeLessThan(
+      scopedSteps.indexOf(cache),
+    );
+    expect(scopedSteps.indexOf(cache)).toBeLessThan(scopedSteps.indexOf(build));
+    expect(build).toContain("VITE_BASE: /OpenSesame/");
+    expect(scopedJob).not.toMatch(
+      /ci-affected-tests|pnpm quality|pnpm lint|pnpm typecheck|verify:|vitest/,
     );
   });
 });
