@@ -17,6 +17,8 @@ export interface LocalSandboxPort {
 type VerificationOptions = {
   sandbox?: LocalSandboxPort;
   verificationSandbox?: LocalSandboxPort;
+  createVerificationSandbox?: () => Promise<LocalSandboxPort>;
+  onCleanupFailure?: () => void;
 };
 
 export function localAgentBrowserExecutable(
@@ -42,31 +44,53 @@ export function createLocalLoginVerifier(
   const { run, candidate, item } = context;
   const owned = !options.verificationSandbox && !options.sandbox;
   let sandbox: LocalSandboxPort | undefined;
+  let verifying = false;
   const close = async () => {
     const current = sandbox;
-    sandbox = undefined;
-    await current?.close().catch(() => {});
+    if (!current) return;
+    try {
+      await current.close();
+    } catch (error) {
+      options.onCleanupFailure?.();
+      throw error;
+    }
+    if (sandbox === current) sandbox = undefined;
   };
   return {
     close,
     verifyLogin: async (): Promise<boolean | null> => {
-      sandbox ??=
-        options.verificationSandbox ??
-        options.sandbox ??
-        createLocalSandbox({
-          origin: run.origin,
-          extraAllowedDomains: resetRecipeHostnames(run.recipe),
-          executable: localAgentBrowserExecutable(context),
-        });
-      const verified = await probeLogin(
-        sandbox,
-        candidate,
-        item.username ?? "",
-        run,
-        takeover,
-      );
-      if (verified !== true && owned) await close();
-      return verified;
+      if (verifying)
+        throw new Error("Password verification already in progress");
+      verifying = true;
+      try {
+        // A previous close failure must be retried before starting another
+        // verification; never reuse its potentially authenticated browser.
+        if (owned && sandbox) await close();
+        sandbox ??=
+          options.verificationSandbox ??
+          options.sandbox ??
+          (await (options.createVerificationSandbox?.() ??
+            Promise.resolve(
+              createLocalSandbox({
+                origin: run.origin,
+                extraAllowedDomains: resetRecipeHostnames(run.recipe),
+                executable: localAgentBrowserExecutable(context),
+              }),
+            )));
+        try {
+          return await probeLogin(
+            sandbox,
+            candidate,
+            item.username ?? "",
+            run,
+            takeover,
+          );
+        } finally {
+          if (owned) await close();
+        }
+      } finally {
+        verifying = false;
+      }
     },
   };
 }
