@@ -2,6 +2,7 @@ import { once } from "node:events";
 import { type Server, createServer } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocketServer } from "ws";
+import { z } from "zod";
 import { connectCdp } from "./cdp-node-socket.js";
 import { CloudflareBrowserRunClient } from "./cloudflare-client.js";
 
@@ -12,9 +13,9 @@ async function listen(server: Server): Promise<string> {
   servers.push(server);
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
-  const address = server.address();
-  if (!address || typeof address === "string")
-    throw new Error("test listener missing");
+  const address = z
+    .object({ port: z.number().int().positive() })
+    .parse(server.address());
   return `http://127.0.0.1:${address.port}`;
 }
 
