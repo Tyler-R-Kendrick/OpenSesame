@@ -1,0 +1,61 @@
+name: Merged native local availability visual proof
+on:
+  push:
+    branches: [review/2241-merged-visual-20261029]
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-merged-visual-20261029'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      EVIDENCE_DIR: ${{ github.workspace }}/work/merged-local-availability
+    steps:
+      - name: Checkout exact merged source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: b315dc17837d2eadd056b1b54dc2a0b68ce19380
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Checkout capture controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          path: work/local-availability-tools
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify immutable source and capture code
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = b315dc17837d2eadd056b1b54dc2a0b68ce19380
+          test "$(git rev-parse HEAD^{tree})" = 04b0ccf861994d57c4ce2f56177895ebe8e27888
+          test "$(git rev-parse HEAD^)" = 8c55bc9df13daa44fb9721c21a55964e27beff68
+          printf '%s  %s\n' e2adb89f54677bb706da8518a85f33bce4abf2f4d92507147c14a1fd8a23db59 work/local-availability-tools/scripts/review/2241-local-availability-visual.mjs | sha256sum --check
+          git diff --exit-code
+          git diff --cached --exit-code
+          mkdir -p "$EVIDENCE_DIR"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source-commit.txt"
+          git rev-parse HEAD^{tree} > "$EVIDENCE_DIR/source-tree.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build real Pages distribution
+        run: pnpm --filter @opensesame/pages exec vite build
+      - name: Capture real guest and protected vault flows
+        run: node work/local-availability-tools/scripts/review/2241-local-availability-visual.mjs after "$GITHUB_WORKSPACE" "$EVIDENCE_DIR"
+      - name: Upload unapproved review evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: merged-connector-local-availability
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
