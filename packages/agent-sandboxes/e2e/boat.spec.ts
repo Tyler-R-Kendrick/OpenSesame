@@ -155,7 +155,9 @@ function startFakeBoat(): Promise<FakeBoat> {
 
 test("full reset in a Boat sandbox: claim gate, in-sandbox relay, secret-free history", async () => {
   const site = new MockResetSite();
+  console.log("BOAT_PHASE site.start");
   await site.start(true);
+  console.log("BOAT_PHASE fake.start");
   const boat = await startFakeBoat();
   try {
     const provider = new BoatSandboxProvider({
@@ -166,6 +168,7 @@ test("full reset in a Boat sandbox: claim gate, in-sandbox relay, secret-free hi
     });
     // Zero pre-provisioned account: allocation first surfaces the
     // claim ceremony as a human intervention.
+    console.log("BOAT_PHASE claim");
     const claimError = await captureError(() =>
       provider.allocate({ origin: site.origin }),
     );
@@ -179,28 +182,36 @@ test("full reset in a Boat sandbox: claim gate, in-sandbox relay, secret-free hi
     // same allocation now succeeds end to end.
     boat.state.claimed = true;
     boat.state.billed = true;
+    console.log("BOAT_PHASE allocate");
     const sandbox = await provider.allocate({ origin: site.origin });
     expect(sandbox.provider).toBe("boat");
     expect(sandbox.session).toBe("bx_23456789");
 
     const runtime = runtimeForDriver(sandbox.browser, site, true);
+    console.log("BOAT_PHASE runner.start");
     const parked = await runtime.runner.start(runtime.initial);
     expect(parked.status).toBe("awaiting_human");
+    console.log("BOAT_PHASE runner.resume");
     const finished = await runtime.runner.resumeAfterHuman(parked);
     expect(finished.status).toBe("succeeded");
     expect(site.submissions).toBe(1);
+    console.log("BOAT_PHASE credential.verify");
     await expectNewPasswordAccepted(runtime.custody, site);
     const journalText = JSON.stringify(await runtime.store.load("run-1"));
     expect(journalText).not.toContain(PEPPER);
 
+    console.log("BOAT_PHASE sandbox.close");
     await sandbox.close();
+    console.log("BOAT_PHASE sandbox.closed");
     expect(boat.deleted).toEqual(["/api/v1/sandboxes/bx_23456789"]);
     // Boat's retained command history contains exactly the operator's
     // agent start command — no secret ever crossed as a command.
     expect(boat.commandHistory).toEqual(["opensesame-boat-agent"]);
     expect(boat.commandHistory.join("\n")).not.toContain(PEPPER);
   } finally {
+    console.log("BOAT_PHASE fake.close");
     await boat.close();
+    console.log("BOAT_PHASE fake.closed");
     await site.stop();
   }
 });
