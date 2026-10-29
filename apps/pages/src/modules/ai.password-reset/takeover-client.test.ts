@@ -21,11 +21,19 @@ function client(overrides = {}) {
     json: async () => ({ ...RUN, control_state: "human_driving" }),
   }));
   const get = vi.fn(async () => ({ status: 200, json: async () => RUN }));
+  const authenticate = vi.fn(async () => {});
   const authorize = vi.fn(async () => "e".repeat(64));
   return {
-    api: createTakeoverClient({ get, post, authorize, ...overrides }),
+    api: createTakeoverClient({
+      get,
+      post,
+      authenticate,
+      authorize,
+      ...overrides,
+    }),
     get,
     post,
+    authenticate,
     authorize,
   };
 }
@@ -102,7 +110,7 @@ describe("takeover client", () => {
     expect(await api.claimStep("run-9")).toBeNull();
   });
 
-  it("refreshes browser authentication before control elevation", async () => {
+  it("keeps browser authentication on a separate gesture from elevation", async () => {
     const calls: string[] = [];
     const authenticate = vi.fn(async () => {
       calls.push("authenticate");
@@ -112,6 +120,8 @@ describe("takeover client", () => {
       return "e".repeat(64);
     });
     const { api } = client({ authenticate, authorize });
+    await api.authenticate();
+    expect(calls).toEqual(["authenticate"]);
     await api.takeControl("run-9");
     expect(calls).toEqual(["authenticate", "authorize"]);
   });

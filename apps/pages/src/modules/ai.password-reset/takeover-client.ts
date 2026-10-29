@@ -47,7 +47,7 @@ type Reply = { status: number; json: () => Promise<unknown> };
 export type TakeoverDeps = {
   get: (path: string) => Promise<Reply>;
   post: (path: string, body?: unknown) => Promise<Reply>;
-  authenticate?: () => Promise<void>;
+  authenticate: () => Promise<void>;
   authorize: (
     transition: ControlTransition,
     runId: string,
@@ -110,13 +110,13 @@ export function createTakeoverClient(deps: TakeoverDeps) {
     kind: ControlTransition,
     path: string,
   ): Promise<AgentRun> {
-    await deps.authenticate?.();
     const elevation = await deps.authorize(kind, runId);
     if (!elevation) throw new Error("Verification did not grant control.");
     return expectRun(await deps.post(`${base(runId)}/${path}`, { elevation }));
   }
 
   return {
+    authenticate: () => deps.authenticate(),
     getRun: async (runId: string) => expectRun(await deps.get(base(runId))),
     requestHandoff: (runId: string) => transition(runId, "handoff", "handoff"),
     takeControl: (runId: string) => transition(runId, "take", "control"),

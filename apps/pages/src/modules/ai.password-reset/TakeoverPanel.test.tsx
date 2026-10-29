@@ -1,5 +1,10 @@
 /** @vitest-environment jsdom */
 import {
+  dismissNotice,
+  listNotices,
+} from "@opensesame/app-core/lib/notices.js";
+import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -11,7 +16,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TakeoverPanel } from "./TakeoverPanel.js";
 import type { TakeoverClient } from "./takeover-client.js";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  dismissNotice("takeover-run-9");
+  dismissNotice("takeover-run-10");
+  vi.useRealTimers();
+});
 
 function fakeClient(state: { control: string }) {
   const run = (id = "run-9") => ({
@@ -24,6 +34,7 @@ function fakeClient(state: { control: string }) {
     closed_at: null,
   });
   const client = {
+    authenticate: vi.fn(async () => {}),
     getRun: vi.fn(async (id: string) => run(id)),
     listHookRecords: vi.fn(async () => []),
     requestHandoff: vi.fn(async () => run()),
@@ -42,6 +53,8 @@ function fakeClient(state: { control: string }) {
     })),
     settleStep: vi.fn(async () => {}),
   } as unknown as TakeoverClient & {
+    authenticate: ReturnType<typeof vi.fn>;
+    requestHandoff: ReturnType<typeof vi.fn>;
     takeControl: ReturnType<typeof vi.fn>;
     release: ReturnType<typeof vi.fn>;
     settleStep: ReturnType<typeof vi.fn>;
@@ -67,6 +80,11 @@ describe("TakeoverPanel", () => {
   it("takes over a parked run, answers its step, and hands back", async () => {
     const client = fakeClient({ control: "awaiting_human" });
     renderPanel(client);
+    const verify = await screen.findByRole("button", {
+      name: "Verify to control",
+    });
+    fireEvent.click(verify);
+    await waitFor(() => expect(client.authenticate).toHaveBeenCalled());
     const take = await screen.findByRole("button", { name: "Take over" });
     fireEvent.click(take);
     await waitFor(() =>
@@ -100,6 +118,29 @@ describe("TakeoverPanel", () => {
     renderPanel(client);
     await screen.findByText(/The agent is driving/u);
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("keeps an action failure through an unrelated successful poll", async () => {
+    vi.useFakeTimers();
+    const client = fakeClient({ control: "agent_driving" });
+    client.requestHandoff.mockRejectedValueOnce(
+      new Error("The Host refused handoff."),
+    );
+    renderPanel(client);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("button", { name: "Verify to control" }));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("button", { name: "Request handoff" }));
+    await act(async () => {});
+    expect(
+      listNotices().find((notice) => notice.id === "takeover-run-9")?.body,
+    ).toBe("The Host refused handoff.");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_100);
+    });
+    expect(
+      listNotices().find((notice) => notice.id === "takeover-run-9")?.body,
+    ).toBe("The Host refused handoff.");
   });
 
   it("clears the previous run before loading a new route", async () => {

@@ -33,9 +33,15 @@ type Act = (run: () => Promise<unknown>) => Promise<void>;
 function useTakeoverRun(client: TakeoverClient, runId: string) {
   const [run, setRun] = useState<AgentRun | null>(null);
   const [records, setRecords] = useState<HookRecord[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
   const [busy, setBusy] = useState(false);
-  useFailureNotice(`takeover-${runId}`, "Browser takeover", error);
+  useFailureNotice(
+    `takeover-${runId}`,
+    "Browser takeover",
+    actionError ?? pollError,
+  );
   const refresh = useCallback(async () => {
     try {
       const [next, nextRecords] = await Promise.all([
@@ -45,40 +51,49 @@ function useTakeoverRun(client: TakeoverClient, runId: string) {
       if (next.id !== runId) return;
       setRun(next);
       setRecords(nextRecords);
-      setError(null);
+      setPollError(null);
     } catch {
-      setError("The run could not be reached on the Host.");
+      setPollError("The run could not be reached on the Host.");
     }
   }, [client, runId]);
   useEffect(() => {
     setRun(null);
     setRecords([]);
-    setError(null);
+    setPollError(null);
+    setActionError(null);
+    setAuthenticated(false);
     void refresh();
     const timer = setInterval(() => void refresh(), 3_000);
     return () => clearInterval(timer);
   }, [refresh]);
   const act: Act = async (work) => {
     setBusy(true);
-    setError(null);
+    setActionError(null);
     try {
       await work();
       await refresh();
     } catch (cause) {
-      setError(
+      setActionError(
         cause instanceof Error ? cause.message : "That did not go through.",
       );
     } finally {
       setBusy(false);
     }
   };
-  return { run, records, error, busy, act };
+  const verify = () =>
+    act(async () => {
+      await client.authenticate();
+      setAuthenticated(true);
+    });
+  return { run, records, busy, authenticated, act, verify };
 }
 
 function ControlButtons(props: {
   run: AgentRun;
   busy: boolean;
+  authenticated: boolean;
   act: Act;
+  verify: () => Promise<void>;
   client: TakeoverClient;
   runId: string;
 }) {
@@ -86,7 +101,19 @@ function ControlButtons(props: {
   const { act, client, runId } = props;
   return (
     <div className="keyed-row">
-      {actions.includes("handoff") ? (
+      {actions.length > 0 && !props.authenticated ? (
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Verify to control"
+          title="Verify to control"
+          disabled={props.busy}
+          onClick={() => void props.verify()}
+        >
+          <IconUser size={18} />
+        </button>
+      ) : null}
+      {props.authenticated && actions.includes("handoff") ? (
         <button
           type="button"
           className="icon-btn"
@@ -98,7 +125,7 @@ function ControlButtons(props: {
           <IconPause size={18} />
         </button>
       ) : null}
-      {actions.includes("take") ? (
+      {props.authenticated && actions.includes("take") ? (
         <button
           type="button"
           className="icon-btn"
@@ -110,7 +137,7 @@ function ControlButtons(props: {
           <IconUser size={18} />
         </button>
       ) : null}
-      {actions.includes("release") ? (
+      {props.authenticated && actions.includes("release") ? (
         <button
           type="button"
           className="icon-btn"
@@ -253,7 +280,10 @@ export function TakeoverPanel({
   const clientRef = useRef<TakeoverClient | null>(null);
   clientRef.current ??= provided ?? createHostTakeoverClient();
   const client = clientRef.current;
-  const { run, records, busy, act } = useTakeoverRun(client, runId);
+  const { run, records, busy, authenticated, act, verify } = useTakeoverRun(
+    client,
+    runId,
+  );
   if (!run) {
     return (
       <section aria-label="Browser takeover">
@@ -273,11 +303,13 @@ export function TakeoverPanel({
       <ControlButtons
         run={run}
         busy={busy}
+        authenticated={authenticated}
         act={act}
+        verify={verify}
         client={client}
         runId={runId}
       />
-      {run.control_state === "human_driving" ? (
+      {run.control_state === "human_driving" && authenticated ? (
         <HumanDriving
           key={runId}
           busy={busy}

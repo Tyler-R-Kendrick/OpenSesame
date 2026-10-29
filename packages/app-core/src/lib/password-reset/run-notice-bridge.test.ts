@@ -43,7 +43,10 @@ describe("reset run notice bridge", () => {
     const arrivals: string[] = [];
     const off = subscribeNoticeArrivals((notice) => {
       arrivals.push(notice.id);
-      expect(toastOf(notice).open).toBeUndefined();
+      expect(toastOf(notice).open).toEqual({
+        to: "/runs/run-9",
+        label: "Take over",
+      });
     });
     await syncResetRunNotices(
       deps([

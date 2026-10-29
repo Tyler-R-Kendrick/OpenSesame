@@ -22,6 +22,7 @@ import {
 import { evaluatePasswordResetReadiness } from "@opensesame/app-core/lib/password-reset/readiness.js";
 import { VAULT_RESET_RUNS_KEY } from "@opensesame/app-core/lib/password-reset/vault-run-tracker.js";
 import { createActivation } from "../activation.js";
+import { TakeoverPanel } from "./TakeoverPanel.js";
 import { PasswordResetMailPanel } from "./panel.js";
 import {
   createHostResetRunNoticeBridge,
@@ -62,6 +63,13 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("background-job", {
       id: "password-reset-run-notices",
       start: createHostResetRunNoticeBridge().start,
+    });
+    activation.register("route", {
+      id: "password-reset-takeover",
+      path: "/runs/:runId",
+      element: TakeoverPanel,
+      framed: true,
+      order: 70,
     });
     activation.onDispose(installPasswordResetVaultUiSeams());
     activation.onDispose(

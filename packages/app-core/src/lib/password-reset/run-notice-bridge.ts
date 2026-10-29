@@ -95,6 +95,7 @@ function parkNotice(record: TrackedRecord, agentRun: AgentRunView): void {
       body:
         agentRun.blocked_reason ??
         "The agent is paused on the provider site. Take over the browser session to continue.",
+      open: { to: takeoverRoute(agentRun.id), label: "Take over" },
     });
   }
   if (record.phase !== "needs-you")
