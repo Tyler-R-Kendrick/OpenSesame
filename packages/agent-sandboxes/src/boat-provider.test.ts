@@ -21,7 +21,8 @@ import { SandboxClaimRequiredError } from "./types.js";
 
 const CLAIM = {
   user_code: "123456",
-  verification_uri: "https://boat.test/claim?claim_attempt_token=x",
+  verification_uri:
+    "http://127.0.0.1:12345/api/boat/agent/identity/claim?claim_attempt_token=x",
   expires_in: 600,
   interval: 5,
 };
@@ -76,7 +77,7 @@ function errorEnvelope(status: number, code: string) {
   };
 }
 
-function fakeBoat() {
+function fakeBoat(wrongRelayToken = false) {
   const state = { claimed: false, billed: false };
   const requests: RecordedRequest[] = [];
   const driver = new StubDriver();
@@ -97,7 +98,7 @@ function fakeBoat() {
         ? respond({ access_token: "boat_live" })
         : respond({ error: "authorization_pending" }, 400);
     if (path === "/api/boat/billing/checkout")
-      return respond({ url: "https://checkout.test/session" });
+      return respond({ url: "https://checkout.stripe.com/session" });
     return null;
   };
 
@@ -126,10 +127,18 @@ function fakeBoat() {
     if (path === "/api/v1/sandboxes/bx_23456789" && method === "GET")
       return respond({
         ok: true,
-        sandbox: { id: "bx_23456789", state: "ready" },
+        sandbox: {
+          id: "bx_23456789",
+          state: "ready",
+          url: "http://127.0.0.1:12345",
+        },
       });
     if (path.endsWith("/commands")) {
-      relay = await startRelayServer({ token: relayToken, driver });
+      relay = await startRelayServer({
+        port: 8787,
+        token: wrongRelayToken ? "wrong-token" : relayToken,
+        driver,
+      });
       return respond({
         ok: true,
         type: "command.started",
@@ -141,8 +150,20 @@ function fakeBoat() {
       return respond({
         ok: true,
         url: `http://127.0.0.1:${relay?.port ?? 0}`,
+        port: 8787,
+        isProtected: true,
+        access: "private",
       });
-    if (method === "DELETE") return respond({ ok: true });
+    if (method === "DELETE")
+      return respond({
+        ok: true,
+        operation: {
+          id: "bdop_0123456789abcdef0123456789abcdef",
+          kind: "sandbox",
+          targetId: "bx_23456789",
+          status: "completed",
+        },
+      });
     return null;
   };
 
@@ -168,7 +189,7 @@ function fakeBoat() {
     driver,
     // SAFETY: checked at the fake-fetch boundary: the mock implements exactly the (url, init) call shapes the Boat clients send.
     provider: new BoatSandboxProvider({
-      origin: "https://boat.test",
+      origin: "http://127.0.0.1:12345",
       fetchImpl: fetchImpl as typeof fetch,
       claimEmail: "person@example.test",
       agentCommand: "opensesame-boat-agent",
@@ -191,6 +212,107 @@ describe("BoatSandboxProvider", () => {
     await expect(
       provider.allocate({ origin: "https://accounts.example.test" }),
     ).rejects.toThrow("agent start command");
+  });
+
+  it("refuses an unrelated hosted port and cleans up before any relay connection", async () => {
+    const { createServer } = await import("node:http");
+    let sinkConnections = 0;
+    const sink = createServer((_request, response) => {
+      sinkConnections += 1;
+      response.writeHead(200).end();
+    });
+    await new Promise<void>((resolve) => sink.listen(0, "127.0.0.1", resolve));
+    try {
+      const address = sink.address();
+      if (!(address instanceof Object)) throw new Error("missing sink address");
+      let deleted = false;
+      const fakeFetch: typeof fetch = async (input, init) => {
+        const path = new URL(
+          input instanceof Request ? input.url : input.toString(),
+        ).pathname;
+        let body: BoatJsonValue;
+        if (path === "/api/v1/sandboxes" && init?.method === "POST")
+          body = {
+            ok: true,
+            sandbox: { id: "bx_23456789", state: "provisioning" },
+          };
+        else if (path.endsWith("/commands"))
+          body = {
+            ok: true,
+            type: "command.started",
+            success: true,
+            processId: 7,
+          };
+        else if (path.endsWith("/host"))
+          body = {
+            ok: true,
+            port: 8787,
+            isProtected: true,
+            access: "private",
+            url: `http://127.0.0.1:${address.port}`,
+          };
+        else if (init?.method === "DELETE") {
+          deleted = true;
+          expect(new Headers(init.headers).get("x-ascii-confirm-delete")).toBe(
+            "bx_23456789",
+          );
+          body = {
+            ok: true,
+            operation: {
+              id: "bdop_0123456789abcdef0123456789abcdef",
+              kind: "sandbox",
+              targetId: "bx_23456789",
+              status: "completed",
+            },
+          };
+        } else
+          body = {
+            ok: true,
+            sandbox: {
+              id: "bx_23456789",
+              state: "ready",
+              url: "https://machine.on.boat.dev",
+            },
+          };
+        return new Response(JSON.stringify(body), { status: 200 });
+      };
+      const provider = new BoatSandboxProvider({
+        origin: "https://boat.test",
+        apiToken: "boat-key",
+        agentCommand: "agent",
+        fetchImpl: fakeFetch,
+      });
+      await expect(
+        provider.allocate({ origin: "https://accounts.example.test" }),
+      ).rejects.toThrow("invalid hosted relay destination");
+      expect(sinkConnections).toBe(0);
+      expect(deleted).toBe(true);
+    } finally {
+      await new Promise<void>((resolve) => sink.close(() => resolve()));
+    }
+  });
+
+  it("rejects relay authentication failure before allocation and deletes the sandbox", async () => {
+    const boat = fakeBoat(true);
+    try {
+      await expect(
+        boat.provider.allocate({ origin: "https://accounts.example.test" }),
+      ).rejects.toBeInstanceOf(SandboxClaimRequiredError);
+      boat.state.claimed = true;
+      boat.state.billed = true;
+      await expect(
+        boat.provider.allocate({ origin: "https://accounts.example.test" }),
+      ).rejects.toThrow("relay authentication failed");
+      expect(
+        boat.requests.some(
+          (entry) =>
+            entry.method === "DELETE" &&
+            entry.path === "/api/v1/sandboxes/bx_23456789",
+        ),
+      ).toBe(true);
+    } finally {
+      await boat.closeRelay();
+    }
   });
 
   it("walks claim, then billing, then drives the relay with no secrets in commands", async () => {
@@ -217,7 +339,9 @@ describe("BoatSandboxProvider", () => {
       expect(billingError).toBeInstanceOf(SandboxClaimRequiredError);
       // SAFETY: checked immediately above with toBeInstanceOf on the same value.
       const billing = billingError as SandboxClaimRequiredError;
-      expect(billing.verificationUri).toBe("https://checkout.test/session");
+      expect(billing.verificationUri).toBe(
+        "https://checkout.stripe.com/session",
+      );
 
       // 3. Billed: allocation completes and the browser is the relay.
       boat.state.billed = true;

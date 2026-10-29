@@ -33,7 +33,8 @@ import {
   BoatClient,
   type BoatClientOptions,
 } from "./boat-client.js";
-import { relayDriverOverWebSocket } from "./relay-driver.js";
+import { boatClaimUrl, boatHostedRelay, boatOrigin } from "./boat-endpoints.js";
+import { closeBoatRelay, connectBoatRelay } from "./boat-relay.js";
 import {
   type AllocatedSandbox,
   type SandboxAllocationRequest,
@@ -68,6 +69,8 @@ export interface BoatProviderOptions {
   keepSandbox?: boolean;
   readyTimeoutMs?: number;
   agentReadyTimeoutMs?: number;
+  /** Maximum time to wait for the relay to close before deleting the sandbox. */
+  relayCloseTimeoutMs?: number;
   pollIntervalMs?: number;
 }
 
@@ -87,6 +90,13 @@ export class BoatSandboxProvider implements SandboxProvider {
   private claimMaterials: BoatClaimMaterials | undefined;
 
   constructor(private readonly options: BoatProviderOptions = {}) {
+    if (
+      options.relayCloseTimeoutMs !== undefined &&
+      (!Number.isInteger(options.relayCloseTimeoutMs) ||
+        options.relayCloseTimeoutMs < 1 ||
+        options.relayCloseTimeoutMs > 30_000)
+    )
+      throw new Error("boat: invalid relay close timeout");
     this.accessToken =
       options.apiToken ??
       process.env.BOAT_API_KEY ??
@@ -97,7 +107,7 @@ export class BoatSandboxProvider implements SandboxProvider {
   }
 
   private get origin(): string {
-    return (this.options.origin ?? "https://boat.dev").replace(/\/$/u, "");
+    return boatOrigin(this.options.origin ?? "https://boat.dev");
   }
 
   private get claimEmail(): string | undefined {
@@ -123,7 +133,7 @@ export class BoatSandboxProvider implements SandboxProvider {
     const claim = materials ?? this.claimMaterials;
     if (claim)
       throw new SandboxClaimRequiredError({
-        verificationUri: claim.verificationUri,
+        verificationUri: boatClaimUrl(claim.verificationUri, this.origin),
         userCode: claim.userCode,
       });
     throw new SandboxClaimRequiredError({
@@ -219,12 +229,15 @@ export class BoatSandboxProvider implements SandboxProvider {
     }
   }
 
-  private async waitReady(token: string, sandboxId: string): Promise<void> {
+  private async waitReady(token: string, sandboxId: string): Promise<string> {
     const deadline = Date.now() + (this.options.readyTimeoutMs ?? 180_000);
     const interval = this.options.pollIntervalMs ?? 2_000;
     for (;;) {
       const sandbox = await this.client().getSandbox(token, sandboxId);
-      if (READY_STATES.has(sandbox.state)) return;
+      if (READY_STATES.has(sandbox.state)) {
+        if (!sandbox.url) throw new Error("boat: sandbox has no base URL");
+        return sandbox.url;
+      }
       if (sandbox.state === "error")
         throw new Error(`boat: sandbox ${sandboxId} entered error state`);
       if (Date.now() > deadline)
@@ -234,12 +247,19 @@ export class BoatSandboxProvider implements SandboxProvider {
   }
 
   /** Wait until the in-sandbox relay accepts a WebSocket upgrade. */
-  private async waitForRelay(webSocketUrl: string): Promise<void> {
+  private async waitForRelay(
+    webSocketUrl: string,
+    cookie?: string,
+  ): Promise<void> {
     const deadline = Date.now() + (this.options.agentReadyTimeoutMs ?? 60_000);
     const interval = this.options.pollIntervalMs ?? 1_000;
     for (;;) {
       const opened = await new Promise<boolean>((resolve) => {
-        const probe = new WebSocket(webSocketUrl);
+        const probe = new WebSocket(webSocketUrl, {
+          followRedirects: false,
+          handshakeTimeout: 10_000,
+          headers: cookie ? { cookie } : {},
+        });
         probe.once("open", () => {
           probe.close();
           resolve(true);
@@ -251,6 +271,12 @@ export class BoatSandboxProvider implements SandboxProvider {
         throw new Error("boat: relay agent did not start in the sandbox");
       await sleep(interval);
     }
+  }
+
+  /** Resume an accepted deletion after BoatDeletionPendingError. */
+  async waitForDeletion(sandboxId: string, operationId: string): Promise<void> {
+    const token = await this.ensureAccessToken();
+    await this.client().waitForDeletion(token, sandboxId, operationId);
   }
 
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
@@ -282,28 +308,46 @@ export class BoatSandboxProvider implements SandboxProvider {
     // The claim flow may have rotated the token during creation.
     const liveToken = this.accessToken ?? token;
     try {
-      await this.waitReady(liveToken, sandboxId);
+      const sandboxUrl = await this.waitReady(liveToken, sandboxId);
       await client.startDetachedCommand(liveToken, sandboxId, agentCommand);
       const hostedUrl = await client.hostPort(liveToken, sandboxId, RELAY_PORT);
-      const webSocketUrl = hostedUrl.replace(/^http/u, "ws");
-      await this.waitForRelay(webSocketUrl);
-      const browser = relayDriverOverWebSocket(webSocketUrl, {
-        token: relayToken,
-      });
+      const relay = boatHostedRelay(
+        hostedUrl,
+        sandboxUrl,
+        this.origin,
+        RELAY_PORT,
+      );
+      await this.waitForRelay(relay.url, relay.cookie);
+      const connection = await connectBoatRelay(
+        relay.url,
+        relayToken,
+        relay.cookie,
+      );
+      const browser = connection.browser;
       return {
         provider: this.id,
         session: sandboxId,
         browser,
         allowedDomains,
         close: async () => {
-          await browser.close().catch(() => {});
+          await closeBoatRelay(
+            connection,
+            this.options.relayCloseTimeoutMs ?? 5_000,
+          );
           if (this.options.keepSandbox)
             await client.stopSandbox(liveToken, sandboxId);
           else await client.deleteSandbox(liveToken, sandboxId);
         },
       };
     } catch (error) {
-      await client.deleteSandbox(liveToken, sandboxId).catch(() => {});
+      try {
+        await client.deleteSandbox(liveToken, sandboxId);
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [error, cleanupError],
+          "boat: allocation failed and sandbox cleanup is not confirmed",
+        );
+      }
       throw error;
     }
   }
