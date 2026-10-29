@@ -87,3 +87,55 @@ test("wall-twice deferred paths sort after first wall retry", () => {
   const paths = JSON.parse(run.stdout.trim());
   assert.deepEqual(paths, ["fresh.rs", "once.rs", "twice.rs"]);
 });
+
+test("pending strict before wall-retry paths already counted", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "deepsec-manifest-"));
+  const filesRoot = path.join(tmp, ".deepsec", "data", "opensesame", "files");
+  const deferredPath = path.join(tmp, ".deepsec", "wave2-grok-deferred.json");
+  fs.mkdirSync(filesRoot, { recursive: true });
+  fs.mkdirSync(path.dirname(deferredPath), { recursive: true });
+  fs.writeFileSync(
+    deferredPath,
+    JSON.stringify({
+      entries: [
+        {
+          filePath: "retry-no-strict.rs",
+          reason: "file_wall_exceeded",
+          deferredAt: "2026-10-01T00:00:00Z",
+          attempts: 1,
+        },
+      ],
+    }),
+  );
+  const writeRec = (filePath, hist) => {
+    fs.writeFileSync(
+      path.join(filesRoot, `${filePath.replace(/\//g, "_")}.json`),
+      JSON.stringify({
+        filePath,
+        candidates: [],
+        analysisHistory: hist,
+      }),
+    );
+    fs.mkdirSync(path.dirname(path.join(tmp, filePath)), { recursive: true });
+    fs.writeFileSync(path.join(tmp, filePath), "// stub\n");
+  };
+  writeRec("fresh-strict.rs", [
+    {
+      reinvestigateMarker: 2,
+      agentType: "kimi",
+      investigatedAt: "2026-10-01T00:00:00Z",
+      usage: { outputTokens: 100 },
+    },
+  ]);
+  writeRec("retry-no-strict.rs", []);
+
+  const env = { ...process.env, DEEPSEC_GROK_MANIFEST_SORT: "path" };
+  const run = spawnSync(
+    process.execPath,
+    [script, tmp, "2", "all"],
+    { encoding: "utf8", env },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  const paths = JSON.parse(run.stdout.trim());
+  assert.deepEqual(paths, ["retry-no-strict.rs", "fresh-strict.rs"]);
+});

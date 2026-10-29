@@ -74,12 +74,14 @@ const sortMode = process.env.DEEPSEC_GROK_MANIFEST_SORT ?? "size";
 entries.sort((a, b) => {
   const twiceDelta = (a.wallTwice ? 1 : 0) - (b.wallTwice ? 1 : 0);
   if (twiceDelta !== 0) return twiceDelta;
-  const wallDelta = (a.wallRetry ? 1 : 0) - (b.wallRetry ? 1 : 0);
-  if (wallDelta !== 0) return wallDelta;
+  // Pending strict (not yet Kimi|Grok gate) before paths already counted — even when
+  // the latter are fresh wall-retry and the former sit at the wall-retry tail.
   if (strictLast) {
     const strictDelta = (a.strict ? 1 : 0) - (b.strict ? 1 : 0);
     if (strictDelta !== 0) return strictDelta;
   }
+  const wallDelta = (a.wallRetry ? 1 : 0) - (b.wallRetry ? 1 : 0);
+  if (wallDelta !== 0) return wallDelta;
   if (sortMode === "path") {
     return a.filePath.localeCompare(b.filePath);
   }
