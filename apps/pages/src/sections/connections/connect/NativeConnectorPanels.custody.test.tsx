@@ -26,6 +26,9 @@ it("exposes compiled local runtime configuration only with a genuine vault and a
   const withdrawn = vi
     .spyOn(nativeDrivers, "nativeConnectorWithdrawn")
     .mockReturnValue(false);
+  const driver = vi
+    .spyOn(nativeDrivers, "hasNativeConnectorDriver")
+    .mockReturnValue(true);
   try {
     for (const id of ["vercel-sandbox", "e2b", "browserbase-cdp"]) {
       const provider = catalogProvider(id);
@@ -48,5 +51,6 @@ it("exposes compiled local runtime configuration only with a genuine vault and a
   } finally {
     genuine.mockRestore();
     withdrawn.mockRestore();
+    driver.mockRestore();
   }
 });
