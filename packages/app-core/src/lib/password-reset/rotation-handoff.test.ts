@@ -81,6 +81,39 @@ describe("dispatchPasswordResetRotation", () => {
     passwordResetHandOffSeams.handOff = null;
   });
 
+  it("clears the failed job ID while a retry is pending", async () => {
+    clearVaultResetRunsForTest();
+    setVaultResetRunPhase(
+      "personal",
+      "item-1",
+      "failed",
+      "failed",
+      new Date(),
+      "job-old",
+    );
+    let accept!: (result: { accepted: boolean; jobId: string }) => void;
+    passwordResetHandOffSeams.handOff = vi.fn(
+      () =>
+        new Promise<{ accepted: boolean; jobId: string }>((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const item = createItem("account", "Mail");
+    item.id = "item-1";
+    item.uris = [
+      { id: "u1", uri: "https://mail.example.test", match: "domain" },
+    ];
+    const retry = dispatchPasswordResetRotation(event, item);
+    expect(vaultResetRunFor("personal", "item-1")).toMatchObject({
+      phase: "in-progress",
+      runId: null,
+    });
+    accept({ accepted: true, jobId: "job-new" });
+    expect((await retry).ok).toBe(true);
+    expect(vaultResetRunFor("personal", "item-1")?.runId).toBe("job-new");
+    passwordResetHandOffSeams.handOff = null;
+  });
+
   it("stays in-progress with the job id when the hand-off accepts", async () => {
     clearVaultResetRunsForTest();
     passwordResetHandOffSeams.handOff = vi.fn(async () => ({

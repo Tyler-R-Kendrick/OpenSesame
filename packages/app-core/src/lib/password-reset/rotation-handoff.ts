@@ -38,7 +38,7 @@ export async function dispatchPasswordResetRotation(
   if (resetRotationActive(existing)) {
     return { ok: false, detail: "A password reset is already running." };
   }
-  setVaultResetRunPhase(event.scope, event.itemId, "queued", null, now);
+  setVaultResetRunPhase(event.scope, event.itemId, "queued", null, now, null);
   const origin = item?.kind === "account" ? accountWebLoginOrigin(item) : null;
   if (!origin) {
     setVaultResetRunPhase(
@@ -64,7 +64,14 @@ export async function dispatchPasswordResetRotation(
       detail: "Password reset is not wired on this device.",
     };
   }
-  setVaultResetRunPhase(event.scope, event.itemId, "in-progress", null, now);
+  setVaultResetRunPhase(
+    event.scope,
+    event.itemId,
+    "in-progress",
+    null,
+    now,
+    null,
+  );
   try {
     const result = await handOff(origin);
     const accepted = typeof result === "boolean" ? result : result.accepted;
