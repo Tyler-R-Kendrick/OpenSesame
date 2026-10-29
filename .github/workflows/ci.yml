@@ -1,215 +1,132 @@
-# Trunk admission compiles only the affected dependency graph.
-# Tests and artifact qualification belong to environment delivery workflows.
-name: CI
-
+name: Isolated cache no-save proof
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  merge_group:
-  push:
-    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
   actions: read
-
-concurrency:
-  group: ci-${{ github.event_name }}-${{ github.ref }}
-  # Main scope includes failed, cancelled and coalesced pushes since the last
-  # successful ancestor. Active main/merge-group builds finish.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
-  changes:
-    name: Affected build graph
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      base_sha: ${{ steps.scope.outputs.base_sha }}
-      head_sha: ${{ steps.scope.outputs.head_sha }}
-      typescript: ${{ github.event.pull_request.draft == true && 'false' || steps.packages.outputs.selected }}
-      rust: ${{ github.event.pull_request.draft == true && 'false' || steps.crates.outputs.selected }}
-      draft: ${{ github.event.pull_request.draft == true && 'true' || 'false' }}
-      linux_runner: ${{ steps.runner.outputs.linux }}
-      # The native PWA compiler requires Linux AMD64 on a cold build.
-      typescript_runner: ${{ (steps.packages.outputs.scope == 'all' || contains(steps.packages.outputs.packages, '@opensesame/pages')) && '"ubuntu-latest"' || steps.runner.outputs.linux }}
+  seed:
+    runs-on: ubuntu-24.04
     steps:
-      - name: Choose the Linux runner
-        id: runner
-        # Off unless the repository variable CI_SELF_HOSTED_ARM64 is "true", so
-        # the default is GitHub-hosted and flipping it back is the whole rollback.
-        # Only the owner's own branches may reach the self-hosted box: this
-        # repository is public, and a runner executes whatever the PR contains.
-        env:
-          ENABLED: ${{ vars.CI_SELF_HOSTED_ARM64 }}
-          EVENT: ${{ github.event_name }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          REPO: ${{ github.repository }}
-          ACTOR: ${{ github.actor }}
-          OWNER: ${{ github.repository_owner }}
+      - name: Make minimal Rust workspace
+        shell: bash
         run: |
-          linux='"ubuntu-latest"'
-          if [ "$ENABLED" = "true" ] && [ "$ACTOR" = "$OWNER" ] \
-            && { [ "$EVENT" != "pull_request" ] || [ "$HEAD_REPO" = "$REPO" ]; }; then
-            linux='["self-hosted","linux","ARM64","os-devbox"]'
-          fi
-          echo "linux=$linux" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+          mkdir -p "$RUNNER_TEMP/cache-proof-project/src" "$RUNNER_TEMP/direct-proof-seed"
+          printf '[package]\nname = "cache-proof"\nversion = "0.0.0"\nedition = "2021"\n' > "$RUNNER_TEMP/cache-proof-project/Cargo.toml"
+          printf 'pub fn ready() {}\n' > "$RUNNER_TEMP/cache-proof-project/src/lib.rs"
+          printf 'direct seeded\n' > "$RUNNER_TEMP/direct-proof-seed/value"
+      - name: Seed direct hit with isolated proof key
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25
         with:
+          path: ${{ runner.temp }}/direct-proof-seed
+          key: cache-proof-${{ github.run_id }}-direct-hit
+      - name: Seed Rust hit with isolated proof key
+        id: rust_seed
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          lookup-only: true
+          prefix-key: cache-proof-${{ github.run_id }}-rust-hit
+          add-job-id-key: false
+          add-rust-environment-hash-key: false
+          workspaces: ${{ runner.temp }}/cache-proof-project
+          cache-targets: false
+          cache-bin: false
+          cache-directories: ${{ runner.temp }}/rust-proof-seed
+      - name: Populate Rust seed after lookup
+        shell: bash
+        run: |
+          test '${{ steps.rust_seed.outputs.cache-hit }}' = 'false'
+          mkdir -p "$RUNNER_TEMP/rust-proof-seed"
+          printf 'rust seeded\n' > "$RUNNER_TEMP/rust-proof-seed/value"
+  challenge:
+    needs: seed
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact proposed source as data
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 77c7716ab6a03916773744b5a7f3288f8b785be8
           persist-credentials: false
-          fetch-depth: 0
-      - name: Resolve the cumulative integration diff
-        id: scope
+      - name: Verify the proposed source and create minimal Rust workspace
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = 77c7716ab6a03916773744b5a7f3288f8b785be8
+          mkdir -p "$RUNNER_TEMP/cache-proof-project/src"
+          printf '[package]\nname = "cache-proof"\nversion = "0.0.0"\nedition = "2021"\n' > "$RUNNER_TEMP/cache-proof-project/Cargo.toml"
+          printf 'pub fn ready() {}\n' > "$RUNNER_TEMP/cache-proof-project/src/lib.rs"
+      - name: Direct lookup hit without restore or save
+        id: direct_hit
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          lookup-only: true
+          path: ${{ runner.temp }}/direct-proof-seed
+          key: cache-proof-${{ github.run_id }}-direct-hit
+      - name: Direct lookup miss without restore or save
+        id: direct_miss
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          lookup-only: true
+          path: ${{ runner.temp }}/direct-proof-miss
+          key: cache-proof-${{ github.run_id }}-direct-miss
+      - name: Rust lookup hit without restore or save
+        id: rust_hit
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          lookup-only: true
+          save-if: false
+          prefix-key: cache-proof-${{ github.run_id }}-rust-hit
+          add-job-id-key: false
+          add-rust-environment-hash-key: false
+          workspaces: ${{ runner.temp }}/cache-proof-project
+          cache-targets: false
+          cache-bin: false
+          cache-directories: ${{ runner.temp }}/rust-proof-seed
+      - name: Rust lookup miss without restore or save
+        id: rust_miss
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          lookup-only: true
+          save-if: false
+          prefix-key: cache-proof-${{ github.run_id }}-rust-miss
+          add-job-id-key: false
+          add-rust-environment-hash-key: false
+          workspaces: ${{ runner.temp }}/cache-proof-project
+          cache-targets: false
+          cache-bin: false
+          cache-directories: ${{ runner.temp }}/rust-proof-miss
+      - name: Check hits and misses, then create paths to expose an accidental save
+        shell: bash
+        env:
+          DIRECT_HIT: ${{ steps.direct_hit.outputs.cache-hit }}
+          DIRECT_MISS: ${{ steps.direct_miss.outputs.cache-hit }}
+          RUST_HIT: ${{ steps.rust_hit.outputs.cache-hit }}
+          RUST_MISS: ${{ steps.rust_miss.outputs.cache-hit }}
+        run: |
+          test "$DIRECT_HIT" = true
+          test -z "$DIRECT_MISS"
+          test "$RUST_HIT" = true
+          test "$RUST_MISS" = false
+          test "$CARGO_INCREMENTAL" = 0
+          test ! -e "$RUNNER_TEMP/direct-proof-seed/value"
+          test ! -e "$RUNNER_TEMP/rust-proof-seed/value"
+          mkdir -p "$RUNNER_TEMP/direct-proof-miss" "$RUNNER_TEMP/rust-proof-miss"
+          printf 'must not save\n' | tee "$RUNNER_TEMP/direct-proof-miss/value" > "$RUNNER_TEMP/rust-proof-miss/value"
+  verify:
+    needs: [seed, challenge]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify unique cache keys after post-job handlers
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: node scripts/lib/ci-main-baseline.mjs
-      - name: Select affected TypeScript packages
-        id: packages
-        env:
-          BASE_SHA: ${{ steps.scope.outputs.base_sha }}
-          HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-builds.mjs plan-ts
-      - name: Select affected Rust crates
-        id: crates
-        env:
-          BASE_SHA: ${{ steps.scope.outputs.base_sha }}
-          HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-builds.mjs plan-cargo
-
-  typescript-build:
-    name: Build affected TypeScript graph
-    needs: changes
-    if: needs.changes.outputs.typescript == 'true'
-    runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Select affected packages
-        id: affected
-        env:
-          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-builds.mjs plan-ts
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install the frozen dependency graph
-        run: pnpm install --frozen-lockfile
-      - name: Cache the pinned native PWA distribution
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: .cache/pwa-tailscale-native-http/distributions
-          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
-      - name: Build affected packages and their prerequisites
-        env:
-          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-          VITE_BASE: /OpenSesame/
-        run: node scripts/lib/ci-affected-builds.mjs run-ts
-
-  rust-build:
-    name: Build affected Rust graph
-    needs: changes
-    if: needs.changes.outputs.rust == 'true'
-    runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
-    timeout-minutes: 45
-    env:
-      CARGO_BUILD_JOBS: 2
-      CARGO_INCREMENTAL: 0
-      CARGO_PROFILE_DEV_DEBUG: 0
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Select affected crates
-        id: affected
-        env:
-          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-builds.mjs plan-cargo
-      - name: Install Linux keychain build dependencies
-        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
-        with:
-          toolchain: 1.88.0
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-      - name: Build affected crates and their prerequisites
-        env:
-          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          node scripts/lib/ci-affected-builds.mjs run-cargo
-      - name: Build the affected Bitwarden bridge feature
-        if: steps.affected.outputs.bitwarden == 'true'
-        run: |
-          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          cargo build --locked -p opensesame-gateway -p opensesame-cli --features bitwarden-compat
-
-  typescript:
-    # Preserve the existing protected-check names and candidate admission API.
-    name: TypeScript
-    needs: [changes, typescript-build]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - name: Report the required build check
-        env:
-          DRAFT: ${{ needs.changes.outputs.draft }}
-          PREFLIGHT_RESULT: ${{ needs.changes.result }}
-          SELECTED: ${{ needs.changes.outputs.typescript }}
-          SUITE_RESULT: ${{ needs.typescript-build.result }}
-        run: node scripts/lib/ci-required-result.mjs
-
-  bundle-check:
-    # Legacy name: reports the TS build; actual budget checks qualify delivery.
-    # Preserve the existing protected-check names and candidate admission API.
-    name: Bundle budgets
-    needs: [changes, typescript-build]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - name: Report the required build check
-        env:
-          DRAFT: ${{ needs.changes.outputs.draft }}
-          PREFLIGHT_RESULT: ${{ needs.changes.result }}
-          SELECTED: ${{ needs.changes.outputs.typescript }}
-          SUITE_RESULT: ${{ needs.typescript-build.result }}
-        run: node scripts/lib/ci-required-result.mjs
-
-  rust-check:
-    # Preserve the existing protected-check names and candidate admission API.
-    name: Rust
-    needs: [changes, rust-build]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - name: Report the required build check
-        env:
-          DRAFT: ${{ needs.changes.outputs.draft }}
-          PREFLIGHT_RESULT: ${{ needs.changes.result }}
-          SELECTED: ${{ needs.changes.outputs.rust }}
-          SUITE_RESULT: ${{ needs.rust-build.result }}
-        run: node scripts/lib/ci-required-result.mjs
+          set -euo pipefail
+          for item in direct-hit rust-hit; do
+            count=$(gh api --method GET "repos/$GH_REPO/actions/caches" -f key="cache-proof-$GITHUB_RUN_ID-$item" --jq '.total_count')
+            test "$count" = 1
+          done
+          for item in direct-miss rust-miss; do
+            count=$(gh api --method GET "repos/$GH_REPO/actions/caches" -f key="cache-proof-$GITHUB_RUN_ID-$item" --jq '.total_count')
+            test "$count" = 0
+          done
