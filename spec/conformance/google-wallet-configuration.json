@@ -1,0 +1,314 @@
+{
+  "provider_id": "google-wallet",
+  "public_cases": [
+    {
+      "name": "unqualified class",
+      "issuer_id": "123456",
+      "class_id": "travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": true,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "qualified class",
+      "issuer_id": "123456",
+      "class_id": "123456.travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": true,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "wrong issuer",
+      "issuer_id": "123456",
+      "class_id": "654321.travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": false
+    },
+    {
+      "name": "short issuer",
+      "issuer_id": "12345",
+      "class_id": "travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": false
+    },
+    {
+      "name": "oversized issuer",
+      "issuer_id": "111111111111111111111111111111111",
+      "class_id": "travel-pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": false
+    },
+    {
+      "name": "unsafe class",
+      "issuer_id": "123456",
+      "class_id": "pass/../../x",
+      "service_account_email": "service@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": false
+    },
+    {
+      "name": "empty suffix",
+      "issuer_id": "123456",
+      "class_id": "123456.",
+      "service_account_email": "service@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": false
+    },
+    {
+      "name": "invalid email",
+      "issuer_id": "123456",
+      "class_id": "travel-pass",
+      "service_account_email": "service@@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "oversized email",
+      "issuer_id": "123456",
+      "class_id": "travel-pass",
+      "service_account_email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "qualified class with dotted suffix",
+      "issuer_id": "123456",
+      "class_id": "123456.pass.v1",
+      "service_account_email": "service@example.invalid",
+      "accepted": true,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "dotted unqualified class",
+      "issuer_id": "123456",
+      "class_id": "pass.v1",
+      "service_account_email": "service@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": false
+    },
+    {
+      "name": "non-ASCII digits rejected",
+      "issuer_id": "１２３４５６",
+      "class_id": "pass",
+      "service_account_email": "service@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": false
+    },
+    {
+      "name": "unicode email accepted",
+      "issuer_id": "123456",
+      "class_id": "pass",
+      "service_account_email": "ümlaut@example.invalid",
+      "accepted": true,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "email astral length counts UTF-16 units",
+      "issuer_id": "123456",
+      "class_id": "pass",
+      "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
+      "accepted": true,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "email astral length over limit",
+      "issuer_id": "123456",
+      "class_id": "pass",
+      "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "wallet email case folding can expand length",
+      "issuer_id": "123456",
+      "class_id": "pass",
+      "service_account_email": "İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ@example.invalid",
+      "accepted": true,
+      "wallet_accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "entrypoint trims surrounding public whitespace",
+      "issuer_id": " 123456 ",
+      "class_id": " pass ",
+      "service_account_email": " service@example.invalid ",
+      "accepted": false,
+      "native_entry_accepted": true,
+      "wallet_accepted": true,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "native verified real service account",
+      "issuer_id": "123456",
+      "class_id": "travel-pass",
+      "service_account_email": "wallet@project-name.iam.gserviceaccount.com",
+      "accepted": true,
+      "native_verified_entry_accepted": true,
+      "native_verified_with_valid_account": true
+    },
+    {
+      "name": "native verified rejects foreign issuer",
+      "issuer_id": "123456",
+      "class_id": "654321.travel-pass",
+      "service_account_email": "wallet@project-name.iam.gserviceaccount.com",
+      "accepted": false,
+      "native_verified_entry_accepted": false,
+      "native_verified_with_valid_account": false
+    }
+  ],
+  "key_cases": [
+    {
+      "name": "valid RSA PKCS8",
+      "value": "generated_pkcs8_rsa",
+      "accepted": true,
+      "native_verified_entry_accepted": true
+    },
+    {
+      "name": "escaped newline PKCS8",
+      "value": "generated_pkcs8_rsa_escaped",
+      "accepted": true,
+      "native_verified_entry_accepted": false
+    },
+    {
+      "name": "PKCS1 RSA",
+      "value": "generated_pkcs1_rsa",
+      "accepted": false,
+      "native_verified_entry_accepted": false
+    },
+    {
+      "name": "invalid key",
+      "value": "not-a-private-key",
+      "accepted": false,
+      "native_verified_entry_accepted": false
+    },
+    {
+      "name": "oversized key",
+      "value": "oversized",
+      "accepted": false,
+      "native_verified_entry_accepted": false
+    },
+    {
+      "name": "malformed DER after valid PEM envelope",
+      "value": "invalid_der",
+      "pem_accepted": true,
+      "accepted": false,
+      "native_verified_entry_accepted": false
+    },
+    {
+      "name": "PKCS8 EC is not RSA",
+      "value": "generated_ec_pkcs8",
+      "pem_accepted": true,
+      "accepted": false,
+      "native_verified_entry_accepted": false
+    },
+    {
+      "name": "misplaced base64 padding",
+      "value": "invalid_padding",
+      "pem_accepted": false,
+      "accepted": false,
+      "native_verified_entry_accepted": false
+    }
+  ],
+  "native_service_account_cases": [
+    {
+      "name": "valid service account JSON",
+      "value": "valid",
+      "accepted": true
+    },
+    {
+      "name": "valid legacy gserviceaccount domain",
+      "value": "legacy_domain",
+      "accepted": true
+    },
+    {
+      "name": "wrong document type",
+      "value": "wrong_type",
+      "accepted": false
+    },
+    {
+      "name": "missing account type",
+      "value": "missing_type",
+      "accepted": false
+    },
+    {
+      "name": "missing email",
+      "value": "missing_email",
+      "accepted": false
+    },
+    {
+      "name": "email is not a string",
+      "value": "number_email",
+      "accepted": false
+    },
+    {
+      "name": "missing key",
+      "value": "missing_key",
+      "accepted": false
+    },
+    {
+      "name": "key is not a string",
+      "value": "number_key",
+      "accepted": false
+    },
+    {
+      "name": "malformed JSON",
+      "value": "malformed",
+      "accepted": false
+    },
+    {
+      "name": "non-object JSON",
+      "value": "array",
+      "accepted": false
+    },
+    {
+      "name": "oversized service account JSON",
+      "value": "oversized_json",
+      "accepted": false
+    },
+    {
+      "name": "uppercase project rejected",
+      "value": "uppercase_project",
+      "accepted": false
+    },
+    {
+      "name": "email leading whitespace rejected",
+      "value": "email_whitespace",
+      "accepted": false
+    },
+    {
+      "name": "short project rejected",
+      "value": "short_project",
+      "accepted": false
+    },
+    {
+      "name": "escaped newline key rejected at JSON stage",
+      "value": "escaped_newlines",
+      "accepted": false
+    },
+    {
+      "name": "trailing PEM whitespace accepted",
+      "value": "trailing_pem_whitespace",
+      "accepted": true
+    }
+  ]
+}

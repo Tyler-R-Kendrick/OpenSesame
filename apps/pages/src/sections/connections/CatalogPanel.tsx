@@ -7,6 +7,7 @@ import type {
 } from "@opensesame/app-core/lib/connections.js";
 import type { ConnectorCardAction } from "@opensesame/app-core/lib/connector-action-capability.js";
 import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
+import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { catalogTileNote } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
 import { type ReactNode, useEffect } from "react";
@@ -181,7 +182,13 @@ function ProviderTile({
   const action = catalogConnectorAction(provider, connection);
   const note =
     action.kind === "configure" || action.kind === "resume"
-      ? catalogTileNote(provider, connection)
+      ? catalogTileNote(
+          provider,
+          connection,
+          connection
+            ? readNativeConnector(connection.connectionId)?.configuration.method
+            : undefined,
+        )
       : null;
   const kind = catalogMethodLabel(provider);
   const repeats =

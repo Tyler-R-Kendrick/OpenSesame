@@ -170,7 +170,7 @@ it("never activates metadata without a sealed verification proof or bound grant"
   ).toBe("configuration");
 });
 
-it("distinguishes companion configuration from a proven browser-local operation", async () => {
+it("accepts verified local configuration and proven browser-local operations", async () => {
   diskBackend();
   const record = input("local-configuration");
   record.configuration.method = "native-local";
@@ -178,7 +178,7 @@ it("distinguishes companion configuration from a proven browser-local operation"
   record.runtime.grants = [];
   required(record.privateState.verification).kind = "configuration";
   expect((await saveNativeConnector(record, classification)).status).toBe(
-    "configuration",
+    "connected",
   );
   record.connectionId = "local-operation";
   required(record.privateState.verification).kind = "browser-local";
