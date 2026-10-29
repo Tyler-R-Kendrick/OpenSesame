@@ -14,6 +14,7 @@ import {
   type ClaimedStep,
   type HookRecord,
   type TakeoverClient,
+  claimExpired,
   createHostTakeoverClient,
   expectedOutcome,
   takeoverActions,
@@ -88,6 +89,24 @@ function useTakeoverRun(client: TakeoverClient, runId: string) {
   return { run, records, busy, authenticated, act, verify };
 }
 
+function VerifyButton(props: {
+  busy: boolean;
+  verify: () => Promise<void>;
+}) {
+  return (
+    <button
+      type="button"
+      className="icon-btn"
+      aria-label="Verify to control"
+      title="Verify to control"
+      disabled={props.busy}
+      onClick={() => void props.verify()}
+    >
+      <IconUser size={18} />
+    </button>
+  );
+}
+
 function ControlButtons(props: {
   run: AgentRun;
   busy: boolean;
@@ -102,16 +121,7 @@ function ControlButtons(props: {
   return (
     <div className="keyed-row">
       {actions.length > 0 && !props.authenticated ? (
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Verify to control"
-          title="Verify to control"
-          disabled={props.busy}
-          onClick={() => void props.verify()}
-        >
-          <IconUser size={18} />
-        </button>
+        <VerifyButton busy={props.busy} verify={props.verify} />
       ) : null}
       {props.authenticated && actions.includes("handoff") ? (
         <button
@@ -157,8 +167,10 @@ function ClaimedStepCard(props: {
   step: ClaimedStep;
   busy: boolean;
   settle: (outcome: { outcome: string; error?: string }) => void;
+  reacquire: () => void;
 }) {
   const expected = expectedOutcome(props.step.request.step);
+  const expired = claimExpired(props.step);
   return (
     <div>
       <p>
@@ -191,7 +203,22 @@ function ClaimedStepCard(props: {
         >
           <IconX size={18} />
         </button>
+        {expired ? (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Reacquire step"
+            title="Reacquire step"
+            disabled={props.busy}
+            onClick={() => props.reacquire()}
+          >
+            <IconRefresh size={18} />
+          </button>
+        ) : null}
       </div>
+      {expired ? (
+        <p>This claim has expired. Reacquire the step to finish it.</p>
+      ) : null}
       {expected !== null && expected !== "done" ? (
         <p>
           This step expects a {expected} result from the page driver; this panel
@@ -235,6 +262,9 @@ function HumanDriving(props: {
         <ClaimedStepCard
           step={step}
           busy={props.busy}
+          reacquire={() =>
+            void act(async () => setStep(await client.claimStep(runId)))
+          }
           settle={(outcome) =>
             void act(async () => {
               await client.settleStep(runId, step.seq, outcome);
@@ -285,10 +315,15 @@ export function TakeoverPanel({
     runId,
   );
   if (!run) {
+    // A newly paired browser cannot read the run until it completes
+    // browser.authenticate (observe reads need phishing-resistant
+    // assurance), so verification must be offered before the run loads;
+    // verifying retries the load.
     return (
       <section aria-label="Browser takeover">
         <h1>Browser takeover</h1>
         <p>Loading the run…</p>
+        {authenticated ? null : <VerifyButton busy={busy} verify={verify} />}
       </section>
     );
   }

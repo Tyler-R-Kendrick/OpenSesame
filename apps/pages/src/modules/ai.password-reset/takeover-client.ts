@@ -32,7 +32,15 @@ export type ClaimedStep = {
     string,
     unknown
   >;
+  claim_expires_at?: string | null;
 };
+
+/** A lapsed claim cannot settle; it must be reacquired first. */
+export function claimExpired(step: ClaimedStep, now = Date.now()): boolean {
+  if (!step.claim_expires_at) return false;
+  const expires = Date.parse(step.claim_expires_at);
+  return Number.isFinite(expires) && expires <= now;
+}
 
 export type HookRecord = {
   sequence: number;
