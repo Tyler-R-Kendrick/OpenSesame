@@ -1,0 +1,67 @@
+name: Vite after relay merge native proof
+on:
+  push:
+    branches: [review/vite-after-relay-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/vite-after-relay-proof-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: cb6c5a60891f876aeca218a460a25be437790680
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify exact source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = cb6c5a60891f876aeca218a460a25be437790680
+          test "$(git rev-parse HEAD^{tree})" = 4c8954059ba1c25d0cf50e68ed9021b2253f0929
+          test "$(git rev-parse HEAD^)" = 4de8f3a6c8475dcb6f6271cc7f145859e1e423fc
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Install frozen graph
+        run: |
+          set -euo pipefail
+          test "$(pnpm --version)" = 9.15.0
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Cold build and verify native distribution
+        run: node --input-type=module -e 'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
+      - name: Verify packaged native assets and composition guards
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run apps/pages/scripts/tailscale-wasm-assets.test.mjs
+          source_archive="$GITHUB_WORKSPACE/.cache/pwa-tailscale-native-http/archives/2bddc92dbecd97af4f522f4a9ef44013d10b84a176c906d1d0a739e6a40ed630.tar.gz"
+          printf '%s  %s\n' 2bddc92dbecd97af4f522f4a9ef44013d10b84a176c906d1d0a739e6a40ed630 "$source_archive" | sha256sum --check
+          mkdir "$RUNNER_TEMP/pinned-original-source"
+          tar -xzf "$source_archive" --strip-components=1 -C "$RUNNER_TEMP/pinned-original-source"
+          mapfile -t builds < <(find "$GITHUB_WORKSPACE/.cache/pwa-tailscale-native-http/work" -mindepth 2 -maxdepth 2 -type d -name build)
+          test "${#builds[@]}" = 1
+          test -x "${builds[0]}/compiler/bin/go"
+          export PWA_NATIVE_HTTP_SOURCE="$RUNNER_TEMP/pinned-original-source"
+          export PWA_NATIVE_HTTP_COMPILER="${builds[0]}/compiler"
+          export PWA_NATIVE_HTTP_WASM="$RUNNER_TEMP/verified-native.wasm"
+          export PWA_NATIVE_HTTP_REPOSITORY="$GITHUB_WORKSPACE"
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          import { gunzipSync } from 'node:zlib';
+          import { loadTailscaleAssets, TAILSCALE_ASSETS } from './apps/pages/scripts/tailscale-wasm-assets.mjs';
+          const assets = await loadTailscaleAssets();
+          await writeFile(process.env.PWA_NATIVE_HTTP_WASM, gunzipSync(assets.get(TAILSCALE_ASSETS.wasm)));
+          NODE
+          node --test tools/pwa-tailscale-native-http/compose-native.test.mjs tools/pwa-tailscale-native-http/select-toolchain.test.mjs
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 4c8954059ba1c25d0cf50e68ed9021b2253f0929
+          git diff --exit-code
+          git diff --cached --exit-code
