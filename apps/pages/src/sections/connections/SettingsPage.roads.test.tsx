@@ -48,6 +48,7 @@ function draw(id: string, connection: Connection | null = null) {
     <MemoryRouter initialEntries={[`/settings/connections/${id}`]}>
       <ConnectorSettingsPage
         provider={provider(id)}
+        providers={getBundledProviders()}
         providerId={id}
         connection={connection}
         connections={connection ? [connection] : []}
@@ -90,6 +91,18 @@ function unlocked() {
 }
 
 describe("Linear retains configuration while its native owner is inactive", () => {
+  it("labels Azure family surfaces from bundled catalog aliases", () => {
+    draw("azure-key-vault-secrets");
+    const family = screen.getByRole("combobox", { name: "API family" });
+    expect(family).toHaveProperty("value", "azure-sm");
+    expect(
+      within(family).getByRole("option", { name: "Azure Key Vault Secrets" }),
+    ).toHaveProperty("value", "azure-sm");
+    expect(
+      within(family).getByRole("option", { name: "Azure App Configuration" }),
+    ).toHaveProperty("value", "azure-ac");
+  });
+
   it("keeps advanced configuration reachable without inventing an authorization owner", () => {
     draw("linear");
     expect(
@@ -351,7 +364,9 @@ describe("a connector page the browser acts on alone", () => {
     expect(screen.getByLabelText(/Remote URL/i)).toBeTruthy();
   });
 
-  it("keeps GitHub unavailable without its browser driver and never offers server-backed App registration", () => {
+  it("offers GitHub's compiled token route with no runtime bound, and never server-backed App registration", () => {
+    // No `connectorIntegration()` here: no driver has activated. The compiled
+    // contract still configures, so the page must not say "Not available here".
     draw("github");
     expect(
       screen.queryByRole("button", {
@@ -359,9 +374,10 @@ describe("a connector page the browser acts on alone", () => {
       }),
     ).toBeNull();
     expect(
-      screen.getByRole("img", { name: "Not available here" }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText("GitHub personal access token")).toBeNull();
+      screen.queryByRole("img", { name: "Not available here" }),
+    ).toBeNull();
+    expect(screen.getByRole("img", { name: "Not connected" })).toBeTruthy();
+    expect(screen.getByLabelText("GitHub personal access token")).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: /Authorize with GitHub/i }),
     ).toBeNull();

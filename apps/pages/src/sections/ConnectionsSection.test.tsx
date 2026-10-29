@@ -187,7 +187,7 @@ describe("ConnectionsSection gallery", () => {
     );
     // Featured rows and deduplicated API families also return after clearing.
     expect(Array.from(grid.children, (tile) => tile.id).join(" ")).toBe(
-      "catalog-aws catalog-azure-kms catalog-cloudflare catalog-fal-ai catalog-gcp catalog-github catalog-google catalog-higgsfield catalog-linear catalog-microsoft catalog-obsidian catalog-polar catalog-vercel",
+      "catalog-aws catalog-azure-sm catalog-cloudflare catalog-fal-ai catalog-gcp catalog-github catalog-google catalog-higgsfield catalog-linear catalog-microsoft catalog-obsidian catalog-polar catalog-vercel",
     );
   });
   it("does not report an unreachable Host as a notification", async () => {

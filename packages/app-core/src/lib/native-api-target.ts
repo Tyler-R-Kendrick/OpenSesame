@@ -152,32 +152,52 @@ export function providerTemplate(
   });
 }
 
+/** A machine's own loopback address: the one place a non-standard port is the person's. */
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "::1" ||
+    /^127(?:\.[0-9]{1,3}){3}$/.test(host)
+  );
+}
+
 export function providerUrl(
   template: string,
   target: NativeApiTarget,
   credentials: Record<string, string>,
 ): URL {
-  const hostPart = template.slice("https://".length).split("/")[0] ?? "";
-  for (const match of hostPart.matchAll(/\{([a-z_]+)\}/g)) {
-    const name = match[1] ?? "";
+  const [hostPart = ""] = template.slice("https://".length).split("/");
+  // A tenant host is the person's input, not a credential: it fills unencoded,
+  // so a self-hosted endpoint may name its own port (`127.0.0.1:27124`).
+  const hostFilled = template.replace(/\{([a-z_]+)\}/g, (whole, name) => {
+    if (!hostPart.includes(whole)) return whole;
     const value = target.parameters[name] ?? "";
     if (
       !target.classification.publicParameters.includes(name) ||
-      !/^[A-Za-z0-9.-]+$/.test(value) ||
+      !/^[A-Za-z0-9.-]+(?::[0-9]{1,5})?$/.test(value) ||
       value.startsWith(".") ||
       value.endsWith(".")
     )
       throw new Error("Enter a valid provider tenant host");
-  }
+    // A hostname-only contract keeps its hostname: a port belongs to the
+    // machine's own loopback endpoint and nowhere else (the 443 rule below
+    // still binds everything this check lets through).
+    const port = value.indexOf(":");
+    if (port >= 0 && !isLoopbackHost(value.slice(0, port)))
+      throw new Error("Enter a valid provider tenant host");
+    return value;
+  });
   const url = new URL(
-    providerTemplate(template, target.parameters, credentials, true),
+    providerTemplate(hostFilled, target.parameters, credentials, true),
   );
   if (
     url.protocol !== "https:" ||
     url.username ||
     url.password ||
     url.hash ||
-    (url.port && url.port !== "443")
+    (url.port && url.port !== "443" && !isLoopbackHost(url.hostname))
   )
     throw new Error("Provider requests require the compiled HTTPS target");
   return url;
