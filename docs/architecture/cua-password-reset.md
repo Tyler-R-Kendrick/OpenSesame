@@ -212,8 +212,20 @@ the agent through Boat's auth.md flow when no API key is configured — and
 drives a relay agent inside it. `wasm-relay` drives the DOM-level driver
 whose network is virtualized through a user-controlled relay
 (`OPENSESAME_VNET_RELAY_URL` / `OPENSESAME_VNET_RELAY_TOKEN`), for hosts
-with no direct network. Provider credentials are environment-only; when
-allocation itself needs a person (Boat claim, billing checkout), the
+with no direct network. Provider API keys are supplied through the environment.
+Boat agent claim state is stored as plaintext in a private `0600` file beside
+the config, including claim link material and identity assertions; it is not
+encrypted. The directory must be owned by the current user and not writable by
+other users. Every ancestor must be owned by root or the current user;
+ancestors writable by others must also have the sticky bit. Boat state
+persistence currently requires POSIX file protections and may be unavailable
+in user namespaces that hide root ownership. An interrupted process may leave `.boat-agent-state.lock`; after confirming no
+Boat allocation is running, remove that lock to retry. A rotated provider
+assertion can be lost if the provider response succeeds but persistence fails
+and the process exits. A lost registration or rotation response can also leave
+an orphaned registration or prevent recovery; the local lock cannot make the
+remote operation atomic.
+When allocation itself needs a person (Boat claim, billing checkout), the
 provider raises `SandboxClaimRequiredError` and the CLI prints the link
 and code instead of inventing a second human channel — the same error
 the PWA surfaces through its notifications queue.

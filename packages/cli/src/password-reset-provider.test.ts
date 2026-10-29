@@ -132,7 +132,7 @@ describe("sandbox provider configuration", () => {
 });
 
 describe("boat registration state persistence", () => {
-  it("round-trips sealed beside the config and defaults to empty", async () => {
+  it("round-trips with private file permissions and defaults to empty", async () => {
     const directory = await configDir(bundledConfig());
     expect(loadBoatProviderState(directory)).toEqual({});
     saveBoatProviderState(directory, {
@@ -278,14 +278,63 @@ describe("sandbox provider allocation", () => {
           id,
           allocate: async () => {
             throw new SandboxClaimRequiredError({
-              verificationUri: "https://boat.test/claim",
+              verificationUri:
+                "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=attempt",
+              userCode: "123456",
+            });
+          },
+        }),
+        notify: (message) => messages.push(message),
+        readSecretLine: async () => {
+          expect(messages).toHaveLength(1);
+          expect(messages[0]).toContain("claim_attempt_token=attempt");
+          expect(messages[0]).not.toContain("123456");
+          return "";
+        },
+      }),
+    ).rejects.toEqual(new Error("Sandbox allocation needs a person first"));
+    expect(messages).toHaveLength(2);
+    expect(messages[1]).toContain("123456");
+  });
+
+  it("surfaces a hosted checkout without requesting a claim code", async () => {
+    const messages: string[] = [];
+    const readSecretLine = vi.fn(async () => "");
+    await expect(
+      createLocalPasswordResetEffects(providerContext(), {
+        createProvider: (id) => ({
+          id,
+          allocate: async () => {
+            throw new SandboxClaimRequiredError({
+              verificationUri: "https://checkout.stripe.com/c/pay/cs_test",
+            });
+          },
+        }),
+        readSecretLine,
+        notify: (message) => messages.push(message),
+      }),
+    ).rejects.toEqual(new Error("Sandbox allocation needs a person first"));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain("finish billing");
+    expect(readSecretLine).not.toHaveBeenCalled();
+  });
+
+  it("does not display a provider-supplied terminal escape or foreign URL", async () => {
+    const messages: string[] = [];
+    await expect(
+      createLocalPasswordResetEffects(providerContext(), {
+        createProvider: (id) => ({
+          id,
+          allocate: async () => {
+            throw new SandboxClaimRequiredError({
+              verificationUri: "https://evil.example/\u001b[2J",
               userCode: "123456",
             });
           },
         }),
         notify: (message) => messages.push(message),
       }),
-    ).rejects.toThrow("https://boat.test/claim");
-    expect(messages.join("\n")).toContain("123456");
+    ).rejects.toThrow("Boat returned an invalid human handoff URL");
+    expect(messages).toEqual([]);
   });
 });
