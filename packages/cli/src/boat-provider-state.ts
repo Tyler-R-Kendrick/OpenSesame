@@ -1,23 +1,19 @@
 /** Plaintext Boat registration credentials protected by local file permissions. */
-import { randomBytes } from "node:crypto";
 import {
   constants,
   closeSync,
-  fchmodSync,
   fstatSync,
   fsyncSync,
   lstatSync,
   openSync,
   readFileSync,
   realpathSync,
-  renameSync,
-  rmSync,
   unlinkSync,
-  writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import type { BoatProviderState } from "@opensesame/agent-sandboxes";
 import { z } from "zod";
+import { writeBoatStateAtomically } from "./boat-state-write.js";
 
 const stateSchema = z
   .object({
@@ -50,10 +46,7 @@ const LOCK = ".boat-agent-state.lock";
 const MAX_STATE_BYTES = 128 * 1024;
 
 function secureDirectory(directory: string): string {
-  if (
-    typeof process.getuid !== "function" ||
-    constants.O_NOFOLLOW === undefined
-  )
+  if (process.getuid === undefined || constants.O_NOFOLLOW === undefined)
     throw new Error(
       "Boat state requires POSIX file permission and no-follow support",
     );
@@ -147,36 +140,7 @@ export function saveBoatProviderState(
     throw new Error("Boat state exceeds the maximum encoded size");
   const old = openExisting(path);
   if (old !== undefined) closeSync(old);
-  const temp = join(
-    dir,
-    `.boat-agent-state.${randomBytes(16).toString("hex")}.tmp`,
-  );
-  let fd: number | undefined;
-  try {
-    fd = openSync(
-      temp,
-      constants.O_WRONLY |
-        constants.O_CREAT |
-        constants.O_EXCL |
-        constants.O_NOFOLLOW,
-      0o600,
-    );
-    fchmodSync(fd, 0o600);
-    writeFileSync(fd, serialized, "utf8");
-    fsyncSync(fd);
-    closeSync(fd);
-    fd = undefined;
-    renameSync(temp, path);
-    const dirFd = openSync(dir, constants.O_RDONLY);
-    try {
-      fsyncSync(dirFd);
-    } finally {
-      closeSync(dirFd);
-    }
-  } finally {
-    if (fd !== undefined) closeSync(fd);
-    rmSync(temp, { force: true });
-  }
+  writeBoatStateAtomically(dir, path, serialized, fsyncSync);
 }
 
 /** A stale lock requires manual recovery after confirming no allocation is active. */

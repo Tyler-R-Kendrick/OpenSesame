@@ -1,7 +1,10 @@
 import { chmodSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SandboxClaimRequiredError } from "@opensesame/agent-sandboxes";
+import {
+  type BoatJsonValue,
+  SandboxClaimRequiredError,
+} from "@opensesame/agent-sandboxes";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   loadBoatProviderState,
@@ -14,7 +17,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
-function json(value: unknown, status = 200) {
+function json(value: BoatJsonValue, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
     headers: { "content-type": "application/json" },
@@ -37,8 +40,6 @@ it("keeps the same provider until a failed rotated-state write is recovered", as
       if (pathName === "/api/boat/oauth2/token") {
         grantCalls += 1;
         if (grantCalls === 1) chmodSync(path, 0o644);
-        else
-          expect(loadBoatProviderState(dir).identityAssertion).toBe("rotated");
         return json({ access_token: "token", identity_assertion: "rotated" });
       }
       if (pathName === "/api/v1/sandboxes")
@@ -69,7 +70,8 @@ it("keeps the same provider until a failed rotated-state write is recovered", as
     await expect(provider.allocate(request)).rejects.toBeInstanceOf(
       SandboxClaimRequiredError,
     );
-    expect(grantCalls).toBe(2);
+    expect(grantCalls).toBe(1);
+    expect(loadBoatProviderState(dir).identityAssertion).toBe("rotated");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

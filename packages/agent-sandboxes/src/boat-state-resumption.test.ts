@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { BoatJsonValue } from "./boat-client.js";
 import {
   type BoatProviderState,
   BoatSandboxProvider,
@@ -6,7 +7,7 @@ import {
 import { SandboxClaimRequiredError } from "./types.js";
 
 const request = { origin: "https://accounts.example.test" };
-function json(value: unknown, status = 200): Response {
+function json(value: BoatJsonValue, status = 200): Response {
   return new Response(JSON.stringify(value), {
     status,
     headers: { "content-type": "application/json" },
