@@ -1,0 +1,52 @@
+name: Hono current-main integration proof
+on:
+  push:
+    branches: [review/hono-proof-8ef-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/hono-proof-8ef-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: b57f29c7e64524897705be44b96ce42e9c2579d5
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify exact signed source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = b57f29c7e64524897705be44b96ce42e9c2579d5
+          test "$(git rev-parse HEAD^{tree})" = e8630aa00529bdf3bfcf233b810078c1dc1e0c05
+          test "$(git rev-parse HEAD^)" = 8ef798d04a8d38c8d40a93d51ca017a6fccac01a
+          git diff --exit-code
+          test "$(pnpm --version)" = 9.15.0
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify native package selection on glibc
+        run: |
+          set -euo pipefail
+          test -d node_modules/.pnpm/@oxlint+binding-linux-x64-gnu@1.79.0
+          test ! -d node_modules/.pnpm/@oxlint+binding-linux-x64-musl@1.79.0
+          test -d node_modules/.pnpm/@rollup+rollup-linux-x64-gnu@4.66.0
+          test ! -d node_modules/.pnpm/@rollup+rollup-linux-x64-musl@4.66.0
+          pnpm exec oxlint --version
+          node -e "require('./node_modules/.pnpm/rollup@4.66.0/node_modules/rollup'); console.log('Rollup loaded')"
+      - name: Typecheck and test control plane
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/control-plane typecheck
+          pnpm --filter @opensesame/control-plane test
+      - name: Verify source after proof
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = e8630aa00529bdf3bfcf233b810078c1dc1e0c05
+          git diff --exit-code
+          git diff --cached --exit-code
