@@ -1,30 +1,14 @@
 /**
- * Boat sandbox provider: allocates a cloud sandbox with no
- * pre-provisioned account, runs the relay agent inside it, and drives
- * the browser over the authenticated relay.
- *
- * Zero-provision path (auth.md): with no API key configured, the
- * provider registers this agent with Boat, and when Boat requires a
- * person — the claim ceremony, then billing checkout — it throws
- * `SandboxClaimRequiredError` carrying only the link/code the person
- * needs, so the caller surfaces it through the notifications queue and
- * toast. Retrying allocation with the same provider instance resumes
- * the flow (claim poll, then sandbox create).
- *
- * Secrets: the relay token and navigation scope travel in per-sandbox
- * environment created with the sandbox. The only command ever sent is
- * the operator-configured agent start command, so Boat's command
- * history never sees a site secret; secrets cross per fill over the
- * relay. Sandboxes are created `noEnv` (none of the account's secrets),
- * monitoring off, snapshots off, and deleted on close.
+ * Boat provider allocates a sandbox and drives its authenticated relay.
+ * Registration, billing and cleanup are handled through the provider API.
  */
 
 import { randomUUID } from "node:crypto";
-import WebSocket from "ws";
 import { BOAT_AGENT_ENV } from "./boat-agent.js";
 import {
   BoatAgentAuth,
   type BoatAuthOptions,
+  BoatClaimInvalidError,
   type BoatClaimMaterials,
   BoatClaimPendingError,
   type BoatTokenGrant,
@@ -34,15 +18,23 @@ import {
   BoatClient,
   type BoatClientOptions,
 } from "./boat-client.js";
+import { boatHostedRelay, boatOrigin } from "./boat-endpoints.js";
+import type {
+  BoatProviderOptions,
+  BoatProviderState,
+} from "./boat-provider-options.js";
+export type {
+  BoatProviderOptions,
+  BoatProviderState,
+} from "./boat-provider-options.js";
+import { waitBoatReady, waitBoatRelay } from "./boat-readiness.js";
 import {
-  BOAT_READY_STATES,
-  boatSleep,
   isBoatClaimUsable,
   requireBoatClaim,
   resolveBoatRegistration,
   snapshotBoatRegistration,
 } from "./boat-registration-state.js";
-import { relayDriverOverWebSocket } from "./relay-driver.js";
+import { closeBoatRelay, connectBoatRelay } from "./boat-relay.js";
 import {
   type AllocatedSandbox,
   type SandboxAllocationRequest,
@@ -50,53 +42,6 @@ import {
   type SandboxProvider,
   allowedDomainsFor,
 } from "./types.js";
-
-/**
- * Registration state that must survive the claim ceremony across
- * processes. It carries credentials (a claim token and identity
- * assertion), so hosts must protect it — never in a config file a
- * user might share. Access tokens are deliberately not persisted: the
- * assertion re-exchanges for a fresh one.
- */
-export interface BoatProviderState {
-  claimToken?: string;
-  identityAssertion?: string;
-  claimMaterials?: BoatClaimMaterials;
-  claimIssuedAt?: number;
-}
-
-export interface BoatProviderOptions {
-  /** Prebuilt clients (tests); otherwise built from options/environment. */
-  client?: BoatClient;
-  auth?: BoatAgentAuth;
-  origin?: string;
-  fetchImpl?: typeof fetch;
-  /** Existing Boat API key; skips agent registration entirely. */
-  apiToken?: string;
-  /** Identity assertion from a prior registration (rotates to a token). */
-  identityAssertion?: string;
-  /** Claim token from a prior registration, to resume a pending claim. */
-  claimToken?: string;
-  /** Persisted registration state from a previous process. */
-  state?: BoatProviderState;
-  /** Called whenever registration state changes, to persist it securely. */
-  onStateChange?: (state: BoatProviderState) => void | Promise<void>;
-  /** The user's email, for the claim ceremony (`service_auth`). */
-  claimEmail?: string;
-  /**
-   * Shell command that starts the relay agent inside the sandbox
-   * (typically from a saved snapshot with this package installed). It
-   * reads the `BOAT_AGENT_ENV` variables; see `boat-agent.ts`.
-   */
-  agentCommand?: string;
-  /** Saved snapshot to create sandboxes from. */
-  fromSnapshot?: string;
-  /** Stop (archive) instead of permanently deleting on close. */
-  keepSandbox?: boolean;
-  readyTimeoutMs?: number;
-  agentReadyTimeoutMs?: number;
-  pollIntervalMs?: number;
-}
 
 const RELAY_PORT = 8787;
 
@@ -111,6 +56,13 @@ export class BoatSandboxProvider implements SandboxProvider {
   private claimIssuedAt: number | undefined;
 
   constructor(private readonly options: BoatProviderOptions = {}) {
+    if (
+      options.relayCloseTimeoutMs !== undefined &&
+      (!Number.isInteger(options.relayCloseTimeoutMs) ||
+        options.relayCloseTimeoutMs < 1 ||
+        options.relayCloseTimeoutMs > 30_000)
+    )
+      throw new Error("boat: invalid relay close timeout");
     this.accessToken =
       options.apiToken ??
       process.env.BOAT_API_KEY ??
@@ -152,7 +104,7 @@ export class BoatSandboxProvider implements SandboxProvider {
   }
 
   private get origin(): string {
-    return (this.options.origin ?? "https://boat.dev").replace(/\/$/u, "");
+    return boatOrigin(this.options.origin ?? "https://boat.dev");
   }
 
   private get claimEmail(): string | undefined {
@@ -174,9 +126,17 @@ export class BoatSandboxProvider implements SandboxProvider {
     return new BoatAgentAuth(authOptions);
   }
 
-  private async adoptGrant(grant: BoatTokenGrant): Promise<string> {
+  private async adoptGrant(
+    grant: BoatTokenGrant,
+    consumedClaim = false,
+  ): Promise<string> {
     if (grant.identityAssertion) {
       this.identityAssertion = grant.identityAssertion;
+      if (consumedClaim) {
+        this.claimToken = undefined;
+        this.claimMaterials = undefined;
+        this.claimIssuedAt = undefined;
+      }
       this.pendingAccessToken = grant.accessToken;
       this.stateDirty = true;
       try {
@@ -192,6 +152,45 @@ export class BoatSandboxProvider implements SandboxProvider {
     return grant.accessToken;
   }
 
+  private async resumeClaim(
+    auth: BoatAgentAuth,
+    token: string,
+  ): Promise<string> {
+    try {
+      return await this.adoptGrant(await auth.pollClaim(token), true);
+    } catch (error) {
+      if (error instanceof BoatClaimInvalidError && this.identityAssertion)
+        return this.adoptGrant(
+          await auth.exchangeAssertion(this.identityAssertion),
+          true,
+        );
+      if (!(error instanceof BoatClaimPendingError)) throw error;
+      // An anonymous registration also yields an assertion. A pending
+      // claim does not invalidate that assertion or require a new agent.
+      if (this.identityAssertion)
+        return this.adoptGrant(
+          await auth.exchangeAssertion(this.identityAssertion),
+        );
+      const email = this.claimEmail;
+      if (
+        email &&
+        (!this.claimMaterials ||
+          !isBoatClaimUsable(
+            this.claimMaterials,
+            this.claimToken,
+            this.claimIssuedAt,
+          ))
+      )
+        await this.adoptClaim(await auth.requestClaim(token, email));
+      requireBoatClaim(
+        this.claimMaterials,
+        this.claimToken,
+        this.claimIssuedAt,
+        this.origin,
+      );
+    }
+  }
+
   private async ensureAccessToken(): Promise<string> {
     if (this.stateDirty) {
       await this.persistState();
@@ -202,37 +201,7 @@ export class BoatSandboxProvider implements SandboxProvider {
     }
     if (this.accessToken) return this.accessToken;
     const auth = this.auth();
-    if (this.claimToken) {
-      try {
-        return await this.adoptGrant(await auth.pollClaim(this.claimToken));
-      } catch (error) {
-        if (!(error instanceof BoatClaimPendingError)) throw error;
-        // An anonymous registration also yields an assertion. A pending
-        // claim does not invalidate that assertion or require a new agent.
-        if (this.identityAssertion)
-          return this.adoptGrant(
-            await auth.exchangeAssertion(this.identityAssertion),
-          );
-        const email = this.claimEmail;
-        if (
-          email &&
-          (!this.claimMaterials ||
-            !isBoatClaimUsable(
-              this.claimMaterials,
-              this.claimToken,
-              this.claimIssuedAt,
-            ))
-        )
-          await this.adoptClaim(
-            await auth.requestClaim(this.claimToken, email),
-          );
-        requireBoatClaim(
-          this.claimMaterials,
-          this.claimToken,
-          this.claimIssuedAt,
-        );
-      }
-    }
+    if (this.claimToken) return this.resumeClaim(auth, this.claimToken);
     if (this.identityAssertion)
       return this.adoptGrant(
         await auth.exchangeAssertion(this.identityAssertion),
@@ -254,6 +223,7 @@ export class BoatSandboxProvider implements SandboxProvider {
         this.claimMaterials,
         this.claimToken,
         this.claimIssuedAt,
+        this.origin,
       );
     return this.adoptGrant(
       await auth.exchangeAssertion(registration.identityAssertion),
@@ -276,7 +246,12 @@ export class BoatSandboxProvider implements SandboxProvider {
       await this.adoptClaim(
         await this.auth().requestClaim(this.claimToken, email),
       );
-    requireBoatClaim(this.claimMaterials, this.claimToken, this.claimIssuedAt);
+    requireBoatClaim(
+      this.claimMaterials,
+      this.claimToken,
+      this.claimIssuedAt,
+      this.origin,
+    );
   }
 
   private async createSandbox(
@@ -299,6 +274,7 @@ export class BoatSandboxProvider implements SandboxProvider {
         try {
           const liveToken = await this.adoptGrant(
             await this.auth().pollClaim(this.claimToken),
+            true,
           );
           return this.createSandbox(liveToken, input, true);
         } catch (pollError) {
@@ -309,38 +285,10 @@ export class BoatSandboxProvider implements SandboxProvider {
     }
   }
 
-  private async waitReady(token: string, sandboxId: string): Promise<void> {
-    const deadline = Date.now() + (this.options.readyTimeoutMs ?? 180_000);
-    const interval = this.options.pollIntervalMs ?? 2_000;
-    for (;;) {
-      const sandbox = await this.client().getSandbox(token, sandboxId);
-      if (BOAT_READY_STATES.has(sandbox.state)) return;
-      if (sandbox.state === "error")
-        throw new Error(`boat: sandbox ${sandboxId} entered error state`);
-      if (Date.now() > deadline)
-        throw new Error(`boat: sandbox ${sandboxId} did not become ready`);
-      await boatSleep(interval);
-    }
-  }
-
-  /** Wait until the in-sandbox relay accepts a WebSocket upgrade. */
-  private async waitForRelay(webSocketUrl: string): Promise<void> {
-    const deadline = Date.now() + (this.options.agentReadyTimeoutMs ?? 60_000);
-    const interval = this.options.pollIntervalMs ?? 1_000;
-    for (;;) {
-      const opened = await new Promise<boolean>((resolve) => {
-        const probe = new WebSocket(webSocketUrl);
-        probe.once("open", () => {
-          probe.close();
-          resolve(true);
-        });
-        probe.once("error", () => resolve(false));
-      });
-      if (opened) return;
-      if (Date.now() > deadline)
-        throw new Error("boat: relay agent did not start in the sandbox");
-      await boatSleep(interval);
-    }
+  /** Resume an accepted deletion after BoatDeletionPendingError. */
+  async waitForDeletion(sandboxId: string, operationId: string): Promise<void> {
+    const token = await this.ensureAccessToken();
+    await this.client().waitForDeletion(token, sandboxId, operationId);
   }
 
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
@@ -372,28 +320,51 @@ export class BoatSandboxProvider implements SandboxProvider {
     // The claim flow may have rotated the token during creation.
     const liveToken = this.accessToken ?? token;
     try {
-      await this.waitReady(liveToken, sandboxId);
+      const sandboxUrl = await waitBoatReady(
+        () => this.client(),
+        this.options,
+        liveToken,
+        sandboxId,
+      );
       await client.startDetachedCommand(liveToken, sandboxId, agentCommand);
       const hostedUrl = await client.hostPort(liveToken, sandboxId, RELAY_PORT);
-      const webSocketUrl = hostedUrl.replace(/^http/u, "ws");
-      await this.waitForRelay(webSocketUrl);
-      const browser = relayDriverOverWebSocket(webSocketUrl, {
-        token: relayToken,
-      });
+      const relay = boatHostedRelay(
+        hostedUrl,
+        sandboxUrl,
+        this.origin,
+        RELAY_PORT,
+      );
+      await waitBoatRelay(this.options, relay.url, relay.cookie);
+      const connection = await connectBoatRelay(
+        relay.url,
+        relayToken,
+        relay.cookie,
+      );
+      const browser = connection.browser;
       return {
         provider: this.id,
         session: sandboxId,
         browser,
         allowedDomains,
         close: async () => {
-          await browser.close().catch(() => {});
+          await closeBoatRelay(
+            connection,
+            this.options.relayCloseTimeoutMs ?? 5_000,
+          );
           if (this.options.keepSandbox)
             await client.stopSandbox(liveToken, sandboxId);
           else await client.deleteSandbox(liveToken, sandboxId);
         },
       };
     } catch (error) {
-      await client.deleteSandbox(liveToken, sandboxId).catch(() => {});
+      try {
+        await client.deleteSandbox(liveToken, sandboxId);
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [error, cleanupError],
+          "boat: allocation failed and sandbox cleanup is not confirmed",
+        );
+      }
       throw error;
     }
   }
