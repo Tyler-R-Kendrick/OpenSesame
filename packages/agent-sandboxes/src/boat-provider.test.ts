@@ -99,7 +99,10 @@ function fakeBoat(wrongRelayToken = false) {
       return respond({ claim_token: "clm_1", claim: CLAIM });
     if (path === "/api/boat/oauth2/token")
       return state.claimed
-        ? respond({ access_token: "boat_live" })
+        ? respond({
+            access_token: "boat_live",
+            identity_assertion: "assert-live",
+          })
         : respond({ error: "authorization_pending" }, 400);
     if (path === "/api/boat/billing/checkout")
       return respond({ url: "https://checkout.stripe.com/session" });

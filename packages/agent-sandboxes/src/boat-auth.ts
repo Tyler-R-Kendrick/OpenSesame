@@ -199,10 +199,13 @@ export class BoatAgentAuth {
 
   /** One claim-grant poll. Throws `BoatClaimPendingError` while waiting. */
   async pollClaim(claimToken: string): Promise<BoatTokenGrant> {
-    return this.postToken({
+    const grant = await this.postToken({
       grant_type: "urn:workos:agent-auth:grant-type:claim",
       claim_token: claimToken,
     });
+    if (!grant.identityAssertion)
+      throw new Error("boat: claim grant did not include a recovery assertion");
+    return grant;
   }
 
   /** Exchange an identity assertion for an access token (rotates keys). */

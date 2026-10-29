@@ -105,7 +105,11 @@ function startFakeBoat(): Promise<FakeBoat> {
       if (path === "/api/boat/agent/identity") {
         send(200, { claim_token: "clm_1", claim: CLAIM });
       } else if (path === "/api/boat/oauth2/token") {
-        if (state.claimed) send(200, { access_token: "boat_live" });
+        if (state.claimed)
+          send(200, {
+            access_token: "boat_live",
+            identity_assertion: "assert-live",
+          });
         else send(400, { error: "authorization_pending" });
       } else if (path === "/api/boat/billing/checkout") {
         send(200, { url: "https://checkout.stripe.com/session" });

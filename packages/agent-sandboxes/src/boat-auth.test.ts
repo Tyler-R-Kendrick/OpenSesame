@@ -59,6 +59,13 @@ const CLAIM = {
 };
 
 describe("BoatAgentAuth (auth.md)", () => {
+  it("rejects a successful claim response without a recovery assertion", async () => {
+    const { auth } = fakeAuth([{ access_token: "boat_live" }]);
+    await expect(auth.pollClaim("clm_1")).rejects.toThrow(
+      "claim grant did not include a recovery assertion",
+    );
+  });
+
   it("registers anonymously and exchanges the assertion", async () => {
     const { auth, requests } = fakeAuth([
       { claim_token: "clm_1", identity_assertion: "assert-1" },
@@ -111,7 +118,7 @@ describe("BoatAgentAuth (auth.md)", () => {
     const { auth, requests } = fakeAuth([
       { claim_token: "clm_1", ...CLAIM },
       { error: "authorization_pending" },
-      { access_token: "boat_live" },
+      { access_token: "boat_live", identity_assertion: "assert-live" },
     ]);
     const materials = await auth.requestClaim("clm_1", "person@example.test");
     expect(materials.userCode).toBe("123456");
@@ -129,6 +136,7 @@ describe("BoatAgentAuth (auth.md)", () => {
     expect(form.get("claim_token")).toBe("clm_1");
     await expect(auth.pollClaim("clm_1")).resolves.toEqual({
       accessToken: "boat_live",
+      identityAssertion: "assert-live",
     });
   });
 });
