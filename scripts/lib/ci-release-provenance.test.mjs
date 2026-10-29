@@ -1,69 +1,149 @@
-// Release assets preserve the original signed bundles emitted by GitHub Actions.
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+// Promotion retains the verified original builder bundle as a release asset.
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { BUILD_PREDICATE, canonicalJson } from "../release/provenance.mjs";
+import {
+  hash,
+  productAssets,
+  releaseInventory,
+  stageRelease,
+} from "../release/stage-release.mjs";
 import { repoRootFromHere } from "./ci-changed-areas.mjs";
 
 const { parse } = createRequire(
   new URL("../../node_modules/.pnpm/node_modules/", import.meta.url),
 )("yaml");
-const yaml = readFileSync(
-  join(repoRootFromHere(), ".github/workflows/release-kit.yml"),
-  "utf8",
-);
-const expression = (body) => `\${{ ${body} }}`;
+const workflow = (name) =>
+  parse(
+    readFileSync(
+      join(repoRootFromHere(), `.github/workflows/${name}.yml`),
+      "utf8",
+    ),
+  );
+
+function releaseFixture(work) {
+  const directory = join(work, "candidate");
+  const evidence = join(work, "evidence");
+  const output = join(work, "release");
+  mkdirSync(directory);
+  mkdirSync(evidence);
+  const manifest = {
+    version: "0.2.0",
+    source_sha: "a".repeat(40),
+    candidate_id: `${"a".repeat(40)}-100-1`,
+    producer: {
+      workflow_sha: "b".repeat(40),
+      run_id: "100",
+      run_attempt: "1",
+    },
+    source_ci: { run_id: "99", run_attempt: "1" },
+    payloads: [],
+  };
+  for (const name of productAssets(manifest.version).filter(
+    (name) => name !== "candidate.json",
+  )) {
+    const bytes = Buffer.from(`original:${name}`);
+    writeFileSync(join(directory, name), bytes);
+    manifest.payloads.push({
+      path: name,
+      sha256: hash(bytes),
+      size: bytes.length,
+    });
+  }
+  const bytes = Buffer.from(JSON.stringify(manifest));
+  writeFileSync(join(directory, "candidate.json"), bytes);
+  for (const name of ["dev", "prerelease", "mutation", "security"])
+    writeFileSync(join(evidence, `${name}-receipt.json`), "{}");
+  writeFileSync(join(evidence, "promotion.json"), "{}");
+  return { directory, evidence, output, manifest, bytes };
+}
 
 describe("release provenance assets", () => {
-  it("publishes the action's original bundles and preserves their bytes", () => {
-    const jobs = parse(yaml).jobs;
-    const steps = jobs.attest.steps;
-    const bundle = steps.find((step) => step.env?.FILES_BUNDLE);
-    expect(bundle.env.FILES_BUNDLE).toBe(
-      expression("steps.files.outputs.bundle-path"),
+  it("attests the original candidate separately from promotion and retires the tag builder", () => {
+    const build = workflow("candidate-build").jobs.manifest;
+    const attest = build.steps.find((step) =>
+      step.uses?.startsWith("actions/attest@"),
     );
-    expect(bundle.env.SUMS_BUNDLE).toBe(
-      expression("steps.sums.outputs.bundle-path"),
-    );
-    for (const id of ["files", "sums"]) {
-      expect(steps.find((step) => step.id === id).uses).toMatch(
-        /^actions\/attest-build-provenance@/,
-      );
-    }
-    const upload = steps.find(
-      (step) => step.with?.name === "release-provenance",
-    );
-    expect(upload.with.path).toBe("provenance/*.sigstore.json");
+    expect(attest.with["predicate-type"]).toBe(BUILD_PREDICATE);
+    expect(attest.with["subject-checksums"]).toBe("build-subjects.sha256");
+    const upload = build.steps.find((step) => step.id === "upload");
+    expect(upload.with.path).toBe("payload/");
     expect(upload.with["if-no-files-found"]).toBe("error");
     expect(upload.with["retention-days"]).toBeGreaterThanOrEqual(30);
-    const download = jobs.publish.steps.find(
-      (step) => step.with?.name === "release-provenance",
+    const promotion = workflow("release-publish").jobs.stage.steps.find(
+      (step) => step.uses?.startsWith("actions/attest@"),
     );
-    expect(download.with.path).toBe("dist");
+    expect(promotion.with["subject-path"]).toBe("release-files/SHA256SUMS");
+    expect(promotion.with["predicate-type"]).toBe(
+      "https://opensesame.dev/attestations/release-promotion/v1",
+    );
+    expect(workflow("release-kit").jobs.attest).toBeUndefined();
+    expect(workflow("release-kit").jobs.publish).toBeUndefined();
+  });
+
+  it("stages the verified builder signature unchanged and hashes its release representation", async () => {
     const work = mkdtempSync(join(tmpdir(), "release-bundles-"));
     try {
-      for (const name of ["files", "sums"]) {
-        writeFileSync(join(work, name), JSON.stringify({ signedBundle: name }));
-      }
-      execFileSync("bash", ["-c", bundle.run], {
-        cwd: work,
-        stdio: "inherit",
-        env: {
-          ...process.env,
-          FILES_BUNDLE: join(work, "files"),
-          SUMS_BUNDLE: join(work, "sums"),
+      const { directory, evidence, output, manifest, bytes } =
+        releaseFixture(work);
+      // Encoded signed payload and signature strings must never be decoded or regenerated.
+      const bundle = {
+        dsseEnvelope: {
+          payload: "c2lnbmVkLWJ1aWxk",
+          signatures: [{ sig: "b3JpZ2luYWw=" }],
+        },
+        verificationMaterial: { certificate: { rawBytes: "Y2VydA==" } },
+      };
+      let calls = 0;
+      await stageRelease({
+        directory,
+        evidence,
+        output,
+        repository: "owner/repo",
+        token: "test",
+        execute(command, args) {
+          calls++;
+          expect(command).toBe("gh");
+          expect(args[args.indexOf("--signer-workflow") + 1]).toBe(
+            "owner/repo/.github/workflows/candidate-build.yml",
+          );
+          return JSON.stringify([
+            {
+              attestation: { bundle },
+              verificationResult: {
+                statement: {
+                  predicateType: BUILD_PREDICATE,
+                  subject: [{ digest: { sha256: hash(bytes) } }],
+                  predicate: { ...manifest, manifest_sha256: hash(bytes) },
+                },
+              },
+            },
+          ]);
         },
       });
-      for (const [source, target] of [
-        ["files", "release-files.sigstore.json"],
-        ["sums", "SHA256SUMS.sigstore.json"],
-      ]) {
-        expect(readFileSync(join(work, "provenance", target))).toEqual(
-          readFileSync(join(work, source)),
-        );
-      }
+      expect(calls).toBe(1);
+      const retained = readFileSync(
+        join(output, "build-provenance.sigstore.json"),
+      );
+      expect(retained.toString()).toBe(`${canonicalJson(bundle)}\n`);
+      expect(JSON.parse(retained)).toEqual(bundle);
+      expect(readFileSync(join(output, "SHA256SUMS"), "utf8")).toContain(
+        `${hash(retained)}  build-provenance.sigstore.json\n`,
+      );
+      expect(
+        releaseInventory(output, manifest).find(
+          (asset) => asset.name === "build-provenance.sigstore.json",
+        ).sha256,
+      ).toBe(hash(retained));
     } finally {
       rmSync(work, { recursive: true, force: true });
     }

@@ -26,20 +26,20 @@ function selector(env) {
   );
 }
 
-describe("the whole-repository run", () => {
-  it("runs on a push to main and on demand, with no pull request to diff", () => {
+describe("complete source validation and cumulative integration", () => {
+  it("runs fast checks on a push to main and on demand", () => {
     const on = ci.split("\njobs:")[0];
     expect(on).toMatch(/\n {2}push:\n {4}branches: \[main\]/);
     expect(on).toContain("workflow_dispatch:");
   });
 
   it("gives the TypeScript job the time a whole-suite run takes on a slow runner", () => {
-    // A lockfile or manifest change plans every package (scope=all in
-    // ci-affected-tests.mjs). That step took 18 minutes on a push to main and
-    // over 28 on a pull request's runner, which a 30-minute job cut off.
+    // A lockfile or manifest change plans every package. Current main's serial
+    // app-core and Pages workload needs its 180-minute job budget; individual
+    // test deadlines remain unchanged.
     const minutes =
       /\n {2}typescript-tests:\n[\s\S]*?timeout-minutes: (\d+)/.exec(ci);
-    expect(Number(minutes?.[1])).toBeGreaterThanOrEqual(45);
+    expect(Number(minutes?.[1])).toBeGreaterThanOrEqual(180);
   });
 
   it("verifies pull-request signatures only on a pull request", () => {
@@ -49,9 +49,9 @@ describe("the whole-repository run", () => {
     expect(step).toContain("if: github.event_name == 'pull_request'");
   });
 
-  it("cancels a superseded pull request or main push and leaves a merge queue run", () => {
+  it("cancels only superseded pull requests; main and merge-group runs finish", () => {
     expect(ci).toContain(
-      "cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}",
+      "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
     );
   });
 
@@ -111,9 +111,10 @@ describe("full-suite native preparation", () => {
       "run: pnpm exec turbo run typecheck test --concurrency=1",
     );
   });
-  it("checks out the selected workflow commit for scheduled and manual validation", () => {
-    expect(fullWorkflow).toContain("workflow_dispatch:");
-    expect(fullWorkflow).toContain("          ref: ${{ github.sha }}");
+  it("checks out the exact selected candidate commit for reusable validation", () => {
+    expect(fullWorkflow).toContain("workflow_call:");
+    expect(fullWorkflow).not.toContain("  schedule:");
+    expect(fullWorkflow).toContain("          ref: ${{ inputs.source_sha }}");
     expect(fullWorkflow).not.toContain("          ref: main\n");
   });
   it("finishes canonical native asset verification before package tests", () => {

@@ -127,7 +127,10 @@ touch "$bindgen_cargo_home/.package-cache"
   });
 
   it("makes actual platform tests and builds part of the required Rust result", () => {
-    const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+    const ci = readFileSync(
+      join(root, ".github/workflows/ci-prerelease-checks.yml"),
+      "utf8",
+    );
     const gate = ci.split("  rust-check:")[1];
     expect(gate).toContain(
       "needs: [changes, rust, android-native, apple-native]",

@@ -731,3 +731,31 @@ The exact native WASM package audit also exposed affected SSH imports; verified
 composition requirements update maintained Go modules and their required MVS
 dependencies while preserving immutable upstream source files. A mandatory
 package-graph audit complements the native standard-library inventory.
+
+### 2026-10-25 — Trunk CI and immutable artifact promotion
+
+The user authorized implementation of the reviewed CI proposal. An isolated
+worktree from `aad2c85b4b567fd632d0e409d53d17bb66e8fba4` was partitioned among
+ChatGPT agents for integration/qualification, candidate verification, build and
+publication, and scanner/release-gate changes. The parent integrated and reviewed
+the resulting workflow graph and negative controls. Cursor-hosted Grok/Kimi
+coding tools are not installed in this environment. Validation results and live
+activation limitations belong in the implementation PR; a local test pass is
+not a claim that hosted release qualification or deployment has occurred.
+
+The implementation was subsequently restacked onto `427d8921cbd6b70dbfef76956a37373417387a23`, preserving concurrent dependency, serial CPU-budget, rootless DBus and browser-security fixes. The implementation PR distinguishes validation of the original and current bases.
+
+### 2026-10-26 — CI failure and review follow-up
+
+The user requested fixes and merge of PR #2195. The live CI log identified the
+unsigned implementation commit as the preflight failure; the PR also remained a
+draft. Codex agents repaired both subsequent review findings: generated candidate
+output names containing digits, and the placeholder OSV checksum introduced by
+Copilot Autofix. Regression tests exercise the actual candidate output inventory,
+output-injection refusals, pinned Linux scanner downloads, and verified binary
+overrides. OSV v2.5.0 pins were compared against the official release metadata,
+checksum asset and published provenance subjects. The coding preflight reported
+missing Grok subscription authentication and no Kimi executable; no Grok or Kimi
+authorship is claimed. Signature, required-check and scanner integrity policies
+remain enforced. Test results and the authenticated signing prerequisite are
+recorded in the PR; no hosted qualification or merge is claimed from local tests.

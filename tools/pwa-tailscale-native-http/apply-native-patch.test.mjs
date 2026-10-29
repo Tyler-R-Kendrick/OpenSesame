@@ -129,10 +129,17 @@ test("all reviewed patch invocations select the same Node helper; compiler comma
 test("SSH patch requires its exact target, digest, preimage and postimage", async (t) => {
   const f = await fixture(t);
   const path = "cmd/tsconnect/wasm/wasm_js.go";
+  const tlsPath = "net/tlsdial/tlsdial.go";
   const original = "original SSH predecessor\n";
   const result = "verified SSH successor\n";
-  const patch = `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-${original}+${result}`;
+  const patch = `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-${original}+${result}--- a/${tlsPath}\n+++ b/${tlsPath}\n@@ -1 +1 @@\n-${original}+${result}`;
+  f.pins.nativeSSH.tlsVerification = {
+    path: tlsPath,
+    beforeSha256: hash(original),
+    afterSha256: hash(result),
+  };
   await mkdir(dirname(join(f.source, path)), { recursive: true });
+  await mkdir(dirname(join(f.source, tlsPath)), { recursive: true });
   for (const mode of ["digest", "preimage", "postimage", "target"]) {
     const input =
       mode === "target"
@@ -148,6 +155,7 @@ test("SSH patch requires its exact target, digest, preimage and postimage", asyn
     await savePins(f);
     await writeFile(join(f.tools, "native-ssh.patch"), input);
     await writeFile(join(f.source, path), bytes);
+    await writeFile(join(f.source, tlsPath), original);
     assert.notEqual(await run(f, "native-ssh.patch"), 0);
     assert.equal(await readFile(join(f.source, path), "utf8"), bytes);
   }
@@ -160,8 +168,10 @@ test("SSH patch requires its exact target, digest, preimage and postimage", asyn
   await savePins(f);
   await writeFile(join(f.tools, "native-ssh.patch"), patch);
   await writeFile(join(f.source, path), original);
+  await writeFile(join(f.source, tlsPath), original);
   assert.equal(await run(f, "native-ssh.patch"), 0);
   assert.equal(await readFile(join(f.source, path), "utf8"), result);
+  assert.equal(await readFile(join(f.source, tlsPath), "utf8"), result);
   assert.notEqual(await run(f, "native-ssh.patch"), 0);
 });
 test(

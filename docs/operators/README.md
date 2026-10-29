@@ -19,7 +19,8 @@ introduces its own (mTLS, plugins) names them where they are used.
 | [Vault files](vault-files.md) | Every secret as its own file on disk: the tree, what a file shows and holds, backing up and sharing, two writers, and the privately hosted store (ADR 0182). |
 | [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
 | [Proxied run quickstart](proxied-run-quickstart.md) | Running a command with a surrogate in place of a provider token: install the plugin, seal the token, declare the connection, what the child sees, what is refused, how a run ends and is revoked. |
-| [Release kit](release-kit.md) | The prebuilt Linux binaries a `v*` tag publishes: what is in a kit, verifying it with `sha256sum` and `gh attestation verify`, and running it in a lane with the bridge beside the binary. |
+| [CI and artifact promotion](ci-promotion.md) | Fast trunk integration, nightly candidates, weekly qualification/publication and recovery. |
+| [Release kit](release-kit.md) | The qualified prebuilt Linux binaries the weekly pipeline publishes: what is in a kit, verifying it with `sha256sum` and `gh attestation verify`, and running it in a lane with the bridge beside the binary. |
 
 ## Identity
 

@@ -41,9 +41,9 @@ semgrep scan \
 status=$?
 set -e
 
-# Semgrep: 0 = clean, 1 = findings, 2 = fatal
-if [[ "$status" -eq 2 ]]; then
-  echo "semgrep gate: FAIL (scanner error)" >&2
+# Only exit zero can be a clean scan. Semgrep has error codes beyond 2.
+if [[ "$status" -ne 0 && "$status" -ne 1 ]]; then
+  echo "semgrep gate: FAIL (scanner error $status)" >&2
   cat "$OPENSESAME_AUDIT_DIR/semgrep.err" >&2 || true
   exit 1
 fi
@@ -55,6 +55,20 @@ if [[ "$status" -eq 1 ]]; then
   fi
   exit 1
 fi
+
+python3 - "$REPORT" <<'PY'
+import json, sys
+from pathlib import Path
+
+report = json.loads(Path(sys.argv[1]).read_text())
+if not isinstance(report, dict) or not isinstance(report.get("results"), list) or not isinstance(report.get("errors"), list):
+    sys.exit("semgrep gate: FAIL (incomplete JSON report)")
+if report["errors"] or report["results"]:
+    sys.exit("semgrep gate: FAIL (errors or findings in report)")
+paths = report.get("paths")
+if not isinstance(paths, dict) or not isinstance(paths.get("scanned"), list) or not paths["scanned"]:
+    sys.exit("semgrep gate: FAIL (no scanned files)")
+PY
 
 echo "semgrep gate: CLEAN"
 exit 0

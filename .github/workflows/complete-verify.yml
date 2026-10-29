@@ -3,54 +3,27 @@ name: Complete verify
 # Execute the full package.json gate on the immutable event commit. Area CI and
 # password parity remain separate checks; neither substitutes for this chain.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - '.github/workflows/complete-verify.yml'
-      - 'packages/app-core/src/lib/agent-canaries/**'
-      - 'packages/app-core/src/lib/retired-credentials/**'
-      - 'packages/app-core/src/lib/duress/**'
-      - 'packages/app-core/src/lib/vault/**'
-      - 'packages/app-core/src/lib/secret-fs/**'
-      - 'packages/app-core/src/screens/unlock/**'
-      - 'packages/app-core/src/sections/settings/security/**'
-      - 'packages/vault-core/**'
-      - 'apps/pages/src/components/duress/**'
-      - 'apps/pages/src/bootstrap/**'
-      - 'apps/cli/**'
-      - 'apps/android/**'
-      - 'apps/browser-extension/**'
-      - 'apps/browser-extension-autofill/**'
-      - 'crates/authenticator-core/**'
-      - 'crates/human-vault/**'
-      - 'crates/sealed-store/**'
-      - 'crates/storage/**'
-      - 'scripts/test/2password*'
-      - 'scripts/test/battle-test.sh'
-      - 'scripts/audit/clippy-gate.sh'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'rust-toolchain.toml'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact candidate source selected by the release controller
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: complete-verify-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: complete-verify-${{ github.run_id }}-${{ inputs.source_sha }}
+  cancel-in-progress: false
 
 jobs:
   verify:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Complete pnpm verify
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD: ${{ inputs.source_sha }}
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -61,7 +34,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.source_sha }}
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -72,9 +45,7 @@ jobs:
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
       - name: Install Linux keychain build and test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config dbus-daemon
+        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
       - name: Install the repository contract tool
         shell: bash
         run: |
@@ -103,6 +74,7 @@ jobs:
       - name: Cache the pinned native PWA distribution
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
+          lookup-only: true
           path: .cache/pwa-tailscale-native-http/distributions
           key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
       - name: Prepare and verify native PWA assets before the complete gate
@@ -126,6 +98,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
           pnpm verify 2>&1 | tee "$OPENSESAME_AUDIT_DIR/verify.log"
       - name: Check the original source after the gate
         if: always()
@@ -139,7 +112,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: complete-verify-${{ github.event.pull_request.head.sha || github.sha }}
+          name: complete-verify-${{ inputs.source_sha }}
           path: |
             ${{ runner.temp }}/opensesame-full-verify/
             tests/visual-contract/output/

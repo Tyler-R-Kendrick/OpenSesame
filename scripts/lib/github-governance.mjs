@@ -63,3 +63,26 @@ export function pagesPolicyChanges(policies, branch) {
     ),
   };
 }
+
+/** Install a separate creation exception without granting tag mutation bypass. */
+export function applyReleaseTagPolicies(
+  write,
+  currentTags,
+  currentCreation,
+  tags,
+  creation,
+) {
+  let guarded = currentTags;
+  if (!guarded) {
+    // Bootstrap owner-only creation/update/deletion before granting any app
+    // exception. A partial first activation must never expose mutable tags.
+    const bootstrap = { ...tags, rules: [{ type: "creation" }, ...tags.rules] };
+    guarded = write(bootstrap, null, "create");
+    if (!guarded?.id)
+      throw new Error("Release tag bootstrap returned no ruleset identity");
+  }
+  // Existing combined owner-only protection remains until creation policy is
+  // present. If its write fails, do not remove the legacy creation restriction.
+  write(creation, currentCreation, rulesetAction(currentCreation, creation));
+  write(tags, guarded, rulesetAction(guarded, tags));
+}

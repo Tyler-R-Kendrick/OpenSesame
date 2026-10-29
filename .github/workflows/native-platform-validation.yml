@@ -2,40 +2,22 @@ name: Native platform validation
 
 # Real host execution; successful cross-compilation is not a platform proof.
 on:
-  workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - '.github/workflows/native-platform-validation.yml'
-      - 'scripts/audit/native-release-companion-artifact.mjs'
-      - 'scripts/audit/native-packaged-node-original-bridge.mjs'
-      - 'scripts/audit/native-packaged-node-command-data.mjs'
-      - 'scripts/audit/native-packaged-node-product-data.mjs'
-      - 'scripts/audit/native-packaged-original-import-probe.mts'
-      - 'scripts/audit/native-node-original-cohorts.json'
-      - 'packages/app-core/**'
-      - 'packages/cli/**'
-      - 'pnpm-lock.yaml'
-      - 'scripts/audit/native-windows-stack.mjs'
-      - 'scripts/audit/native-windows-startup-observer.ps1'
-      - 'scripts/lib/native-windows-stack-report.mjs'
-      - 'crates/**'
-      - 'apps/cli/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'rust-toolchain.toml'
-      - 'spec/conformance/**'
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact candidate source selected by the release controller
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: native-platform-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: native-platform-${{ github.run_id }}-${{ inputs.source_sha }}
+  cancel-in-progress: false
 
 jobs:
   core:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Native vault and store (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -50,7 +32,7 @@ jobs:
           - platform: Windows
             runner: windows-2025
     env:
-      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD: ${{ inputs.source_sha }}
       VALIDATION_PHASE: core
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
@@ -62,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.source_sha }}
           persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -136,11 +118,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: native-core-${{ matrix.platform }}-${{ github.event.pull_request.head.sha || github.sha }}
+          name: native-core-${{ matrix.platform }}-${{ inputs.source_sha }}
           path: ${{ runner.temp }}/opensesame-native-core/
           if-no-files-found: error
   cli:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Native CLI (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -155,7 +136,7 @@ jobs:
           - platform: Windows
             runner: windows-2025
     env:
-      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD: ${{ inputs.source_sha }}
       VALIDATION_PHASE: cli
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
@@ -167,7 +148,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.source_sha }}
           persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -258,12 +239,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: native-cli-${{ matrix.platform }}-${{ github.event.pull_request.head.sha || github.sha }}
+          name: native-cli-${{ matrix.platform }}-${{ inputs.source_sha }}
           path: ${{ runner.temp }}/opensesame-native-cli/
           if-no-files-found: error
 
   release:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     name: Native default release artifact (${{ matrix.platform }})
     needs: [core, cli]
     runs-on: ${{ matrix.runner }}
@@ -279,7 +259,7 @@ jobs:
           - platform: Windows
             runner: windows-2025
     env:
-      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_HEAD: ${{ inputs.source_sha }}
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
     defaults:
@@ -288,7 +268,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.source_sha }}
           persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
@@ -358,6 +338,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: native-release-${{ matrix.platform }}-${{ github.event.pull_request.head.sha || github.sha }}
+          name: native-release-${{ matrix.platform }}-${{ inputs.source_sha }}
           path: ${{ runner.temp }}/opensesame-native-release/
           if-no-files-found: error

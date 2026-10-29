@@ -1,0 +1,303 @@
+name: Candidate release checks
+on:
+  workflow_call:
+    inputs:
+      candidate_id:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+      run_id:
+        required: true
+        type: string
+      run_attempt:
+        required: true
+        type: string
+      artifact_id:
+        required: true
+        type: string
+      artifact_digest:
+        required: true
+        type: string
+      payload_digest:
+        required: true
+        type: string
+      prerequisite_receipt:
+        required: true
+        type: string
+      suite:
+        required: true
+        type: string
+    outputs:
+      receipt:
+        value: ${{ jobs.record.outputs.receipt }}
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+env:
+  CANDIDATE_ID: ${{ inputs.candidate_id }}
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  CANDIDATE_RUN_ID: ${{ inputs.run_id }}
+  CANDIDATE_RUN_ATTEMPT: ${{ inputs.run_attempt }}
+  ARTIFACT_ID: ${{ inputs.artifact_id }}
+  ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+  PAYLOAD_DIGEST: ${{ inputs.payload_digest }}
+  PREREQUISITE_RECEIPT: ${{ inputs.prerequisite_receipt }}
+jobs:
+  admit:
+    name: Admit release checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      - name: Verify exact candidate and prerelease qualification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUITE: ${{ inputs.suite }}
+        run: |
+          set -euo pipefail
+          case "$SUITE" in mutation|security) ;; *) echo 'Invalid release suite' >&2; exit 1;; esac
+          node scripts/release/candidate.mjs verify --directory "$RUNNER_TEMP/candidate" --prerequisite-env PREREQUISITE_RECEIPT
+
+  mutation:
+    name: Mutation (${{ matrix.check }})
+    needs: admit
+    if: inputs.suite == 'mutation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [mutation-typescript, mutation-duress, mutation-rust]
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          lookup-only: true
+          shared-key: release-${{ matrix.check }}
+      - name: Install native dependencies and pin source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
+          echo "OPENSESAME_NODE=$(readlink -f "$(command -v node)")" >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile
+      - name: Install pinned tools
+        env:
+          DEEP_CHECK: ${{ matrix.check }}
+        run: bash scripts/release/deep-tools.sh "$DEEP_CHECK"
+      - name: Execute required check without fallback
+        env:
+          DEEP_CHECK: ${{ matrix.check }}
+          JAZZER_ALLOW_FALLBACK: '0'
+          OPENSESAME_GITLEAKS_HISTORY_FAIL: '1'
+          OPENSESAME_FUZZ_TOOLCHAIN: nightly-2026-08-01
+          MIRI_TOOLCHAIN: nightly-2026-08-01
+          FUZZ_SECONDS: '300'
+          FUZZ_BATCH_BUDGET: ''
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          bash scripts/release/deep-check.sh "$DEEP_CHECK"
+      - name: Retain the exact scope, tool versions and results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: release-check-${{ matrix.check }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-checks/${{ matrix.check }}
+            artifacts/mutation/
+          if-no-files-found: error
+          retention-days: 35
+
+  security:
+    name: Security (${{ matrix.check }})
+    needs: admit
+    if: inputs.suite == 'security'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [dependencies, sast, secrets, kani, miri, shuttle, fuzz-rust, fuzz-typescript]
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          lookup-only: true
+          shared-key: release-${{ matrix.check }}
+      - name: Install native dependencies and pin source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
+          echo "OPENSESAME_NODE=$(readlink -f "$(command -v node)")" >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install pinned nightly for undefined-behavior and fuzz checks
+        if: matrix.check == 'miri' || matrix.check == 'fuzz-rust'
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: nightly-2026-08-01
+          components: miri
+      - name: Install the fuzz tool's build compiler
+        if: matrix.check == 'fuzz-rust'
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.94.0
+      - name: Install pinned tools
+        env:
+          DEEP_CHECK: ${{ matrix.check }}
+        run: bash scripts/release/deep-tools.sh "$DEEP_CHECK"
+      - name: Execute required check without fallback
+        env:
+          DEEP_CHECK: ${{ matrix.check }}
+          JAZZER_ALLOW_FALLBACK: '0'
+          OPENSESAME_GITLEAKS_HISTORY_FAIL: '1'
+          OPENSESAME_FUZZ_TOOLCHAIN: nightly-2026-08-01
+          MIRI_TOOLCHAIN: nightly-2026-08-01
+          FUZZ_SECONDS: '300'
+          FUZZ_BATCH_BUDGET: ''
+        run: |
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          bash scripts/release/deep-check.sh "$DEEP_CHECK"
+      - name: Retain the exact scope, tool versions and results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: release-check-${{ matrix.check }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-checks/${{ matrix.check }}
+            artifacts/mutation/
+          if-no-files-found: error
+          retention-days: 35
+
+  codeql:
+    needs: admit
+    if: inputs.suite == 'security'
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: ./.github/workflows/codeql.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
+  gate:
+    name: Release ${{ inputs.suite }} gate
+    if: always()
+    needs: [admit, mutation, security, codeql]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require the complete selected suite
+        env:
+          SUITE: ${{ inputs.suite }}
+          ADMIT: ${{ needs.admit.result }}
+          MUTATION: ${{ needs.mutation.result }}
+          SECURITY: ${{ needs.security.result }}
+          CODEQL: ${{ needs.codeql.result }}
+        run: |
+          set -euo pipefail
+          test "$ADMIT" = success
+          case "$SUITE" in
+            mutation)
+              test "$MUTATION" = success
+              test "$SECURITY" = skipped
+              test "$CODEQL" = skipped
+              ;;
+            security)
+              test "$MUTATION" = skipped
+              test "$SECURITY" = success
+              test "$CODEQL" = success
+              ;;
+            *) exit 1 ;;
+          esac
+
+  record:
+    name: Record release qualification
+    needs: gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      receipt: ${{ steps.envelope.outputs.receipt }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      - name: Write candidate-bound release evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          SUITE: ${{ inputs.suite }}
+        run: |
+          set -euo pipefail
+          node scripts/release/candidate.mjs verify --directory "$RUNNER_TEMP/candidate" --prerequisite-env PREREQUISITE_RECEIPT
+          node scripts/release/candidate.mjs receipt --stage release-qualified --suite "$SUITE" --needs-env NEEDS_JSON --directory "$RUNNER_TEMP/qualification"
+      - id: upload
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: qualification-release-qualified-${{ inputs.suite }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qualification/receipt.json
+          retention-days: 35
+          if-no-files-found: error
+      - id: envelope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUITE: ${{ inputs.suite }}
+          RECEIPT_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          RECEIPT_ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: >-
+          node scripts/release/candidate.mjs receipt-envelope
+          --stage release-qualified --suite "$SUITE"
+          --artifact-id "$RECEIPT_ARTIFACT_ID"
+          --artifact-digest "$RECEIPT_ARTIFACT_DIGEST"
+          --output "$GITHUB_OUTPUT"

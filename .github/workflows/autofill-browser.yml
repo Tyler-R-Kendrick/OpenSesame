@@ -15,13 +15,19 @@ on:
       - 'pnpm-workspace.yaml'
       - 'Cargo.lock'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact candidate source selected by the release controller
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: autofill-browser-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: autofill-browser-${{ inputs.source_sha && github.run_id || github.event.pull_request.number || github.ref }}-${{ inputs.source_sha || 'direct' }}
+  cancel-in-progress: ${{ !inputs.source_sha }}
 
 jobs:
   browser:
@@ -31,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.source_sha || github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
@@ -39,7 +45,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
-          cache: pnpm
+          package-manager-cache: false
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
       - name: Install full Playwright Chromium
@@ -54,7 +60,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: autofill-review-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          name: autofill-review-${{ inputs.source_sha || github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/autofill-review/*.png
           if-no-files-found: ignore
           retention-days: 7

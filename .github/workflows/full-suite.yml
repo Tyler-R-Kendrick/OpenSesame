@@ -8,9 +8,12 @@ name: Full TypeScript suite
 # the next pull request that happens to change the lockfile.
 
 on:
-  schedule:
-    - cron: "17 3 * * *"
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact candidate source selected by the release controller
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -40,17 +43,18 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.source_sha }}
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
-          cache: pnpm
+          package-manager-cache: false
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Cache the pinned native PWA distribution
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
+          lookup-only: true
           path: .cache/pwa-tailscale-native-http/distributions
           key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
       - name: Prepare and verify native PWA assets before package concurrency
