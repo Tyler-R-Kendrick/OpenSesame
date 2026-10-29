@@ -25,6 +25,22 @@ describe("delivery authorization qualification", () => {
     }
     expect(read("ci.yml")).not.toContain("cua-password-reset test:e2e");
   });
+  it("qualifies sandbox browser tests in candidate delivery workflows", () => {
+    for (const name of ["full-suite.yml", "ci-prerelease-checks.yml"]) {
+      const workflow = read(name);
+      expect(workflow).toContain(
+        "pnpm --fail-if-no-match --filter @opensesame/agent-sandboxes test:e2e",
+      );
+      expect(workflow).toContain(
+        "AGENT_BROWSER_CHROME: /usr/bin/google-chrome",
+      );
+    }
+    const prerelease = read("ci-prerelease-checks.yml");
+    expect(prerelease).toContain(
+      "contains(steps.affected.outputs.packages, '@opensesame/agent-sandboxes')",
+    );
+    expect(read("ci.yml")).not.toContain("agent-sandboxes test:e2e");
+  });
   it("pins sync authorization to the candidate without cancelling another delivery", () => {
     const workflow = read("sync-target-security.yml");
     expect(workflow).toContain("workflow_call:");
