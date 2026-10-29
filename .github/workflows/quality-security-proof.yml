@@ -28,6 +28,8 @@ jobs:
           git apply --index ../controller/.github/proof-input/quality-security.patch
           test "$(git write-tree)" = "f9661df935c591f217e0c05426ab64c66b1f3558"
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: 9.15.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 24
