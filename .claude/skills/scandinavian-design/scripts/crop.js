@@ -1,1 +1,0 @@
-../../../../.agents/skills/scandinavian-design/scripts/crop.js

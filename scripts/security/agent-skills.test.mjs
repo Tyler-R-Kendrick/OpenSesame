@@ -113,7 +113,67 @@ test("unknown skills and escaping aliases are refused without removing local con
   assert.throws(() => syncAgentSkills(f.root), /Unexpected skill alias/u);
 });
 
+function writeProfiles(f, profiles) {
+  f.put(
+    "skills/profiles.json",
+    `${JSON.stringify({ version: 1, profiles }, null, 2)}\n`,
+  );
+}
+
+test("optional skill absent everywhere passes core validation", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
+  // Stale harness mirror for an uninstalled optional skill is tolerated here;
+  // removing it belongs to the harness workflow.
+  f.put(".claude/skills/opt-example/SKILL.md", "# Stale\n");
+  assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
+});
+
+test("optional skill under skills-optional links like the default root", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  f.put(".agents/skills-optional/opt-example/SKILL.md", "# Opt\n");
+  f.put(".claude/skills/opt-example/SKILL.md", "# Opt\n");
+  syncAgentSkills(f.root);
+  assert.equal(
+    realpathSync(join(f.root, ".claude/skills/opt-example")),
+    realpathSync(join(f.root, ".agents/skills-optional/opt-example")),
+  );
+  assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
+});
+
+test("core skill missing its .agents alias fails", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, { core: { skills: ["core-example"] } });
+  f.put("skills/core-example/SKILL.md", "# Core\n");
+  mkdirSync(join(f.root, ".agents/skills"), { recursive: true });
+  assert.throws(
+    () => syncAgentSkills(f.root, { check: true }),
+    /Missing core alias/u,
+  );
+  symlinkSync(
+    "../../skills/core-example",
+    join(f.root, ".agents/skills/core-example"),
+    "dir",
+  );
+  assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
+});
+
 test("shared Impeccable launcher retains Claude-specific reference directory", (t) => {
+  const probeRoot = fileURLToPath(new URL("../..", import.meta.url));
+  if (
+    !existsSync(join(probeRoot, ".claude/skills/impeccable/scripts/impeccable"))
+  ) {
+    t.skip("impeccable (reusable-optional) not installed");
+    return;
+  }
   const f = fixture(t);
   const root = fileURLToPath(new URL("../..", import.meta.url));
   const stub = join(f.root, "engine");
@@ -132,4 +192,95 @@ test("shared Impeccable launcher retains Claude-specific reference directory", (
     },
   ).trim();
   assert.equal(output, join(root, ".claude/skills/impeccable"));
+});
+
+test("sync preserves a personal mirror of an uninstalled optional skill", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  f.put(".claude/skills/opt-example/SKILL.md", "# Stale\n");
+  assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
+  syncAgentSkills(f.root);
+  assert.equal(
+    readFileSync(join(f.root, ".claude/skills/opt-example/SKILL.md"), "utf8"),
+    "# Stale\n",
+  );
+});
+
+test("sync preserves a dangling personal symlink under an external mirror root", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  const external = mkdtempSync(join(tmpdir(), "opensesame-external-skills-"));
+  t.after(() => rmSync(external, { recursive: true, force: true }));
+  mkdirSync(join(f.root, ".claude"), { recursive: true });
+  symlinkSync(external, join(f.root, ".claude/skills"), "dir");
+  symlinkSync("personal-target", join(external, "opt-example"), "dir");
+  syncAgentSkills(f.root);
+  assert.equal(lstatSync(join(external, "opt-example")).isSymbolicLink(), true);
+});
+
+test("sync prunes dangling mirror links left by an upstream removal", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  f.put(".agents/skills/opt-example/SKILL.md", "# Opt\n");
+  f.put(".claude/skills/opt-example/SKILL.md", "# Variant\n");
+  symlinkSync(
+    "../../../.agents/skills/opt-example/removed-upstream.md",
+    join(f.root, ".claude/skills/opt-example/removed-upstream.md"),
+    "file",
+  );
+  syncAgentSkills(f.root);
+  assert.equal(
+    existsSync(join(f.root, ".claude/skills/opt-example/removed-upstream.md")),
+    false,
+  );
+  assert.equal(
+    readFileSync(join(f.root, ".claude/skills/opt-example/SKILL.md"), "utf8"),
+    "# Variant\n",
+  );
+});
+
+test("sync never deletes through a mirror root escaping the checkout", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  const external = mkdtempSync(join(tmpdir(), "opensesame-external-skills-"));
+  t.after(() => rmSync(external, { recursive: true, force: true }));
+  mkdirSync(join(external, "opt-example"), { recursive: true });
+  writeFileSync(join(external, "opt-example/SKILL.md"), "# Personal\n");
+  mkdirSync(join(f.root, ".claude"), { recursive: true });
+  symlinkSync(external, join(f.root, ".claude/skills"), "dir");
+  syncAgentSkills(f.root);
+  assert.equal(
+    readFileSync(join(external, "opt-example/SKILL.md"), "utf8"),
+    "# Personal\n",
+  );
+});
+
+test("unlisted canonical warns locally and fails in CI", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, { core: { skills: [] } });
+  f.put(".agents/skills/zz-personal/SKILL.md", "# Personal\n");
+  const previous = process.env.CI;
+  try {
+    process.env.CI = "";
+    assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
+    process.env.CI = "true";
+    assert.throws(
+      () => syncAgentSkills(f.root, { check: true }),
+      /not listed in skills\/profiles\.json/u,
+    );
+  } finally {
+    process.env.CI = previous ?? "";
+  }
 });

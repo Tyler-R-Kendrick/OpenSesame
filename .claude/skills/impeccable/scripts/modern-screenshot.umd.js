@@ -1,1 +1,0 @@
-../../../../.agents/skills/impeccable/scripts/modern-screenshot.umd.js

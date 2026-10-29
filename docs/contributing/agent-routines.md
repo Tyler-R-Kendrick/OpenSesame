@@ -62,7 +62,7 @@ to run, the same way this document restates context for you.
 ## How a routine executes
 
 A firing follows `AGENTS.md` §9. The session does its editing in a
-copy-on-write git worktree `/home/codex/repos/opensesame-<routine>` branched
+copy-on-write git worktree `<worktree>` branched
 from the latest `origin/main` (`git worktree add` shares the object
 database). It uses the existing pnpm store and
 `CARGO_TARGET_DIR=$HOME/.cache/packages/cargo-target`, and it does not copy
@@ -75,8 +75,8 @@ pull request. After each commit the session runs `df -h /` and deletes only
 the scratch and build output that commit created. A session that cannot reach
 GraphQL builds the stack as local commits and has a person with a working `gh`
 login replay it as verified commits with `scripts/release/land-signed-stack.mjs`
-(see `scripts/release/README.md`). `/tmp/os-wallet-ship`, the
-Host on `127.0.0.1:8787`, and unrelated worktrees stay in place.
+(see `scripts/release/README.md`). Unrelated scratch, a running local
+Host, and unrelated worktrees stay in place.
 
 When the stack is finished the session self-reviews, resolves review threads,
 and squash-merges into `origin/main` only after TypeScript, Rust, and Bundle

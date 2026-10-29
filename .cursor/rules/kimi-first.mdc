@@ -1,39 +1,14 @@
 ---
-description: Tier 2 — Kimi Code CLI (K3) for coding after Grok Build weekly limit; then Cursor
-alwaysApply: true
+description: Operator model routing (tier 2) — see docs/contributing/agent-setup.md
+alwaysApply: false
 ---
 
-# Kimi Code second (tier 2)
+# Kimi Code second (tier 2) — operator scope
 
-After **Grok Build** (tier 1, `.cursor/rules/grok-build-first.mdc`) hits its
-weekly limit or quota, **remaining coding automation goes through Kimi Code
-CLI** until Kimi usage runs out. Then use **Cursor** (tier 3).
-
-## Tier 2 — Kimi Code CLI (K3)
-
-1. Run `scripts/dev/kimi-preflight.sh` (or `scripts/dev/agent-coding-preflight.sh`).
-2. Delegate coding:
-
-   ```bash
-   scripts/dev/kimi-headless.sh -p "<task>"
-   ```
-
-   Model is pinned to **K3** (`-m kimi-code/k3`, `--output-format stream-json`
-   added by the wrapper when omitted).
-
-3. **Auth order:** `kimi login` (device OAuth) on the VM, else Runtime Secret
-   `KIMI_MODEL_API_KEY` (+ optional `KIMI_MODEL_NAME`, `KIMI_MODEL_BASE_URL`).
-   Plain `KIMI_API_KEY` is ignored. Surface the login URL and code immediately
-   when OAuth is required.
-
-## When to leave tier 2 (tier 3 — Cursor)
-
-Use **Cursor Agent** when Kimi returns payment/quota/auth errors, when
-`kimi-preflight.sh` fails with no OAuth and no `KIMI_MODEL_API_KEY`, or when
-headless `-p` cannot proceed. **Security testing and red-team passes** use
-**Grok 4.7** inside Cursor when available; other Cursor work uses Composer /
-auto.
-
-Record tier and reason in the PR **Provenance** section and
-`docs/audit/2026-10-provenance.md`. Operator detail:
-`docs/operators/kimi-code-cloud.md`, `.cursor/kimi-code.md`.
+Model/subscription routing is personal operator setup, not product policy.
+The tier chain, auth, and fallback rules live in
+`docs/contributing/agent-setup.md` (user-scope setup), not in `AGENTS.md`.
+Operator runbook:
+`.cursor/kimi-code.md`, `docs/operators/kimi-code-cloud.md`. This file is
+kept only as a Cursor adapter so existing references resolve; do not add
+routing, quota, or credential detail here.
