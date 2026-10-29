@@ -1,0 +1,49 @@
+name: Semgrep gate exact-source diagnostic
+on:
+  push:
+    branches: [review/semgrep-integrated-diagnostic-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/semgrep-integrated-diagnostic-20261029' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: 8cfe19700a1f5d70ca6d4c7cadb5e480ebb9618c
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify immutable source
+        run: test "$(git rev-parse HEAD)" = 8cfe19700a1f5d70ca6d4c7cadb5e480ebb9618c
+      - name: Exercise fixture repeatedly and expose clean-case failure diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          export OPENSESAME_AUDIT_DIR="$RUNNER_TEMP/opensesame-full-verify"
+          mkdir -m 700 "$OPENSESAME_AUDIT_DIR"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/security/release-scanner-gates.test.mjs')
+          s = p.read_text()
+          original = '    assert.equal(result.error, undefined);\n    return result;'
+          revised = '''    assert.equal(result.error, undefined);
+              if (name === "semgrep" && report === cleanSemgrep && status === 0 && result.status !== 0)
+                console.error("SANITIZED FIXTURE FAILURE:", result.stdout, result.stderr);
+              return result;'''
+          if s.count(original) != 1:
+              raise RuntimeError('fixture changed')
+          p.write_text(s.replace(original, revised))
+          PY
+          for attempt in $(seq 1 5); do
+            echo "attempt $attempt"
+            node --test scripts/security/*.test.mjs
+          done
