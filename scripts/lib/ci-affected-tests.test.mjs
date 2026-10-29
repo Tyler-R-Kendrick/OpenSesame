@@ -185,10 +185,10 @@ describe("workflow wiring", () => {
     );
     const bundle = complete.split("  bundle:")[1]?.split("  rust:")[0];
     expect(bundle).toContain("pnpm --filter @opensesame/pages verify:keyboard");
-    expect(workflow).toContain("ci-affected-tests.mjs plan");
-    expect(workflow).toContain("ci-affected-tests.mjs run-ts");
-    expect(workflow).toContain("ci-affected-tests.mjs cargo");
-    expect(workflow).toContain("ci-affected-tests.mjs run-cargo");
+    expect(workflow).toContain("ci-affected-builds.mjs plan-ts");
+    expect(workflow).toContain("ci-affected-builds.mjs run-ts");
+    expect(workflow).toContain("ci-affected-builds.mjs plan-cargo");
+    expect(workflow).toContain("ci-affected-builds.mjs run-cargo");
     expect(workflow).toContain("name: Rust\n");
     expect(workflow).toContain("name: Bundle budgets\n");
   });

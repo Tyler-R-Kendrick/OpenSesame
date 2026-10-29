@@ -1,13 +1,5 @@
-// Builds Pages for a browser gate: what `pnpm --filter @opensesame/pages build`
-// does, without the typecheck.
-//
-// The build script is `security-profile && tsc --noEmit && vite build &&
-// build-workers`. Every browser job builds Pages before it walks anything, and
-// the type check is about a third of that minute. It is not the gate's to run:
-// the TypeScript job typechecks every package a diff reaches, and a diff that
-// starts a gate reaches Pages. The steps are read from the package's own
-// script, so a step added there is built here, and only the typecheck is left
-// out.
+// Builds Pages for CD browser qualification from its package build recipe.
+// Standalone typechecking runs in Git hooks; production compilation stays here.
 
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";

@@ -1,19 +1,7 @@
 name: Autofill browser E2E
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - '.github/workflows/autofill-browser.yml'
-      - 'apps/browser-extension-autofill/**'
-      - 'crates/daemon/src/fill/**'
-      - 'apps/cli/src/daemon_fill.rs'
-      - 'packages/capability-registry/**'
-      - 'packages/os-domain/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'Cargo.lock'
+  # Browser tests qualify the frozen prerelease candidate, or run on demand.
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -26,18 +14,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: autofill-browser-${{ inputs.source_sha && github.run_id || github.event.pull_request.number || github.ref }}-${{ inputs.source_sha || 'direct' }}
+  group: autofill-browser-${{ inputs.source_sha && github.run_id || github.ref }}-${{ inputs.source_sha || 'direct' }}
   cancel-in-progress: ${{ !inputs.source_sha }}
 
 jobs:
   browser:
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          ref: ${{ inputs.source_sha || github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.source_sha || github.sha }}
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
@@ -60,7 +47,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: autofill-review-${{ inputs.source_sha || github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          name: autofill-review-${{ inputs.source_sha || github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/autofill-review/*.png
           if-no-files-found: ignore
           retention-days: 7

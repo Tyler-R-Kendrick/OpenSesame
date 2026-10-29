@@ -759,3 +759,20 @@ missing Grok subscription authentication and no Kimi executable; no Grok or Kimi
 authorship is claimed. Signature, required-check and scanner integrity policies
 remain enforced. Test results and the authenticated signing prerequisite are
 recorded in the PR; no hosted qualification or merge is claimed from local tests.
+
+### 2026-10-29 — Build-only trunk integration
+
+The user requested affected-graph compilation as the only trunk gate, with
+static checks in Git hooks and tests in environment delivery. Codex agents split
+build planning, hooks, auxiliary CD triggers and workflow contracts in an isolated
+worktree, based on the supplied `51180167f` checkout. Grok subscription auth was
+absent and Kimi was unavailable; these edits are Codex output. The cached
+`origin/main` was older than the supplied checkout and the environment proxy
+could not fetch GitHub. The connected GitHub API later confirmed main had four
+newer commits; the added CUA browser gate is preserved in development/prerelease
+qualification. The initial connector lacked the required `createCommitOnBranch` operation;
+no unsigned replacement was submitted. On the user's publication follow-up,
+shell network/authentication recovered and GraphQL became available. The change
+was rebased onto `ae450dbce`, preserving newer connector/dependency work, and
+review identified and repaired Cargo's renamed-workspace dependency selection.
+The implementation PR records final validation and hosted publication results.

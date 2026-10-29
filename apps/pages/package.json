@@ -8,7 +8,7 @@
     "dev": "bash ../../scripts/dev/pages-dev.sh",
     "dev:web": "vite --port 5180 --strictPort --host localhost",
     "relay": "node server/server.mjs",
-    "build": "node scripts/security-profile.mjs && tsc --noEmit && vite build && node scripts/build-workers.mjs",
+    "build": "node scripts/security-profile.mjs && vite build && node scripts/build-workers.mjs",
     "preview": "vite preview --port 5180",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && node --test server/test/*.test.mjs",

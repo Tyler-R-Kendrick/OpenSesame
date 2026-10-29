@@ -11,7 +11,7 @@ Node 22+, pnpm 9 via Corepack, Rust 1.88 (pinned by `rust-toolchain.toml`).
 ```bash
 corepack enable
 pnpm install
-pnpm setup:hooks      # git uses .githooks/: lint, Clippy, design lint, gitleaks
+pnpm setup:hooks      # git uses .githooks/: lint, quality, types, Clippy, gitleaks
 ```
 
 [Getting started](docs/getting-started/README.md) covers running each plane;
@@ -24,25 +24,25 @@ code goes.
 ## Before you push
 
 ```bash
-pnpm lint && pnpm quality && pnpm typecheck && pnpm test
-cargo +1.88.0 test --workspace --all-targets     # when Rust changed
+sh .githooks/pre-push   # also runs automatically on git push
 ```
 
-`pnpm verify` is the full local gate: lint, anti-slop, quality, Clippy, every
-test suite and the battle test. The `pnpm audit:*` security gates are separate;
-run the ones that match what you touched, and `pnpm verify`, before anything
-security-sensitive lands. The pre-push hook runs the anti-slop lint and plugin
-tests, typecheck and tests by default (`OPENSESAME_PREPUSH=off|fast|full`).
+The default pre-push hook runs changed-file lint, generated-artifact freshness,
+anti-slop, static quality gates and typechecking, plus Clippy when Rust or its
+configuration changed. Tests qualify delivery to environments; trunk CI builds
+the affected dependency graph. Run focused tests locally while developing as
+needed. `OPENSESAME_PREPUSH=full git push` explicitly opts into `pnpm verify`,
+including tests and the battle test (`OPENSESAME_PREPUSH=off|fast|full`).
 
-Browser gates run against a fresh Pages build and are required when you touch
-what they cover — boot, sign-in, the shell, controls, keyboard handling, touch
-layout: `pnpm --filter @opensesame/pages verify:<keyboard|mobile|static|auth|local-iam>`.
+Browser gates run against a fresh Pages build during delivery qualification.
+To exercise a changed boot, sign-in, shell, control, keyboard or touch path
+locally: `pnpm --filter @opensesame/pages verify:<keyboard|mobile|static|auth|local-iam>`.
 
 ## Your pull request
 
 - **Commits carry a GitHub-verified signature** (`git commit -S` with a signing
-  key registered on your GitHub account, or commits GitHub itself creates). CI
-  rejects any other commit and the default-branch ruleset will not merge it.
+  key registered on your GitHub account, or commits GitHub itself creates). The
+  default-branch ruleset enforces this independently of build CI.
 - **A user-visible change carries before/after evidence** from two real
   builds for PR review ([how](skills/visual-evidence/SKILL.md)). Keep comparisons,
   raw recordings and drafts in ignored `work/evidence/` or temp storage. Persist
@@ -73,7 +73,9 @@ same Pages/native files. Main continues moving while a release runs.
 Use the same controllers' manual dispatch on `main` for an urgent release; it
 runs the same gates. An old publisher or direct version-tag push cannot publish
 around them. The required PR check names remain TypeScript, Rust and Bundle
-budgets, with affected fast scope. See [CI and promotion](docs/operators/ci-promotion.md)
+budgets, with affected build scope. Bundle budgets is a compatibility check name;
+bundle measurement and browser tests run during delivery qualification.
+See [CI and promotion](docs/operators/ci-promotion.md)
 for versions, receipts, failure recovery and environment configuration.
 
 Publication is complete only after the stored Pages payload is deployed, its

@@ -66,7 +66,7 @@ if [ -n "$design_files" ]; then
   fi
 fi
 
-rust_lint_files=$(printf '%s\n' "$staged_files" | grep -E '(^|/)(Cargo\.toml|Cargo\.lock|clippy\.toml|rustfmt\.toml)$|\.rs$' || true)
+rust_lint_files=$(printf '%s\n' "$staged_files" | grep -E '(^|/)(Cargo\.toml|Cargo\.lock|clippy\.toml|rustfmt\.toml|rust-toolchain(\.toml)?)$|\.rs$|^\.cargo/|^scripts/audit/clippy-gate\.sh$' || true)
 if [ -n "$rust_lint_files" ]; then
   echo "==> rustfmt + Clippy (full workspace)"
   pnpm audit:clippy

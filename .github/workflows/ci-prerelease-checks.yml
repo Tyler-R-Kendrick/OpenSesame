@@ -245,6 +245,15 @@ jobs:
           BASE_SHA: ''
           HEAD_SHA: ''
         run: node scripts/lib/ci-affected-tests.mjs run-ts
+      - name: CUA password-reset browser e2e
+        # Explicit delivery coverage: these real-browser tests are excluded
+        # from the package's unit-test script.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
+        run: >-
+          AGENT_BROWSER="$(pnpm --filter @opensesame/cua-password-reset exec which agent-browser)"
+          pnpm --filter @opensesame/cua-password-reset test:e2e
       - name: Repository contract on a real Postgres
         # The same suites as the PGlite run, through the production driver.
         # Each suite creates and drops its own database.
@@ -1351,6 +1360,12 @@ jobs:
     with:
       source_sha: ${{ inputs.source_sha }}
 
+  sync-target-security:
+    needs: admission
+    uses: ./.github/workflows/sync-target-security.yml
+    with:
+      source_sha: ${{ inputs.source_sha }}
+
   coverage:
     needs: admission
     uses: ./.github/workflows/ci-coverage.yml
@@ -1439,7 +1454,7 @@ jobs:
 
   gate:
     name: Prerelease gate
-    needs: [admission, changes, typescript-tests, bundle, ai-connections-e2e, tailnet-browser-node-e2e, device-inbox, push-e2e, device-identity-e2e, tutorials-e2e, live-join-e2e, rust, android-native, apple-native, mtls, typescript, bundle-check, rust-check, complete-verify, native-platform, password-parity, container, native-wasm, autofill-browser, coverage, artifact-smoke]
+    needs: [admission, changes, typescript-tests, bundle, ai-connections-e2e, tailnet-browser-node-e2e, device-inbox, push-e2e, device-identity-e2e, tutorials-e2e, live-join-e2e, rust, android-native, apple-native, mtls, typescript, bundle-check, rust-check, complete-verify, native-platform, password-parity, container, native-wasm, autofill-browser, sync-target-security, coverage, artifact-smoke]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

@@ -1,11 +1,8 @@
 name: Full TypeScript suite
 
-# The pull-request check tests what a diff touches and what depends on it. That
-# is right for a pull request and blind to a suite that goes red by itself (a
-# test that depended on the wall clock did exactly that on main while every open
-# pull request was green). This runs the whole TypeScript workspace on main on a
-# schedule, and on demand, so a hidden red surfaces within a day instead of at
-# the next pull request that happens to change the lockfile.
+# Development delivery tests the exact selected candidate source. This complete
+# workspace suite catches failures outside the latest integration diff, while
+# trunk only compiles the impacted build graph.
 
 on:
   workflow_call:
@@ -22,7 +19,7 @@ jobs:
   typescript-full:
     name: Full TypeScript suite
     runs-on: ubuntu-latest
-    # Same complete serial workload and per-test deadlines as the PR job.
+    # Complete serial candidate workload; retain individual test deadlines.
     timeout-minutes: 180
     services:
       postgres:
@@ -65,6 +62,15 @@ jobs:
           'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
       - name: Typecheck and test every package
         run: pnpm exec turbo run typecheck test --concurrency=1
+      - name: CUA password-reset browser e2e
+        # Explicit delivery coverage: these real-browser tests are excluded
+        # from the package's unit-test script.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
+        run: >-
+          AGENT_BROWSER="$(pnpm --filter @opensesame/cua-password-reset exec which agent-browser)"
+          pnpm --filter @opensesame/cua-password-reset test:e2e
       - name: Repository contract on a real Postgres
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
