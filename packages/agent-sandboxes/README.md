@@ -49,5 +49,6 @@ lives and how its traffic reaches the site.
 - The Boat lane needs an operator-configured agent start command
   (`BOAT_RELAY_AGENT_COMMAND`), typically run from a saved snapshot
   with this package installed. Sandboxes are created with none of the
-  account's secrets, monitoring off, snapshots off, and are deleted
-  on close so session cookies die with the run.
+  account's secrets, monitoring off, and snapshots off. On close, the
+  default requests deletion; `keepSandbox` requests a stop instead.
+  The current client does not confirm asynchronous deletion or cookie erasure.
