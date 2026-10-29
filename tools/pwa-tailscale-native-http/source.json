@@ -508,8 +508,8 @@
       "entryPoint": "zod/v4/mini"
     },
     "vite": {
-      "version": "6.4.4",
-      "packageSha256": "08aa811517022c5b83c52c63dc435d2aa725a64fe4e3cfa6f351affa6b9ed9de"
+      "version": "6.4.5",
+      "packageSha256": "0ac6ea0598168f203cad40e7b6e0f892987109262a296e29abf039f1b26099ee"
     },
     "bridgeSha256": "1992487ea59d7d1745441fd77e538fba3d0086aefd72ceafb43446068211e54f",
     "files": [
@@ -523,7 +523,7 @@
       },
       {
         "path": "native-assets.mjs",
-        "sha256": "378b3c995db4d7aaf56c24913505b41b186f233ae0aab0e81482a29bd0313538"
+        "sha256": "5990820ffe7de80d419d1a71e1692cd00c9745dded5fdb1552590418f59c6bb7"
       },
       {
         "path": "compose-native.test.mjs",
