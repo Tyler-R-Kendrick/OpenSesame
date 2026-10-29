@@ -61,6 +61,7 @@ jobs:
           test -x "$AGENT_BROWSER"
           pnpm --filter @opensesame/agent-sandboxes test:e2e
       - name: Full quality gate
+        if: success() || failure()
         working-directory: candidate
         run: pnpm quality:gate
       - name: Verify exact source after checks
