@@ -1,0 +1,51 @@
+name: Reviewed password verification isolation proof
+on:
+  push:
+    branches: [review/2247-verification-proof-v4-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2247-verification-proof-v4-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+          ref: 0bc0ca9791eb25086440c6aa3b0ea03997c0e2ab
+      - name: Verify immutable candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 0bc0ca9791eb25086440c6aa3b0ea03997c0e2ab
+          test "$(git rev-parse HEAD^{tree})" = d86e170ecce4546355f30638ad570540f898d760
+          test "$(git rev-parse HEAD^)" = 8f917d5615d489b564b5a1719e985e1d0cb0c664
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Format and strict quality for changed files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(packages/cli/src/password-reset-local-runtime.ts packages/cli/src/password-reset-local-verification.ts packages/cli/src/password-reset-provider-verification.test.ts)
+          pnpm exec biome check "${files[@]}"
+          pnpm lint:anti-slop:files "${files[@]}"
+          pnpm exec oxlint -c tools/quality/oxlint.complexity.jsonc "${files[@]}"
+      - name: Typecheck CLI
+        run: pnpm --filter @opensesame/cli typecheck
+      - name: Password-reset tests including independent-session controls
+        run: pnpm --filter @opensesame/cli exec vitest run src/password-reset
+      - name: Verify source remains unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = d86e170ecce4546355f30638ad570540f898d760
+          git diff --exit-code
+          git diff --cached --exit-code
