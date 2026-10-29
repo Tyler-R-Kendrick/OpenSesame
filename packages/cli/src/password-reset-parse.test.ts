@@ -46,6 +46,31 @@ describe("password reset grammar", () => {
     }
   });
 
+  it("parses an explicit sandbox provider and refuses unknown providers", () => {
+    const bundled = [
+      "configure",
+      "--config",
+      "reset.json",
+      "--origin",
+      "https://accounts.example.test",
+      "--recipe",
+      "recipe.json",
+      "--transport",
+      "cdp",
+      "--runtime",
+      "bundled:local",
+    ];
+    for (const provider of ["local", "boat", "cloudflare", "wasm-relay"]) {
+      expect(
+        parsePasswordReset([...bundled, "--provider", provider], flags),
+      ).toMatchObject({ provider });
+    }
+    expect(parsePasswordReset([...bundled], flags).provider).toBeUndefined();
+    expect(() =>
+      parsePasswordReset([...bundled, "--provider", "docker"], flags),
+    ).toThrow("--provider");
+  });
+
   it("refuses incomplete configure, unknown options and missing resume ids", () => {
     expect(() =>
       parsePasswordReset(["configure", "--config", "reset.json"], flags),

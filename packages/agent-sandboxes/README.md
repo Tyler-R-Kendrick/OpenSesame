@@ -14,6 +14,11 @@ lives and how its traffic reaches the site.
 | `cloudflare` | Cloudflare Browser Run session allocated over REST | `CdpBrowserDriver` over the session CDP socket |
 | `boat` | Boat cloud sandbox allocated over the Boat REST API | Relay agent inside the sandbox (`boat-agent.ts`) behind its hosted port; allocation registers the agent via auth.md when no API key is configured |
 
+Selection: the CLI bundled runtime picks a provider from the reset
+config's `runtime.provider` field (`--provider` at configure time),
+defaulting to `local`. Providers belong to the bundled runtime only;
+external runtime adapters own their browser.
+
 ## Security invariants
 
 - Provider credentials are read only at allocation time, from the
