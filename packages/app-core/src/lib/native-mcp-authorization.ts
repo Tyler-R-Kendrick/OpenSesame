@@ -10,9 +10,18 @@ import {
   nativeProviderTransport,
 } from "./native-connector-transport.js";
 import { discardNativeConsent } from "./native-consent-cancel.js";
+import { withNativeMcpMutationLock } from "./native-mcp-mutation-lock.js";
 import type { NativeMcpOAuthTarget } from "./native-mcp-oauth-target.js";
 import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
-import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
+import {
+  type NativeMcpOAuthPorts,
+  NativeMcpPublicOAuth,
+} from "./native-mcp-oauth.js";
+import {
+  releaseNativeMcpPartialReservation,
+  reserveNativeMcpPartialRefresh,
+  retainNativeMcpPartialRefresh,
+} from "./native-mcp-partial-refresh.js";
 import {
   MCP_CLASSIFICATION,
   nativeMcpClassification,
@@ -28,9 +37,14 @@ import {
 import { admitNativeMcpRegistration } from "./native-mcp-registration-admission.js";
 import type { NativeMcpRegisteredClient } from "./native-mcp-registration-receipt.js";
 import {
-  assertNativeMcpRegistrationCapacity,
+  assertNativeMcpRegistrationAvailable,
   releaseNativeMcpRegistrationReservation,
 } from "./native-mcp-registration.js";
+import {
+  discardUnsubmittedExchange,
+  markNativeMcpSubmitting,
+  trackExchange,
+} from "./native-mcp-submission.js";
 import { activateNativeMcpGrant } from "./native-mcp-verification.js";
 import {
   type NativeOAuthBrowserPort,
@@ -38,23 +52,32 @@ import {
 } from "./native-oauth-browser-port.js";
 import {
   claimNativeOAuthPending,
+  findNativeOAuthPending,
   journalNativeOAuthGrant,
   markNativeOAuthMutationInFlight,
   nativeOAuthCallbackTarget,
   nativeOAuthGuard,
+  nativeOAuthObligation,
+  parseNativeOAuthCallback,
 } from "./native-oauth-session.js";
 
 function oauth(
   id: string,
   transport: NativeProviderTransport,
   browser: NativeOAuthBrowserPort,
+  retainPartialRefresh?: (token: string) => Promise<void>,
 ): NativeMcpPublicOAuth {
+  const ports: NativeMcpOAuthPorts = {
+    ...transport,
+    signal: new AbortController().signal,
+  };
+  if (retainPartialRefresh) ports.retainPartialRefresh = retainPartialRefresh;
   return new NativeMcpPublicOAuth(
     nativeMcpRecordOAuthTarget(
       requireNativeMcpRecord(id).configuration,
       browser,
     ),
-    { ...transport, signal: new AbortController().signal },
+    ports,
   );
 }
 function randomState(): string {
@@ -82,7 +105,7 @@ async function sealMcpConsent({
   protocol,
   transport,
   browser,
-}: McpConsentContext): Promise<void> {
+}: McpConsentContext) {
   const state = randomState();
   const consent = await protocol.consent(client, state);
   const current = requireNativeMcpRecord(id);
@@ -116,19 +139,11 @@ async function sealMcpConsent({
     },
   );
   transport.assertCurrent();
-  if (browser.authorize) {
-    let callback: string;
-    try {
-      callback = await browser.authorize(consent.authorizationUrl.href, {
-        state: pending.state,
-        expiresAt: pending.expiresAt,
-      });
-    } catch (error) {
-      await discardNativeConsent(id, pending.state, MCP_CLASSIFICATION);
-      throw error;
-    }
-    await finishNativeMcpAuthorization(callback, transport);
-  } else browser.navigate(consent.authorizationUrl.href);
+  return {
+    url: consent.authorizationUrl.href,
+    state: pending.state,
+    expiresAt: pending.expiresAt,
+  };
 }
 
 /** Registration is a credential mutation: seal an obligation before sending it. */
@@ -145,84 +160,97 @@ export async function beginNativeMcpAuthorization(
   if (actor !== "user") throw new NativeMcpAuthError("public-client");
   const browser = nativeOAuthBrowserPort();
   await prepareNativeMcpAuthorization(id, transport);
-  const initial = requireNativeMcpRecord(id);
-  await assertNativeMcpContract(initial);
-  if (
-    Object.keys(initial.privateState.pending).length ||
-    initial.privateState.grants.user
-  )
-    throw new Error(
-      "Finish existing provider authorization cleanup before starting consent",
-    );
-  const target = nativeMcpRecordOAuthTarget(initial.configuration, browser);
-  const existing = initial.privateState.recovery[0];
-  const obligation: NativeRecovery = existing ?? {
-    id: `registration:${crypto.randomUUID()}`,
-    kind: "registration",
-    providerId: target.binding.providerId,
-    actor,
-    fingerprint: target.binding.fingerprint,
-    targetId: target.binding.resource,
-    issuer: target.binding.issuer ?? undefined,
-    resource: target.binding.resource,
-    endpoint: target.binding.endpoint,
-    credentials: {
-      phase: "registration",
-      deadline: String(Date.now() + 60_000),
-    },
-  };
-  if (!existing) {
-    await updateNativeConnector(
-      id,
-      nativeOAuthGuard(initial),
-      MCP_CLASSIFICATION,
-      (record) => {
-        transport.assertCurrent();
-        record.privateState.recovery.push(obligation);
-        record.privateState.verification = null;
-        return record;
-      },
-    );
-  }
-  assertNativeMcpRegistrationCapacity(id);
-  const release = markNativeOAuthMutationInFlight(id, obligation.id);
-  try {
-    const protocol = oauth(id, transport, browser);
-    const client = initial.privateState.credentials.mcp_client
-      ? nativeMcpClient(initial)
-      : await admitNativeMcpRegistration(id, obligation, target, transport);
-    await sealMcpConsent({
-      id,
+  const consent = await withNativeMcpMutationLock(id, async () => {
+    const initial = requireNativeMcpRecord(id);
+    await assertNativeMcpContract(initial);
+    if (
+      Object.keys(initial.privateState.pending).length ||
+      initial.privateState.grants.user
+    )
+      throw new Error(
+        "Finish existing provider authorization cleanup before starting consent",
+      );
+    const target = nativeMcpRecordOAuthTarget(initial.configuration, browser);
+    const existing = initial.privateState.recovery[0];
+    const obligation: NativeRecovery = existing ?? {
+      id: `registration:${crypto.randomUUID()}`,
+      kind: "registration",
+      providerId: target.binding.providerId,
       actor,
-      obligationId: obligation.id,
-      client,
-      target,
-      protocol,
-      transport,
-      browser,
-    });
-  } finally {
-    releaseNativeMcpRegistrationReservation(id, obligation.id);
-    release();
-  }
+      fingerprint: target.binding.fingerprint,
+      targetId: target.binding.resource,
+      issuer: target.binding.issuer ?? undefined,
+      resource: target.binding.resource,
+      endpoint: target.binding.endpoint,
+      credentials: initial.privateState.credentials.mcp_client
+        ? {
+            phase: "registered",
+            client: initial.privateState.credentials.mcp_client,
+            registration_mode: "unknown",
+          }
+        : {
+            phase: "registration",
+            submission: "prepared",
+            deadline: String(Date.now() + 60_000),
+          },
+    };
+    assertNativeMcpRegistrationAvailable(id);
+    if (!existing) {
+      await updateNativeConnector(
+        id,
+        nativeOAuthGuard(initial),
+        MCP_CLASSIFICATION,
+        (record) => {
+          transport.assertCurrent();
+          record.privateState.recovery.push(obligation);
+          record.privateState.verification = null;
+          return record;
+        },
+      );
+    }
+    const release = markNativeOAuthMutationInFlight(id, obligation.id);
+    try {
+      const protocol = oauth(id, transport, browser);
+      const client = initial.privateState.credentials.mcp_client
+        ? nativeMcpClient(initial)
+        : await admitNativeMcpRegistration(id, obligation, target, transport);
+      return await sealMcpConsent({
+        id,
+        actor,
+        obligationId: obligation.id,
+        client,
+        target,
+        protocol,
+        transport,
+        browser,
+      });
+    } finally {
+      releaseNativeMcpRegistrationReservation(id, obligation.id);
+      release();
+    }
+  });
+  if (browser.authorize) {
+    let callback: string;
+    try {
+      callback = await browser.authorize(consent.url, {
+        state: consent.state,
+        expiresAt: consent.expiresAt,
+      });
+    } catch (error) {
+      await discardNativeConsent(id, consent.state, MCP_CLASSIFICATION);
+      throw error;
+    }
+    await finishNativeMcpAuthorization(callback, transport);
+  } else browser.navigate(consent.url);
 }
 
-/** Only the shared sealed-state claim chooses the connector/provider/actor. */
-export async function finishNativeMcpAuthorization(
-  search: string,
-  baseTransport: NativeProviderTransport = nativeProviderTransport(),
+async function validateMcpClaim(
+  claim: Awaited<ReturnType<typeof claimNativeOAuthPending>>,
+  preview: NonNullable<ReturnType<typeof findNativeOAuthPending>>,
+  reservationId: string,
+  browser: NativeOAuthBrowserPort,
 ) {
-  const transport = captureNativeAuthorizationTransport(baseTransport);
-  const browser = nativeOAuthBrowserPort();
-  transport.assertCurrent();
-  const callbackTarget = nativeOAuthCallbackTarget(search);
-  if (callbackTarget?.method !== "mcp") throw new NativeMcpAuthError("pending");
-  assertNativeBrowserMcpPolicy(callbackTarget.providerId);
-  const { record, pending, obligation, code } = await claimNativeOAuthPending(
-    search,
-    MCP_CLASSIFICATION,
-  );
-  browser.scrubCallback();
+  const { record, pending, obligation } = claim;
   if (record.configuration.method !== "mcp")
     throw new NativeMcpAuthError("pending");
   await assertNativeMcpContract(record);
@@ -234,35 +262,114 @@ export async function finishNativeMcpAuthorization(
     pending.issuer !== target.binding.issuer ||
     pending.endpoint !== target.binding.endpoint ||
     pending.clientId !== client.client_id ||
-    pending.redirectUri !== target.redirectUri
+    pending.redirectUri !== target.redirectUri ||
+    record.connectionId !== preview.record.connectionId ||
+    pending.fingerprint !== preview.pending.fingerprint ||
+    obligation.id !== reservationId
   )
     throw new NativeMcpAuthError("pending");
-  const release = markNativeOAuthMutationInFlight(
-    record.connectionId,
-    obligation.id,
+  return client;
+}
+
+function claimPrepared(search: string) {
+  return claimNativeOAuthPending(search, MCP_CLASSIFICATION, (obligation) => {
+    obligation.credentials = {
+      ...obligation.credentials,
+      submission: "prepared",
+    };
+  });
+}
+/** Only the shared sealed-state claim chooses the connector/provider/actor. */
+export async function finishNativeMcpAuthorization(
+  search: string,
+  baseTransport: NativeProviderTransport = nativeProviderTransport(),
+) {
+  const transport = captureNativeAuthorizationTransport(baseTransport);
+  const browser = nativeOAuthBrowserPort();
+  transport.assertCurrent();
+  const callbackTarget = nativeOAuthCallbackTarget(search);
+  if (callbackTarget?.method !== "mcp") throw new NativeMcpAuthError("pending");
+  assertNativeBrowserMcpPolicy(callbackTarget.providerId);
+  const preview = findNativeOAuthPending(
+    parseNativeOAuthCallback(search).state,
   );
-  try {
-    const tokens = await oauth(
-      record.connectionId,
-      transport,
-      browser,
-    ).exchange(client, code, pending.verifier);
-    const grant = nativeMcpIssuedGrant(pending, tokens);
-    await journalNativeOAuthGrant(
-      record.connectionId,
-      obligation.id,
-      grant,
-      nativeMcpClassification,
+  if (!preview || preview.record.connectionId !== callbackTarget.connectionId)
+    throw new NativeMcpAuthError("pending");
+  return withNativeMcpMutationLock(preview.record.connectionId, async () => {
+    const reservationId = nativeOAuthObligation(preview.pending).id;
+    reserveNativeMcpPartialRefresh(
+      preview.record.connectionId,
+      reservationId,
+      preview.pending.fingerprint,
     );
-    transport.assertCurrent();
-    if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
-    return activateNativeMcpGrant(
-      record.connectionId,
-      obligation.id,
-      grant,
-      transport,
-    );
-  } finally {
-    release();
-  }
+    let submitted = false;
+    let claimed = false;
+    try {
+      const claim = await claimPrepared(search);
+      claimed = true;
+      browser.scrubCallback();
+      const client = await validateMcpClaim(
+        claim,
+        preview,
+        reservationId,
+        browser,
+      );
+      const { record, pending, obligation, code } = claim;
+      const release = markNativeOAuthMutationInFlight(
+        record.connectionId,
+        obligation.id,
+      );
+      try {
+        const tokens = await oauth(
+          record.connectionId,
+          trackExchange(
+            transport,
+            nativeMcpRecordOAuthTarget(record.configuration, browser).metadata
+              .tokenEndpoint,
+            async () => {
+              await markNativeMcpSubmitting(record.connectionId, obligation.id);
+              submitted = true;
+            },
+          ),
+          browser,
+          (token) =>
+            retainNativeMcpPartialRefresh(
+              record.connectionId,
+              obligation.id,
+              token,
+            ),
+        ).exchange(client, code, pending.verifier);
+        const grant = nativeMcpIssuedGrant(pending, tokens);
+        await journalNativeOAuthGrant(
+          record.connectionId,
+          obligation.id,
+          grant,
+          nativeMcpClassification,
+        );
+        transport.assertCurrent();
+        if (!tokens.protocolValid)
+          throw new NativeMcpAuthError("authorization");
+        return activateNativeMcpGrant(
+          record.connectionId,
+          obligation.id,
+          grant,
+          transport,
+        );
+      } finally {
+        release();
+      }
+    } catch (error) {
+      if (claimed && !submitted)
+        await discardUnsubmittedExchange(
+          preview.record.connectionId,
+          reservationId,
+        );
+      throw error;
+    } finally {
+      releaseNativeMcpPartialReservation(
+        preview.record.connectionId,
+        reservationId,
+      );
+    }
+  });
 }

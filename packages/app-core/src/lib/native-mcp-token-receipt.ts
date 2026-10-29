@@ -8,10 +8,9 @@ const opaque = z
   .min(1)
   .max(32768)
   .regex(/^[!-~]+$/);
-const PairSchema = z.object({
-  access_token: opaque,
-  refresh_token: opaque.optional(),
-});
+const AccessSchema = z.object({ access_token: opaque });
+const RefreshSchema = z.object({ refresh_token: opaque });
+const PairSchema = AccessSchema.extend({ refresh_token: opaque.optional() });
 const DetailsSchema = z.object({
   token_type: z.string().min(1),
   expires_in: z
@@ -23,7 +22,13 @@ const DetailsSchema = z.object({
   scope: z
     .string()
     .max(32768)
-    .refine((scope) => scope.split(/\s+/).every((value) => value.length <= 512))
+    .refine((scope) => {
+      const values = scope.split(/\s+/).filter(Boolean);
+      return (
+        values.every((value) => value.length <= 512) &&
+        new Set(values).size <= 256
+      );
+    })
     .optional(),
 });
 export type NativeMcpIssuedTokens = OAuthTokens & { protocolValid: boolean };
@@ -33,24 +38,32 @@ export async function captureNativeMcpTokenReply(
   action: (fetcher: typeof fetch) => Promise<OAuthTokens>,
   fetcher: typeof fetch,
   issuer: string,
+  retainPartialRefresh?: (token: string) => Promise<void>,
 ): Promise<NativeMcpIssuedTokens> {
   const capture: TokenCapture = { value: null };
+  let partialRefresh: string | null = null;
   const admitted: typeof fetch = async (input, init) => {
     const response = await fetcher(input, init);
     if (response.ok) {
       const body = await response.clone().json();
+      const access = AccessSchema.safeParse(body);
       const pair = PairSchema.safeParse(body);
-      if (pair.success) {
+      const refresh = RefreshSchema.safeParse(body);
+      if (!access.success && refresh.success)
+        partialRefresh = refresh.data.refresh_token;
+      if (access.success) {
         const details = DetailsSchema.safeParse(body);
+        const validDetails = pair.success && details.success;
         capture.value = {
-          ...pair.data,
-          token_type: details.success ? details.data.token_type : "",
+          ...access.data,
+          token_type: validDetails ? details.data.token_type : "",
           issuer,
           protocolValid:
-            details.success &&
-            details.data.token_type.toLowerCase() === "bearer",
+            validDetails && details.data.token_type.toLowerCase() === "bearer",
         };
-        if (details.success) {
+        if (pair.success && pair.data.refresh_token)
+          capture.value.refresh_token = pair.data.refresh_token;
+        if (validDetails) {
           capture.value.expires_in = details.data.expires_in;
           capture.value.scope = details.data.scope;
         }
@@ -61,7 +74,12 @@ export async function captureNativeMcpTokenReply(
   try {
     await action(admitted);
   } catch (error) {
-    if (!capture.value) throw error;
+    if (!capture.value && !partialRefresh) throw error;
+  }
+  if (!capture.value && partialRefresh) {
+    if (!retainPartialRefresh) throw new NativeMcpAuthError("storage");
+    await retainPartialRefresh(partialRefresh);
+    throw new NativeMcpAuthError("authorization");
   }
   if (!capture.value) throw new NativeMcpAuthError("authorization");
   return capture.value;
