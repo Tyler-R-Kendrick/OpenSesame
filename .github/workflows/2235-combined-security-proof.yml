@@ -33,9 +33,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 24eb45f79096ad3db2ace740a8c64b648efdf302
           test "$(git rev-parse HEAD^{tree})" = 0d7868b1409f6f1400c1967d5f0d1da9a1cdb243
-          printf '%s  %s\n' acd17270c4f6286f98a8812b49e9cc24144c39913344a7b6f94e9a85356df409 ../controller/.github/verify-inputs/2235-combined-security.patch | sha256sum --check
+          printf '%s  %s\n' c9c1d790e8026ad5f510b52563af5b032fda52deaadfc064712b940eaa715eda ../controller/.github/verify-inputs/2235-combined-security.patch | sha256sum --check
           git apply --index ../controller/.github/verify-inputs/2235-combined-security.patch
-          test "$(git write-tree)" = 4f9e0467813f7604d4e11d6911df12b2d40baa34
+          test "$(git write-tree)" = 10d35561671fb73b417a816c61373bb81bdacdbb
           git diff --exit-code
       - name: Install frozen dependencies
         working-directory: candidate
@@ -63,5 +63,5 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 24eb45f79096ad3db2ace740a8c64b648efdf302
-          test "$(git write-tree)" = 4f9e0467813f7604d4e11d6911df12b2d40baa34
+          test "$(git write-tree)" = 10d35561671fb73b417a816c61373bb81bdacdbb
           git diff --exit-code

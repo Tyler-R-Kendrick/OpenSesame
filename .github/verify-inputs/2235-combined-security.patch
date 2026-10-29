@@ -1,3 +1,45 @@
+diff --git a/packages/agent-sandboxes/e2e/relay.spec.ts b/packages/agent-sandboxes/e2e/relay.spec.ts
+index 43dbc8527..c1423671a 100644
+--- a/packages/agent-sandboxes/e2e/relay.spec.ts
++++ b/packages/agent-sandboxes/e2e/relay.spec.ts
+@@ -23,24 +23,34 @@ test("full reset through the driver relay, with a takeover pause", async () => {
+     token: "relay-e2e-token",
+     driver: hosted.browser,
+   });
++  let relayClosedBrowser = false;
++  let phase = "initialize";
+   try {
+     const driver = relayDriverOverWebSocket(relay.url, {
+       token: "relay-e2e-token",
+     });
+     const runtime = runtimeForDriver(driver, site, true);
++    phase = "start";
+     const parked = await runtime.runner.start(runtime.initial);
+     expect(parked.status).toBe("awaiting_human");
+     expect(runtime.challenges).toEqual(["captcha"]);
++    phase = "resume";
+     const finished = await runtime.runner.resumeAfterHuman(parked);
+     expect(finished.status).toBe("succeeded");
+     expect(site.submissions).toBe(1);
++    phase = "verify";
+     await expectNewPasswordAccepted(runtime.custody, site);
+     const journalText = JSON.stringify(await runtime.store.load("run-1"));
+     expect(journalText).not.toContain(PEPPER);
++    phase = "close";
+     await driver.close();
++    relayClosedBrowser = true;
++  } catch (error) {
++    process.stderr.write(`relay e2e failure phase: ${phase}\n`);
++    throw error;
+   } finally {
+-    await relay.close();
+-    await hosted.close();
+-    await site.stop();
++    await relay.close().catch(() => {});
++    if (!relayClosedBrowser) await hosted.close().catch(() => {});
++    await site.stop().catch(() => {});
+   }
+ });
 diff --git a/packages/agent-sandboxes/e2e/wasm.spec.ts b/packages/agent-sandboxes/e2e/wasm.spec.ts
 index d95835075..4b4ddc894 100644
 --- a/packages/agent-sandboxes/e2e/wasm.spec.ts
@@ -747,7 +789,7 @@ index 000000000..21d4e9813
 +  };
 +}
 diff --git a/packages/agent-sandboxes/src/vnet-server.test.ts b/packages/agent-sandboxes/src/vnet-server.test.ts
-index b3bffaec2..bf092e822 100644
+index b3bffaec2..cc8c59dab 100644
 --- a/packages/agent-sandboxes/src/vnet-server.test.ts
 +++ b/packages/agent-sandboxes/src/vnet-server.test.ts
 @@ -31,7 +31,10 @@ describe("virtual network relay", () => {
@@ -762,7 +804,7 @@ index b3bffaec2..bf092e822 100644
    });
  
    afterAll(async () => {
-@@ -86,3 +89,261 @@ describe("virtual network relay", () => {
+@@ -86,3 +89,276 @@ describe("virtual network relay", () => {
      ).rejects.toThrow("refused (401)");
    });
  });
@@ -775,6 +817,21 @@ index b3bffaec2..bf092e822 100644
 +    expect(() =>
 +      virtualFetchOverHttp("https://user:pass@relay.example.test", "token"),
 +    ).toThrow(/HTTPS/u);
++    expect(() =>
++      virtualFetchOverHttp("http://localhost:4000", "token"),
++    ).toThrow(/HTTPS/u);
++  });
++
++  it("refuses plaintext listeners outside literal loopback", async () => {
++    await expect(
++      startVirtualNetworkRelay({ token: "token", host: "0.0.0.0" }),
++    ).rejects.toThrow(/literal loopback/u);
++    await expect(
++      startVirtualNetworkRelay({ token: "token", host: "localhost" }),
++    ).rejects.toThrow(/literal loopback/u);
++    await expect(startVirtualNetworkRelay({ token: "" })).rejects.toThrow(
++      /token/u,
++    );
 +  });
 +
 +  it("does not follow cross-origin redirects or allow a session policy to widen", async () => {
@@ -1025,16 +1082,18 @@ index b3bffaec2..bf092e822 100644
 +  });
 +});
 diff --git a/packages/agent-sandboxes/src/vnet-server.ts b/packages/agent-sandboxes/src/vnet-server.ts
-index 767370625..13b36e30e 100644
+index 767370625..c2e6751ce 100644
 --- a/packages/agent-sandboxes/src/vnet-server.ts
 +++ b/packages/agent-sandboxes/src/vnet-server.ts
-@@ -3,11 +3,14 @@
+@@ -3,11 +3,16 @@
   * WASM-hosted drivers, one cookie jar per session, redirects followed
   * relay-side. This is user-controlled infrastructure by design — it sees
   * reset traffic in plaintext, so it must never be a shared public proxy.
 - * The bearer token gates every request; request hosts must be on the
 - * session allowlist derived when the session first fetches.
-+ * The bearer token gates every request; origins are bound on first use and
++ * The bearer token grants access to all sessions: use it only among mutually
++ * trusted clients. Session IDs and cookie jars do not provide tenant isolation.
++ * Origins are bound on first use and
 + * redirects stay within the session's approved origins. DNS uses checked, pinned
 + * IPv4 addresses; loopback target access is an explicit development option.
   */
@@ -1045,7 +1104,7 @@ index 767370625..13b36e30e 100644
  import {
    type VirtualFetchRequest,
    type VirtualFetchResponse,
-@@ -18,8 +21,15 @@ export interface VirtualNetworkRelayOptions {
+@@ -18,8 +23,15 @@ export interface VirtualNetworkRelayOptions {
    port?: number;
    host?: string;
    token: string;
@@ -1062,7 +1121,7 @@ index 767370625..13b36e30e 100644
    fetchImpl?: typeof fetch;
  }
  
-@@ -29,35 +39,37 @@ export interface RunningVirtualNetworkRelay {
+@@ -29,35 +41,37 @@ export interface RunningVirtualNetworkRelay {
    close(): Promise<void>;
  }
  
@@ -1121,7 +1180,7 @@ index 767370625..13b36e30e 100644
  }
  
  function redirectTarget(
-@@ -75,8 +87,10 @@ function redirectTarget(
+@@ -75,8 +89,10 @@ function redirectTarget(
      response.status === 301 ||
      response.status === 302
    ) {
@@ -1134,7 +1193,7 @@ index 767370625..13b36e30e 100644
    }
    return next;
  }
-@@ -85,24 +99,43 @@ async function performFetch(
+@@ -85,24 +101,43 @@ async function performFetch(
    fetchImpl: typeof fetch,
    jar: CookieJar,
    allowed: ReadonlySet<string>,
@@ -1183,12 +1242,18 @@ index 767370625..13b36e30e 100644
        url = redirect.url;
        method = redirect.method;
        body = redirect.body;
-@@ -125,13 +158,20 @@ async function performFetch(
+@@ -125,13 +160,26 @@ async function performFetch(
  export async function startVirtualNetworkRelay(
    options: VirtualNetworkRelayOptions,
  ): Promise<RunningVirtualNetworkRelay> {
 -  const jars = new Map<string, CookieJar>();
 -  const pinnedHosts = new Map<string, string>();
++  const host = options.host ?? "127.0.0.1";
++  if (host !== "127.0.0.1" && host !== "::1")
++    throw new Error(
++      "virtual network: plaintext listener must bind literal loopback",
++    );
++  if (!options.token) throw new Error("virtual network: token is required");
 +  const sessions = new Map<string, Session>();
 +  const ttl = options.sessionIdleTtlMs ?? 30 * 60_000;
 +  if (!Number.isInteger(ttl) || ttl < 1 || ttl > 24 * 60 * 60_000)
@@ -1208,7 +1273,7 @@ index 767370625..13b36e30e 100644
          response.writeHead(404).end();
          return;
        }
-@@ -140,26 +180,93 @@ export async function startVirtualNetworkRelay(
+@@ -140,26 +188,93 @@ export async function startVirtualNetworkRelay(
          return;
        }
        const chunks: Buffer[] = [];
@@ -1320,8 +1385,24 @@ index 767370625..13b36e30e 100644
          response
            .writeHead(200, { "content-type": "application/json" })
            .end(JSON.stringify(result));
+@@ -173,13 +288,13 @@ export async function startVirtualNetworkRelay(
+     })();
+   });
+   await new Promise<void>((resolve) => {
+-    server.listen(options.port ?? 0, options.host ?? "127.0.0.1", resolve);
++    server.listen(options.port ?? 0, host, resolve);
+   });
+   const address = server.address();
+   const port =
+     address instanceof Object && "port" in address ? address.port : 0;
+   return {
+-    url: `http://${options.host ?? "127.0.0.1"}:${port}`,
++    url: `http://${host === "::1" ? "[::1]" : host}:${port}`,
+     port,
+     close: async () => {
+       await new Promise<void>((resolve) => server.close(() => resolve()));
 diff --git a/packages/agent-sandboxes/src/vnet.ts b/packages/agent-sandboxes/src/vnet.ts
-index 560abf43e..88b6d4fc8 100644
+index 560abf43e..181985570 100644
 --- a/packages/agent-sandboxes/src/vnet.ts
 +++ b/packages/agent-sandboxes/src/vnet.ts
 @@ -16,6 +16,8 @@ export interface VirtualFetchRequest {
@@ -1364,7 +1445,7 @@ index 560abf43e..88b6d4fc8 100644
 -  return async (request) => {
 -    const response = await fetch(endpoint, {
 +  const base = new URL(relayUrl);
-+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(base.hostname);
++  const loopback = ["127.0.0.1", "[::1]"].includes(base.hostname);
 +  if (
 +    base.username ||
 +    base.password ||
