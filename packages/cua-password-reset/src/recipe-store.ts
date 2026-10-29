@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type DiscoveryOptions, discoverResetRecipe } from "./discovery.js";
+import { approveRecipe } from "./recipe.js";
 import { type ResetRecipe, recipeSchema } from "./types.js";
 
 export interface RecipeStore {
@@ -73,4 +74,23 @@ export async function firstRunRecipe(
   const discovered = await discoverResetRecipe(options);
   await store.put(discovered);
   return discovered;
+}
+
+/**
+ * Record a ceremony, hold it for the owner's approval, and only then store
+ * it as the domain's replayable recipe. A declined candidate is never
+ * stored as approved; an existing approved recipe short-circuits discovery.
+ */
+export async function recordAndApproveRecipe(
+  store: RecipeStore,
+  options: DiscoveryOptions,
+  approve: (candidate: ResetRecipe) => boolean | Promise<boolean>,
+): Promise<ResetRecipe> {
+  const domain = new URL(options.entryUrl).hostname;
+  const existing = await store.get(domain);
+  if (existing?.review === "approved") return existing;
+  const candidate = await discoverResetRecipe(options);
+  const approved = await approveRecipe(candidate, () => approve(candidate));
+  await store.put(approved);
+  return approved;
 }

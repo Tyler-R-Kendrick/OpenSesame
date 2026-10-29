@@ -1,5 +1,9 @@
 import type { BrowserDriver } from "./agent-browser.js";
-import type { DecisionsApi } from "./decisions.js";
+import {
+  type DecisionsApi,
+  detectChallenge,
+  modelObservation,
+} from "./decisions.js";
 import {
   executeDiscoveryAction,
   finishDiscovery,
@@ -32,9 +36,10 @@ export interface DiscoveryOptions {
   maxSteps?: number;
 }
 
-export async function discoverResetRecipe(
-  options: DiscoveryOptions,
-): Promise<ResetRecipe> {
+function discoveryEntry(options: DiscoveryOptions): {
+  entry: URL;
+  maxSteps: number;
+} {
   const entry = new URL(options.entryUrl);
   if (
     !["https:", "http:"].includes(entry.protocol) ||
@@ -47,6 +52,29 @@ export async function discoverResetRecipe(
   const maxSteps = options.maxSteps ?? 40;
   if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > 80)
     throw new Error("Discovery step bound must be between 1 and 80");
+  return { entry, maxSteps };
+}
+
+function attachPostcondition(
+  steps: RecipeStep[],
+  observation: Parameters<typeof detectChallenge>[0],
+): void {
+  // A postcondition belongs to the first page after the challenge cleared,
+  // never to another handoff or wait on the challenge page itself.
+  const last = steps.at(-1);
+  if (last?.primitive !== "await-human" || last.postcondition) return;
+  if (detectChallenge(observation)) return;
+  const labels = modelObservation(observation).fields.map(
+    (field) => field.label,
+  );
+  if (labels.length > 0)
+    last.postcondition = { expectedLabels: labels.slice(0, 20) };
+}
+
+export async function discoverResetRecipe(
+  options: DiscoveryOptions,
+): Promise<ResetRecipe> {
+  const { entry, maxSteps } = discoveryEntry(options);
   const entryPath = entry.pathname;
   const steps: RecipeStep[] = [];
   options.authorize("password_reset.browser.drive");
@@ -61,6 +89,7 @@ export async function discoverResetRecipe(
       steps,
     );
     if (!decision) continue;
+    attachPostcondition(steps, observation);
     if (decision.kind === "finish")
       return recipeSchema.parse(await finishDiscovery(options, entry, steps));
     await executeDiscoveryAction(
