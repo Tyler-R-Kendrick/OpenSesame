@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: 8c8e5d2139ae2da69dcdae01930a06ebb09dc5c7
+          ref: af7ffa2b4aba5058ed7d3fccb3aaf41409dfc527
           fetch-depth: 2
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
@@ -23,8 +23,8 @@ jobs:
           node-version: 24
       - name: Verify reviewed source
         run: |
-          test "$(git rev-parse HEAD)" = 8c8e5d2139ae2da69dcdae01930a06ebb09dc5c7
-          test "$(git rev-parse HEAD^{tree})" = 17342f046695e04eebf54b6597245facca47f0f2
+          test "$(git rev-parse HEAD)" = af7ffa2b4aba5058ed7d3fccb3aaf41409dfc527
+          test "$(git rev-parse HEAD^{tree})" = f9227caf675250c6b4ab73d2ef48bc572076ab6d
           test "$(git rev-parse HEAD^)" = b315dc17837d2eadd056b1b54dc2a0b68ce19380
       - name: Install frozen dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
