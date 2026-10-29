@@ -1,0 +1,52 @@
+name: Review Host boundary validation
+on:
+  push:
+    branches: [review/quality-security-proof-v2-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/quality-security-proof-v2-20261029' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ac9a724c60e970da7a84fa49e7bd02a271194816
+          path: source
+          persist-credentials: false
+      - name: Verify reviewed source and patch
+        working-directory: source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "ac9a724c60e970da7a84fa49e7bd02a271194816"
+          echo "8000cceb1d987599b9134c2819030338b2a9fee04d06a1e59ec1d874c4b1b647  ../controller/.github/proof-input/quality-security.patch" | sha256sum --check
+          git apply --index ../controller/.github/proof-input/quality-security.patch
+          test "$(git write-tree)" = "f9661df935c591f217e0c05426ab64c66b1f3558"
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: source/pnpm-lock.yaml
+      - name: Install exact dependency graph
+        working-directory: source
+        run: pnpm install --frozen-lockfile
+      - name: Lint the changed files
+        working-directory: source
+        run: pnpm exec oxlint --config oxlint.config.ts --disable-nested-config --report-unused-disable-directives-severity=error --deny-warnings apps/pages/src/modules/ai.password-reset/host-run-schemas.ts apps/pages/src/modules/ai.password-reset/rotation-relay.ts apps/pages/src/modules/ai.password-reset/takeover-client.ts apps/pages/src/modules/ai.password-reset/takeover-client.test.ts apps/pages/src/modules/ai.password-reset/rotation-relay.test.ts
+      - name: Typecheck Pages
+        working-directory: source
+        run: pnpm --filter @opensesame/pages typecheck
+      - name: Test Host response and takeover flows
+        working-directory: source
+        run: pnpm --filter @opensesame/pages exec vitest run src/modules/ai.password-reset/takeover-client.test.ts src/modules/ai.password-reset/rotation-relay.test.ts --maxWorkers=1
+      - name: Verify candidate tree after tests
+        working-directory: source
+        run: |
+          test "$(git write-tree)" = "f9661df935c591f217e0c05426ab64c66b1f3558"
+          git diff --exit-code
