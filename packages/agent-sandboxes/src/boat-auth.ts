@@ -11,6 +11,7 @@
  */
 
 import { z } from "zod";
+import { boatClaimUrl, boatOrigin } from "./boat-endpoints.js";
 
 export interface BoatAuthOptions {
   /** Boat origin; must match the host auth.md was fetched from. */
@@ -80,11 +81,12 @@ interface IdentityBody {
 function claimFrom(
   claimToken: string,
   claim: z.infer<typeof claimBlockSchema>,
+  origin: string,
 ): BoatClaimMaterials {
   return {
     claimToken,
     userCode: claim.user_code,
-    verificationUri: claim.verification_uri,
+    verificationUri: boatClaimUrl(claim.verification_uri, origin),
     expiresIn: claim.expires_in,
     interval: claim.interval,
   };
@@ -95,7 +97,7 @@ export class BoatAgentAuth {
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: BoatAuthOptions = {}) {
-    this.origin = (options.origin ?? "https://boat.dev").replace(/\/$/u, "");
+    this.origin = boatOrigin(options.origin ?? "https://boat.dev");
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
@@ -104,6 +106,7 @@ export class BoatAgentAuth {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      redirect: "error",
     });
     const raw: unknown = await response.json().catch(() => null);
     if (!response.ok)
@@ -121,6 +124,7 @@ export class BoatAgentAuth {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
         body: form.toString(),
+        redirect: "error",
       },
     );
     const parsed = tokenResponseSchema.parse(
@@ -158,7 +162,11 @@ export class BoatAgentAuth {
     if (parsed.identity_assertion)
       registration.identityAssertion = parsed.identity_assertion;
     if (parsed.claim)
-      registration.claim = claimFrom(parsed.claim_token, parsed.claim);
+      registration.claim = claimFrom(
+        parsed.claim_token,
+        parsed.claim,
+        this.origin,
+      );
     return registration;
   }
 
@@ -172,7 +180,7 @@ export class BoatAgentAuth {
       email,
     });
     const parsed = claimResponseSchema.parse(raw);
-    return claimFrom(parsed.claim_token ?? claimToken, parsed);
+    return claimFrom(parsed.claim_token ?? claimToken, parsed, this.origin);
   }
 
   /** One claim-grant poll. Throws `BoatClaimPendingError` while waiting. */

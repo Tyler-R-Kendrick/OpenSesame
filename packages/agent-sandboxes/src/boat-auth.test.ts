@@ -52,7 +52,8 @@ function fakeAuth(responses: FakeBody[]) {
 
 const CLAIM = {
   user_code: "123456",
-  verification_uri: "https://boat.test/claim?claim_attempt_token=x",
+  verification_uri:
+    "https://boat.test/api/boat/agent/identity/claim?claim_attempt_token=x",
   expires_in: 600,
   interval: 5,
 };

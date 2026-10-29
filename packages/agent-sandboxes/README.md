@@ -14,6 +14,11 @@ lives and how its traffic reaches the site.
 | `cloudflare` | Cloudflare Browser Run session allocated over REST | `CdpBrowserDriver` over the session CDP socket |
 | `boat` | Boat cloud sandbox allocated over the Boat REST API | Relay agent inside the sandbox (`boat-agent.ts`) behind its hosted port; allocation registers the agent via auth.md when no API key is configured |
 
+Selection: the CLI bundled runtime picks a provider from the reset
+config's `runtime.provider` field (`--provider` at configure time),
+defaulting to `local`. Providers belong to the bundled runtime only;
+external runtime adapters own their browser.
+
 ## Security invariants
 
 - Provider credentials are read only at allocation time, from the
@@ -29,8 +34,10 @@ lives and how its traffic reaches the site.
   providers throw `SandboxClaimRequiredError` with only a verification
   URL and short code, so callers surface it through the existing
   human-intervention channel (notifications queue + toast).
-- Navigation is pinned to the ceremony origin host plus explicit extras
-  in every lane.
+- Hostname filters on navigation are not a network firewall. A page's
+  scripts, redirects and subrequests may reach other destinations; use an
+  independently enforced outbound policy when the site or network is not
+  trusted.
 
 ## Honest limits
 
@@ -47,5 +54,11 @@ lives and how its traffic reaches the site.
 - The Boat lane needs an operator-configured agent start command
   (`BOAT_RELAY_AGENT_COMMAND`), typically run from a saved snapshot
   with this package installed. Sandboxes are created with none of the
-  account's secrets, monitoring off, snapshots off, and are deleted
-  on close so session cookies die with the run.
+  account's secrets, monitoring off and snapshots off. Close waits for
+  Boat to confirm deletion. If it raises `BoatDeletionPendingError`, retain
+  its operation and sandbox IDs and resume with the provider's
+  `waitForDeletion`; erasure is not confirmed until that call succeeds.
+  Failed allocation can report a pending cleanup inside an `AggregateError`;
+  retain and resume that operation in the same way. If no valid deletion
+  receipt is available, `BoatDeletionUnconfirmedError` retains the sandbox ID
+  for checking cleanup with Boat.

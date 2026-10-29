@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { SANDBOX_PROVIDER_IDS } from "@opensesame/agent-sandboxes";
 import {
   type ResetRecipe,
   recipeMatches,
@@ -17,14 +18,19 @@ export { BUNDLED_LOCAL_MODULE };
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
 const https = z.url().refine((value) => {
   const url = new URL(value);
+  // Config URLs are persisted; embedded credentials must never land in
+  // the config file, so userinfo is refused outright.
+  if (url.username || url.password) return false;
   return (
     url.protocol === "https:" ||
     (url.protocol === "http:" && LOOPBACK.has(url.hostname))
   );
-}, "URL must be https (http is loopback-only)");
+}, "URL must be https (http is loopback-only) without embedded credentials");
 const runtimeSchema = z
   .object({
     module: z.string().min(1).max(512),
+    /** Browser sandbox lane for the bundled runtime; defaults to local. */
+    provider: z.enum(SANDBOX_PROVIDER_IDS).optional(),
     resource: https.optional(),
     model: z.string().min(1).max(200).optional(),
     modelBaseURL: https.optional(),
@@ -38,6 +44,13 @@ const runtimeSchema = z
   .strict()
   .superRefine((runtime, context) => {
     if (runtime.module === BUNDLED_LOCAL_MODULE) return;
+    if (runtime.provider !== undefined)
+      context.addIssue({
+        code: "custom",
+        path: ["provider"],
+        message:
+          "Sandbox providers belong to the bundled runtime; external adapters own their browser",
+      });
     for (const key of [
       "resource",
       "model",
@@ -123,6 +136,7 @@ async function configure(
     runId: command.runId,
     runtime: {
       module: command.runtimeModule,
+      provider: command.provider,
       resource: command.runtimeResource,
       model: command.model,
       modelBaseURL: command.modelBaseURL,
