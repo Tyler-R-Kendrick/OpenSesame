@@ -181,6 +181,7 @@ function publicOAuthDescriptor(
             ...options,
             resourceParameter:
               profile.mode === "google-token" ? "omit" : undefined,
+            accountOnly: profile.mode === "google-token",
           },
         )
       : publicMethod;
@@ -193,6 +194,7 @@ function publicOAuthDescriptor(
     return {
       ...nativeOAuthResourceDescriptor(preset, availability.callbackUrl, true, {
         resourceParameter: "omit",
+        accountOnly: true,
       }),
       preferredRank: 35,
     };

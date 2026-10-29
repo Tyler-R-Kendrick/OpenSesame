@@ -39,6 +39,29 @@ it("defaults M365 to omit resource while preserving its verification URL", () =>
   ).toBe("https://graph.microsoft.com/v1.0/me");
 });
 
+it("limits Google registered apps to the shared account-only contract", () => {
+  const f = preset("google-drive");
+  const profile = nativeBrowserOAuthProfile("google");
+  if (!profile) throw new Error("Missing Google profile");
+  const descriptor = nativeProviderDescriptor(f.plan, {
+    callbackUrl,
+    apiKey: { available: false },
+    oauth: { available: false, registeredAvailable: true, profile },
+    mcp: { available: false, actor: "user" },
+  });
+  const method = descriptor.methods.find((row) => row.id === "oauth");
+  expect(method?.fields.map((field) => field.id)).not.toContain(
+    "token_relay_url",
+  );
+  expect(method?.fields.map((field) => field.id)).not.toContain(
+    "resource_protocol",
+  );
+  expect(
+    method?.fields.find((field) => field.id === "resource_parameter"),
+  ).toMatchObject({ defaultValue: "omit" });
+  expect(method?.scopeGroups[0]?.requiredScopes).toEqual(["openid", "email"]);
+});
+
 it("derives standard configurable native OAuth from the actual confidential provider preset", () => {
   const f = preset();
   const descriptor = nativeProviderDescriptor(f.plan, {
@@ -108,6 +131,7 @@ it.each([
           ...configured,
           resourceParameter:
             profile.mode === "google-token" ? "omit" : undefined,
+          accountOnly: profile.mode === "google-token",
         },
       )
     : publicMethod;
