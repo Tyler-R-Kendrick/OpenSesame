@@ -8,10 +8,9 @@ import {
   reviewedResultDigest,
 } from "../lib/reviewed-codeql.mjs";
 
-// Reviewed on 660eef2b47734044b89992721059dbfd85c86b9f. Each complete
-// SARIF result is pinned, including its dataflow, locations and fingerprints.
-// Unrelated controller changes do not invalidate the reviewed source flows;
-// any changed flow, location, rule or fingerprint requires a new review.
+// Each complete result and its full candidate source inputs are pinned.
+// Updating the controller-owned review record does not change its own input
+// digest; other candidate tree changes require a fresh review for retained findings.
 // These are keyed HMACs for integrity/opaque filenames, not password hashes.
 const REVIEWED_RESULTS = new Map([
   [
@@ -24,8 +23,18 @@ const REVIEWED_RESULTS = new Map([
   ],
 ]);
 
-function reviewedResult(result, category) {
+const REVIEWED_INPUTS = JSON.parse(
+  readFileSync(
+    new URL("./codeql-reviewed-inputs.json", import.meta.url),
+    "utf8",
+  ),
+);
+
+function reviewedResult(result, category, sourceDigest) {
+  if (!/^[a-f0-9]{64}$/.test(sourceDigest)) return undefined;
   const digest = reviewedResultDigest(result);
+  const approved = REVIEWED_INPUTS[category]?.[sourceDigest];
+  if (!Array.isArray(approved) || !approved.includes(digest)) return undefined;
   if (category === "/language:javascript-typescript/")
     return REVIEWED_RESULTS.get(digest);
   if (
@@ -58,7 +67,7 @@ function assertInvocation(invocation) {
   assertNotifications(invocation.toolConfigurationNotifications ?? []);
 }
 
-function assertCodeqlRun(run) {
+function assertCodeqlRun(run, sourceDigest) {
   if (run.tool?.driver?.name !== "CodeQL" || !Array.isArray(run.results)) {
     throw new Error("Incomplete CodeQL results");
   }
@@ -68,7 +77,11 @@ function assertCodeqlRun(run) {
   for (const invocation of run.invocations) assertInvocation(invocation);
   const reviewed = [];
   for (const result of run.results) {
-    const finding = reviewedResult(result, run.automationDetails?.id);
+    const finding = reviewedResult(
+      result,
+      run.automationDetails?.id,
+      sourceDigest,
+    );
     if (!finding || reviewed.includes(finding)) {
       throw new Error(
         "CodeQL reported an unreviewed finding; review the retained SARIF",
@@ -80,7 +93,7 @@ function assertCodeqlRun(run) {
 }
 
 /** Uploading SARIF reports findings; it is not itself a passing security gate. */
-export function assertCleanCodeql(report) {
+export function assertCleanCodeql(report, sourceDigest) {
   if (
     report?.version !== "2.1.0" ||
     !Array.isArray(report.runs) ||
@@ -88,13 +101,15 @@ export function assertCleanCodeql(report) {
   ) {
     throw new Error("Missing or invalid CodeQL SARIF runs");
   }
-  const reviewed = report.runs.flatMap((run) => assertCodeqlRun(run));
+  const reviewed = report.runs.flatMap((run) =>
+    assertCodeqlRun(run, sourceDigest),
+  );
   if (new Set(reviewed).size !== reviewed.length)
     throw new Error("Duplicate CodeQL reviewed finding");
   return reviewed;
 }
 
-export function checkCodeqlDirectory(directory) {
+export function checkCodeqlDirectory(directory, sourceDigest) {
   const files = readdirSync(directory, { withFileTypes: true });
   const reports = files.filter(
     (entry) => entry.isFile() && entry.name.endsWith(".sarif"),
@@ -103,6 +118,7 @@ export function checkCodeqlDirectory(directory) {
   for (const entry of reports) {
     const reviewed = assertCleanCodeql(
       JSON.parse(readFileSync(join(directory, entry.name), "utf8")),
+      sourceDigest,
     );
     for (const finding of reviewed)
       console.log(`CodeQL reviewed disposition: ${finding}`);
