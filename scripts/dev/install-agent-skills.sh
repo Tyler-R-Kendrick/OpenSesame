@@ -63,11 +63,11 @@ if ! missing=$(node -e "
   missing=""
 fi
 if [ -n "$missing" ]; then
-  printf '%s\n' "$missing" | while IFS="$(printf '\t')" read -r name source; do
+  while IFS="$(printf '\t')" read -r name source; do
     echo "install-agent-skills: adding $name from $source (latest)"
     timeout --kill-after=15 300 npx -y "$SKILLS_CLI" add "$source" -s "$name" -a claude-code -a grok --full-depth -y </dev/null \
-      || warn "could not install optional skill $name"
-  done
+      || degrade "could not install optional skill $name"
+  done <<< "$missing"
 fi
 
 # 2. Refresh everything already installed to upstream latest.
