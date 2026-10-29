@@ -9,16 +9,29 @@
  */
 
 import { z } from "zod";
+import { requestBoatDeletion, waitForBoatDeletion } from "./boat-deletion.js";
+import { boatCheckoutUrl, boatOrigin } from "./boat-endpoints.js";
+import { boatApiError } from "./boat-error.js";
+export { BoatApiError } from "./boat-error.js";
+export {
+  BoatDeletionPendingError,
+  BoatDeletionUnconfirmedError,
+} from "./boat-deletion.js";
 
 export interface BoatClientOptions {
   /** Boat origin; staging and self-hosted control planes differ. */
   origin?: string;
   fetchImpl?: typeof fetch;
+  /** Maximum time to wait for Boat's asynchronous data deletion. */
+  deletionTimeoutMs?: number;
+  deletionRequestTimeoutMs?: number;
+  deletionPollIntervalMs?: number;
 }
 
 export interface BoatSandbox {
   id: string;
   state: string;
+  url?: string | null | undefined;
 }
 
 export interface CreateSandboxInput {
@@ -63,6 +76,7 @@ const boatJsonValueSchema: z.ZodType<BoatJsonValue> = z.lazy(() =>
 const sandboxSchema = z.object({
   id: z.string(),
   state: z.string(),
+  url: z.string().nullable().optional(),
 });
 
 const createSandboxResponseSchema = z.object({
@@ -96,32 +110,10 @@ const checkoutResponseSchema = z.object({ url: z.string() });
 const hostPortResponseSchema = z.object({
   ok: z.literal(true),
   url: z.string(),
+  port: z.number().int(),
+  isProtected: z.literal(true),
+  access: z.literal("private"),
 });
-
-const errorEnvelopeSchema = z.object({
-  ok: z.literal(false),
-  code: z.string().optional(),
-  message: z.string().optional(),
-  error: z
-    .object({
-      code: z.string().optional(),
-      message: z.string().optional(),
-    })
-    .optional(),
-});
-
-/** A Boat API error with its stable machine-readable code. */
-export class BoatApiError extends Error {
-  readonly code: string;
-  readonly status: number;
-
-  constructor(input: { code: string; status: number; message: string }) {
-    super(`boat: ${input.message} (${input.code})`);
-    this.name = "BoatApiError";
-    this.code = input.code;
-    this.status = input.status;
-  }
-}
 
 interface RequestOptions {
   method: string;
@@ -129,6 +121,7 @@ interface RequestOptions {
   accessToken: string;
   body?: CreateSandboxBody | CommandBody | HostPortBody;
   idempotencyKey?: string;
+  signal?: AbortSignal;
 }
 
 interface CreateSandboxBody {
@@ -157,6 +150,7 @@ type BoatRequestHeaders = {
   authorization: string;
   "content-type": string;
   "idempotency-key"?: string;
+  "x-ascii-confirm-delete"?: string;
 };
 
 export interface RunCommandOptions {
@@ -166,10 +160,28 @@ export interface RunCommandOptions {
 export class BoatClient {
   private readonly origin: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly deletionTimeoutMs: number;
+  private readonly deletionRequestTimeoutMs: number;
+  private readonly deletionPollIntervalMs: number;
 
   constructor(options: BoatClientOptions = {}) {
-    this.origin = (options.origin ?? "https://boat.dev").replace(/\/$/u, "");
+    this.origin = boatOrigin(options.origin ?? "https://boat.dev");
     this.fetchImpl = options.fetchImpl ?? fetch;
+    this.deletionTimeoutMs = options.deletionTimeoutMs ?? 30_000;
+    this.deletionRequestTimeoutMs = options.deletionRequestTimeoutMs ?? 10_000;
+    this.deletionPollIntervalMs = options.deletionPollIntervalMs ?? 1_000;
+    if (
+      !Number.isInteger(this.deletionTimeoutMs) ||
+      this.deletionTimeoutMs < 0 ||
+      this.deletionTimeoutMs > 86_400_000 ||
+      !Number.isInteger(this.deletionRequestTimeoutMs) ||
+      this.deletionRequestTimeoutMs < 1 ||
+      this.deletionRequestTimeoutMs > 86_400_000 ||
+      !Number.isInteger(this.deletionPollIntervalMs) ||
+      this.deletionPollIntervalMs < 1 ||
+      this.deletionPollIntervalMs > 86_400_000
+    )
+      throw new Error("boat: invalid deletion polling settings");
   }
 
   get apiOrigin(): string {
@@ -183,7 +195,18 @@ export class BoatClient {
     };
     if (options.idempotencyKey)
       headers["idempotency-key"] = options.idempotencyKey;
-    const init: RequestInit = { method: options.method, headers };
+    if (options.method === "DELETE") {
+      const id = options.path.split("/").at(-1) ?? "";
+      if (!/^bx_[23456789abcdefghjkmnpqrstuvwxyz]{8}$/u.test(id))
+        throw new Error("boat: invalid sandbox id");
+      headers["x-ascii-confirm-delete"] = id;
+    }
+    const init: RequestInit = {
+      method: options.method,
+      headers,
+      redirect: "error",
+    };
+    if (options.signal) init.signal = options.signal;
     if (options.body !== undefined) init.body = JSON.stringify(options.body);
     const response = await this.fetchImpl(
       `${this.origin}/api/v1${options.path}`,
@@ -192,18 +215,7 @@ export class BoatClient {
     const raw = boatJsonValueSchema.parse(
       await response.json().catch(() => null),
     );
-    if (!response.ok) {
-      const parsed = errorEnvelopeSchema.safeParse(raw);
-      const code =
-        (parsed.success
-          ? (parsed.data.code ?? parsed.data.error?.code)
-          : undefined) ?? `http_${response.status}`;
-      const message =
-        (parsed.success
-          ? (parsed.data.message ?? parsed.data.error?.message)
-          : undefined) ?? `HTTP ${response.status}`;
-      throw new BoatApiError({ code, status: response.status, message });
-    }
+    if (!response.ok) throw boatApiError(raw, response.status);
     return raw;
   }
 
@@ -242,7 +254,10 @@ export class BoatClient {
       path: `/sandboxes/${encodeURIComponent(sandboxId)}`,
       accessToken,
     });
-    return getSandboxResponseSchema.parse(raw).sandbox;
+    const sandbox = getSandboxResponseSchema.parse(raw).sandbox;
+    if (sandbox.id !== sandboxId)
+      throw new Error("boat: sandbox identity mismatch");
+    return sandbox;
   }
 
   async resumeSandbox(accessToken: string, sandboxId: string): Promise<void> {
@@ -304,7 +319,9 @@ export class BoatClient {
       accessToken,
       body: { port, localhost: true },
     });
-    return hostPortResponseSchema.parse(raw).url;
+    const hosted = hostPortResponseSchema.parse(raw);
+    if (hosted.port !== port) throw new Error("boat: hosted port mismatch");
+    return hosted.url;
   }
 
   async stopSandbox(accessToken: string, sandboxId: string): Promise<void> {
@@ -329,20 +346,53 @@ export class BoatClient {
           "content-type": "application/json",
         },
         body: JSON.stringify({ kind: "subscription" }),
+        redirect: "error",
       },
     );
     if (!response.ok)
       throw new Error(
         `boat: checkout request failed (HTTP ${response.status})`,
       );
-    return checkoutResponseSchema.parse(await response.json()).url;
+    return boatCheckoutUrl(
+      checkoutResponseSchema.parse(await response.json()).url,
+      this.origin,
+    );
   }
 
   async deleteSandbox(accessToken: string, sandboxId: string): Promise<void> {
-    await this.request({
-      method: "DELETE",
-      path: `/sandboxes/${encodeURIComponent(sandboxId)}`,
-      accessToken,
-    });
+    const accepted = await requestBoatDeletion(
+      sandboxId,
+      this.deletionRequestTimeoutMs,
+      (signal) =>
+        this.request({
+          method: "DELETE",
+          path: `/sandboxes/${encodeURIComponent(sandboxId)}`,
+          accessToken,
+          signal,
+        }),
+    );
+    if (accepted.status === "completed") return;
+    await this.waitForDeletion(accessToken, sandboxId, accepted.id);
+  }
+
+  /** Resume checking an accepted deletion after BoatDeletionPendingError. */
+  async waitForDeletion(
+    accessToken: string,
+    sandboxId: string,
+    operationId: string,
+  ): Promise<void> {
+    await waitForBoatDeletion(
+      sandboxId,
+      operationId,
+      this.deletionTimeoutMs,
+      this.deletionPollIntervalMs,
+      (id, signal) =>
+        this.request({
+          method: "GET",
+          path: `/deletion-operations/${id}`,
+          accessToken,
+          signal,
+        }),
+    );
   }
 }
