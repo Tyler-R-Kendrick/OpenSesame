@@ -6,7 +6,11 @@
  */
 
 import type { CdpConnection } from "./cdp-connection.js";
-import { CdpBrowserDriver, type CdpDriverOptions } from "./cdp-driver.js";
+import {
+  CdpBrowserDriver,
+  type CdpDriverOptions,
+  requireSafeCdpBrowser,
+} from "./cdp-driver.js";
 import { connectCdp } from "./cdp-node-socket.js";
 import {
   CloudflareBrowserRunClient,
@@ -55,6 +59,7 @@ export class CloudflareSandboxProvider implements SandboxProvider {
   constructor(private readonly options: CloudflareProviderOptions = {}) {}
 
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
+    requireSafeCdpBrowser();
     const { allowedDomains } = allowedDomainsFor(request);
     const client = clientFrom(this.options);
     const session = await client.createSession(allowedDomains);
