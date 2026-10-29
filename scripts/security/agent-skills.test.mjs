@@ -194,7 +194,7 @@ test("shared Impeccable launcher retains Claude-specific reference directory", (
   assert.equal(output, join(root, ".claude/skills/impeccable"));
 });
 
-test("sync removes a stale mirror of an uninstalled optional skill", (t) => {
+test("sync preserves a personal mirror of an uninstalled optional skill", (t) => {
   const f = fixture(t);
   writeProfiles(f, {
     core: { skills: [] },
@@ -203,7 +203,25 @@ test("sync removes a stale mirror of an uninstalled optional skill", (t) => {
   f.put(".claude/skills/opt-example/SKILL.md", "# Stale\n");
   assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
   syncAgentSkills(f.root);
-  assert.equal(existsSync(join(f.root, ".claude/skills/opt-example")), false);
+  assert.equal(
+    readFileSync(join(f.root, ".claude/skills/opt-example/SKILL.md"), "utf8"),
+    "# Stale\n",
+  );
+});
+
+test("sync preserves a dangling personal symlink under an external mirror root", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  const external = mkdtempSync(join(tmpdir(), "opensesame-external-skills-"));
+  t.after(() => rmSync(external, { recursive: true, force: true }));
+  mkdirSync(join(f.root, ".claude"), { recursive: true });
+  symlinkSync(external, join(f.root, ".claude/skills"), "dir");
+  symlinkSync("personal-target", join(external, "opt-example"), "dir");
+  syncAgentSkills(f.root);
+  assert.equal(lstatSync(join(external, "opt-example")).isSymbolicLink(), true);
 });
 
 test("sync prunes dangling mirror links left by an upstream removal", (t) => {
