@@ -1,31 +1,16 @@
 import { describe, expect, it } from "vitest";
-import {
-  CdpConnection,
-  type CdpJsonValue,
-  type CdpParams,
-  type CdpSocket,
-} from "./cdp-connection.js";
+import { CdpConnection, type CdpSocket } from "./cdp-connection.js";
 import { CdpBrowserDriver } from "./cdp-driver.js";
 
-interface SentMessage {
-  id: number;
-  method: string;
-  params?: CdpParams;
-  sessionId?: string;
-}
-
-function fakeCdp(responder: (message: SentMessage) => CdpJsonValue) {
-  const sent: SentMessage[] = [];
-  let onMessage: ((data: string) => void) | null = null;
+function fakeCdp() {
+  const sent: string[] = [];
+  let onMessage: ((data: string) => void) | undefined;
   const socket: CdpSocket = {
     send: (data) => {
-      // SAFETY: checked at the socket boundary: the only sender is CdpConnection.call, which serializes CdpRequestMessage objects of exactly this shape.
-      const message = JSON.parse(data) as SentMessage;
-      sent.push(message);
-      const result = responder(message);
-      queueMicrotask(() => {
-        onMessage?.(JSON.stringify({ id: message.id, result }));
-      });
+      sent.push(data);
+      queueMicrotask(() =>
+        onMessage?.(JSON.stringify({ id: 1, result: { ok: true } })),
+      );
     },
     close: () => {},
     onMessage: (listener) => {
@@ -36,76 +21,58 @@ function fakeCdp(responder: (message: SentMessage) => CdpJsonValue) {
   return { socket, sent };
 }
 
-function evaluateValue(message: SentMessage): CdpJsonValue {
-  const expression = String(message.params?.expression ?? "");
-  if (expression.includes("__opensesameRefs") && expression.includes("fields"))
-    return {
-      result: {
-        value: {
-          url: "https://accounts.example.test/reset",
-          text: "CAPTCHA verify you are human",
-          fields: [{ ref: "e1", kind: "password", label: "New password" }],
-        },
-      },
-    };
-  if (expression === "location.href")
-    return { result: { value: "https://accounts.example.test/reset" } };
-  if (expression === "document.readyState")
-    return { result: { value: "complete" } };
-  return { result: { value: true } };
-}
-
-describe("CdpBrowserDriver", () => {
-  it("attaches flat, snapshots, and keeps secrets out of JS source", async () => {
-    const { socket, sent } = fakeCdp((message) => {
-      switch (message.method) {
-        case "Target.createTarget":
-          return { targetId: "target-1" };
-        case "Target.attachToTarget":
-          return { sessionId: "session-1" };
-        case "Runtime.evaluate":
-          return evaluateValue(message);
-        default:
-          return {};
-      }
+describe("CDP browser containment", () => {
+  it("keeps the low-level CDP transport available for trusted callers", async () => {
+    const { socket, sent } = fakeCdp();
+    const connection = new CdpConnection(socket);
+    await expect(connection.call("Browser.getVersion")).resolves.toEqual({
+      ok: true,
     });
-    const driver = await CdpBrowserDriver.connect(new CdpConnection(socket), {
-      allowedDomains: ["accounts.example.test"],
-    });
-    const snapshot = await driver.snapshot();
-    expect(snapshot.fields).toContainEqual({
-      ref: "e2",
-      kind: "static",
-      label: "CAPTCHA verify you are human",
-    });
-    await driver.fillSecret("e1", "cdp-secret-value");
-    const evaluations = sent.filter((m) => m.method === "Runtime.evaluate");
-    expect(
-      evaluations.some((m) =>
-        String(m.params?.expression ?? "").includes("cdp-secret-value"),
-      ),
-    ).toBe(false);
-    const insert = sent.find((m) => m.method === "Input.insertText");
-    expect(insert?.params?.text).toBe("cdp-secret-value");
-    expect(insert?.sessionId).toBe("session-1");
-    await driver.close();
-    expect(sent.some((m) => m.method === "Target.closeTarget")).toBe(true);
+    expect(sent).toHaveLength(1);
   });
 
-  it("refuses navigation outside the allowlist without sending it", async () => {
-    const { socket, sent } = fakeCdp((message) => {
-      if (message.method === "Target.createTarget")
-        return { targetId: "target-1" };
-      if (message.method === "Target.attachToTarget")
-        return { sessionId: "session-1" };
-      return {};
-    });
-    const driver = await CdpBrowserDriver.connect(new CdpConnection(socket), {
-      allowedDomains: ["accounts.example.test"],
-    });
-    await expect(driver.open("https://evil.example.test/")).rejects.toThrow(
-      "approved domains",
+  it("rejects direct and normal construction before sending any CDP command", async () => {
+    const { socket, sent } = fakeCdp();
+    const connection = new CdpConnection(socket);
+    const options = { allowedDomains: ["accounts.example.test"] };
+    await expect(CdpBrowserDriver.connect(connection, options)).rejects.toThrow(
+      "temporarily unavailable",
     );
-    expect(sent.some((m) => m.method === "Page.navigate")).toBe(false);
+    expect(() =>
+      Reflect.construct(CdpBrowserDriver, [connection, options]),
+    ).toThrow("temporarily unavailable");
+    expect(sent).toEqual([]);
+  });
+
+  it("rejects forged driver methods before sending URLs or secret values", async () => {
+    const { socket, sent } = fakeCdp();
+    const connection = new CdpConnection(socket);
+    const driver: CdpBrowserDriver = Object.create(CdpBrowserDriver.prototype);
+    Object.assign(driver, {
+      connection,
+      options: { allowedDomains: ["accounts.example.test"] },
+      sessionId: "session-1",
+      targetId: "target-1",
+    });
+    await expect(
+      driver.open("https://accounts.example.test/reset?token=canary"),
+    ).rejects.toThrow("temporarily unavailable");
+    await expect(driver.snapshot()).rejects.toThrow("temporarily unavailable");
+    await expect(driver.click("e1")).rejects.toThrow("temporarily unavailable");
+    await expect(driver.fill("e1", "secret-canary")).rejects.toThrow(
+      "temporarily unavailable",
+    );
+    await expect(driver.fillSecret("e1", "secret-canary")).rejects.toThrow(
+      "temporarily unavailable",
+    );
+    await expect(driver.pageUrl()).rejects.toThrow("temporarily unavailable");
+    await expect(driver.close()).rejects.toThrow("temporarily unavailable");
+    await expect(
+      Reflect.apply(Reflect.get(driver, "evaluate"), driver, [
+        "secret-canary",
+        undefined,
+      ]),
+    ).rejects.toThrow("temporarily unavailable");
+    expect(sent).toEqual([]);
   });
 });
