@@ -13,7 +13,7 @@ jobs:
       OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
       VITE_BASE: /OpenSesame/
       PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-      PAGES_VERIFY_OUT: ${{ runner.temp }}/docs2199-mobile
+      PAGES_VERIFY_OUT: ${{ github.workspace }}/work/docs2199-mobile
     steps:
       - name: Checkout exact base
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
