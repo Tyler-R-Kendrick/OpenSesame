@@ -11,10 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: bab988874b93af62eff4f9716308f30a787634d1
+          ref: 9638640e2688dff59ccc430bf2dd3517f6a8722f
           persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 22
           package-manager-cache: false
+      - run: npx --yes @biomejs/biome@1.9.4 check scripts/security/install-agent-skills-status.test.mjs
       - run: node --test scripts/security/install-agent-skills-status.test.mjs
