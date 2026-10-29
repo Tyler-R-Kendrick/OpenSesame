@@ -71,8 +71,10 @@ mutants.out.old/
 !.claude/settings.json
 !.claude/hooks/
 !.claude/hooks/**
-!.claude/agents/
-!.claude/agents/**
+# impeccable also installs into .github (Copilot) roots: install output too.
+.github/skills/
+.github/agents/
+.github/hooks/
 .codex/*
 !.codex/config.toml
 !.codex/hooks.json

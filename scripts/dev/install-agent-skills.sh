@@ -34,7 +34,7 @@ missing=$(node -e "
 if [ -n "$missing" ]; then
   printf '%s\n' "$missing" | while IFS="$(printf '\t')" read -r name source; do
     echo "install-agent-skills: adding $name from $source"
-    timeout 300 npx -y skills add "$source" -s "$name" -a '*' -y </dev/null \
+    timeout 300 npx -y skills add "$source" -s "$name" -a '*' --full-depth -y </dev/null \
       || warn "could not install optional skill $name"
   done
 fi
@@ -66,5 +66,11 @@ for f in .agents/skills/scandinavian-design/scripts/density.js \
   fi
 done
 
-# 6. Whatever mirrors the installers materialized must satisfy the checker.
+# 6. Installers materialize real copies in harness mirrors; collapse them
+#    to links, then restore tracked adapters/lock that installers rewrite
+#    (impeccable refreshes .codex/hooks.json entries; the skills CLI rewrites
+#    lock hashes when upstream drifts). Tracked versions win; refresh them
+#    in reviewed commits, never as an install side effect.
+node scripts/dev/sync-agent-skills.mjs || warn "skill mirror sync reported problems"
+git checkout -- .codex/hooks.json .claude/settings.json skills-lock.json 2>/dev/null || true
 node scripts/dev/sync-agent-skills.mjs --check
