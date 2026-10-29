@@ -1,0 +1,62 @@
+name: Review MCP scope and rotation retention
+on:
+  push:
+    branches: [review/2241-mcp-rotation-proof-v11-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-mcp-rotation-proof-v11-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: 178353da4e8bd90b90ffb8f6462403d37b5e19e9
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify source and candidate
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 178353da4e8bd90b90ffb8f6462403d37b5e19e9
+          test "$(git rev-parse HEAD^{tree})" = 2634a24940450a86353003281f7b693fb2635201
+          printf '%s  %s\n' 0853b8bfb2726fab5915111830512d1979bdd25191d2a6e5c69fa203f1b24c23 ../controller/.github/verify-inputs/2241-mcp-rotation.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2241-mcp-rotation.patch
+          test "$(git write-tree)" = cc3acc4cea570f50d614c34d8726a69d13096abd
+          git diff --exit-code
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check affected formatting and types
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/native-mcp-mutation-lock.ts packages/app-core/src/lib/native-mcp-mutation-lock.test.ts packages/app-core/src/lib/native-mcp-session.ts packages/app-core/src/lib/native-mcp-proof.ts packages/app-core/src/lib/native-mcp-refresh.ts packages/app-core/src/lib/native-mcp-connectors.test-support.ts packages/app-core/src/lib/native-mcp-connectors.test.ts packages/app-core/src/lib/native-mcp-token-receipt.ts packages/app-core/src/lib/native-mcp-oauth.ts packages/app-core/src/lib/native-mcp-authorization.ts packages/app-core/src/lib/native-mcp-cleanup.ts packages/app-core/src/lib/native-mcp-attestation.ts packages/app-core/src/lib/native-mcp-partial-refresh.ts packages/app-core/src/lib/native-mcp-scope-recovery.test.ts packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts
+          pnpm lint:anti-slop:files packages/app-core/src/lib/native-mcp-mutation-lock.ts packages/app-core/src/lib/native-mcp-mutation-lock.test.ts packages/app-core/src/lib/native-mcp-attestation.ts packages/app-core/src/lib/native-mcp-authorization.ts packages/app-core/src/lib/native-mcp-cleanup.ts packages/app-core/src/lib/native-mcp-connectors.test-support.ts packages/app-core/src/lib/native-mcp-oauth.ts packages/app-core/src/lib/native-mcp-partial-refresh.ts packages/app-core/src/lib/native-mcp-proof.ts packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts packages/app-core/src/lib/native-mcp-refresh.ts packages/app-core/src/lib/native-mcp-scope-recovery.test.ts packages/app-core/src/lib/native-mcp-session.ts packages/app-core/src/lib/native-mcp-token-receipt.ts
+          pnpm --filter @opensesame/app-core typecheck
+      - name: Exercise MCP authorization, refresh and cleanup
+        working-directory: candidate
+        run: pnpm --filter @opensesame/app-core exec vitest run src/lib/native-mcp-mutation-lock.test.ts src/lib/native-mcp-connectors.test.ts src/lib/native-mcp-scope-recovery.test.ts src/lib/native-mcp-refresh-recovery.test.ts src/lib/native-mcp-oauth.test.ts src/lib/native-mcp-registration-cleanup.test.ts src/lib/native-mcp-registration-retention.test.ts
+
+      - name: Check structural quality
+        working-directory: candidate
+        run: pnpm quality:gate
+      - name: Check candidate unchanged
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 178353da4e8bd90b90ffb8f6462403d37b5e19e9
+          test "$(git write-tree)" = cc3acc4cea570f50d614c34d8726a69d13096abd
+          git diff --exit-code
