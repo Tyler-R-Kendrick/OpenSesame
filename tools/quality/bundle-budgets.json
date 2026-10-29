@@ -303,12 +303,14 @@
         "2026-10-24: javascript 7370->7594 and javascriptGzip 2235->2341 when landing the 35-PR batch (#1995): the npm group bump (#1988) and the landed feature stack. CI on 5c5f31050 measures 7590/2337 KiB; the hardened profiles attribute about 100 KiB of raw JavaScript growth to this batch over main at f0d5b499b (3749294 -> 3851668 bytes there), and main's own growth since these ceilings were set on 2026-10-18 was never measured because its Bundle budgets job failed at build:profile before the size gate. The ceilings keep four kibibytes over the measurement. Nothing here reaches the boot path that did not already; the entry chunk is 13 bytes smaller than main's.",
         "2026-10-26: javascriptGzip 2341->2344 for the configured public OIDC browser carrier, shared custom endpoints, and complete failure retirement (#2176-#2185). Actual signed production build 6a6989ca measures 2,399,760 gzipped JavaScript bytes across 248 JS/MJS files, versus 2,397,677 at 91cac9d3 (+2,083 bytes). Set only this normal-app ceiling to the rounded measured minimum, with no extra headroom. Other normal limits and all hardened-profile limits remain unchanged. The hoist_funs experiment increased eligible gzip and was rejected; no minifier or ownership setting changed.",
         "2026-10-27: javascriptGzip 2344->2349 for vault rotation password-reset UX (#2211): the always-on vault-ui seam, rotation panel hook and row decorations that call through it, installed from the ai.password-reset module. CI on cfe94d7 measures 2345 KiB gzip; the ceiling keeps four kibibytes over the measurement.",
-        "2026-10-29: javascriptGzip 2349->2355 for the browser takeover route (#2224): the TakeoverPanel and its Host takeover client ride the ai.password-reset capability chunk behind /runs/:runId, reached from the parked-run notice. CI on 56c43e1 measures 2351 KiB gzip (javascript 7588 stays inside 7594); the ceiling keeps four kibibytes over the measurement."
+        "2026-10-29: javascript 7594->7600 for the connector configuration contracts and a denser large-catalog dictionary. CI on 7b0042f measures 7600/2349 KiB raw/gzip; the dictionary trades six KiB of raw source for one KiB less compressed JavaScript, so only the raw ceiling moves to the measured value. Total, CSS, largest-asset and hardened-profile ceilings are unchanged.",
+        "2026-10-29: javascript 7600->7602 for enforcing the Google account-only configuration and issued-scope guards in the real OAuth lifecycle. CI on 8a0a213 measures 7602/2349 KiB raw/gzip; only the raw ceiling moves to the measured value, with total, CSS, largest-asset and hardened-profile ceilings unchanged.",
+        "2026-10-29: javascript 7602->7610 and javascriptGzip 2349->2351 after landing the takeover route and the account-only OAuth guards. CI on 2a35963 measures 7610/2351 KiB raw/gzip; the ceilings move only to the combined measured values, with total, CSS, largest-asset and hardened-profile ceilings unchanged."
       ],
       "budgets": {
         "total": 21050,
-        "javascript": 7594,
-        "javascriptGzip": 2355,
+        "javascript": 7610,
+        "javascriptGzip": 2351,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",

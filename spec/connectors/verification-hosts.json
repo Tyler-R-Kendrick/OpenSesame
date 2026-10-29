@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "providers": {
+    "algolia": {
+      "host_suffixes": ["algolia.net"]
+    },
+    "bamboohr": {
+      "host_suffixes": ["bamboohr.com"]
+    },
+    "n8n": {
+      "host_suffixes": ["app.n8n.cloud"]
+    }
+  }
+}

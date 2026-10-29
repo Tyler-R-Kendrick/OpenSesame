@@ -12,6 +12,9 @@ export type VerifyTarget = {
   success?: { field: string; equals: string | number | boolean | null }[];
   requiredFields?: string[];
   errorFields?: string[];
+  hostSuffixes?: readonly string[];
+  unbound?: boolean;
+  proofDisabled?: boolean;
 };
 
 export const VERIFY_TARGETS: Readonly<
@@ -21,3 +24,6 @@ export const VERIFY_TARGETS: Readonly<
   >
 >;
 export const VERIFY_HOSTS: Readonly<Record<string, string>>;
+export const VERIFY_OAUTH_ALIAS_HOSTS: Readonly<
+  Record<string, readonly string[]>
+>;

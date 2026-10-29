@@ -4,7 +4,11 @@ import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-lab
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { connectionRouteProvider } from "@opensesame/app-core/sections/connections/provider-route.js";
 import { describe, expect, it } from "vitest";
-import { API_FAMILIES, apiFamilyFor } from "./catalog-families.js";
+import {
+  API_FAMILIES,
+  apiFamilyFor,
+  apiFamilyOptions,
+} from "./catalog-families.js";
 import {
   catalogAuthMethods,
   catalogTags,
@@ -93,6 +97,12 @@ describe("the curated Connections list", () => {
     expect(ids).not.toContain("whoop");
     expect(ids).not.toContain("password-store");
     expect(ids).not.toContain("github-app");
+  });
+
+  it("does not alias providers whose canonical ID is undefined", () => {
+    const options = apiFamilyOptions(providers, apiFamilyFor("m365"));
+    expect(options.length).toBeGreaterThan(0);
+    expect(options.map((option) => option.label)).not.toContain("Adobe");
   });
 
   it("shows one family tile and hides its member APIs", () => {

@@ -78,6 +78,7 @@ function templateParams(row) {
     ...param,
     required: param.required !== false,
     secret: param.secret === true,
+    defaultValue: param.default_value,
   }));
 }
 
@@ -155,6 +156,7 @@ function oauthPreset(row) {
     revocationEndpoint: row.revocation_endpoint ?? null,
     userinfoEndpoint: row.userinfo_endpoint ?? null,
     tokenAuth: row.token_endpoint_auth_method,
+    resourceParameter: row.resource_parameter,
     pkce: row.pkce,
     authorizationParams: row.authorization_params ?? {},
     scopes: (row.scopes ?? []).map((scope) => ({

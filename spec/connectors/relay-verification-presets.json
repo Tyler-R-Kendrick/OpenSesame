@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "oauth": [
+    {
+      "service": "origin",
+      "server_url": "https://api.cursor.com",
+      "authorization_endpoint": "https://cursor.com/codebase/apps/install",
+      "token_endpoint": "https://api.cursor.com/v1/origin/app/installations/access_tokens",
+      "legacy_server_urls": ["https://cursor.com", "https://api.cursor.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.cursor.com/v1/origin/rate_limit",
+        "account_field": null,
+        "required_fields": [
+          "resources.core.limit",
+          "resources.core.remaining",
+          "resources.core.reset",
+          "resources.core.used"
+        ]
+      }
+    }
+  ],
+  "api_key": []
+}
