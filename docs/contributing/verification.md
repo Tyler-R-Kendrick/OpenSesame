@@ -95,4 +95,3 @@ candidate builds and publication stay GitHub-hosted. See
 [ADR 0215](../adr/0215-trunk-builds-only.md) for the build-only trunk contract.
 
 Host the work itself as §9 describes: a copy-on-write worktree, a workflow swarm, stacked pull requests, a disk check after every commit, verified commits. Detail: [shipping](shipping.md).
-

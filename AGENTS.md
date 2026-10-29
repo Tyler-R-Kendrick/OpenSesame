@@ -40,7 +40,7 @@ pnpm verify        # full local gate: lint, anti-slop, quality, tests
 pnpm docs:index    # regenerate ADR/audit/evidence indexes after docs changes
 ```
 
-Before pushing: `pnpm lint && pnpm quality && pnpm typecheck && pnpm test` (see §8). Schema generation is deliberate — see [getting started](docs/getting-started/README.md), not a root shortcut.
+Before pushing: `pnpm setup:hooks` (see §8); run focused tests for changed behavior. Schema generation is deliberate — see [getting started](docs/getting-started/README.md), not a root shortcut.
 
 ## 4. Layout map
 
@@ -99,7 +99,7 @@ External/model-based security checkers supplement, never replace, `pnpm audit:*`
 
 ## 7. Skills
 
-Skills are canonical in `skills/*/SKILL.md`, mirrored through `.agents/skills/`; tiers are defined in `skills/profiles.json` (core first-party required, optional profiles may be absent). Third-party skills are gitignored install output installed/refreshed to latest (unpinned) by `scripts/dev/install-agent-skills.sh` (`pnpm skills:install`, devcontainer post-start) per the `skills-lock.json` catalogue — never stage installed trees. Sync with `scripts/dev/sync-agent-skills.mjs` (and its `--check`), never by multi-target copy. Routing index: [skills](docs/contributing/skills.md). Personal user-scope setup: [agent setup](docs/contributing/agent-setup.md).
+Skills are canonical in `skills/*/SKILL.md`, mirrored through `.agents/skills/`; tiers are defined in `skills/profiles.json` (core first-party required, optional profiles may be absent). Third-party skills are gitignored install output installed from a pinned, previously tracked repository snapshot by `scripts/dev/install-agent-skills.sh` (`pnpm skills:install`, devcontainer post-start) according to `skills/profiles.json` — never stage installed trees. Sync with `scripts/dev/sync-agent-skills.mjs` (and its `--check`), never by multi-target copy. Routing index: [skills](docs/contributing/skills.md). Personal user-scope setup: [agent setup](docs/contributing/agent-setup.md).
 
 ## 8. Verification expectations
 

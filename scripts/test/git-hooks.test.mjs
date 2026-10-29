@@ -115,11 +115,16 @@ test("Rust lint catches committed and working-tree changes before push", (t) => 
 });
 
 test("toolchain and Cargo configuration changes receive commit-time Rust lint", (t) => {
-  const result = fixture(t).run("pre-commit", {
-    HOOK_STAGED_PATHS: "rust-toolchain.toml\n.cargo/config.toml\n",
-  });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.commands, /pnpm audit:clippy\n/);
+  for (const path of [
+    "rust-toolchain",
+    "rust-toolchain.toml",
+    ".cargo/config.toml",
+    "scripts/audit/clippy-gate.sh",
+  ]) {
+    const result = fixture(t).run("pre-commit", { HOOK_STAGED_PATHS: path });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.commands, /pnpm audit:clippy\n/, path);
+  }
 });
 
 test("a failed static check or unreadable diff stops the push", (t) => {
