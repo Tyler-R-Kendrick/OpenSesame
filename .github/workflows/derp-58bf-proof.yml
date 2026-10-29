@@ -1,0 +1,45 @@
+name: DERP and Vite exact native proof
+on:
+  push:
+    branches: [review/2242-proof-58bf-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2242-proof-58bf-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 0f39b72eb8a3b3e5c4eea0ea0ca7a0a40b8d6dc6
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Verify exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 0f39b72eb8a3b3e5c4eea0ea0ca7a0a40b8d6dc6
+          test "$(git rev-parse HEAD^{tree})" = 0442c71e5df1355848c3756a249d68bac5af6fdf
+          test "$(git rev-parse HEAD^)" = 58bf4a5beabbf4caa78c1a771670deb6f14f0fb1
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Install frozen graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify SARIF source mapping
+        run: node --test scripts/security/map-composed-go-sarif.test.mjs scripts/security/map-composed-go-sarif-uri.test.mjs
+      - name: Build and verify exact native distribution
+        run: node --input-type=module -e 'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
+      - name: Test packaged artifacts
+        run: pnpm exec vitest run apps/pages/scripts/tailscale-wasm-assets.test.mjs
+      - name: Check unchanged source
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 0442c71e5df1355848c3756a249d68bac5af6fdf
+          git diff --exit-code
+          git diff --cached --exit-code
