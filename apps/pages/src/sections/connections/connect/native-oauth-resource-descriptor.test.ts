@@ -1,5 +1,7 @@
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
+import { GOOGLE_ACCOUNT_POLICY } from "@opensesame/app-core/lib/native-google-account-policy.generated.js";
+import { normalizeGoogleDriveAccountScopes } from "@opensesame/app-core/lib/native-google-drive-account.js";
 import { configuredNativeOAuthPreset } from "@opensesame/app-core/lib/native-oauth-resource-preset.js";
 import { expect, it } from "vitest";
 import { nativeOAuthClientConfigured } from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
@@ -11,6 +13,7 @@ import {
 import {
   nativeFieldValues,
   nativeNextValues,
+  nativeScopeDefaults,
   nativeVisibleFields,
 } from "./native-connector-ui-values.js";
 import { nativeUiView } from "./native-connector-ui.test-support.js";
@@ -60,6 +63,29 @@ it("limits Google registered apps to the shared account-only contract", () => {
     method?.fields.find((field) => field.id === "resource_parameter"),
   ).toMatchObject({ defaultValue: "omit" });
   expect(method?.scopeGroups[0]?.requiredScopes).toEqual(["openid", "email"]);
+});
+
+it("keeps combined Google public and registered account forms on the shared policy", () => {
+  const f = preset("google-drive");
+  const profile = nativeBrowserOAuthProfile("google");
+  if (!profile) throw new Error("Missing Google profile");
+  const descriptor = nativeProviderDescriptor(f.plan, {
+    callbackUrl,
+    apiKey: { available: false },
+    oauth: { available: true, registeredAvailable: true, profile },
+    mcp: { available: false, actor: "user" },
+  });
+  const method = descriptor.methods.find((row) => row.id === "oauth");
+  if (!method) throw new Error("Missing Google OAuth form");
+  const required = method.scopeGroups[0]?.requiredScopes ?? [];
+  expect(normalizeGoogleDriveAccountScopes("google-drive", required)).toEqual(
+    GOOGLE_ACCOUNT_POLICY.scopes,
+  );
+  expect(nativeScopeDefaults(method).user).toEqual(
+    expect.arrayContaining(required),
+  );
+  for (const field of GOOGLE_ACCOUNT_POLICY.forbiddenParameters)
+    expect(method.fields.map((row) => row.id)).not.toContain(field);
 });
 
 it("derives standard configurable native OAuth from the actual confidential provider preset", () => {
