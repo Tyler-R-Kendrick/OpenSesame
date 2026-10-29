@@ -1,0 +1,50 @@
+name: Scanner fixture argv red green proof
+on:
+  push:
+    branches: [review/scanner-fixture-proof-b315-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/scanner-fixture-proof-b315-20261029' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: c717b966951cebc14e17d91106f1ae090b9d7d64
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Verify immutable candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = c717b966951cebc14e17d91106f1ae090b9d7d64
+          test "$(git rev-parse HEAD^{tree})" = 044ccfe327ba9b9035d13fed3f9b95e2e1d1c9e3
+          test "$(git rev-parse HEAD^)" = b315dc17837d2eadd056b1b54dc2a0b68ce19380
+      - name: Demonstrate regression against substring matching
+        run: |
+          set -euo pipefail
+          python3 -c 'from pathlib import Path; p=Path("scripts/security/release-scanner-gates.test.mjs"); s=p.read_text(); a="[[ \"$argument\" == \"-V\" ]]"; b="[[ \"$*\" == *\"-V\"* ]]"; assert s.count(a)==1; p.write_text(s.replace(a,b))'
+          if node --test --test-name-pattern='Semgrep permits -V inside the report path' scripts/security/release-scanner-gates.test.mjs > "$RUNNER_TEMP/scanner-red.log" 2>&1; then
+            cat "$RUNNER_TEMP/scanner-red.log"
+            echo 'Regression unexpectedly passed with substring matching' >&2
+            exit 1
+          fi
+          cat "$RUNNER_TEMP/scanner-red.log"
+          grep -q 'semgrep.json' "$RUNNER_TEMP/scanner-red.log"
+          git checkout -- scripts/security/release-scanner-gates.test.mjs
+      - name: Run scanner gate fixture tests on fixed source
+        run: node --test scripts/security/release-scanner-gates.test.mjs
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check formatting and source cleanliness
+        run: |
+          set -euo pipefail
+          pnpm exec biome check scripts/security/release-scanner-gates.test.mjs
+          git diff --exit-code
+          git diff --cached --exit-code
