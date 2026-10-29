@@ -34,8 +34,13 @@ jobs:
           AGENT_BROWSER_CHROME: /usr/bin/google-chrome
         run: |
           set -euo pipefail
+          set -x
+          ls -l "$AGENT_BROWSER_CHROME"
           test -x "$AGENT_BROWSER_CHROME"
+          pnpm --filter @opensesame/cua-password-reset exec which agent-browser
           export AGENT_BROWSER="$(pnpm --filter @opensesame/cua-password-reset exec which agent-browser)"
+          printf "Selected agent-browser path: <%s>\n" "$AGENT_BROWSER"
+          ls -l "$AGENT_BROWSER"
           test -x "$AGENT_BROWSER"
           pnpm --filter @opensesame/agent-sandboxes exec playwright test e2e/local-session.spec.ts
       - name: Verify source after test
