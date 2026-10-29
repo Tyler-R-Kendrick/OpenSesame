@@ -8,6 +8,7 @@ import { BOAT_AGENT_ENV } from "./boat-agent.js";
 import {
   BoatAgentAuth,
   type BoatAuthOptions,
+  BoatClaimInvalidError,
   type BoatClaimMaterials,
   BoatClaimPendingError,
   type BoatTokenGrant,
@@ -18,6 +19,14 @@ import {
   type BoatClientOptions,
 } from "./boat-client.js";
 import { boatHostedRelay, boatOrigin } from "./boat-endpoints.js";
+import type {
+  BoatProviderOptions,
+  BoatProviderState,
+} from "./boat-provider-options.js";
+export type {
+  BoatProviderOptions,
+  BoatProviderState,
+} from "./boat-provider-options.js";
 import { waitBoatReady, waitBoatRelay } from "./boat-readiness.js";
 import {
   isBoatClaimUsable,
@@ -33,55 +42,6 @@ import {
   type SandboxProvider,
   allowedDomainsFor,
 } from "./types.js";
-
-/**
- * Registration state that must survive the claim ceremony across
- * processes. It carries credentials (a claim token and identity
- * assertion), so hosts must protect it — never in a config file a
- * user might share. Access tokens are deliberately not persisted: the
- * assertion re-exchanges for a fresh one.
- */
-export interface BoatProviderState {
-  claimToken?: string;
-  identityAssertion?: string;
-  claimMaterials?: BoatClaimMaterials;
-  claimIssuedAt?: number;
-}
-
-export interface BoatProviderOptions {
-  /** Prebuilt clients (tests); otherwise built from options/environment. */
-  client?: BoatClient;
-  auth?: BoatAgentAuth;
-  origin?: string;
-  fetchImpl?: typeof fetch;
-  /** Existing Boat API key; skips agent registration entirely. */
-  apiToken?: string;
-  /** Identity assertion from a prior registration (rotates to a token). */
-  identityAssertion?: string;
-  /** Claim token from a prior registration, to resume a pending claim. */
-  claimToken?: string;
-  /** Persisted registration state from a previous process. */
-  state?: BoatProviderState;
-  /** Called whenever registration state changes, to persist it securely. */
-  onStateChange?: (state: BoatProviderState) => void | Promise<void>;
-  /** The user's email, for the claim ceremony (`service_auth`). */
-  claimEmail?: string;
-  /**
-   * Shell command that starts the relay agent inside the sandbox
-   * (typically from a saved snapshot with this package installed). It
-   * reads the `BOAT_AGENT_ENV` variables; see `boat-agent.ts`.
-   */
-  agentCommand?: string;
-  /** Saved snapshot to create sandboxes from. */
-  fromSnapshot?: string;
-  /** Stop (archive) instead of permanently deleting on close. */
-  keepSandbox?: boolean;
-  readyTimeoutMs?: number;
-  agentReadyTimeoutMs?: number;
-  /** Maximum time to wait for the relay to close before deleting the sandbox. */
-  relayCloseTimeoutMs?: number;
-  pollIntervalMs?: number;
-}
 
 const RELAY_PORT = 8787;
 
@@ -166,9 +126,17 @@ export class BoatSandboxProvider implements SandboxProvider {
     return new BoatAgentAuth(authOptions);
   }
 
-  private async adoptGrant(grant: BoatTokenGrant): Promise<string> {
+  private async adoptGrant(
+    grant: BoatTokenGrant,
+    consumedClaim = false,
+  ): Promise<string> {
     if (grant.identityAssertion) {
       this.identityAssertion = grant.identityAssertion;
+      if (consumedClaim) {
+        this.claimToken = undefined;
+        this.claimMaterials = undefined;
+        this.claimIssuedAt = undefined;
+      }
       this.pendingAccessToken = grant.accessToken;
       this.stateDirty = true;
       try {
@@ -184,6 +152,45 @@ export class BoatSandboxProvider implements SandboxProvider {
     return grant.accessToken;
   }
 
+  private async resumeClaim(
+    auth: BoatAgentAuth,
+    token: string,
+  ): Promise<string> {
+    try {
+      return await this.adoptGrant(await auth.pollClaim(token), true);
+    } catch (error) {
+      if (error instanceof BoatClaimInvalidError && this.identityAssertion)
+        return this.adoptGrant(
+          await auth.exchangeAssertion(this.identityAssertion),
+          true,
+        );
+      if (!(error instanceof BoatClaimPendingError)) throw error;
+      // An anonymous registration also yields an assertion. A pending
+      // claim does not invalidate that assertion or require a new agent.
+      if (this.identityAssertion)
+        return this.adoptGrant(
+          await auth.exchangeAssertion(this.identityAssertion),
+        );
+      const email = this.claimEmail;
+      if (
+        email &&
+        (!this.claimMaterials ||
+          !isBoatClaimUsable(
+            this.claimMaterials,
+            this.claimToken,
+            this.claimIssuedAt,
+          ))
+      )
+        await this.adoptClaim(await auth.requestClaim(token, email));
+      requireBoatClaim(
+        this.claimMaterials,
+        this.claimToken,
+        this.claimIssuedAt,
+        this.origin,
+      );
+    }
+  }
+
   private async ensureAccessToken(): Promise<string> {
     if (this.stateDirty) {
       await this.persistState();
@@ -194,38 +201,7 @@ export class BoatSandboxProvider implements SandboxProvider {
     }
     if (this.accessToken) return this.accessToken;
     const auth = this.auth();
-    if (this.claimToken) {
-      try {
-        return await this.adoptGrant(await auth.pollClaim(this.claimToken));
-      } catch (error) {
-        if (!(error instanceof BoatClaimPendingError)) throw error;
-        // An anonymous registration also yields an assertion. A pending
-        // claim does not invalidate that assertion or require a new agent.
-        if (this.identityAssertion)
-          return this.adoptGrant(
-            await auth.exchangeAssertion(this.identityAssertion),
-          );
-        const email = this.claimEmail;
-        if (
-          email &&
-          (!this.claimMaterials ||
-            !isBoatClaimUsable(
-              this.claimMaterials,
-              this.claimToken,
-              this.claimIssuedAt,
-            ))
-        )
-          await this.adoptClaim(
-            await auth.requestClaim(this.claimToken, email),
-          );
-        requireBoatClaim(
-          this.claimMaterials,
-          this.claimToken,
-          this.claimIssuedAt,
-          this.origin,
-        );
-      }
-    }
+    if (this.claimToken) return this.resumeClaim(auth, this.claimToken);
     if (this.identityAssertion)
       return this.adoptGrant(
         await auth.exchangeAssertion(this.identityAssertion),
@@ -298,6 +274,7 @@ export class BoatSandboxProvider implements SandboxProvider {
         try {
           const liveToken = await this.adoptGrant(
             await this.auth().pollClaim(this.claimToken),
+            true,
           );
           return this.createSandbox(liveToken, input, true);
         } catch (pollError) {
