@@ -176,7 +176,9 @@ export function nativeOAuthResourceDescriptor(
           { id: "client_secret_post", label: "Client secret in request body" },
         ],
       },
-      ...resourceParameterFields(options.resourceParameter),
+      ...resourceParameterFields(
+        options.resourceParameter ?? preset.resourceParameter,
+      ),
       ...mcpFields(options),
       secret("client_secret_basic"),
       secret("client_secret_post"),

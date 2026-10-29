@@ -75,8 +75,9 @@ function discordActions(view: NativeConnectorView) {
 }
 
 function mcpInactiveReason(): string | undefined {
-  if (vaultStore.isGenuineSession()) return undefined;
-  return "Open your own vault to connect this provider. Guest sessions do not store provider credentials.";
+  return vaultStore.isGenuineSession()
+    ? undefined
+    : "Open your own vault to connect this provider. Guest sessions do not store provider credentials.";
 }
 
 function nativeOAuthAvailability(providerId: string) {
@@ -101,8 +102,6 @@ export function nativeSettingsDescriptor(
   provider: Provider,
   savedMethod?: NativeConnectorView["configuration"]["method"],
 ): NativeConnectorDescriptor | null {
-  // The compiled contract decides what this device can configure; a runtime
-  // that was activated and then withdrawn closes its road again (ADR 0142).
   const closed = nativeConnectorWithdrawn("api-key");
   const apiAvailable =
     compiledApiKeyRoute(provider.id) &&
@@ -135,8 +134,6 @@ export function nativeSettingsDescriptor(
       },
       oauth: nativeOAuthAvailability(provider.id),
       mcp: {
-        // Linear's authorization is its own specialized ceremony: it draws
-        // only when its owner runtime is actually active, never invented.
         available:
           (provider.id === "linear"
             ? hasNativeConnectorDriver("mcp", provider.id)
@@ -150,8 +147,7 @@ export function nativeSettingsDescriptor(
     },
     savedMethod,
   );
-  // Linear's GraphQL app/key ceremony lives in its existing advanced form.
-  // Existing native records keep their own method and credential custody.
+  // Existing Linear records keep their own method and credential custody.
   return provider.id === "linear"
     ? {
         ...descriptor,
@@ -174,7 +170,15 @@ function primaryActions(
     : nativeApiResourceActions(view.providerId, view.configuration.method);
   const actions = resources.length
     ? resources
-    : [{ id: "provider.read", label: `Check ${name} access` }];
+    : [
+        {
+          id: "provider.read",
+          label:
+            view.configuration.method === "native-local"
+              ? `Review ${name} configuration`
+              : `Check ${name} access`,
+        },
+      ];
   return actions.map((action) => ({
     ...action,
     available: true,

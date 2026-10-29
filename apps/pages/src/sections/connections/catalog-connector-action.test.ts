@@ -145,6 +145,34 @@ it("offers the Azure family from the secret-store surface a browser can connect"
   expect(catalogConnectorAction(azure, null).kind).toBe("connect");
 });
 
+it("offers every newly listed browser provider a real configuration route and keeps host-only providers closed", () => {
+  connectorIntegration();
+  for (const id of [
+    "obsidian",
+    "polar",
+    "higgsfield",
+    "fal-ai",
+    "google-drive",
+    "m365",
+    "azure-access-token",
+    "linear",
+  ]) {
+    expect(catalogConnectorAction(provider(id), null).kind, id).not.toBe(
+      "unavailable",
+    );
+  }
+  expect(nativeSettingsDescriptor(provider("linear"))).not.toBeNull();
+  for (const id of ["azure-kms", "aws-kms", "gcp-kms"]) {
+    expect(catalogConnectorAction(provider(id), null).kind, id).toBe(
+      "unavailable",
+    );
+    expect(
+      nativeSettingsDescriptor(provider(id))?.methods[0]?.available,
+      id,
+    ).not.toBe(true);
+  }
+});
+
 it("keeps a saved local git URL from claiming browser installation or authorization", () => {
   const connection = localGitToConnection({
     id: "git_local_test",

@@ -11,7 +11,10 @@ import {
   nativeOAuthClientClassification,
   readNativeOAuthClientSecret,
 } from "./native-oauth-client-config.js";
-import { exchangeNativeOAuthClient } from "./native-oauth-client-exchange.js";
+import {
+  exchangeNativeOAuthClient,
+  issued,
+} from "./native-oauth-client-exchange.js";
 import {
   CLIENT_ID,
   CLIENT_SECRET,
@@ -31,9 +34,16 @@ afterEach(async () => {
 });
 async function setup(
   method: Parameters<typeof nativeOAuthClientFixture>[0] = "none",
+  scopes?: readonly string[],
+  resourceParameter?: "send" | "omit",
 ) {
   const fixture = await nativeOAuthClientFixture(method);
   closing.push(fixture.close);
+  if (scopes) fixture.input.requestedScopes.user = [...scopes];
+  if (resourceParameter) {
+    fixture.state.resourceParameter = resourceParameter;
+    fixture.input.parameters.resource_parameter = resourceParameter;
+  }
   const saved = await configureNativeOAuthClient(fixture.input, fixture.owner);
   const authorization = new URL(
     await beginNativeOAuthClient(saved.connectionId, fixture.owner),
@@ -107,6 +117,51 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
       expect(f.requests).toHaveLength(1);
     },
   );
+
+  it("accepts refresh-token evidence when offline_access is absent from access-token scopes", async () => {
+    const f = await setup(
+      "client_secret_post",
+      ["offline_access", "read:items"],
+      "omit",
+    );
+    expect(f.authorization.searchParams.get("scope")?.split(" ")).toContain(
+      "offline_access",
+    );
+    expect(f.authorization.searchParams.has("resource")).toBe(false);
+    const result = await exchangeNativeOAuthClient(f.search, f.owner);
+    expect(new URLSearchParams(f.requests[0]?.body).has("resource")).toBe(
+      false,
+    );
+    expect(
+      requireNativeOAuthRecord(result.connectionId).privateState.recovery[0]
+        ?.grant,
+    ).toMatchObject({
+      refreshToken: "issued-refresh-1",
+      scopes: ["read:items"],
+    });
+  });
+
+  it("retains an over-scoped Google token response as protocol-invalid", async () => {
+    const f = await setup();
+    const pending = requireNativeOAuthRecord(f.saved.connectionId).privateState
+      .pending.user;
+    if (!pending) throw new Error("Missing pending");
+    const receipt = issued(
+      {
+        access_token: "issued-access-1",
+        refresh_token: "issued-refresh-1",
+        token_type: "Bearer",
+        scope: "openid email https://www.googleapis.com/auth/drive.readonly",
+      },
+      200,
+      { ...pending, providerId: "google-drive" },
+    );
+    expect(receipt.valid).toBe(false);
+    expect(receipt.grant).toMatchObject({
+      accessToken: "issued-access-1",
+      refreshToken: "issued-refresh-1",
+    });
+  });
 
   it("refuses wrong-client credentials without exposing provider secret text or claiming verification", async () => {
     const f = await setup("client_secret_basic");

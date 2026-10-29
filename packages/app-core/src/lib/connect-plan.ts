@@ -32,6 +32,7 @@ export const OauthPresetSchema = z.object({
   revocationEndpoint: url.nullable(),
   userinfoEndpoint: url.nullable(),
   tokenAuth: z.enum(["client_secret_post", "client_secret_basic", "none"]),
+  resourceParameter: z.enum(["send", "omit"]).optional(),
   pkce: z.enum(["S256", "none", "required"]),
   authorizationParams: z.record(z.string(), z.string()),
   scopes: z.array(

@@ -28,6 +28,17 @@ function preset(id = "box") {
     throw new Error("Missing real compiled OAuth preset");
   return { plan, preset: method.preset };
 }
+it("defaults M365 to omit resource while preserving its verification URL", () => {
+  const f = preset("m365");
+  const descriptor = nativeOAuthResourceDescriptor(f.preset, callbackUrl, true);
+  expect(
+    descriptor.fields.find((row) => row.id === "resource_parameter"),
+  ).toMatchObject({ defaultValue: "omit" });
+  expect(
+    descriptor.fields.find((row) => row.id === "resource")?.defaultValue,
+  ).toBe("https://graph.microsoft.com/v1.0/me");
+});
+
 it("derives standard configurable native OAuth from the actual confidential provider preset", () => {
   const f = preset();
   const descriptor = nativeProviderDescriptor(f.plan, {

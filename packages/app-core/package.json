@@ -17,7 +17,7 @@
     "generate:catalog": "node scripts/emit-connector-catalog.mjs && biome format --write src/lib/connector-catalog.generated.ts src/lib/ai-model-provider-ids.generated.ts",
     "generate:quorum-types": "node scripts/emit-quorum-types.mjs && biome format --write src/lib/quorum/item-types.generated.ts",
     "generate:reset-mail-types": "node scripts/emit-reset-mail-types.mjs && biome format --write src/lib/password-reset/mail-type.generated.ts",
-    "generate:connect": "node scripts/emit-connect-presets.mjs && biome format --write src/lib/connect-presets.generated.ts",
+    "generate:connect": "node scripts/emit-connect-presets.mjs && node scripts/emit-google-account-policy.mjs && biome format --write src/lib/connect-presets.generated.ts src/lib/native-google-account-policy.generated.ts",
     "generate:dispositions": "node scripts/emit-browser-dispositions.mjs && biome format --write src/lib/browser-dispositions.generated.ts",
     "generate:identity": "node scripts/emit-identity-presets.mjs && biome format --write src/lib/identity-presets.generated.ts"
   },
