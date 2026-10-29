@@ -78,8 +78,9 @@ change through.
 `pnpm setup:hooks` points git at [`.githooks/`](../../.githooks).
 
 - **pre-commit** — Biome and anti-slop on staged files; rustfmt and Clippy when
-  Rust or Cargo configuration is staged; the design lint and `impeccable
-  detect` on UI files; gitleaks when installed.
+  Rust or Cargo configuration is staged; the design lint and (when the
+  optional skill is installed) `impeccable detect` on UI files; gitleaks
+  when installed.
 - **pre-push** — `OPENSESAME_PREPUSH=fast` (default: changed-file lint,
   generated-artifact freshness, anti-slop, static quality, typecheck and
   conditional Clippy), `full` (`pnpm verify`, including tests) or `off`.
@@ -90,8 +91,17 @@ change through.
 
 | Page | Covers |
 |---|---|
+| [Command reference](commands.md) | Full command crib sheet moved from `AGENTS.md` §3: per-plane run commands and the Pages `verify:*` trigger and behaviour contracts. |
+| [Design rules — full text](design-rules.md) | Full prose behind the one-line invariants in `AGENTS.md` §5. |
+| [Security posture — detail](security-posture.md) | Detail behind `AGENTS.md` §6, including external security-checker operation. |
+| [Skills index](skills.md) | Routing index for the canonical `skills/*/SKILL.md` sources, moved from `AGENTS.md` §7. |
+| [Verification and CI — detail](verification.md) | Detail behind `AGENTS.md` §8; the CI summary above and `.github/workflows/` remain canonical. |
+| [Shipping — full procedure](shipping.md) | Full worktree, stacked-PR and done-criteria procedure behind `AGENTS.md` §9. |
+| [Cloud agent environments](cloud-agents.md) | Generic cloud-agent environment notes; harness model/subscription routing is not repository policy. |
+| [Agent setup](agent-setup.md) | User-scope personal setup (dotfiles, user skills, permissions, tier routing) kept outside tracked product config; profiles, update/rollback, acceptance checklist. |
 | [Agent routines](agent-routines.md) | Scheduled sessions that run audits, fuzz batches and drift checks outside CI, each in a copy-on-write worktree with a workflow swarm and stacked pull requests. |
 | [Linear workflow](linear-workflow.md) | Setting up and using the Linear workspace. |
+| [OSS programs](oss-programs.md) | Open-source program participation notes. |
 | [PostHog setup](posthog-setup.md) | Setting up product analytics. |
 | [AI automation roadmap](ai-automation-roadmap.md) | A dated (2026-08-09) assessment of where AI tooling was used in the development process and where it was meant to go; its status note says what has since changed. |
 

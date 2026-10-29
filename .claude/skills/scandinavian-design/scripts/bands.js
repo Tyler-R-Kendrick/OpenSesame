@@ -1,1 +1,0 @@
-../../../../.agents/skills/scandinavian-design/scripts/bands.js

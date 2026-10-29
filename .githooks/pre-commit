@@ -55,6 +55,12 @@ if [ -n "$design_files" ]; then
     exit 1
   fi
   impeccable_files=$(printf '%s\n' "$design_files" | grep -E '\.tsx$' || true)
+  # impeccable is an optional installed skill (gitignored; restored by
+  # scripts/dev/install-agent-skills.sh). Skip when it is not installed.
+  if [ -n "$impeccable_files" ] && [ ! -x .claude/skills/impeccable/scripts/impeccable ]; then
+    echo "==> impeccable detect skipped (skill not installed; run pnpm skills:install)"
+    impeccable_files=""
+  fi
   if [ -n "$impeccable_files" ]; then
     echo "==> impeccable detect (DESIGN.md, staged UI files)"
     # shellcheck disable=SC2086
