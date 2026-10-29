@@ -83,9 +83,16 @@ function endpoint(value: string): URL {
 const CHALLENGE_TEXT =
   /captcha|verify you are human|one.time code|mail_code|text message|passkey|security key|two.factor|2fa|authenticator|totp/iu;
 
+// Evidence of a challenge awaiting the person, as opposed to persistent
+// branding ("This site is protected by reCAPTCHA") that stays on the page
+// after any challenge is solved. A bare "captcha" mention is not enough:
+// treating branding as pending would trap the run in takeover forever,
+// because resume requires the challenge to clear.
+const ACTIVE_CAPTCHA =
+  /verify you are human|verify you(?:'|’)re human|prove you(?:'|’)re (?:a )?human|i(?:'|’)m not a robot|not a robot|are you a robot|select all (?:images|squares|tiles)|complete (?:the )?captcha|solve (?:the )?captcha|captcha (?:challenge|required|verification)|enter (?:the )?(?:captcha|characters)|type the characters|human verification|performing security verification|checking your browser/iu;
+
 function challengePhrase(snapshot: string): string | null {
-  if (/captcha|verify you are human/iu.test(snapshot))
-    return "CAPTCHA verify you are human";
+  if (ACTIVE_CAPTCHA.test(snapshot)) return "CAPTCHA verify you are human";
   if (/passkey|security key/iu.test(snapshot))
     return "Passkey security key required";
   if (/text message/iu.test(snapshot)) return "Text message code required";
