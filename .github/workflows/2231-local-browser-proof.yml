@@ -1,0 +1,48 @@
+name: Review agent-sandboxes local browser session
+on:
+  push:
+    branches: [review/2231-local-browser-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2231-local-browser-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact reviewed source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 94ae8c354144bffe0a40076cae6021c60f63cc85
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify exact source identity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 94ae8c354144bffe0a40076cae6021c60f63cc85
+          test "$(git rev-parse HEAD^{tree})" = 355288831f10b818d9985040cab7b49194e82977
+          git diff --exit-code
+          git diff --cached --exit-code
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run real browser session regression
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
+        run: |
+          set -euo pipefail
+          test -x "$AGENT_BROWSER_CHROME"
+          export AGENT_BROWSER="$(pnpm --filter @opensesame/cua-password-reset exec which agent-browser)"
+          test -x "$AGENT_BROWSER"
+          pnpm --filter @opensesame/agent-sandboxes exec playwright test e2e/local-session.spec.ts
+      - name: Verify source after test
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 94ae8c354144bffe0a40076cae6021c60f63cc85
+          test "$(git rev-parse HEAD^{tree})" = 355288831f10b818d9985040cab7b49194e82977
+          git diff --exit-code
+          git diff --cached --exit-code
