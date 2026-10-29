@@ -1,0 +1,69 @@
+name: Guest connector visual review
+on:
+  push:
+    branches: [review/guest-connector-visual-20261029]
+permissions:
+  contents: read
+jobs:
+  capture:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/guest-connector-visual-20261029'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        phase: [before, after]
+    env:
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      EVIDENCE_DIR: ${{ github.workspace }}/work/guest-visual-${{ matrix.phase }}
+    steps:
+      - name: Checkout exact reviewed source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ matrix.phase == 'before' && 'ac9a724c60e970da7a84fa49e7bd02a271194816' || '6d581f589cf32745eb89a692573582257b5ec8c3' }}
+          persist-credentials: false
+      - name: Checkout capture controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          path: work/guest-visual-tools
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify immutable source and capture code
+        shell: bash
+        env:
+          PHASE: ${{ matrix.phase }}
+        run: |
+          set -euo pipefail
+          if [ "$PHASE" = before ]; then expected=ac9a724c60e970da7a84fa49e7bd02a271194816; tree=c22db2c3be25041b6767708f9ca3521fa4ffb94a; else expected=6d581f589cf32745eb89a692573582257b5ec8c3; tree=196b9bc8b5517198dbde8a212327bd3b65453aa8; fi
+          test "$(git rev-parse HEAD)" = "$expected"
+          test "$(git rev-parse HEAD^{tree})" = "$tree"
+          printf '%s  %s\n' 956e32f8e357fc853f3d59bca0f32563409a71ae159f1ad4dc323ec1ac886b97 work/guest-visual-tools/scripts/review/guest-connector-visual.mjs | sha256sum --check
+          mkdir -p "$EVIDENCE_DIR"
+          git rev-parse HEAD > "$EVIDENCE_DIR/source-commit.txt"
+          git rev-parse HEAD^{tree} > "$EVIDENCE_DIR/source-tree.txt"
+          sha256sum pnpm-lock.yaml > "$EVIDENCE_DIR/lock-sha256.txt"
+          node --version > "$EVIDENCE_DIR/node-version.txt"
+          "$PLAYWRIGHT_CHROMIUM" --version > "$EVIDENCE_DIR/browser-version.txt"
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build real Pages distribution
+        run: pnpm --filter @opensesame/pages exec vite build
+      - name: Capture real guest and protected vault flows
+        env:
+          PHASE: ${{ matrix.phase }}
+        run: node work/guest-visual-tools/scripts/review/guest-connector-visual.mjs "$PHASE" "$GITHUB_WORKSPACE" "$EVIDENCE_DIR"
+      - name: Upload unapproved review evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: guest-connector-visual-${{ matrix.phase }}
+          path: ${{ env.EVIDENCE_DIR }}
+          retention-days: 14
+          if-no-files-found: error
