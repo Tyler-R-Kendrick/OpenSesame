@@ -1,0 +1,37 @@
+name: Connector session reconciliation proof
+on:
+  push:
+    branches: [review/2239-proof-b315-20261029]
+permissions:
+  contents: read
+jobs:
+  focused:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2239-proof-b315-20261029'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 8c8e5d2139ae2da69dcdae01930a06ebb09dc5c7
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify reviewed source
+        run: |
+          test "$(git rev-parse HEAD)" = 8c8e5d2139ae2da69dcdae01930a06ebb09dc5c7
+          test "$(git rev-parse HEAD^{tree})" = 17342f046695e04eebf54b6597245facca47f0f2
+          test "$(git rev-parse HEAD^)" = b315dc17837d2eadd056b1b54dc2a0b68ce19380
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check formatting
+        run: pnpm exec biome check apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/native-credential-session.test.tsx apps/pages/src/sections/connections/connect/native-device-provider-descriptor.ts apps/pages/src/sections/connections/connect/native-session-availability.ts apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
+      - name: Verify guest and genuine sessions and native catalog functionality
+        run: pnpm --filter @opensesame/pages exec vitest run src/sections/connections/connect/native-credential-session.test.tsx src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx src/sections/connections/connect/native-device-provider-descriptor.test.ts src/sections/connections/connect/native-catalog-configuration-descriptor.test.ts --maxWorkers=1 --no-file-parallelism
+      - name: Verify typecheck
+        run: pnpm --filter @opensesame/pages typecheck
+      - name: Verify source remains clean
+        run: git diff --exit-code && git diff --cached --exit-code
