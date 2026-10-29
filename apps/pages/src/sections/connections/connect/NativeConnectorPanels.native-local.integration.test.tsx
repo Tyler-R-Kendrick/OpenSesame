@@ -2,6 +2,7 @@ import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 /** @vitest-environment jsdom */
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { deviceConnectorView } from "@opensesame/app-core/lib/device-connector-view.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   readNativeConnector,
   updateNativeConnector,
@@ -12,7 +13,10 @@ import { MemoryRouter } from "react-router";
 import { expect, it, vi } from "vitest";
 import { bindNativeCatalogConfigurationRuntime } from "../../../modules/connectors.external/native-catalog-configuration-runtime.js";
 import { nativeConnectorHeaderStatus } from "../SettingsPageNativeStatus.js";
-import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
+import {
+  NativeConnectorPanels,
+  nativeSettingsDescriptor,
+} from "./NativeConnectorPanels.js";
 import {
   connectorIntegration,
   installConnectorIntegration,
@@ -75,4 +79,23 @@ it("saves E2B configuration locally without claiming a provider access check", a
     sentence:
       "Validate this configuration locally; provider access is not checked.",
   });
+});
+
+it("requires an unlocked genuine vault for local catalog configuration", async () => {
+  const fixture = connectorIntegration();
+  bindNativeCatalogConfigurationRuntime(fixture.activation);
+  const provider = catalogProvider("e2b");
+  if (!provider) throw new Error("Missing E2B catalog row");
+  const method = () =>
+    nativeSettingsDescriptor(provider)?.methods.find(
+      (entry) => entry.id === "native-local",
+    );
+  expect(method()?.available).toBe(true);
+  vaultStore.lock();
+  expect(method()?.available).toBe(false);
+  expect(method()?.fields).toEqual([]);
+  await vaultStore.createGuest();
+  expect(vaultStore.isGenuineSession()).toBe(false);
+  expect(method()?.available).toBe(false);
+  expect(method()?.fields).toEqual([]);
 });
