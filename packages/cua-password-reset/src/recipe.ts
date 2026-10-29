@@ -19,6 +19,7 @@ export function recipeMatches(recipe: ResetRecipe, origin: string): boolean {
 type Field = Observation["fields"][number];
 
 function kindCompatible(step: RecipeStep, field: Field): boolean {
+  if (field.kind === "static") return false;
   if (step.purpose === "new-password") return field.kind === "password";
   if (step.purpose === "identifier")
     return ["email", "text"].includes(field.kind);
@@ -38,6 +39,21 @@ export function resolveStepRef(
   observation: Observation,
 ): string | null {
   if (!step.ref) return null;
+  // A masked password label carries no identity: it matches every password
+  // field, including through the stored ref hint after a renumber. The
+  // binding is only unambiguous when the page has exactly one password
+  // field and its real label names this step's purpose — with a confirm
+  // field present, every recorded masked fill would land on the same box,
+  // so that stays drift for re-recording instead of a wrong submission.
+  if (step.expectedLabel === "[masked password]") {
+    if (step.purpose !== "new-password") return null;
+    const passwords = observation.fields.filter(
+      (field) => field.kind === "password",
+    );
+    if (passwords.length !== 1) return null;
+    const only = passwords[0];
+    return only && /\bnew\b/iu.test(only.label) ? only.ref : null;
+  }
   const masked = modelObservation(observation).fields;
   const labelMatches = (field: Field): boolean =>
     step.expectedLabel === undefined ||
@@ -50,19 +66,6 @@ export function resolveStepRef(
   if (exact && kindCompatible(step, exact) && labelMatches(exact))
     return exact.ref;
   if (step.expectedLabel === undefined) return null;
-  // A masked password label carries no identity: it matches every password
-  // field. Recorded recipes always carry it, so refusing it outright makes
-  // them unreplayable whenever a driver renumbers refs — but rebinding to
-  // just any password field could fill the candidate into a
-  // current-password box. Relocate only to the single password field whose
-  // real label names this step's purpose; anything else stays drift.
-  if (step.expectedLabel === "[masked password]") {
-    if (step.purpose !== "new-password") return null;
-    const named = observation.fields.filter(
-      (field) => field.kind === "password" && /\bnew\b/iu.test(field.label),
-    );
-    return named.length === 1 ? (named[0]?.ref ?? null) : null;
-  }
   const candidates = observation.fields.filter(
     (field) => kindCompatible(step, field) && labelMatches(field),
   );

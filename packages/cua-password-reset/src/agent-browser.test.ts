@@ -10,7 +10,7 @@ import {
   type ExactFormProxyPort,
   parseAgentBrowserSnapshot,
 } from "./agent-browser.js";
-import { detectChallenge } from "./decisions.js";
+import { detectChallenge, legalCandidates } from "./decisions.js";
 import { ORIGIN, observation } from "./test-support.js";
 import type { ProxyProof, RecipeStep, ResetRun } from "./types.js";
 
@@ -222,7 +222,7 @@ describe("agent-browser adapter", () => {
     );
   });
 
-  it("surfaces static challenge copy as one canonical text field", () => {
+  it("surfaces static challenge copy as one canonical static field", () => {
     const output = JSON.stringify({
       success: true,
       data: {
@@ -234,10 +234,23 @@ describe("agent-browser adapter", () => {
     const parsed = parseAgentBrowserSnapshot(output, ORIGIN);
     expect(parsed.fields).toEqual([
       { ref: "e2", kind: "email", label: "Email" },
-      { ref: "e3", kind: "text", label: "CAPTCHA verify you are human" },
+      { ref: "e3", kind: "static", label: "CAPTCHA verify you are human" },
     ]);
     expect(JSON.stringify(parsed)).not.toContain("UNTRUSTED_PAGE_WORDS");
     expect(detectChallenge(parsed)).toBe("captcha");
+    // The synthetic ref is evidence for the person handoff, never an
+    // actionable candidate: no fill may target e3.
+    expect(
+      legalCandidates(parsed).some(
+        (candidate) =>
+          "ref" in candidate.action && candidate.action.ref === "e3",
+      ),
+    ).toBe(false);
+    expect(
+      legalCandidates(parsed).some(
+        (candidate) => candidate.action.kind === "await-human",
+      ),
+    ).toBe(true);
   });
 
   it("does not reflect secret-bearing child stderr into errors", async () => {

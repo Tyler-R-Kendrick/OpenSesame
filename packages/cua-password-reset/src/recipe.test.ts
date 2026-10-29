@@ -107,6 +107,28 @@ describe("domain recipes", () => {
         ]),
       ),
     ).toBeNull();
+    // A confirm field without "new" in its label is still ambiguous: both
+    // recorded masked fills would land on the one "New password" field.
+    expect(
+      resolveStepRef(
+        step,
+        observation([
+          { ref: "e19", kind: "password", label: "New password" },
+          { ref: "e20", kind: "password", label: "Confirm password" },
+        ]),
+      ),
+    ).toBeNull();
+    // The stored ref hint does not rescue ambiguity either: after a
+    // renumber it may point at the confirm field.
+    expect(
+      resolveStepRef(
+        { ...step, ref: "e19" },
+        observation([
+          { ref: "e19", kind: "password", label: "Confirm password" },
+          { ref: "e20", kind: "password", label: "New password" },
+        ]),
+      ),
+    ).toBeNull();
   });
 
   it("refuses to rebind a generic masked password label", () => {

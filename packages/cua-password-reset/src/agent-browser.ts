@@ -128,7 +128,7 @@ export function parseAgentBrowserSnapshot(
       (max, field) => Math.max(max, Number(field.ref.slice(1))),
       0,
     );
-    fields.push({ ref: `e${maxRef + 1}`, kind: "text", label: challenge });
+    fields.push({ ref: `e${maxRef + 1}`, kind: "static", label: challenge });
   }
   return observationSchema.parse({ id: randomUUID(), origin, fields });
 }
