@@ -33,9 +33,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = c4681fa6e08fec30bbe116b49ac4c678145590f8
           test "$(git rev-parse HEAD^{tree})" = 926de276804e924b89ddb2a39a533c3317ae83a2
-          printf '%s  %s\n' f497b89bdd9479e32229aae0bf69b58f76f857c6d589584e40a98e2423d0a2bf ../controller/.github/verify-inputs/cdp-rest-contract.patch | sha256sum --check
+          printf '%s  %s\n' 3f1d4b6d7ccba7800bf480616babacd29439f3cd72e46ad2c5db39225fff2c48 ../controller/.github/verify-inputs/cdp-rest-contract.patch | sha256sum --check
           git apply --index ../controller/.github/verify-inputs/cdp-rest-contract.patch
-          test "$(git write-tree)" = 7ede46251d37a3f152705cd57698ccefb00f1610
+          test "$(git write-tree)" = 302464dd105b3e68df55669430e28f7dd9adb732
           git diff --exit-code
       - name: Install frozen dependency graph
         working-directory: candidate
@@ -70,5 +70,5 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = c4681fa6e08fec30bbe116b49ac4c678145590f8
-          test "$(git write-tree)" = 7ede46251d37a3f152705cd57698ccefb00f1610
+          test "$(git write-tree)" = 302464dd105b3e68df55669430e28f7dd9adb732
           git diff --exit-code

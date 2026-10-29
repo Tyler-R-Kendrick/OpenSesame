@@ -435,10 +435,10 @@ index c552da9cf..c08d7d212 100644
 +  typeof CloudflareBrowserRunClient
 +>[0] & { sessionTimeoutMs: number };
 diff --git a/packages/agent-sandboxes/src/cloudflare-client.ts b/packages/agent-sandboxes/src/cloudflare-client.ts
-index 3ef47b10b..68e48375f 100644
+index 3ef47b10b..dff8c0ab8 100644
 --- a/packages/agent-sandboxes/src/cloudflare-client.ts
 +++ b/packages/agent-sandboxes/src/cloudflare-client.ts
-@@ -1,106 +1,207 @@
+@@ -1,106 +1,215 @@
  /**
 - * Cloudflare Browser Run (Browser Rendering) session client.
 - *
@@ -508,6 +508,56 @@ index 3ef47b10b..68e48375f 100644
 +const hostname =
 +  /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/u;
 +
++function validateOptions(options: CloudflareClientOptions): void {
++  if (!options.accountId || !options.apiToken)
++    throw new Error(
++      "cloudflare provider needs an account id and API token (environment)",
++    );
++  if (!identifier.test(options.accountId))
++    throw new Error("cloudflare: invalid account id");
++  if ("sessionTimeoutMs" in options)
++    throw new Error("cloudflare: sessionTimeoutMs is unsupported");
++  if (!/^[A-Za-z0-9._~+/-]+=*$/u.test(options.apiToken))
++    throw new Error("cloudflare: invalid API token");
++  if (
++    options.keepAliveMs !== undefined &&
++    (!Number.isInteger(options.keepAliveMs) ||
++      options.keepAliveMs < 10_000 ||
++      options.keepAliveMs > 1_200_000)
++  )
++    throw new Error("cloudflare: invalid keep_alive");
++}
++
++function providerBaseUrl(options: CloudflareClientOptions): string {
++  const expectedPath = `/client/v4/accounts/${options.accountId}/browser-run`;
++  let base: URL;
++  try {
++    base = new URL(
++      options.baseUrl ?? `https://api.cloudflare.com${expectedPath}`,
++    );
++  } catch {
++    throw new Error("cloudflare: untrusted API endpoint");
++  }
++  const production =
++    base.protocol === "https:" &&
++    base.hostname === "api.cloudflare.com" &&
++    !base.port &&
++    base.pathname.replace(/\/$/u, "") === expectedPath;
++  const testLoopback =
++    options.allowInsecureLoopbackForTesting === true &&
++    base.protocol === "http:" &&
++    base.hostname === "127.0.0.1";
++  if (
++    base.username ||
++    base.password ||
++    base.search ||
++    base.hash ||
++    !(production || testLoopback)
++  )
++    throw new Error("cloudflare: untrusted API endpoint");
++  return base.href.replace(/\/$/u, "");
++}
++
  export class CloudflareBrowserRunClient {
    private readonly baseUrl: string;
    private readonly fetchImpl: typeof fetch;
@@ -515,55 +565,17 @@ index 3ef47b10b..68e48375f 100644
 +  private readonly keepAliveMs: number | undefined;
  
 -  constructor(private readonly options: CloudflareClientOptions) {
-+  constructor(options: CloudflareClientOptions) {
-     if (!options.accountId || !options.apiToken)
-       throw new Error(
-         "cloudflare provider needs an account id and API token (environment)",
-       );
+-    if (!options.accountId || !options.apiToken)
+-      throw new Error(
+-        "cloudflare provider needs an account id and API token (environment)",
+-      );
 -    this.baseUrl = (
 -      options.baseUrl ??
 -      `https://api.cloudflare.com/client/v4/accounts/${options.accountId}/browser-run`
 -    ).replace(/\/$/u, "");
-+    if (!identifier.test(options.accountId))
-+      throw new Error("cloudflare: invalid account id");
-+    if ("sessionTimeoutMs" in options)
-+      throw new Error("cloudflare: sessionTimeoutMs is unsupported");
-+    if (!/^[A-Za-z0-9._~+/-]+=*$/u.test(options.apiToken))
-+      throw new Error("cloudflare: invalid API token");
-+    if (
-+      options.keepAliveMs !== undefined &&
-+      (!Number.isInteger(options.keepAliveMs) ||
-+        options.keepAliveMs < 10_000 ||
-+        options.keepAliveMs > 1_200_000)
-+    )
-+      throw new Error("cloudflare: invalid keep_alive");
-+    const expectedPath = `/client/v4/accounts/${options.accountId}/browser-run`;
-+    let base: URL;
-+    try {
-+      base = new URL(
-+        options.baseUrl ?? `https://api.cloudflare.com${expectedPath}`,
-+      );
-+    } catch {
-+      throw new Error("cloudflare: untrusted API endpoint");
-+    }
-+    const production =
-+      base.protocol === "https:" &&
-+      base.hostname === "api.cloudflare.com" &&
-+      !base.port &&
-+      base.pathname.replace(/\/$/u, "") === expectedPath;
-+    const testLoopback =
-+      options.allowInsecureLoopbackForTesting === true &&
-+      base.protocol === "http:" &&
-+      base.hostname === "127.0.0.1";
-+    if (
-+      base.username ||
-+      base.password ||
-+      base.search ||
-+      base.hash ||
-+      !(production || testLoopback)
-+    )
-+      throw new Error("cloudflare: untrusted API endpoint");
-+    this.baseUrl = base.href.replace(/\/$/u, "");
++  constructor(options: CloudflareClientOptions) {
++    validateOptions(options);
++    this.baseUrl = providerBaseUrl(options);
      this.fetchImpl = options.fetchImpl ?? fetch;
 +    this.apiToken = options.apiToken;
 +    this.keepAliveMs = options.keepAliveMs;
