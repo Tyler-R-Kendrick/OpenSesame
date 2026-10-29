@@ -1,0 +1,56 @@
+name: Review local sandbox on current main
+on:
+  push:
+    branches: [review/2231-restack-8597-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2231-restack-8597-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact signed candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 25ede6dd16be105221da869ec5d6e23644e25ee8
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify exact candidate source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 25ede6dd16be105221da869ec5d6e23644e25ee8
+          test "$(git rev-parse HEAD^{tree})" = c82ab93a27188175c9fe611d9e92059e228f65ff
+          test -z "$(git status --porcelain)"
+      - name: Install frozen dependency graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Typecheck and unit tests
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/agent-sandboxes typecheck
+          pnpm --filter @opensesame/agent-sandboxes test
+      - name: Unfiltered real-browser suite
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          AGENT_BROWSER_CHROME: /usr/bin/google-chrome
+        run: |
+          set -euo pipefail
+          test -x "$AGENT_BROWSER_CHROME"
+          export AGENT_BROWSER="$PWD/packages/cua-password-reset/node_modules/.bin/agent-browser"
+          test -x "$AGENT_BROWSER"
+          pnpm --filter @opensesame/agent-sandboxes test:e2e
+      - name: Full quality gate
+        if: success() || failure()
+        run: pnpm quality:gate
+      - name: Verify source after checks
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 25ede6dd16be105221da869ec5d6e23644e25ee8
+          test "$(git rev-parse HEAD^{tree})" = c82ab93a27188175c9fe611d9e92059e228f65ff
+          git diff --exit-code
