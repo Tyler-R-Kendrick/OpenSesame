@@ -1,0 +1,60 @@
+name: Connector owner and local availability proof
+on:
+  push:
+    branches: [review/2241-owner-availability-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-owner-availability-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: 0cab13b48795c979b45564589d1650e39b57216f
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact input
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
+          test "$(git rev-parse HEAD^{tree})" = a64ca35498944e38f527e68ed70dce5d497f4852
+          printf '%s  %s\n' 0e174cc8551dbcbc03d3bd2ca20182e5fc32074fa72ca5b37c1afc8ec6f581d2 ../controller/.github/verify-inputs/2241-owner-availability.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2241-owner-availability.patch
+          test "$(git write-tree)" = ffcbc7ccbc191c37fc3288bdf386b2bfc64db22e
+          git diff --exit-code
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check formatting and strict lint
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm exec biome check apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+          pnpm lint:anti-slop:files apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+      - name: Typecheck and exercise owner and availability
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/pages typecheck
+          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx src/sections/connections/connect/native-catalog-configuration-descriptor.test.ts src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+      - name: Verify candidate unchanged
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
+          test "$(git write-tree)" = ffcbc7ccbc191c37fc3288bdf386b2bfc64db22e
+          git diff --exit-code
