@@ -90,6 +90,14 @@ change through.
 
 | Page | Covers |
 |---|---|
+| [Command reference](commands.md) | Full command crib sheet moved from `AGENTS.md` §3: per-plane run commands and the Pages `verify:*` trigger and behaviour contracts. |
+| [Design rules — full text](design-rules.md) | Full prose behind the one-line invariants in `AGENTS.md` §5. |
+| [Security posture — detail](security-posture.md) | Detail behind `AGENTS.md` §6, including external security-checker operation. |
+| [Skills index](skills.md) | Routing index for the canonical `skills/*/SKILL.md` sources, moved from `AGENTS.md` §7. |
+| [Verification and CI — detail](verification.md) | Detail behind `AGENTS.md` §8; the CI summary above and `.github/workflows/` remain canonical. |
+| [Shipping — full procedure](shipping.md) | Full worktree, stacked-PR and done-criteria procedure behind `AGENTS.md` §9. |
+| [Cloud agent environments](cloud-agents.md) | Generic cloud-agent environment notes; harness model/subscription routing is not repository policy. |
+| [Agent setup](agent-setup.md) | User-scope personal setup (dotfiles, user skills, permissions, tier routing) kept outside tracked product config; profiles, update/rollback, acceptance checklist. |
 | [Agent routines](agent-routines.md) | Scheduled sessions that run audits, fuzz batches and drift checks outside CI, each in a copy-on-write worktree with a workflow swarm and stacked pull requests. |
 | [Linear workflow](linear-workflow.md) | Setting up and using the Linear workspace. |
 | [PostHog setup](posthog-setup.md) | Setting up product analytics. |

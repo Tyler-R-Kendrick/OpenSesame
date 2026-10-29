@@ -2,6 +2,7 @@
 import {
   existsSync,
   lstatSync,
+  readFileSync,
   readdirSync,
   readlinkSync,
   realpathSync,
@@ -66,15 +67,76 @@ function syncSharedFiles({ root, source, mirror, original, installed, check }) {
   return changes;
 }
 
-function syncMirror(root, agent, name, check) {
+/** Optional profiles from skills/profiles.json; absent in fixtures = legacy. */
+export function loadProfiles(root) {
+  const path = join(root, "skills/profiles.json");
+  if (!existsSync(path)) return null;
+  const parsed = JSON.parse(readFileSync(path, "utf8"));
+  const core = new Set(parsed.profiles?.core?.skills ?? []);
+  const optional = new Set();
+  const seen = new Set(core);
+  for (const [key, profile] of Object.entries(parsed.profiles ?? {})) {
+    if (key === "core") continue;
+    for (const name of profile.skills ?? []) {
+      if (seen.has(name))
+        throw new Error(`Skill listed in multiple profiles: ${name}`);
+      seen.add(name);
+      optional.add(name);
+    }
+  }
+  return { core, optional, all: seen };
+}
+function resolveCanonical(root, name) {
+  for (const base of [".agents/skills", ".agents/skills-optional"]) {
+    const candidate = join(root, base, name);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+function checkCore(root, profiles) {
+  if (!profiles) return;
+  const skillsDir = join(root, "skills");
+  if (!existsSync(skillsDir)) return;
+  // Only enforce on a real skills/ tree (has SKILL.md dirs), not fixtures.
+  const dirs = readdirSync(skillsDir).filter((entry) => {
+    const p = join(skillsDir, entry);
+    return lstatSync(p).isDirectory();
+  });
+  if (!dirs.length && !profiles.core.size) return;
+  for (const name of profiles.core) {
+    if (!existsSync(join(skillsDir, name, "SKILL.md")))
+      throw new Error(`Missing core skill: skills/${name}/SKILL.md`);
+    const alias = join(root, ".agents/skills", name);
+    if (!existsSync(join(root, ".agents/skills")))
+      throw new Error(`Missing core alias root: .agents/skills/${name}`);
+    if (!existsSync(alias))
+      throw new Error(`Missing core alias: .agents/skills/${name}`);
+    if (realpathSync(alias) !== realpathSync(join(skillsDir, name)))
+      throw new Error(
+        `Core alias does not resolve to skills/${name}: ${alias}`,
+      );
+  }
+  for (const name of dirs) {
+    if (!profiles.core.has(name))
+      throw new Error(
+        `skills/${name} is not listed in skills/profiles.json core`,
+      );
+  }
+}
+
+function syncMirror(root, agent, name, check, profiles) {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(name))
     throw new Error(`Unexpected skill name: ${name}`);
-  const source = join(root, ".agents/skills", name);
+  const source = resolveCanonical(root, name);
   const mirror = join(root, agent, "skills", name);
-  if (!existsSync(source))
+  if (!source) {
+    // Optional skills may be uninstalled; a stale harness mirror is the
+    // harness workflow's to remove and must not fail core validation.
+    if (profiles?.optional.has(name)) return [];
     throw new Error(
       `Choose a canonical .agents/skills/${name} before syncing ${agent}`,
     );
+  }
   inside(root, source);
   const link = relative(dirname(mirror), source);
   const stat = lstatSync(mirror);
@@ -113,12 +175,28 @@ function syncMirror(root, agent, name, check) {
 /** Deduplicate existing registered mirrors; never discard agent-specific variants. */
 export function syncAgentSkills(directory, { check = false } = {}) {
   const root = resolve(directory);
+  const profiles = loadProfiles(root);
+  checkCore(root, profiles);
+  if (profiles) {
+    for (const base of [".agents/skills", ".agents/skills-optional"]) {
+      const dir = join(root, base);
+      if (!existsSync(dir)) continue;
+      for (const name of readdirSync(dir).sort()) {
+        const stat = lstatSync(join(dir, name));
+        if (!stat.isDirectory() && !stat.isSymbolicLink()) continue;
+        if (!profiles.all.has(name))
+          throw new Error(
+            `${base}/${name} is not listed in skills/profiles.json`,
+          );
+      }
+    }
+  }
   const changes = [];
   for (const agent of [".claude", ".grok"]) {
     const mirrors = join(root, agent, "skills");
     if (!existsSync(mirrors)) continue;
     for (const name of readdirSync(mirrors).sort())
-      changes.push(...syncMirror(root, agent, name, check));
+      changes.push(...syncMirror(root, agent, name, check, profiles));
   }
   return changes;
 }
