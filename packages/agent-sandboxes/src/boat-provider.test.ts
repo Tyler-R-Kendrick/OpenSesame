@@ -250,7 +250,17 @@ describe("BoatSandboxProvider", () => {
       expect(claim.userCode).toBe("123456");
       // The registration is persisted before the gate surfaces, so the
       // next process resumes this claim instead of re-registering.
-      expect(boat.persistedStates.at(-1)).toEqual({ claimToken: "clm_1" });
+      expect(boat.persistedStates.at(-1)).toEqual({
+        claimToken: "clm_1",
+        claimIssuedAt: expect.any(Number),
+        claimMaterials: {
+          claimToken: "clm_1",
+          userCode: CLAIM.user_code,
+          verificationUri: CLAIM.verification_uri,
+          expiresIn: CLAIM.expires_in,
+          interval: CLAIM.interval,
+        },
+      });
 
       // 2. Claimed, but no card on file: the checkout URL surfaces the
       // same way.

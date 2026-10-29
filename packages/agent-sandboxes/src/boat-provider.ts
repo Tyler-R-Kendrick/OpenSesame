@@ -34,6 +34,14 @@ import {
   BoatClient,
   type BoatClientOptions,
 } from "./boat-client.js";
+import {
+  BOAT_READY_STATES,
+  boatSleep,
+  isBoatClaimUsable,
+  requireBoatClaim,
+  resolveBoatRegistration,
+  snapshotBoatRegistration,
+} from "./boat-registration-state.js";
 import { relayDriverOverWebSocket } from "./relay-driver.js";
 import {
   type AllocatedSandbox,
@@ -46,13 +54,15 @@ import {
 /**
  * Registration state that must survive the claim ceremony across
  * processes. It carries credentials (a claim token and identity
- * assertion), so hosts must keep it sealed — never in a config file a
+ * assertion), so hosts must protect it — never in a config file a
  * user might share. Access tokens are deliberately not persisted: the
  * assertion re-exchanges for a fresh one.
  */
 export interface BoatProviderState {
   claimToken?: string;
   identityAssertion?: string;
+  claimMaterials?: BoatClaimMaterials;
+  claimIssuedAt?: number;
 }
 
 export interface BoatProviderOptions {
@@ -69,7 +79,7 @@ export interface BoatProviderOptions {
   claimToken?: string;
   /** Persisted registration state from a previous process. */
   state?: BoatProviderState;
-  /** Called whenever registration state changes, to persist it sealed. */
+  /** Called whenever registration state changes, to persist it securely. */
   onStateChange?: (state: BoatProviderState) => void | Promise<void>;
   /** The user's email, for the claim ceremony (`service_auth`). */
   claimEmail?: string;
@@ -89,46 +99,56 @@ export interface BoatProviderOptions {
 }
 
 const RELAY_PORT = 8787;
-const READY_STATES = new Set(["ready", "idle", "running"]);
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export class BoatSandboxProvider implements SandboxProvider {
   readonly id = "boat" as const;
 
   private accessToken: string | undefined;
+  private pendingAccessToken: string | undefined;
   private identityAssertion: string | undefined;
   private claimToken: string | undefined;
   private claimMaterials: BoatClaimMaterials | undefined;
+  private claimIssuedAt: number | undefined;
 
   constructor(private readonly options: BoatProviderOptions = {}) {
     this.accessToken =
       options.apiToken ??
       process.env.BOAT_API_KEY ??
       process.env.BOAT_API_TOKEN;
-    this.identityAssertion =
-      options.identityAssertion ??
-      options.state?.identityAssertion ??
-      process.env.BOAT_IDENTITY_ASSERTION;
-    this.claimToken =
-      options.claimToken ??
-      options.state?.claimToken ??
-      process.env.BOAT_CLAIM_TOKEN;
+    const registration = resolveBoatRegistration(options);
+    this.claimToken = registration.claimToken;
+    this.identityAssertion = registration.identityAssertion;
+    this.claimMaterials = registration.claimMaterials;
+    this.claimIssuedAt = registration.claimIssuedAt;
   }
 
-  /** Registration state as it now stands, for hosts to persist sealed. */
+  /** Registration state as it now stands, for hosts to protect when persisted. */
   registrationState(): BoatProviderState {
-    const state: BoatProviderState = {};
-    if (this.claimToken) state.claimToken = this.claimToken;
-    if (this.identityAssertion)
-      state.identityAssertion = this.identityAssertion;
-    return state;
+    return snapshotBoatRegistration(
+      this.claimToken,
+      this.identityAssertion,
+      this.claimMaterials,
+      this.claimIssuedAt,
+    );
+  }
+
+  private stateDirty = false;
+
+  hasUnpersistedState(): boolean {
+    return this.stateDirty;
   }
 
   private async persistState(): Promise<void> {
     await this.options.onStateChange?.(this.registrationState());
+    this.stateDirty = false;
+  }
+
+  private async adoptClaim(claim: BoatClaimMaterials): Promise<void> {
+    this.claimToken = claim.claimToken;
+    this.claimMaterials = claim;
+    this.claimIssuedAt = Date.now();
+    this.stateDirty = true;
+    await this.persistState();
   }
 
   private get origin(): string {
@@ -154,28 +174,32 @@ export class BoatSandboxProvider implements SandboxProvider {
     return new BoatAgentAuth(authOptions);
   }
 
-  private claimRequired(materials?: BoatClaimMaterials): never {
-    const claim = materials ?? this.claimMaterials;
-    if (claim)
-      throw new SandboxClaimRequiredError({
-        verificationUri: claim.verificationUri,
-        userCode: claim.userCode,
-      });
-    throw new SandboxClaimRequiredError({
-      verificationUri: `${this.origin}/api/boat/agent/identity/claim`,
-    });
-  }
-
   private async adoptGrant(grant: BoatTokenGrant): Promise<string> {
-    this.accessToken = grant.accessToken;
     if (grant.identityAssertion) {
       this.identityAssertion = grant.identityAssertion;
-      await this.persistState();
+      this.pendingAccessToken = grant.accessToken;
+      this.stateDirty = true;
+      try {
+        await this.persistState();
+      } catch {
+        throw new Error(
+          "boat: rotated identity could not be persisted and may be lost if the process exits",
+        );
+      }
     }
+    this.accessToken = grant.accessToken;
+    this.pendingAccessToken = undefined;
     return grant.accessToken;
   }
 
   private async ensureAccessToken(): Promise<string> {
+    if (this.stateDirty) {
+      await this.persistState();
+      if (this.pendingAccessToken) {
+        this.accessToken = this.pendingAccessToken;
+        this.pendingAccessToken = undefined;
+      }
+    }
     if (this.accessToken) return this.accessToken;
     const auth = this.auth();
     if (this.claimToken) {
@@ -183,10 +207,30 @@ export class BoatSandboxProvider implements SandboxProvider {
         return await this.adoptGrant(await auth.pollClaim(this.claimToken));
       } catch (error) {
         if (!(error instanceof BoatClaimPendingError)) throw error;
+        // An anonymous registration also yields an assertion. A pending
+        // claim does not invalidate that assertion or require a new agent.
+        if (this.identityAssertion)
+          return this.adoptGrant(
+            await auth.exchangeAssertion(this.identityAssertion),
+          );
         const email = this.claimEmail;
-        if (email && !this.claimMaterials)
-          this.claimMaterials = await auth.requestClaim(this.claimToken, email);
-        this.claimRequired();
+        if (
+          email &&
+          (!this.claimMaterials ||
+            !isBoatClaimUsable(
+              this.claimMaterials,
+              this.claimToken,
+              this.claimIssuedAt,
+            ))
+        )
+          await this.adoptClaim(
+            await auth.requestClaim(this.claimToken, email),
+          );
+        requireBoatClaim(
+          this.claimMaterials,
+          this.claimToken,
+          this.claimIssuedAt,
+        );
       }
     }
     if (this.identityAssertion)
@@ -199,9 +243,18 @@ export class BoatSandboxProvider implements SandboxProvider {
       this.identityAssertion = registration.identityAssertion;
     // Persist before any claim is surfaced: the process ends with the
     // human gate, and the next one must resume the same registration.
+    if (registration.claim) {
+      this.claimMaterials = registration.claim;
+      this.claimIssuedAt = Date.now();
+    }
+    this.stateDirty = true;
     await this.persistState();
-    if (registration.claim) this.claimMaterials = registration.claim;
-    if (!registration.identityAssertion) this.claimRequired();
+    if (!registration.identityAssertion)
+      requireBoatClaim(
+        this.claimMaterials,
+        this.claimToken,
+        this.claimIssuedAt,
+      );
     return this.adoptGrant(
       await auth.exchangeAssertion(registration.identityAssertion),
     );
@@ -220,11 +273,10 @@ export class BoatSandboxProvider implements SandboxProvider {
     // fresh code, then surface it through the intervention channel.
     const email = this.claimEmail;
     if (email && this.claimToken)
-      this.claimMaterials = await this.auth().requestClaim(
-        this.claimToken,
-        email,
+      await this.adoptClaim(
+        await this.auth().requestClaim(this.claimToken, email),
       );
-    this.claimRequired();
+    requireBoatClaim(this.claimMaterials, this.claimToken, this.claimIssuedAt);
   }
 
   private async createSandbox(
@@ -262,12 +314,12 @@ export class BoatSandboxProvider implements SandboxProvider {
     const interval = this.options.pollIntervalMs ?? 2_000;
     for (;;) {
       const sandbox = await this.client().getSandbox(token, sandboxId);
-      if (READY_STATES.has(sandbox.state)) return;
+      if (BOAT_READY_STATES.has(sandbox.state)) return;
       if (sandbox.state === "error")
         throw new Error(`boat: sandbox ${sandboxId} entered error state`);
       if (Date.now() > deadline)
         throw new Error(`boat: sandbox ${sandboxId} did not become ready`);
-      await sleep(interval);
+      await boatSleep(interval);
     }
   }
 
@@ -287,7 +339,7 @@ export class BoatSandboxProvider implements SandboxProvider {
       if (opened) return;
       if (Date.now() > deadline)
         throw new Error("boat: relay agent did not start in the sandbox");
-      await sleep(interval);
+      await boatSleep(interval);
     }
   }
 
