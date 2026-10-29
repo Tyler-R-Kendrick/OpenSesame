@@ -605,7 +605,7 @@ Full prose moved from `AGENTS.md` §5. `AGENTS.md` §5 keeps the one-line invari
   pair one. `pnpm lint:design` (`scripts/quality/design-lint.mjs`) rejects word-verb
   buttons, status pills, explainer captions, and any in-page failure
   (`no-in-page-error`, `no-error-box-css`; no ledger, the count is zero); `impeccable detect`
-  enforces the same design file. Both run in `.githooks/pre-commit`. The
+  enforces the same design file when the optional skill is installed. Both run in `.githooks/pre-commit` (impeccable skips when absent). The
   word-verb ledger is `tools/quality/design-button-baseline.json` and only falls.
   **Three shape rules gate every control, and each has a lint rule whose
   count is zero** (the corners ledger, `tools/quality/design-radius-baseline.json`,

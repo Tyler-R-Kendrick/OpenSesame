@@ -101,6 +101,7 @@ Possessing a handle never implies permission to resolve it
 |---|---|
 | [Host/client topology](host-client-topology.md) | Surfaces, ports, the crate/package dependency graph, the two CLIs, the WIT worlds. |
 | [Layout map](layout-map.md) | Detailed path-by-path layout moved from `AGENTS.md` §4; per-directory `README.md` files are the maintained summaries. |
+| [CUA password reset](cua-password-reset.md) | Computer-use password-reset flow. |
 | [Identity plane](identity-plane.md) | Where the Identity API sits between the two planes, and who owns the canonical principal id. |
 | [Transport topology](transport-topology.md) | The hop profiles between planes and what a certificate does and does not prove. |
 

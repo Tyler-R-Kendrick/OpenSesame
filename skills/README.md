@@ -7,7 +7,7 @@ for tools that look there; those 8 aliases are the only `.agents/` entries in
 source control. Third-party skills are **install output, not source**: they
 are restored into `.agents/skills/` (plus harness mirrors) by
 `scripts/dev/install-agent-skills.sh` — run at every devcontainer start, or
-`pnpm skills:install` locally — from the pins in
+`pnpm skills:install` locally — from the catalogue in
 [`skills-lock.json`](../skills-lock.json), and every harness root is
 gitignored except the repo-built adapters whitelisted in `.gitignore`.
 
@@ -41,7 +41,7 @@ for an uninstalled optional skill is skipped by the checker; removing it is
 the harness owner's job. An unlisted or core name without a canonical install
 still fails.
 
-Provenance: 20 of the 22 third-party skills are pinned in
+Provenance: 20 of the 22 third-party skills are catalogued in
 [`skills-lock.json`](../skills-lock.json). The exceptions are `design-system`
 (a TypeUI pull, which also declares frontmatter `name: minimal`) and
 `impeccable` (its own `npx impeccable` updater); the install script restores
@@ -113,5 +113,5 @@ A new first-party skill gets a directory here, a symlink in `.agents/skills/`,
 a row in the [skills index](../docs/contributing/skills.md), an entry under
 `core` in `profiles.json`, and whitelist lines in `.gitignore` (both the
 `skills/` and `.agents/skills/` sections — harness roots ignore by default). A new third-party skill gets an entry
-in one optional profile in `profiles.json` (and a `skills-lock.json` pin when
+in one optional profile in `profiles.json` (and a `skills-lock.json` entry when
 its updater provides one).

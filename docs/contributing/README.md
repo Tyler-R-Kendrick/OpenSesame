@@ -78,8 +78,9 @@ change through.
 `pnpm setup:hooks` points git at [`.githooks/`](../../.githooks).
 
 - **pre-commit** — Biome and anti-slop on staged files; rustfmt and Clippy when
-  Rust or Cargo configuration is staged; the design lint and `impeccable
-  detect` on UI files; gitleaks when installed.
+  Rust or Cargo configuration is staged; the design lint and (when the
+  optional skill is installed) `impeccable detect` on UI files; gitleaks
+  when installed.
 - **pre-push** — `OPENSESAME_PREPUSH=fast` (default: changed-file lint,
   generated-artifact freshness, anti-slop, static quality, typecheck and
   conditional Clippy), `full` (`pnpm verify`, including tests) or `off`.
@@ -100,6 +101,7 @@ change through.
 | [Agent setup](agent-setup.md) | User-scope personal setup (dotfiles, user skills, permissions, tier routing) kept outside tracked product config; profiles, update/rollback, acceptance checklist. |
 | [Agent routines](agent-routines.md) | Scheduled sessions that run audits, fuzz batches and drift checks outside CI, each in a copy-on-write worktree with a workflow swarm and stacked pull requests. |
 | [Linear workflow](linear-workflow.md) | Setting up and using the Linear workspace. |
+| [OSS programs](oss-programs.md) | Open-source program participation notes. |
 | [PostHog setup](posthog-setup.md) | Setting up product analytics. |
 | [AI automation roadmap](ai-automation-roadmap.md) | A dated (2026-08-09) assessment of where AI tooling was used in the development process and where it was meant to go; its status note says what has since changed. |
 

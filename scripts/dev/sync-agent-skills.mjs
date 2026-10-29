@@ -77,7 +77,7 @@ export function loadProfiles(root) {
   const seen = new Set(core);
   for (const [key, profile] of Object.entries(parsed.profiles ?? {})) {
     if (key === "core") continue;
-    for (const name of profile.skills ?? []) {
+    for (const name of Array.isArray(profile.skills) ? profile.skills : []) {
       if (seen.has(name))
         throw new Error(`Skill listed in multiple profiles: ${name}`);
       seen.add(name);
@@ -130,9 +130,13 @@ function syncMirror(root, agent, name, check, profiles) {
   const source = resolveCanonical(root, name);
   const mirror = join(root, agent, "skills", name);
   if (!source) {
-    // Optional skills may be uninstalled; a stale harness mirror is the
-    // harness workflow's to remove and must not fail core validation.
-    if (profiles?.optional.has(name)) return [];
+    // Optional skills may be uninstalled and must not fail core validation.
+    // A stale mirror would stay discoverable forever, so a real sync
+    // removes it; --check only reports through the changes list.
+    if (profiles?.optional.has(name)) {
+      if (!check) rmSync(mirror, { recursive: true, force: true });
+      return check ? [] : [mirror];
+    }
     throw new Error(
       `Choose a canonical .agents/skills/${name} before syncing ${agent}`,
     );
@@ -184,10 +188,18 @@ export function syncAgentSkills(directory, { check = false } = {}) {
       for (const name of readdirSync(dir).sort()) {
         const stat = lstatSync(join(dir, name));
         if (!stat.isDirectory() && !stat.isSymbolicLink()) continue;
-        if (!profiles.all.has(name))
-          throw new Error(
-            `${base}/${name} is not listed in skills/profiles.json`,
+        if (!profiles.all.has(name)) {
+          // Strict in CI (fresh tree: an unlisted canonical is a catalogue
+          // bug). Locally, a personal or stale install must not block every
+          // commit via the git hooks; warn instead.
+          if (process.env.CI === "true")
+            throw new Error(
+              `${base}/${name} is not listed in skills/profiles.json`,
+            );
+          console.error(
+            `agent skills: warning: ${base}/${name} is not listed in skills/profiles.json (ignored locally, fails in CI)`,
           );
+        }
       }
     }
   }

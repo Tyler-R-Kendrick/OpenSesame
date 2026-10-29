@@ -15,7 +15,7 @@ Canonical product/agent rules remain `AGENTS.md`.
 | `.codex/hooks.json` | Product impeccable UI hooks |
 | `.cursor/rules/*.mdc` | Product rules. `grok-build-first`/`kimi-first` are thin adapters pointing here |
 | `.github/copilot-instructions.md` | Bridge to `AGENTS.md` |
-| `.agents/skills/` | Canonical skills (`skills-lock.json`); `.claude/skills`, `.grok/skills` are relative-link mirrors (see below) |
+| `skills/` + 8 `.agents/skills/` aliases | First-party skill source and its discovery links. Third-party skills under `.agents/skills/` and the `.claude/skills`/`.grok/skills` mirrors are gitignored install output (see below) |
 
 In `opencode.json`, Storybook and Stitch default to `enabled: false`
 (they error without a running Storybook / a personal key). Enable them in
@@ -57,13 +57,14 @@ mkdir -p ~/.claude/skills
 ln -s ~/.agents/skills/<name> ~/.claude/skills/<name>   # per skill
 ```
 
-Project skills work the same way in-repo: `.agents/skills/` is canonical,
-`.claude/skills/` and `.grok/skills/` hold relative symlinks plus real
-harness variants (`impeccable`, `scandinavian-design`
-under `.claude/skills/`). Run `node scripts/dev/sync-agent-skills.mjs`
-after adding a project skill; `--check` verifies mirrors. Do not delete a
-mirror link until that harness version is verified to discover
-`.agents/skills/` natively.
+Project skills work differently in-repo: first-party source is `skills/`
+(tracked, aliased from `.agents/skills/`); third-party skills install into
+`.agents/skills/` with `.claude/skills/` and `.grok/skills/` mirrors, all
+gitignored and refreshed to latest at container start by
+`scripts/dev/install-agent-skills.sh`. Harness-specific variants an
+installer writes (e.g. impeccable's Claude copy) are install output too;
+`node scripts/dev/sync-agent-skills.mjs` collapses duplicate mirrors to
+links and `--check` verifies them.
 
 ### Claude permissions (auto-allow)
 
@@ -94,17 +95,32 @@ Stitch needs your own key: `export STITCH_API_KEY=...` in your shell/dotfiles
 
 The `google-labs-code/stitch-skills` marketplace plugins
 (`stitch-design`, `stitch-build`, `stitch-utilities`) are **not**
-auto-enabled by tracked settings — the same skills are vendored under
-`.agents/skills/stitch-*` and pinned in `skills-lock.json`. To use the
+auto-enabled by tracked settings — the same skills install (latest,
+unpinned) into `.agents/skills/stitch-*` per the `skills-lock.json`
+catalogue at container start. To use the
 marketplace copies instead, enable them in your user Claude settings
 (`extraKnownMarketplaces` + `enabledPlugins` for
 `google-labs-code/stitch-skills`).
 
 ### Model routing (operator profiles)
 
-Tier routing (Grok Build → Kimi Code → Cursor), subscription auth
-(`~/.grok/auth.json`, `kimi login`, `KIMI_MODEL_API_KEY`), and quota
-fallbacks are operator setup: see `AGENTS.md` for the chain,
+Tier routing, subscription auth, and quota fallbacks are operator setup.
+This section is the chain's home; the `.cursor/rules/` adapters point here.
+
+1. **Tier 1 — Grok Build CLI.** Delegate coding through
+   `scripts/dev/grok-headless.sh` (subscription auth from
+   `~/.grok/auth.json`, installed by
+   `scripts/dev/grok-install-subscription-auth.sh`; never `XAI_API_KEY` —
+   an API-key 403 is misconfiguration, not tier exhaustion). Resolve the
+   model with `scripts/dev/grok-resolve-model.sh` and run
+   `scripts/dev/agent-coding-preflight.sh` before batch work.
+2. **Tier 2 — Kimi Code CLI.** Only when Grok itself reports a weekly
+   limit/quota. Auth via `kimi login` (or `KIMI_MODEL_API_KEY`); runbook
+   `.cursor/kimi-code.md`.
+3. **Tier 3 — Cursor.** When Kimi is also exhausted: Grok model for
+   security/red-team work, Composer/auto otherwise.
+
+Record the tier used and why in the PR Provenance section. Details:
 `.cursor/kimi-code.md` and `docs/operators/kimi-code-cloud.md` for runbooks,
 and `scripts/dev/{grok,kimi,agent-coding}-preflight.sh` before batch work.
 Never commit auth files, API keys, or `auth.preferred_method = "api_key"`
@@ -121,7 +137,9 @@ for device-login setups (see `.grok/config.toml`).
   (`--install-directory "$HOME/.local/bin"`, `COREPACK_HOME` under
   `/home/vscode`), frozen-lockfile install in `updateContentCommand`,
   hooks in `postCreateCommand`, named volumes for cargo/pnpm/corepack.
-  No `postStart`/`postAttach` network work, no host paths, no dotfiles.
+  `postStartCommand` runs `scripts/dev/install-agent-skills.sh` only
+  (latest third-party skills into gitignored roots; warns and continues
+  offline). No other `postAttach` work, no host paths, no dotfiles.
   In-container planes use `127.0.0.1` defaults (`scripts/dev/local-env.sh`).
 - **Host-agent (opt-in, not tracked):** if you run host planes, add your
   own devcontainer override with
@@ -136,8 +154,10 @@ for device-login setups (see `.grok/config.toml`).
   dotfiles revision (`git -C "$(chezmoi source-path)" checkout <rev>`).
 - Personal skills: update in `~/.agents/skills` only; links follow.
   Rollback = restore that directory; no repo change needed.
-- Project skills: `skills-lock.json` pins; update deliberately, run
-  `node scripts/dev/sync-agent-skills.mjs`, review the diff.
+- Project skills: third-party content floats to latest at every
+  container start (`skills-lock.json` is the catalogue, not a pin).
+  Catalogue changes are reviewed commits; check
+  `.agents/.skills-currency.json` for what the last start installed.
 - Harness config changes in-repo: keep them adapter-sized. Rollback is a
   plain `git revert` of the config commit — personal state above is
   unaffected because none of it is tracked.
@@ -159,7 +179,8 @@ for device-login setups (see `.grok/config.toml`).
       `OPENSESAME_AGENT_BOOTSTRAP=1`
 - [ ] MCP trio definitions identical across `.codex/config.toml`,
       `.mcp.json`, `.cursor/mcp.json`, `opencode.json` (URLs + `shadcn@4.21.4`)
-- [ ] Devcontainer: no `postStart`/`postAttach`, no `host.docker.internal`,
+- [ ] Devcontainer: `postStart` runs only the skills install, no `postAttach`,
+      no `host.docker.internal`,
       no `${localEnv:HOME}` mount; `id` in lifecycle is `vscode`;
       `node -v`, `pnpm -v`, `cargo -V` succeed after create
 - [ ] Personal layer works from a clean clone: chezmoi apply →

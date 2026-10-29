@@ -205,3 +205,13 @@ apps/pages/dist-iwa/
 /docs/design/canvases/pwa-install/*.dc.html
 /docs/design/canvases/setup-next-steps/*.dc.html
 /docs/design/canvases/shared-sessions/*.dc.html
+
+# Re-assert secret ignores AFTER the harness whitelists above: later
+# patterns win in git, so the !** whitelists would otherwise un-ignore
+# credential files dropped inside whitelisted trees.
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+!**/fixtures/**/*.pem

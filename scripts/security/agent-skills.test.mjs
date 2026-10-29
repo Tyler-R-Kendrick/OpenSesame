@@ -169,9 +169,7 @@ test("core skill missing its .agents alias fails", (t) => {
 test("shared Impeccable launcher retains Claude-specific reference directory", (t) => {
   const probeRoot = fileURLToPath(new URL("../..", import.meta.url));
   if (
-    !existsSync(
-      join(probeRoot, ".claude/skills/impeccable/scripts/impeccable"),
-    )
+    !existsSync(join(probeRoot, ".claude/skills/impeccable/scripts/impeccable"))
   ) {
     t.skip("impeccable (reusable-optional) not installed");
     return;
@@ -194,4 +192,34 @@ test("shared Impeccable launcher retains Claude-specific reference directory", (
     },
   ).trim();
   assert.equal(output, join(root, ".claude/skills/impeccable"));
+});
+
+test("sync removes a stale mirror of an uninstalled optional skill", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  f.put(".claude/skills/opt-example/SKILL.md", "# Stale\n");
+  assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
+  syncAgentSkills(f.root);
+  assert.equal(existsSync(join(f.root, ".claude/skills/opt-example")), false);
+});
+
+test("unlisted canonical warns locally and fails in CI", (t) => {
+  const f = fixture(t);
+  writeProfiles(f, { core: { skills: [] } });
+  f.put(".agents/skills/zz-personal/SKILL.md", "# Personal\n");
+  const previous = process.env.CI;
+  try {
+    process.env.CI = "";
+    assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
+    process.env.CI = "true";
+    assert.throws(
+      () => syncAgentSkills(f.root, { check: true }),
+      /not listed in skills\/profiles\.json/u,
+    );
+  } finally {
+    process.env.CI = previous ?? "";
+  }
 });
