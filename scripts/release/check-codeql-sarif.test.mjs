@@ -144,7 +144,7 @@ test("only the reviewed source and exact SARIF results pass", () => {
   assert.doesNotThrow(() => assertCleanCodeql(reordered, reviewedJs));
 });
 
-test("accepts only the exact reviewed native TLS result", () => {
+test("rejects native TLS without an exact source and result review", () => {
   const result = JSON.parse(
     readFileSync(
       new URL("./fixtures/codeql-reviewed-native.json", import.meta.url),
@@ -154,9 +154,7 @@ test("accepts only the exact reviewed native TLS result", () => {
   const report = clean();
   report.runs[0].automationDetails = { id: "/language:go-native-wasm/" };
   report.runs[0].results = [result];
-  assert.deepEqual(assertCleanCodeql(report, reviewedWasm), [
-    "Tailscale custom certificate and hostname verification",
-  ]);
+  assert.throws(() => assertCleanCodeql(report, reviewedWasm));
   assert.throws(() => assertCleanCodeql(report, "f".repeat(64)));
   report.runs[0].automationDetails.id = "/language:go-native-host/";
   assert.throws(() => assertCleanCodeql(report, reviewedWasm));

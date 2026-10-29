@@ -121,15 +121,13 @@ External model reviews, Deepsec investigations and cve-lite's local workflow
 remain supplemental; this pipeline does not claim those reviews occurred.
 
 The CodeQL gate retains two reviewed JavaScript HMAC findings on the historical
-`660eef2b47734044b89992721059dbfd85c86b9f` source and one native WASM finding
-on its reviewed historical source. Their complete SARIF result digests, language
-categories and source inputs are recorded together in
+`660eef2b47734044b89992721059dbfd85c86b9f` source. Their complete SARIF result
+digests, language categories and source inputs are recorded together in
 `scripts/release/codeql-reviewed-inputs.json`. The input digest covers every Git
 tree entry, including mode and object ID, except that review-record file itself.
 This exception lets a later controller record an independently reviewed source
 without requiring the record to contain its own digest. The record is part of
-the compatibility policy and must match the trusted controller. The historical
-reviews do not authorize the native host result.
+the compatibility policy and must match the trusted controller. No native TLS result is currently authorized by this record.
 
 Any changed input or unrecorded result fails qualification until its complete
 dataflows, dependencies, analyzer output and source are reviewed. After review,
