@@ -38,16 +38,30 @@ describe("publication authority", () => {
     },
   );
 
-  it("uses only the protected release credential to create version tags", () => {
+  it("limits the protected release credential to draft creation", () => {
     const definition = workflow("release-publish");
-    expect(definition.jobs.stage.environment.name).toBe("release");
-    expect(definition.jobs.stage.env.GH_TOKEN).toBe(
-      "${{ secrets.RELEASE_PUBLISH_TOKEN }}",
+    const stage = definition.jobs.stage;
+    expect(stage.environment.name).toBe("release");
+    expect(definition.env.GH_TOKEN).toBe("${{ github.token }}");
+    expect(stage.env?.GH_TOKEN).toBeUndefined();
+    const protectedSteps = stage.steps.filter((step) =>
+      JSON.stringify(step).includes("secrets.RELEASE_PUBLISH_TOKEN"),
     );
-    expect(definition.jobs.stage.steps).toContainEqual({
-      name: "Require the protected publication credential",
-      run: 'test -n "$GH_TOKEN"',
-    });
+    expect(protectedSteps.map((step) => step.name)).toEqual([
+      "Require the protected publication credential",
+      "Create or resume the owned draft with exactly the allowed assets",
+    ]);
+    for (const step of protectedSteps) {
+      expect(step.env).toEqual({
+        GH_TOKEN: "${{ secrets.RELEASE_PUBLISH_TOKEN }}",
+      });
+    }
+    const qualification = stage.steps.find(
+      (step) =>
+        step.name === "Revalidate original build and every prerequisite receipt",
+    );
+    expect(qualification).toBeDefined();
+    expect(qualification.env?.GH_TOKEN).toBeUndefined();
   });
 
   it("retains the upstream registry controls as prerequisites for a future integration", () => {
