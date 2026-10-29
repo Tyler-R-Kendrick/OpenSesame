@@ -14,14 +14,14 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
-          ref: dd4cbd7bde530cfceccc06045708ede78c43c6a4
+          ref: 94c3eb1ac5b7906d8b49060750c6bcc27294f2d8
       - name: Verify immutable candidate
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = dd4cbd7bde530cfceccc06045708ede78c43c6a4
-          test "$(git rev-parse HEAD^{tree})" = 84c136af1482c429d3953366333796163ded8bec
-          test "$(git rev-parse HEAD^)" = 8ef5c5443dc50271c8926f65998b4dbf6c4f1941
+          test "$(git rev-parse HEAD)" = 94c3eb1ac5b7906d8b49060750c6bcc27294f2d8
+          test "$(git rev-parse HEAD^{tree})" = 8bc278fe3478ba61e26c3237e8877889dd806c92
+          test "$(git rev-parse HEAD^)" = dd4cbd7bde530cfceccc06045708ede78c43c6a4
           git diff --exit-code
           git diff --cached --exit-code
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
@@ -71,6 +71,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^{tree})" = 84c136af1482c429d3953366333796163ded8bec
+          test "$(git rev-parse HEAD^{tree})" = 8bc278fe3478ba61e26c3237e8877889dd806c92
           git diff --exit-code
           git diff --cached --exit-code
