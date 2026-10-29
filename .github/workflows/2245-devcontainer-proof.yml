@@ -1,0 +1,45 @@
+name: Review pinned Node devcontainer feature
+on:
+  push:
+    branches: [review/2245-devcontainer-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor == 'Tyler-R-Kendrick' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2245-devcontainer-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - name: Checkout exact candidate parent
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: a21e79fecdc0496eed3123b784aa27df9d089f82
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Apply and verify exact candidate
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a21e79fecdc0496eed3123b784aa27df9d089f82
+          python3 -c 'import hashlib,pathlib; p=pathlib.Path("../controller/.github/verify-inputs/2245-security.patch"); assert hashlib.sha256(p.read_bytes()).hexdigest()=="0c4b9b9fca2e2a56fc28ed9914abf73026c6718b68058244e8b91ce82701913e"'
+          git apply --index ../controller/.github/verify-inputs/2245-security.patch
+          test "$(git write-tree)" = 9e23ec009174fbe35cd3c6f62d521dbd80cda689
+          git diff --exit-code
+      - name: Build declared devcontainer and pinned feature
+        run: npx --yes @devcontainers/cli@0.90.0 build --workspace-folder candidate --image-name opensesame-skills-proof
+      - name: Verify exact source after build
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a21e79fecdc0496eed3123b784aa27df9d089f82
+          test "$(git write-tree)" = 9e23ec009174fbe35cd3c6f62d521dbd80cda689
+          git diff --exit-code
