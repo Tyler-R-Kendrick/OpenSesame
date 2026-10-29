@@ -49,15 +49,48 @@ __pycache__/
 mutants.out/
 mutants.out.old/
 
-# local Claude Code permission posture (personal, not shared)
-.claude/settings.local.json
-
-# Impeccable platform executables are downloaded by the version-pinned launcher.
-.agents/skills/impeccable/scripts/bin/
-.claude/skills/impeccable/scripts/bin/
-
-# Ephemeral Claude agent worktrees (live sandboxes, never repo content)
-.claude/worktrees/
+# Agent harness roots are ignored by default: installed skills, generated
+# mirrors, local settings, and runtime state are install output, restored by
+# scripts/dev/install-agent-skills.sh (devcontainer post-create) from
+# skills-lock.json. Only the repo-built adapters whitelisted below are
+# tracked. First-party skills live in skills/ (tracked); their 8
+# .agents/skills aliases are whitelisted so discovery works from a clone.
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/install-anti-slop
+!.agents/skills/local-debug-session
+!.agents/skills/opensesame-apis
+!.agents/skills/opensesame-chrome-extension
+!.agents/skills/opensesame-clis
+!.agents/skills/opensesame-mcps
+!.agents/skills/security-review
+!.agents/skills/visual-evidence
+.claude/*
+!.claude/README.md
+!.claude/settings.json
+!.claude/hooks/
+!.claude/hooks/**
+!.claude/agents/
+!.claude/agents/**
+.codex/*
+!.codex/config.toml
+!.codex/hooks.json
+.grok/*
+!.grok/config.toml
+!.grok/workflows/
+!.grok/workflows/**
+.cursor/*
+!.cursor/Dockerfile
+!.cursor/cloud-path.sh
+!.cursor/environment.json
+!.cursor/install.sh
+!.cursor/kimi-code.md
+!.cursor/mcp.json
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/tools/
+!.cursor/tools/**
 
 # impeccable-ignore-start
 # Ephemeral output, runtime state, and per-dev overrides.

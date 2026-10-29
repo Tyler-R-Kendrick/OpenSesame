@@ -99,7 +99,7 @@ External/model-based security checkers supplement, never replace, `pnpm audit:*`
 
 ## 7. Skills
 
-Skills are canonical in `skills/*/SKILL.md`, mirrored through `.agents/skills/`; tiers are defined in `skills/profiles.json` (core first-party required, optional profiles may be absent); sync with `scripts/dev/sync-agent-skills.mjs` (and its `--check`), never by multi-target copy. Routing index: [skills](docs/contributing/skills.md). Personal user-scope setup: [agent setup](docs/contributing/agent-setup.md).
+Skills are canonical in `skills/*/SKILL.md`, mirrored through `.agents/skills/`; tiers are defined in `skills/profiles.json` (core first-party required, optional profiles may be absent). Third-party skills are gitignored install output restored by `scripts/dev/install-agent-skills.sh` (`pnpm skills:install`, devcontainer post-create) from `skills-lock.json` — never stage installed trees. Sync with `scripts/dev/sync-agent-skills.mjs` (and its `--check`), never by multi-target copy. Routing index: [skills](docs/contributing/skills.md). Personal user-scope setup: [agent setup](docs/contributing/agent-setup.md).
 
 ## 8. Verification expectations
 

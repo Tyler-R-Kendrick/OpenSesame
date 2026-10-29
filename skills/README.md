@@ -3,17 +3,19 @@
 Agent skills — self-contained instructions a coding agent loads for one kind
 of task. Each directory holds a `SKILL.md` with a `description` the agent
 matches against. [`.agents/skills/`](../.agents/skills) links to each of these
-for tools that look there; third-party skills installed by their own updaters
-live once in `.agents/skills/`. `.claude/skills/` and `.grok/skills/` link to
-that canonical install. Agent-specific instruction variants remain separate;
-identical files within those variants link to the canonical copy.
+for tools that look there; those 8 aliases are the only `.agents/` entries in
+source control. Third-party skills are **install output, not source**: they
+are restored into `.agents/skills/` (plus harness mirrors) by
+`scripts/dev/install-agent-skills.sh` — run at devcontainer creation, or
+`pnpm skills:install` locally — from the pins in
+[`skills-lock.json`](../skills-lock.json), and every harness root is
+gitignored except the repo-built adapters whitelisted in `.gitignore`.
 
 After a reviewed upstream update, run `node scripts/dev/sync-agent-skills.mjs`
 then `node scripts/dev/sync-agent-skills.mjs --check`. Install or update the
 canonical skill once; do not use multi-agent `--copy` installations. The sync
 command compares bytes and executable modes before replacing a duplicate and
-never discards differing instructions. If an installer materializes mirrors,
-sync them again before staging.
+never discards differing instructions. Installed trees are never staged.
 
 ## Ownership tiers
 
@@ -42,9 +44,9 @@ still fails.
 Provenance: 22 of the 24 third-party skills are pinned in
 [`skills-lock.json`](../skills-lock.json). The exceptions are `design-system`
 (a TypeUI pull, which also declares frontmatter `name: minimal`) and
-`impeccable` (its own `npx impeccable` updater). Nothing is deleted by this
-catalogue: the whole `stitch-skills` set stays on disk so plugin installs
-still match upstream; the tiers only say what is a default.
+`impeccable` (its own `npx impeccable` updater); the install script restores
+both. The tiers say what is a default; presence on disk is a local install
+choice, and a fresh clone has only the core profile until install runs.
 
 ## Using OpenSesame
 
