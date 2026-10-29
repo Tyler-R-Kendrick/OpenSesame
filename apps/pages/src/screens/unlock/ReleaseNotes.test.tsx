@@ -110,3 +110,13 @@ it("starts collapsed on a stacked gate, toggles releases, and keeps at most one 
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.queryByText(/ADR|Host|Vercel Connect|backend/i)).toBeNull();
 });
+
+it("keeps project navigation off the gate at every release layout", () => {
+  for (const stacked of [false, true]) {
+    stubViewport(stacked);
+    render(<ReleaseNotes />);
+    expect(screen.queryByText("About this project")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+    cleanup();
+  }
+});
