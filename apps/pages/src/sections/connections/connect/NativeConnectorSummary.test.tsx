@@ -205,6 +205,47 @@ it("does not advertise completion or permit use for an unverified record", () =>
   ).toHaveProperty("disabled", true);
 });
 
+it("describes a previously validated local configuration without claiming provider verification", () => {
+  const view = nativeUiView();
+  view.providerId = "e2b";
+  view.configuration.providerId = "e2b";
+  view.configuration.method = "native-local";
+  view.status = "reauthorize";
+  view.grants = [];
+  const descriptor = nativeUiDescriptor();
+  descriptor.providerId = "e2b";
+  descriptor.name = "E2B";
+  descriptor.methods = [
+    {
+      id: "native-local",
+      label: "Local configuration",
+      available: true,
+      fields: [],
+      scopeGroups: [],
+    },
+  ];
+  render(
+    <NativeConnectorSummary
+      descriptor={descriptor}
+      view={view}
+      controller={nativeUiController(view)}
+      onChanged={vi.fn()}
+      onFlash={vi.fn()}
+      onRemoved={vi.fn()}
+    />,
+  );
+  expect(
+    screen.getByRole("img", { name: "Local configuration needs validation" }),
+  ).toBeTruthy();
+  expect(screen.getByText("Previously validated configuration")).toBeTruthy();
+  expect(screen.getByText("Last local validation")).toBeTruthy();
+  expect(screen.queryByText("Last provider verification")).toBeNull();
+  expect(screen.queryByText("Verified access")).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Verify E2B configuration" }),
+  ).toBeTruthy();
+});
+
 it("uses provider-owned actors and displays granted scopes rather than selected scopes", async () => {
   const view = nativeUiView();
   view.status = "reauthorize";

@@ -98,6 +98,15 @@ function nativeFormReady(
   );
 }
 
+function nativeSaveMessage(
+  method: NativeMethodDescriptor,
+  name: string,
+): string {
+  return method.id === "native-local"
+    ? `${name} configuration validated locally and saved on this device. Provider access was not checked.`
+    : `${name} access verified and saved on this device.`;
+}
+
 function useNativeForm(props: Props) {
   const { descriptor, controller, view, onChanged, onFlash } = props;
   const { lifetime, busy, setBusyOwner, failure, setFailure } =
@@ -158,7 +167,7 @@ function useNativeForm(props: Props) {
         setValues(nativeFieldValues(method.fields, values, false));
         onFlash({
           tone: "ok",
-          text: `${descriptor.name} access verified and saved on this device.`,
+          text: nativeSaveMessage(method, descriptor.name),
         });
       } else {
         onFlash({

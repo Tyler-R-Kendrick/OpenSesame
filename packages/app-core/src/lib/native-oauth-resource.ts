@@ -17,6 +17,7 @@ import {
   nativeOAuthClientTarget,
   readNativeOAuthClientSecret,
 } from "./native-oauth-client-config.js";
+import { admissibleGrantScopes } from "./native-oauth-client-scopes.js";
 import { commitNativeOAuthGrant } from "./native-oauth-commit.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
@@ -40,6 +41,14 @@ function actualResource(
     (grant.expiresAt !== null && grant.expiresAt <= Date.now())
   )
     throw new NativeOAuthError("expired");
+  if (
+    !admissibleGrantScopes(
+      record.configuration.providerId,
+      record.configuration.requestedScopes[grant.actor] ?? [],
+      grant.scopes,
+    )
+  )
+    throw new NativeOAuthError("scope");
   return target.resource;
 }
 function resourceTransport(

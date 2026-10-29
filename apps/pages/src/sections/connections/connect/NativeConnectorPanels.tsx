@@ -7,6 +7,7 @@ import type {
 } from "@opensesame/app-core/lib/connections.js";
 import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
+import { nativeCatalogConfiguration } from "@opensesame/app-core/lib/native-catalog-configuration.js";
 import {
   compiledApiKeyRoute,
   compiledOidcRoute,
@@ -34,6 +35,7 @@ import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
 import { NativeVaultBackupControls } from "./NativeS3BackupControls.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
+import { usesMcp } from "./native-connector-mcp-use.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
 import type {
   NativeActionDescriptor,
@@ -119,7 +121,11 @@ export function nativeSettingsDescriptor(
       has: (method, id) =>
         method === "oidc"
           ? compiledOidcRoute(id) && !nativeConnectorWithdrawn(method)
-          : compiledApiKeyRoute(id) && !closed,
+          : method === "native-local"
+            ? nativeCatalogConfiguration(id) !== null &&
+              !nativeConnectorWithdrawn(method) &&
+              vaultStore.isGenuineSession()
+            : compiledApiKeyRoute(id) && !closed,
     });
   const callbackUrl = new URL(
     `${import.meta.env.BASE_URL}auth/native-connector.html`,
@@ -292,14 +298,6 @@ function backupControls(
       onFlash={onFlash}
     />
   ) : null;
-}
-
-function usesMcp(view: NativeConnectorView) {
-  return (
-    view.configuration.method === "mcp" ||
-    (nativeOAuthClientConfigured(view.configuration) &&
-      view.configuration.parameters.resource_protocol === "mcp")
-  );
 }
 
 export function NativeConnectorPanels({
