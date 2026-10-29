@@ -41,3 +41,52 @@ export async function doorRoads(page, stop, harness) {
     );
   }
 }
+
+/** Measure project links only in the already-open unlocked Support sheet. */
+export async function projectLinks(page, label, { audit, harness }) {
+  const summary = page.getByText("About this project", { exact: true });
+  let focused = await summary.evaluate(
+    (element) => element === document.activeElement,
+  );
+  for (let i = 0; i < 80 && !focused; i += 1) {
+    await page.keyboard.press("Tab");
+    focused = await summary.evaluate(
+      (element) => element === document.activeElement,
+    );
+  }
+  harness.check(focused, `${label}: keyboard reaches the project disclosure`);
+  if (!focused) throw new Error("Keyboard could not reach project disclosure");
+  await page.keyboard.press("Enter");
+  const links = page.locator(".support__project-links a");
+  await links.first().waitFor({ state: "visible" });
+  harness.check((await links.count()) === 10, `${label}: ten project links`);
+  await audit(page, label);
+  for (const link of await links.all()) {
+    await page.keyboard.press("Tab");
+    harness.check(
+      await link.evaluate((element) => element === document.activeElement),
+      `${label}: keyboard reaches ${await link.textContent()}`,
+    );
+    const box = await link.boundingBox();
+    harness.check(
+      box !== null && box.height >= 44 && box.width >= 44,
+      `${label}: ${await link.textContent()} target is at least 44px`,
+    );
+  }
+}
+
+/** A locked gate keeps project navigation behind the vault. */
+export async function lockedReload(page, stop, { openTab, audit, harness }) {
+  await openTab(page, "Vault");
+  const lock = page.getByRole("button", { name: "Lock vault" }).first();
+  if (await lock.count()) {
+    await lock.tap();
+    await page.waitForTimeout(900);
+    await audit(page, stop("unlock"));
+    harness.check(
+      (await page.getByText("About this project", { exact: true }).count()) ===
+        0,
+      `${stop("unlock")}: project navigation stays behind unlock`,
+    );
+  }
+}
