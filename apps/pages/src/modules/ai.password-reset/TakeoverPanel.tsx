@@ -20,16 +20,26 @@ import {
   takeoverActions,
 } from "./takeover-client.js";
 
-const STATE_WORDS: Record<string, string> = {
-  awaiting_human: "Parked — waiting for you",
-  handoff_requested: "Handoff requested — the agent is parking",
-  suspended: "Suspended — take over to re-attach",
-  human_driving: "You are driving",
-  resume_requested: "Handed back — the agent is re-checking the page",
-  agent_driving: "The agent is driving",
-};
+function stateWords(state: string): string {
+  switch (state) {
+    case "awaiting_human":
+      return "Parked — waiting for you";
+    case "handoff_requested":
+      return "Handoff requested — the agent is parking";
+    case "suspended":
+      return "Suspended — take over to re-attach";
+    case "human_driving":
+      return "You are driving";
+    case "resume_requested":
+      return "Handed back — the agent is re-checking the page";
+    case "agent_driving":
+      return "The agent is driving";
+    default:
+      return state;
+  }
+}
 
-type Act = (run: () => Promise<unknown>) => Promise<void>;
+type Act = (run: () => Promise<AgentRun> | Promise<void>) => Promise<void>;
 
 function useTakeoverRun(client: TakeoverClient, runId: string) {
   const [run, setRun] = useState<AgentRun | null>(null);
@@ -331,8 +341,7 @@ export function TakeoverPanel({
     <section aria-label="Browser takeover">
       <h1>Browser takeover</h1>
       <p>
-        {run.origin ?? "Provider site"} ·{" "}
-        {STATE_WORDS[run.control_state] ?? run.control_state}
+        {run.origin ?? "Provider site"} · {stateWords(run.control_state)}
         {run.blocked_reason ? ` · ${run.blocked_reason}` : ""}
       </p>
       <ControlButtons

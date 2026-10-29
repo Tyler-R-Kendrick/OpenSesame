@@ -14,7 +14,11 @@ import {
 import { MemoryRouter, NavLink, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TakeoverPanel } from "./TakeoverPanel.js";
-import type { TakeoverClient } from "./takeover-client.js";
+import type {
+  AgentRun,
+  ClaimedStep,
+  TakeoverClient,
+} from "./takeover-client.js";
 
 afterEach(() => {
   cleanup();
@@ -36,7 +40,7 @@ function fakeClient(initialControl: string) {
   });
   const client = {
     authenticate: vi.fn(async () => {}),
-    getRun: vi.fn(async (id: string) => run(id)),
+    getRun: vi.fn(async (id: string): Promise<AgentRun> => run(id)),
     listHookRecords: vi.fn(async () => []),
     requestHandoff: vi.fn(async () => run()),
     takeControl: vi.fn(async () => {
@@ -47,21 +51,15 @@ function fakeClient(initialControl: string) {
       state.control = "resume_requested";
       return run();
     }),
-    claimStep: vi.fn(async () => ({
-      run_id: "run-9",
-      seq: 4,
-      request: { step: "submit", selector: "#save" },
-    })),
+    claimStep: vi.fn(
+      async (): Promise<ClaimedStep | null> => ({
+        run_id: "run-9",
+        seq: 4,
+        request: { step: "submit", selector: "#save" },
+      }),
+    ),
     settleStep: vi.fn(async () => {}),
-  } as unknown as TakeoverClient & {
-    authenticate: ReturnType<typeof vi.fn>;
-    getRun: ReturnType<typeof vi.fn>;
-    requestHandoff: ReturnType<typeof vi.fn>;
-    takeControl: ReturnType<typeof vi.fn>;
-    release: ReturnType<typeof vi.fn>;
-    claimStep: ReturnType<typeof vi.fn>;
-    settleStep: ReturnType<typeof vi.fn>;
-  };
+  } satisfies TakeoverClient;
   return client;
 }
 
