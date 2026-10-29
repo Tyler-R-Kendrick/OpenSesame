@@ -1,0 +1,57 @@
+name: Review connector shared policy and scope alias
+on:
+  push:
+    branches: [review/2241-combined-proof-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-combined-proof-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: ee8af39a39a68b4c5173d915872f42de2d01d597
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify source and candidate
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ee8af39a39a68b4c5173d915872f42de2d01d597
+          test "$(git rev-parse HEAD^{tree})" = 5e399ad8d72b122695a5947830bec43471bdce40
+          printf '%s  %s\n' 58d3fdd8b83da707f33aebfe792e28d7aaeffd22cea7d1efc3af6fda26dbeb26 ../controller/.github/verify-inputs/2241-combined.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2241-combined.patch
+          test "$(git write-tree)" = 031748da15af30229cd27eddb1d4c0b23191c1ed
+          git diff --exit-code
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check affected formatting and types
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/native-oauth-client-scopes.ts packages/app-core/src/lib/native-oauth-client-exchange.ts packages/app-core/src/lib/native-oauth-client.test.ts packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts packages/app-core/src/lib/native-connector-view.ts packages/app-core/src/lib/native-connector-records.storage.test.ts packages/app-core/src/lib/native-google-wallet-configuration.ts packages/app-core/src/lib/native-google-wallet-policy.generated.ts packages/app-core/src/lib/native-google-wallet-policy.test.ts packages/app-core/src/lib/native-catalog-configuration-validation.ts packages/app-core/scripts/emit-google-wallet-configuration.mjs packages/app-core/scripts/emit-google-wallet-configuration.d.mts
+          pnpm --filter @opensesame/app-core typecheck
+      - name: Run real token exchange and storage tests
+        working-directory: candidate
+        run: pnpm --filter @opensesame/app-core exec vitest run src/lib/native-oauth-client-google-exchange.test.ts src/lib/native-oauth-client.test.ts src/lib/native-connector-records.storage.test.ts src/lib/native-google-wallet-policy.test.ts src/lib/native-catalog-configuration.test.ts
+      - name: Check candidate unchanged
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ee8af39a39a68b4c5173d915872f42de2d01d597
+          test "$(git write-tree)" = 031748da15af30229cd27eddb1d4c0b23191c1ed
+          git diff --exit-code
