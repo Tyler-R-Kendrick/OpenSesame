@@ -19,11 +19,6 @@
   "postStartCommand": "bash scripts/dev/install-agent-skills.sh",
   "customizations": {
     "vscode": {
-      "extensions": [
-        "rust-lang.rust-analyzer",
-        "tamasfe.even-better-toml",
-        "biomejs.biome"
-      ],
       "settings": {
         "terminal.integrated.env.linux": {
           "DEVCONTAINER": "1"

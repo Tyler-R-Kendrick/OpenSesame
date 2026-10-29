@@ -194,7 +194,7 @@ test("shared Impeccable launcher retains Claude-specific reference directory", (
   assert.equal(output, join(root, ".claude/skills/impeccable"));
 });
 
-test("sync removes a stale mirror of an uninstalled optional skill", (t) => {
+test("sync preserves a personal mirror of an uninstalled optional skill", (t) => {
   const f = fixture(t);
   writeProfiles(f, {
     core: { skills: [] },
@@ -203,7 +203,32 @@ test("sync removes a stale mirror of an uninstalled optional skill", (t) => {
   f.put(".claude/skills/opt-example/SKILL.md", "# Stale\n");
   assert.equal(syncAgentSkills(f.root, { check: true }).length, 0);
   syncAgentSkills(f.root);
-  assert.equal(existsSync(join(f.root, ".claude/skills/opt-example")), false);
+  assert.equal(
+    readFileSync(join(f.root, ".claude/skills/opt-example/SKILL.md"), "utf8"),
+    "# Stale\n",
+  );
+});
+
+test("sync refuses an escaped mirror root without deleting external files", (t) => {
+  const f = fixture(t);
+  const external = mkdtempSync(join(tmpdir(), "personal-skills-"));
+  t.after(() => rmSync(external, { recursive: true, force: true }));
+  writeProfiles(f, {
+    core: { skills: [] },
+    "reusable-optional": { skills: ["opt-example"] },
+  });
+  mkdirSync(join(f.root, ".claude"), { recursive: true });
+  mkdirSync(join(external, "opt-example"));
+  writeFileSync(join(external, "opt-example/SKILL.md"), "# Personal\n");
+  symlinkSync(external, join(f.root, ".claude/skills"), "dir");
+  assert.throws(
+    () => syncAgentSkills(f.root),
+    /Skill path escapes repository/u,
+  );
+  assert.equal(
+    readFileSync(join(external, "opt-example/SKILL.md"), "utf8"),
+    "# Personal\n",
+  );
 });
 
 test("sync prunes dangling mirror links left by an upstream removal", (t) => {

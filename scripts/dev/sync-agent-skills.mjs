@@ -143,12 +143,10 @@ function syncMirror(root, agent, name, check, profiles) {
   const source = resolveCanonical(root, name);
   const mirror = join(root, agent, "skills", name);
   if (!source) {
-    // Optional skills may be uninstalled and must not fail core validation.
-    // A stale mirror would stay discoverable forever, so a real sync
-    // removes it; --check only reports through the changes list.
+    // An absent canonical does not prove ownership of a mirror: it may
+    // contain personal instructions. Leave it for the owner to inspect.
     if (profiles?.optional.has(name)) {
-      if (!check) rmSync(mirror, { recursive: true, force: true });
-      return check ? [] : [mirror];
+      return [];
     }
     throw new Error(
       `Choose a canonical .agents/skills/${name} before syncing ${agent}`,
@@ -224,6 +222,7 @@ export function syncAgentSkills(directory, { check = false } = {}) {
   for (const agent of [".claude", ".grok"]) {
     const mirrors = join(root, agent, "skills");
     if (!existsSync(mirrors)) continue;
+    inside(root, mirrors);
     for (const name of readdirSync(mirrors).sort())
       changes.push(...syncMirror(root, agent, name, check, profiles));
   }
