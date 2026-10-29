@@ -91,6 +91,59 @@ index de6c8423a7db21555518e41c97233dfbe193a851..fd22015d5ae58d316bce9210b6207652
 +  expect(readDeviceRows()).toHaveLength(1);
 +  expect(fetcher).not.toHaveBeenCalled();
 +});
+diff --git a/apps/pages/src/sections/connections/SettingsPageNativeStatus.ts b/apps/pages/src/sections/connections/SettingsPageNativeStatus.ts
+index e946afe5aa8036a348f2554b4f0ff4b40b8b1dee..783cdfe5f1273e8749b460fea2f9f211dd3def5e 100644
+--- a/apps/pages/src/sections/connections/SettingsPageNativeStatus.ts
++++ b/apps/pages/src/sections/connections/SettingsPageNativeStatus.ts
+@@ -92,6 +92,26 @@ function verifiedHeader(
+   }
+   return { tone: "ok", label, sentence };
+ }
++
++function pendingHeader(
++  view: NativeConnectorView | null,
++  providerDetail?: string | null,
++): NativeHeaderStatus {
++  if (view?.configuration.method === "native-local")
++    return {
++      tone: "warn",
++      label: "Configuration validation pending",
++      sentence:
++        "Validate this configuration locally; provider access is not checked.",
++    };
++  return {
++    tone: "warn",
++    label: "Verification pending",
++    sentence:
++      providerDetail ??
++      "Provider verification is required before using this connection.",
++  };
++}
+ export function nativeConnectorHeaderStatus(
+   connection: Connection | null,
+   provider: Provider,
+@@ -125,19 +145,8 @@ export function nativeConnectorHeaderStatus(
+       };
+   }
+   if (connection.status !== "active")
+-    return {
+-      tone: "warn",
+-      label: "Verification pending",
+-      sentence:
+-        connection.statusDetail ??
+-        "Provider verification is required before using this connection.",
+-    };
++    return pendingHeader(view, connection.statusDetail);
+   if (!view || view.status !== "connected" || view.verifiedAt === null)
+-    return {
+-      tone: "warn",
+-      label: "Verification pending",
+-      sentence:
+-        "Provider verification is required before using this connection.",
+-    };
++    return pendingHeader(view);
+   return verifiedHeader(view, provider);
+ }
 diff --git a/apps/pages/src/sections/connections/connect/NativeCancelSignIn.tsx b/apps/pages/src/sections/connections/connect/NativeCancelSignIn.tsx
 index e1502dd84c728f17bad888e18bf82d5e88d048b4..36626ac7f6c86efa5d278572568a3933698d1235 100644
 --- a/apps/pages/src/sections/connections/connect/NativeCancelSignIn.tsx
@@ -172,18 +225,24 @@ index abe80a1e8c72b836c8dcfa4f0c399d66e9228f1d..7ccd4c4fe797bfa3b3f96408ebe694ef
 +});
 diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..7418d7a8bd620278de82ec14229cf4de756a631e
+index 0000000000000000000000000000000000000000..6292fe184e89e2401d2dd4cb006f50e6c97d2838
 --- /dev/null
 +++ b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,78 @@
 +import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 +/** @vitest-environment jsdom */
 +import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
++import { deviceConnectorView } from "@opensesame/app-core/lib/device-connector-view.js";
++import {
++  readNativeConnector,
++  updateNativeConnector,
++} from "@opensesame/app-core/lib/native-connector-store.js";
 +import { render, screen, waitFor } from "@testing-library/react";
 +import userEvent from "@testing-library/user-event";
 +import { MemoryRouter } from "react-router";
 +import { expect, it, vi } from "vitest";
 +import { bindNativeCatalogConfigurationRuntime } from "../../../modules/connectors.external/native-catalog-configuration-runtime.js";
++import { nativeConnectorHeaderStatus } from "../SettingsPageNativeStatus.js";
 +import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
 +import {
 +  connectorIntegration,
@@ -223,6 +282,30 @@ index 0000000000000000000000000000000000000000..7418d7a8bd620278de82ec14229cf4de
 +    screen.getByRole("button", { name: "Verify E2B configuration" }),
 +  ).toBeTruthy();
 +  expect(fixture.requests).toHaveLength(0);
++
++  const row = readDeviceRows()[0];
++  if (!row) throw new Error("Missing saved E2B configuration");
++  const saved = readNativeConnector(row.connectionId);
++  if (!saved) throw new Error("Missing native E2B record");
++  await updateNativeConnector(
++    row.connectionId,
++    saved,
++    { publicParameters: [], privateCredentials: [] },
++    (record) => {
++      record.privateState.verification = null;
++      return record;
++    },
++  );
++  const pending = readDeviceRows()[0];
++  if (!pending) throw new Error("Missing pending E2B configuration");
++  expect(
++    nativeConnectorHeaderStatus(deviceConnectorView(pending), provider),
++  ).toEqual({
++    tone: "warn",
++    label: "Configuration validation pending",
++    sentence:
++      "Validate this configuration locally; provider access is not checked.",
++  });
 +});
 diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx
 index c6b7ac94b660a72e23506a0323532ddae44a4d54..4ddc90b301bd74aab7703d2830f7f1ca6cfc23bc 100644
@@ -249,22 +332,115 @@ index c6b7ac94b660a72e23506a0323532ddae44a4d54..4ddc90b301bd74aab7703d2830f7f1ca
      });
    const callbackUrl = new URL(
      `${import.meta.env.BASE_URL}auth/native-connector.html`,
+diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorSummary.test.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorSummary.test.tsx
+index ab1807b919413b1c7d7e9eaa4e8510dc09e51b83..84d8b622fd334440f172c5b28917f6a6c4d7a3a5 100644
+--- a/apps/pages/src/sections/connections/connect/NativeConnectorSummary.test.tsx
++++ b/apps/pages/src/sections/connections/connect/NativeConnectorSummary.test.tsx
+@@ -205,6 +205,47 @@ it("does not advertise completion or permit use for an unverified record", () =>
+   ).toHaveProperty("disabled", true);
+ });
+ 
++it("describes a previously validated local configuration without claiming provider verification", () => {
++  const view = nativeUiView();
++  view.providerId = "e2b";
++  view.configuration.providerId = "e2b";
++  view.configuration.method = "native-local";
++  view.status = "reauthorize";
++  view.grants = [];
++  const descriptor = nativeUiDescriptor();
++  descriptor.providerId = "e2b";
++  descriptor.name = "E2B";
++  descriptor.methods = [
++    {
++      id: "native-local",
++      label: "Local configuration",
++      available: true,
++      fields: [],
++      scopeGroups: [],
++    },
++  ];
++  render(
++    <NativeConnectorSummary
++      descriptor={descriptor}
++      view={view}
++      controller={nativeUiController(view)}
++      onChanged={vi.fn()}
++      onFlash={vi.fn()}
++      onRemoved={vi.fn()}
++    />,
++  );
++  expect(
++    screen.getByRole("img", { name: "Local configuration needs validation" }),
++  ).toBeTruthy();
++  expect(screen.getByText("Previously validated configuration")).toBeTruthy();
++  expect(screen.getByText("Last local validation")).toBeTruthy();
++  expect(screen.queryByText("Last provider verification")).toBeNull();
++  expect(screen.queryByText("Verified access")).toBeNull();
++  expect(
++    screen.getByRole("button", { name: "Verify E2B configuration" }),
++  ).toBeTruthy();
++});
++
+ it("uses provider-owned actors and displays granted scopes rather than selected scopes", async () => {
+   const view = nativeUiView();
+   view.status = "reauthorize";
 diff --git a/apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx b/apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx
-index ecf5d31679d0cfdf325e5a7dc8e1fa629f54ba0a..e094318a72e99e78dcb5aadae3db30f4754933c8 100644
+index ecf5d31679d0cfdf325e5a7dc8e1fa629f54ba0a..aaf7d4818acbcbefd8c40a3a93a475b7032aab8a 100644
 --- a/apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx
 +++ b/apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx
-@@ -221,9 +221,11 @@ function NativeIdentityFacts({
+@@ -28,6 +28,13 @@ const STATUS_LABELS = {
+   reauthorize: "Provider authorization needs renewal",
+   cleanup: "Provider cleanup required",
+ };
++const LOCAL_STATUS_LABELS = {
++  configuration: "Local configuration validation pending",
++  authorizing: "Local configuration validation in progress",
++  connected: "Local configuration validation pending",
++  reauthorize: "Local configuration needs validation",
++  cleanup: "Local configuration cleanup required",
++};
+ 
+ function verifiedLabel(view: NativeConnectorView, name: string) {
+   const policy = nativeBrowserMethodPolicy(
+@@ -39,7 +46,10 @@ function verifiedLabel(view: NativeConnectorView, name: string) {
+     return (
+       policy.reason ?? "This provider route is unavailable in this browser."
+     );
+-  if (!nativeVerified(view)) return STATUS_LABELS[view.status];
++  if (!nativeVerified(view))
++    return view.configuration.method === "native-local"
++      ? LOCAL_STATUS_LABELS[view.status]
++      : STATUS_LABELS[view.status];
+   if (view.configuration.method === "native-local")
+     return `${name} configuration verified`;
+   if (!view.identity || view.identity.assurance === "credential-valid")
+@@ -220,10 +230,14 @@ function NativeIdentityFacts({
+           rows={[
              [
                !verified
-                 ? `Previously verified ${view.identity.kind}`
+-                ? `Previously verified ${view.identity.kind}`
 -                : view.identity.assurance === "credential-valid"
 -                  ? "Verified access"
 -                  : view.identity.kind,
++                ? view.configuration.method === "native-local"
++                  ? "Previously validated configuration"
++                  : `Previously verified ${view.identity.kind}`
 +                : view.configuration.method === "native-local"
 +                  ? "Configuration"
 +                  : view.identity.assurance === "credential-valid"
 +                    ? "Verified access"
 +                    : view.identity.kind,
                view.identity.label,
+             ],
+           ]}
+@@ -233,7 +247,9 @@ function NativeIdentityFacts({
+         <Facts
+           rows={[
+             [
+-              "Last provider verification",
++              view.configuration.method === "native-local"
++                ? "Last local validation"
++                : "Last provider verification",
+               new Date(view.verifiedAt).toISOString(),
              ],
            ]}

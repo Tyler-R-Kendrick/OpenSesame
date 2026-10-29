@@ -31,9 +31,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
           test "$(git rev-parse HEAD^{tree})" = a64ca35498944e38f527e68ed70dce5d497f4852
-          printf '%s  %s\n' 7728eeb835d82495bc3bc69ae55f387dc5eb85d83d237409606cc49f591043be ../controller/.github/verify-inputs/2241-owner-availability.patch | sha256sum --check
+          printf '%s  %s\n' 27c3b08f9fa7b0c7d1b0db0ff964b825c955037ba48c52935ecccf0ef5d03ab1 ../controller/.github/verify-inputs/2241-owner-availability.patch | sha256sum --check
           git apply --index ../controller/.github/verify-inputs/2241-owner-availability.patch
-          test "$(git write-tree)" = 3da81952d8ef5b0fd88ff33d2752b28caa9c81e6
+          test "$(git write-tree)" = cabbc37d5f3694ec68cc64fc4d8c642f5cca256e
           git diff --exit-code
       - name: Install frozen dependencies
         working-directory: candidate
@@ -42,19 +42,19 @@ jobs:
         working-directory: candidate
         run: |
           set -euo pipefail
-          pnpm exec biome check apps/pages/src/sections/connections/connect/NativeCancelSignIn.tsx apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
-          pnpm lint:anti-slop:files apps/pages/src/sections/connections/connect/NativeCancelSignIn.tsx apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+          pnpm exec biome check apps/pages/src/sections/connections/SettingsPageNativeStatus.ts apps/pages/src/sections/connections/connect/NativeConnectorSummary.test.tsx apps/pages/src/sections/connections/connect/NativeCancelSignIn.tsx apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+          pnpm lint:anti-slop:files apps/pages/src/sections/connections/SettingsPageNativeStatus.ts apps/pages/src/sections/connections/connect/NativeConnectorSummary.test.tsx apps/pages/src/sections/connections/connect/NativeCancelSignIn.tsx apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx apps/pages/src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx apps/pages/src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
       - name: Typecheck and exercise owner and availability
         working-directory: candidate
         run: |
           set -euo pipefail
           pnpm --filter @opensesame/pages typecheck
-          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/connect/NativeConnectorSummary.test.tsx src/sections/connections/connect/NativeConnectorForm.test.tsx src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx src/sections/connections/connect/native-catalog-configuration-descriptor.test.ts src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
+          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/SettingsPage.native-header.test.tsx src/sections/connections/connect/NativeConnectorSummary.test.tsx src/sections/connections/connect/NativeConnectorForm.test.tsx src/sections/connections/connect/NativeConnectorPanels.custody.test.tsx src/sections/connections/connect/NativeConnectorPanels.native-local.integration.test.tsx src/sections/connections/connect/native-catalog-configuration-descriptor.test.ts src/modules/connectors.external/native-catalog-configuration-runtime.integration.test.ts
       - name: Verify candidate unchanged
         if: always()
         working-directory: candidate
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = 0cab13b48795c979b45564589d1650e39b57216f
-          test "$(git write-tree)" = 3da81952d8ef5b0fd88ff33d2752b28caa9c81e6
+          test "$(git write-tree)" = cabbc37d5f3694ec68cc64fc4d8c642f5cca256e
           git diff --exit-code
