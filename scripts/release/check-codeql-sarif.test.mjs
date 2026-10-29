@@ -8,6 +8,11 @@ import {
   checkCodeqlDirectory,
 } from "./check-codeql-sarif.mjs";
 
+const reviewedJs =
+  "6acbd6141bf5e99ce292e76c909acabbb14fd1e654c51f24d899e7987891240e";
+const reviewedWasm =
+  "9dfcf5d088d88179a95beb299d539a67c9df4aed2373fd731b2970fe52afad5e";
+
 const clean = () => ({
   version: "2.1.0",
   runs: [
@@ -81,7 +86,7 @@ test("a missing or malformed report cannot pass the directory gate", () => {
 
 // These are the exact two findings retained in main's 660eef2 CodeQL SARIF.
 // Their full result (including dataflow), not merely the sink, was reviewed.
-test("only the exact reviewed SARIF results pass across controller updates", () => {
+test("only the reviewed source and exact SARIF results pass", () => {
   const results = JSON.parse(
     readFileSync(
       new URL("./fixtures/codeql-reviewed-660.json", import.meta.url),
@@ -91,7 +96,7 @@ test("only the exact reviewed SARIF results pass across controller updates", () 
   const report = clean();
   report.runs[0].automationDetails = { id: "/language:javascript-typescript/" };
   report.runs[0].results = results;
-  assert.deepEqual(assertCleanCodeql(report), [
+  assert.deepEqual(assertCleanCodeql(report, reviewedJs), [
     "federated cookie integrity HMAC",
     "password-reset journal filename HMAC",
   ]);
@@ -128,13 +133,15 @@ test("only the exact reviewed SARIF results pass across controller updates", () 
   ]) {
     const modified = structuredClone(report);
     mutate(modified);
-    assert.throws(() => assertCleanCodeql(modified));
+    assert.throws(() => assertCleanCodeql(modified, reviewedJs));
   }
+  assert.throws(() => assertCleanCodeql(report));
+  assert.throws(() => assertCleanCodeql(report, "f".repeat(64)));
   const reordered = structuredClone(report);
   reordered.runs[0].results[0] = Object.fromEntries(
     Object.entries(reordered.runs[0].results[0]).reverse(),
   );
-  assert.doesNotThrow(() => assertCleanCodeql(reordered));
+  assert.doesNotThrow(() => assertCleanCodeql(reordered, reviewedJs));
 });
 
 test("accepts only the exact reviewed native TLS result", () => {
@@ -147,9 +154,13 @@ test("accepts only the exact reviewed native TLS result", () => {
   const report = clean();
   report.runs[0].automationDetails = { id: "/language:go-native-wasm/" };
   report.runs[0].results = [result];
-  assert.deepEqual(assertCleanCodeql(report), [
+  assert.deepEqual(assertCleanCodeql(report, reviewedWasm), [
     "Tailscale custom certificate and hostname verification",
   ]);
+  assert.throws(() => assertCleanCodeql(report, "f".repeat(64)));
+  report.runs[0].automationDetails.id = "/language:go-native-host/";
+  assert.throws(() => assertCleanCodeql(report, reviewedWasm));
+  report.runs[0].automationDetails.id = "/language:go-native-wasm/";
   result.partialFingerprints.primaryLocationLineHash = "changed:1";
-  assert.throws(() => assertCleanCodeql(report));
+  assert.throws(() => assertCleanCodeql(report, reviewedWasm));
 });

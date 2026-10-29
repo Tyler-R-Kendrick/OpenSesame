@@ -364,6 +364,7 @@ jobs:
           sparse-checkout: |
             scripts/release/check-codeql-artifacts.mjs
             scripts/release/check-codeql-sarif.mjs
+            scripts/release/codeql-reviewed-inputs.json
             scripts/lib/json-boundary.mjs
             scripts/lib/reviewed-codeql.mjs
       - name: Verify the controller checkout

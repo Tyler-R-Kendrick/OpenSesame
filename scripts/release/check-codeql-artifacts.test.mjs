@@ -4,6 +4,7 @@ import {
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -13,11 +14,14 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  candidateSourceDigest,
   candidateTree,
   checkCodeqlArtifacts,
+  sourceDigestEntries,
 } from "./check-codeql-artifacts.mjs";
 
 const sha = "a".repeat(40);
+const sourceDigest = "b".repeat(64);
 const languageFiles = {
   actions: "actions.sarif",
   "javascript-typescript": "javascript.sarif",
@@ -67,29 +71,63 @@ function fixture(t) {
 
 test("accepts exactly eight complete clean source-bound analyses", (t) => {
   const f = fixture(t);
-  assert.equal(checkCodeqlArtifacts(f.directory, sha), 8);
+  assert.equal(checkCodeqlArtifacts(f.directory, sha, sourceDigest), 8);
+  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /source digest/);
+});
+
+test("passes the candidate digest to reviewed finding checks", (t) => {
+  const f = fixture(t);
+  const report = cleanFor("javascript-typescript");
+  report.runs[0].results = JSON.parse(
+    readFileSync(
+      new URL("./fixtures/codeql-reviewed-660.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  writeFileSync(f.file("javascript-typescript"), JSON.stringify(report));
+  assert.equal(
+    checkCodeqlArtifacts(
+      f.directory,
+      sha,
+      "6acbd6141bf5e99ce292e76c909acabbb14fd1e654c51f24d899e7987891240e",
+    ),
+    8,
+  );
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+    /unreviewed finding/,
+  );
 });
 
 test("rejects missing and unexpected language artifacts", (t) => {
   const f = fixture(t);
   rmSync(f.folder("go"), { recursive: true });
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /artifact set/);
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+    /artifact set/,
+  );
   mkdirSync(join(f.directory, `codeql-sarif-unknown-${sha}`));
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /artifact set/);
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+    /artifact set/,
+  );
 });
 
 test("requires both native Go analyses and refuses their findings or extraction errors", (t) => {
   for (const language of ["go-native-wasm", "go-native-host"]) {
     const f = fixture(t);
     rmSync(f.folder(language), { recursive: true });
-    assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /artifact set/);
+    assert.throws(
+      () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+      /artifact set/,
+    );
   }
   const f = fixture(t);
   const finding = cleanFor("go-native-wasm");
   finding.runs[0].results.push({ ruleId: "go/example" });
   writeFileSync(f.file("go-native-wasm"), JSON.stringify(finding));
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /unreviewed finding/,
   );
   writeFileSync(
@@ -102,7 +140,7 @@ test("requires both native Go analyses and refuses their findings or extraction 
   ];
   writeFileSync(f.file("go-native-host"), JSON.stringify(error));
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /execution or configuration error/,
   );
 });
@@ -110,11 +148,11 @@ test("requires both native Go analyses and refuses their findings or extraction 
 test("rejects an incorrect source SHA or artifact for a different source", (t) => {
   const f = fixture(t);
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, "not-a-sha"),
+    () => checkCodeqlArtifacts(f.directory, "not-a-sha", sourceDigest),
     /source SHA/,
   );
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, "b".repeat(40)),
+    () => checkCodeqlArtifacts(f.directory, "b".repeat(40), sourceDigest),
     /artifact set/,
   );
 });
@@ -122,18 +160,30 @@ test("rejects an incorrect source SHA or artifact for a different source", (t) =
 test("rejects missing, extra, renamed or linked SARIF files", (t) => {
   const f = fixture(t);
   rmSync(f.file("go"));
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /SARIF files/);
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+    /SARIF files/,
+  );
   const renamed = join(f.folder("go"), "renamed.sarif");
   writeFileSync(renamed, JSON.stringify(clean));
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /SARIF files/);
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+    /SARIF files/,
+  );
   rmSync(renamed);
   writeFileSync(f.file("go"), JSON.stringify(clean));
   writeFileSync(join(f.folder("go"), "extra.sarif"), JSON.stringify(clean));
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /SARIF files/);
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+    /SARIF files/,
+  );
   rmSync(join(f.folder("go"), "extra.sarif"));
   rmSync(f.file("go"));
   symlinkSync(f.file("python"), f.file("go"));
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), /SARIF files/);
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+    /SARIF files/,
+  );
 });
 
 test("rejects a copied or missing language category", (t) => {
@@ -141,13 +191,13 @@ test("rejects a copied or missing language category", (t) => {
   const wrong = cleanFor("rust");
   writeFileSync(f.file("go"), JSON.stringify(wrong));
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /language category/,
   );
   Reflect.deleteProperty(wrong.runs[0], "automationDetails");
   writeFileSync(f.file("go"), JSON.stringify(wrong));
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /language category/,
   );
 });
@@ -155,20 +205,23 @@ test("rejects a copied or missing language category", (t) => {
 test("rejects malformed SARIF and unsuccessful analysis", (t) => {
   const f = fixture(t);
   writeFileSync(f.file("python"), "not JSON");
-  assert.throws(() => checkCodeqlArtifacts(f.directory, sha), SyntaxError);
+  assert.throws(
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
+    SyntaxError,
+  );
   writeFileSync(
     f.file("python"),
     JSON.stringify({ version: "2.1.0", runs: [] }),
   );
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /invalid CodeQL SARIF/,
   );
   const bad = structuredClone(clean);
   bad.runs[0].invocations[0].executionSuccessful = false;
   writeFileSync(f.file("python"), JSON.stringify(bad));
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /did not succeed/,
   );
 });
@@ -179,7 +232,7 @@ test("rejects any finding or extractor error in every language", (t) => {
   bad.runs[0].results.push({ ruleId: "a-finding" });
   writeFileSync(f.file("javascript-typescript"), JSON.stringify(bad));
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /unreviewed finding/,
   );
   writeFileSync(
@@ -190,7 +243,7 @@ test("rejects any finding or extractor error in every language", (t) => {
   bad.runs[0].invocations[0].toolExecutionNotifications = [{ level: "error" }];
   writeFileSync(f.file("go"), JSON.stringify(bad));
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /execution or configuration error/,
   );
   bad.runs[0].invocations[0].toolExecutionNotifications = [];
@@ -199,7 +252,7 @@ test("rejects any finding or extractor error in every language", (t) => {
   ];
   writeFileSync(f.file("go"), JSON.stringify(bad));
   assert.throws(
-    () => checkCodeqlArtifacts(f.directory, sha),
+    () => checkCodeqlArtifacts(f.directory, sha, sourceDigest),
     /execution or configuration error/,
   );
 });
@@ -266,4 +319,63 @@ test("does not use a candidate-controlled gate in the current directory", (t) =>
   assert.equal(result.error, undefined);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /unreviewed finding/);
+});
+
+test("source digest covers all entries except the controller review record", () => {
+  const entry = (mode, oid, path) => `${mode} blob ${oid}\t${path}\0`;
+  const oid = "a".repeat(40);
+  const reviewed = entry(
+    "100644",
+    oid,
+    "scripts/release/codeql-reviewed-inputs.json",
+  );
+  const product = entry("100644", oid, "application.js");
+  const digest = sourceDigestEntries(Buffer.from(product + reviewed));
+  assert.equal(
+    sourceDigestEntries(
+      Buffer.from(
+        product +
+          entry(
+            "100644",
+            "b".repeat(40),
+            "scripts/release/codeql-reviewed-inputs.json",
+          ),
+      ),
+    ),
+    digest,
+  );
+  assert.notEqual(
+    sourceDigestEntries(
+      Buffer.from(entry("100644", "b".repeat(40), "application.js") + reviewed),
+    ),
+    digest,
+  );
+  assert.notEqual(
+    sourceDigestEntries(
+      Buffer.from(entry("100755", oid, "application.js") + reviewed),
+    ),
+    digest,
+  );
+  assert.notEqual(
+    sourceDigestEntries(
+      Buffer.from(
+        product +
+          reviewed +
+          entry(
+            "100644",
+            oid,
+            "scripts/release/codeql-reviewed-inputs.json.other",
+          ),
+      ),
+    ),
+    digest,
+  );
+  assert.throws(
+    () => sourceDigestEntries(Buffer.from("malformed")),
+    /Malformed/,
+  );
+  assert.throws(
+    () => candidateSourceDigest(".", "HEAD"),
+    /Invalid candidate tree/,
+  );
 });
