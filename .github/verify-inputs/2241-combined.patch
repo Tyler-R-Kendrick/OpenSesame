@@ -1,0 +1,3054 @@
+diff --git a/packages/app-core/package.json b/packages/app-core/package.json
+index f4eeb3b42..365129ef6 100644
+--- a/packages/app-core/package.json
++++ b/packages/app-core/package.json
+@@ -14,7 +14,7 @@
+   "scripts": {
+     "typecheck": "tsc --noEmit",
+     "test": "vitest run",
+-    "generate:catalog": "node scripts/emit-connector-catalog.mjs && biome format --write src/lib/connector-catalog.generated.ts src/lib/ai-model-provider-ids.generated.ts",
++    "generate:catalog": "node scripts/emit-connector-catalog.mjs && node scripts/emit-google-wallet-configuration.mjs && biome format --write src/lib/connector-catalog.generated.ts src/lib/ai-model-provider-ids.generated.ts ../wallet/src/google-wallet-policy.generated.ts",
+     "generate:quorum-types": "node scripts/emit-quorum-types.mjs && biome format --write src/lib/quorum/item-types.generated.ts",
+     "generate:reset-mail-types": "node scripts/emit-reset-mail-types.mjs && biome format --write src/lib/password-reset/mail-type.generated.ts",
+     "generate:connect": "node scripts/emit-connect-presets.mjs && node scripts/emit-google-account-policy.mjs && biome format --write src/lib/connect-presets.generated.ts src/lib/native-google-account-policy.generated.ts",
+diff --git a/packages/app-core/scripts/emit-google-wallet-configuration.d.mts b/packages/app-core/scripts/emit-google-wallet-configuration.d.mts
+new file mode 100644
+index 000000000..b9ac7ca05
+--- /dev/null
++++ b/packages/app-core/scripts/emit-google-wallet-configuration.d.mts
+@@ -0,0 +1,9 @@
++import type { JsonValue } from "@opensesame/os-domain";
++export function googleWalletConfigurationPolicy(
++  policy?: JsonValue,
++  catalog?: JsonValue,
++): JsonValue;
++export function renderGoogleWalletConfigurationPolicy(
++  policy?: JsonValue,
++  catalog?: JsonValue,
++): string;
+diff --git a/packages/app-core/scripts/emit-google-wallet-configuration.mjs b/packages/app-core/scripts/emit-google-wallet-configuration.mjs
+new file mode 100644
+index 000000000..c1f22b2a8
+--- /dev/null
++++ b/packages/app-core/scripts/emit-google-wallet-configuration.mjs
+@@ -0,0 +1,166 @@
++#!/usr/bin/env node
++/** Compile Google Wallet configuration rules from the shared connector catalog. */
++import { readFileSync, writeFileSync } from "node:fs";
++import { dirname, join } from "node:path";
++import { fileURLToPath } from "node:url";
++import { isJsonObject, isString } from "../../../scripts/lib/json-boundary.mjs";
++
++const here = dirname(fileURLToPath(import.meta.url));
++const source = join(
++  here,
++  "../../../spec/connectors/google-wallet-configuration.json",
++);
++const catalogPath = join(here, "../../../spec/connectors/catalog.json");
++const output = join(here, "../../wallet/src/google-wallet-policy.generated.ts");
++
++function validateCatalog(policy, catalog) {
++  if (!isJsonObject(catalog) || !Array.isArray(catalog.providers))
++    throw new Error("Invalid connector catalog");
++  const rows = catalog.providers.filter(
++    (row) => isJsonObject(row) && row.id === "google-wallet",
++  );
++  if (rows.length !== 1) throw new Error("Expected one Google Wallet provider");
++  const row = rows[0];
++  if (
++    !isJsonObject(policy) ||
++    policy.provider_id !== row.id ||
++    !Array.isArray(row.connection_configuration_fields)
++  )
++    throw new Error("Missing Google Wallet configuration policy");
++  validateFields(row.connection_configuration_fields);
++}
++
++function validateFields(fields) {
++  for (const [name, secret] of [
++    ["issuer_id", false],
++    ["class_id", false],
++    ["service_account_email", false],
++    ["service_account_key", true],
++  ]) {
++    if (
++      fields.filter(
++        (field) =>
++          isJsonObject(field) &&
++          field.name === name &&
++          field.secret === secret &&
++          field.required === true,
++      ).length !== 1
++    )
++      throw new Error(`Invalid Google Wallet field: ${name}`);
++  }
++}
++
++function validateSemantics(semantics) {
++  if (
++    !isJsonObject(semantics) ||
++    semantics.regex_dialect !== "ecmascript" ||
++    semantics.length_unit !== "utf16_code_units" ||
++    semantics.pem_whitespace !== "ecmascript" ||
++    semantics.private_key_validation !== "pem_then_webcrypto_import" ||
++    semantics.pem_envelope_stage !==
++      "strip_ecmascript_whitespace_then_base64_decode" ||
++    semantics.wallet_config_stage !== "pem_envelope_only" ||
++    semantics.native_storage_stage !== "webcrypto_pkcs8_rsa_import" ||
++    semantics.native_input_normalization !==
++      "trim_public_fields_preserve_private_before_validation" ||
++    semantics.wallet_env_normalization !== "trim_each_value_and_lowercase_email"
++  )
++    throw new Error("Unsupported Google Wallet policy semantics");
++}
++
++function validateIdentifiers(issuer, walletClass) {
++  if (
++    !isJsonObject(issuer) ||
++    !isJsonObject(walletClass) ||
++    !isString(issuer.pattern) ||
++    !isString(walletClass.suffix_pattern) ||
++    walletClass.qualification !== "unqualified-or-this-issuer" ||
++    !isString(walletClass.issuer_separator) ||
++    walletClass.issuer_separator.length === 0
++  )
++    throw new Error("Invalid Google Wallet configuration policy");
++}
++
++function validateEmail(email) {
++  if (
++    !isJsonObject(email) ||
++    !isString(email.pattern) ||
++    !Number.isSafeInteger(email.max_length) ||
++    email.max_length < 1
++  )
++    throw new Error("Invalid Google Wallet configuration policy");
++}
++
++function validateKey(key) {
++  if (
++    !isJsonObject(key) ||
++    key.format !== "pkcs8" ||
++    key.algorithm !== "RSASSA-PKCS1-v1_5" ||
++    key.hash !== "SHA-256" ||
++    key.usage !== "sign" ||
++    key.escaped_newlines !== true ||
++    !Number.isSafeInteger(key.max_raw_length) ||
++    key.max_raw_length < 1 ||
++    !isString(key.pem_pattern)
++  )
++    throw new Error("Invalid Google Wallet configuration policy");
++}
++
++export function googleWalletConfigurationPolicy(
++  policy = JSON.parse(readFileSync(source, "utf8")),
++  catalog = JSON.parse(readFileSync(catalogPath, "utf8")),
++) {
++  validateCatalog(policy, catalog);
++  validateSemantics(policy.semantics);
++  const issuer = policy.issuer_id;
++  const walletClass = policy.class_id;
++  const email = policy.service_account_email;
++  const key = policy.service_account_key;
++  validateIdentifiers(issuer, walletClass);
++  validateEmail(email);
++  validateKey(key);
++  for (const pattern of [
++    issuer.pattern,
++    walletClass.suffix_pattern,
++    email.pattern,
++    key.pem_pattern,
++  ])
++    new RegExp(pattern);
++  return {
++    issuer: { pattern: issuer.pattern },
++    walletClass: {
++      qualification: walletClass.qualification,
++      suffixPattern: walletClass.suffix_pattern,
++      issuerSeparator: walletClass.issuer_separator,
++    },
++    email: { pattern: email.pattern, maxLength: email.max_length },
++    key: {
++      format: key.format,
++      algorithm: key.algorithm,
++      hash: key.hash,
++      usage: key.usage,
++      maxRawLength: key.max_raw_length,
++      pemPattern: key.pem_pattern,
++      escapedNewlines: key.escaped_newlines,
++    },
++  };
++}
++
++export function renderGoogleWalletConfigurationPolicy(policySource, catalog) {
++  const policy = googleWalletConfigurationPolicy(policySource, catalog);
++  return [
++    "// Generated by scripts/emit-google-wallet-configuration.mjs from",
++    "// spec/connectors/google-wallet-configuration.json — do not edit.",
++    "export const GOOGLE_WALLET_CONFIGURATION_POLICY = Object.freeze({",
++    ...Object.entries(policy).map(
++      ([name, value]) => `  ${name}: Object.freeze(${JSON.stringify(value)}),`,
++    ),
++    "});",
++    "",
++  ].join("\n");
++}
++
++if (process.argv[1] === fileURLToPath(import.meta.url)) {
++  writeFileSync(output, renderGoogleWalletConfigurationPolicy());
++  console.log(`wrote ${output}`);
++}
+diff --git a/packages/app-core/src/lib/native-catalog-configuration-validation.ts b/packages/app-core/src/lib/native-catalog-configuration-validation.ts
+index 94632cbc1..83ee23c05 100644
+--- a/packages/app-core/src/lib/native-catalog-configuration-validation.ts
++++ b/packages/app-core/src/lib/native-catalog-configuration-validation.ts
+@@ -2,47 +2,12 @@ import {
+   safeNativeConnectorIcon,
+   safeProviderText,
+ } from "./native-api-verify.js";
+-import { base64ToBytes } from "./native-base64.js";
+ import type { NativeCatalogConfiguration } from "./native-catalog-contract.js";
+ import type { NativeDriverInput } from "./native-connector-drivers.js";
+-
+-const PEM =
+-  /^-----BEGIN PRIVATE KEY-----\s*([A-Za-z0-9+/=\s]{200,32768})-----END PRIVATE KEY-----\s*$/;
+-
+-function validateGoogleWalletPublic(parameters: Record<string, string>): void {
+-  const issuer = parameters.issuer_id ?? "";
+-  const classId = parameters.class_id ?? "";
+-  const email = parameters.service_account_email ?? "";
+-  if (!/^\d{6,32}$/.test(issuer))
+-    throw new Error("Enter the numeric Google Wallet issuer id");
+-  const prefix = `${issuer}.`;
+-  const qualified = classId.startsWith(prefix);
+-  const suffix = qualified ? classId.slice(prefix.length) : classId;
+-  if (
+-    (classId.includes(".") && !qualified) ||
+-    !/^[A-Za-z0-9._-]+$/.test(suffix)
+-  )
+-    throw new Error("Enter a Google Wallet class id belonging to this issuer");
+-  if (email.length > 320 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+-    throw new Error("Enter a valid service account email");
+-}
+-
+-async function validateGoogleWalletKey(raw: string): Promise<void> {
+-  try {
+-    if (raw.length > 32768) throw new Error("Key too large");
+-    const pem = raw.replace(/\\n/g, "\n").trim();
+-    const body = PEM.exec(pem)?.[1]?.replace(/\s+/g, "") ?? "";
+-    await crypto.subtle.importKey(
+-      "pkcs8",
+-      base64ToBytes(body),
+-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+-      false,
+-      ["sign"],
+-    );
+-  } catch {
+-    throw new Error("Enter a valid PKCS#8 RSA private key");
+-  }
+-}
++import {
++  validateGoogleWalletKey,
++  validateGoogleWalletPublic,
++} from "./native-google-wallet-configuration.js";
+ 
+ export async function validateNativeCatalogValues(
+   contract: NativeCatalogConfiguration,
+diff --git a/packages/app-core/src/lib/native-catalog-google-wallet-conformance.test.ts b/packages/app-core/src/lib/native-catalog-google-wallet-conformance.test.ts
+new file mode 100644
+index 000000000..95b7048e6
+--- /dev/null
++++ b/packages/app-core/src/lib/native-catalog-google-wallet-conformance.test.ts
+@@ -0,0 +1,122 @@
++import { generateKeyPairSync } from "node:crypto";
++import { readFileSync } from "node:fs";
++import { fileURLToPath } from "node:url";
++import { overlapCast } from "@opensesame/os-domain";
++import { afterEach, beforeEach, expect, it, vi } from "vitest";
++import { configureHost } from "../host.js";
++import { createTestHost } from "../test-host.js";
++import { webLocksDouble } from "./__tests__/web-locks-double.js";
++import { forgetAtRestKeyForTest } from "./at-rest/key.js";
++import { kvForgetAll } from "./kv.js";
++import { configureNativeCatalogConfiguration } from "./native-catalog-configuration.js";
++import type { NativeDriverInput } from "./native-connector-drivers.js";
++import type { NativeProviderTransport } from "./native-connector-transport.js";
++
++const input: NativeDriverInput = {
++  providerId: "google-wallet",
++  method: "native-local",
++  displayName: "Synthetic Wallet",
++  icon: "",
++  parameters: {
++    issuer_id: "1234567890",
++    class_id: "synthetic-class",
++    service_account_email: "synthetic@example.invalid",
++  },
++  credentials: {
++    service_account_key: generateKeyPairSync("rsa", { modulusLength: 2048 })
++      .privateKey.export({ type: "pkcs8", format: "pem" })
++      .toString(),
++  },
++  requestedScopes: {},
++  targetIds: {},
++};
++
++function encryptedDisk() {
++  const files = new Map<string, string>();
++  return {
++    files,
++    async getFileHandle(name: string, options?: { create?: boolean }) {
++      if (!files.has(name)) {
++        if (!options?.create)
++          throw new DOMException("Missing", "NotFoundError");
++        files.set(name, "");
++      }
++      return {
++        async getFile() {
++          const text = files.get(name) ?? "";
++          return { size: text.length, text: async () => text };
++        },
++        async createWritable() {
++          let staged = files.get(name) ?? "";
++          return {
++            async write(value: string) {
++              staged = value;
++            },
++            async close() {
++              files.set(name, staged);
++            },
++            async abort() {},
++          };
++        },
++      };
++    },
++  };
++}
++
++let disk: ReturnType<typeof encryptedDisk>;
++let transport: NativeProviderTransport;
++let fetcher: ReturnType<typeof vi.fn<typeof fetch>>;
++
++beforeEach(() => {
++  kvForgetAll();
++  forgetAtRestKeyForTest();
++  disk = encryptedDisk();
++  configureHost(
++    createTestHost({
++      originFiles: async () => overlapCast(disk),
++      locks: overlapCast(webLocksDouble()),
++    }),
++  );
++  fetcher = vi.fn<typeof fetch>();
++  transport = { fetch: fetcher, assertCurrent: () => {} };
++});
++
++afterEach(() => {
++  kvForgetAll();
++  forgetAtRestKeyForTest();
++  configureHost(createTestHost());
++  vi.restoreAllMocks();
++});
++
++it("replays shared Google Wallet public vectors through real configuration", async () => {
++  const vectors = JSON.parse(
++    readFileSync(
++      fileURLToPath(
++        new URL(
++          "../../../../spec/conformance/google-wallet-configuration.json",
++          import.meta.url,
++        ),
++      ),
++      "utf8",
++    ),
++  );
++  for (const item of vectors.public_cases) {
++    const result = configureNativeCatalogConfiguration(
++      {
++        ...input,
++        parameters: {
++          issuer_id: item.issuer_id,
++          class_id: item.class_id,
++          service_account_email: item.service_account_email,
++        },
++      },
++      transport,
++    );
++    if (item.native_entry_accepted ?? item.accepted)
++      await expect(result, item.name).resolves.toMatchObject({
++        status: "connected",
++      });
++    else await expect(result, item.name).rejects.toThrow();
++  }
++  expect(fetcher).not.toHaveBeenCalled();
++});
+diff --git a/packages/app-core/src/lib/native-connector-scope-view.test.ts b/packages/app-core/src/lib/native-connector-scope-view.test.ts
+new file mode 100644
+index 000000000..3b33df51f
+--- /dev/null
++++ b/packages/app-core/src/lib/native-connector-scope-view.test.ts
+@@ -0,0 +1,72 @@
++import { expect, it } from "vitest";
++import {
++  type NativeConfiguration,
++  type NativePrivateState,
++  type NativeRuntime,
++  emptyNativePrivate,
++} from "./native-connector-schema.js";
++import { nativeConnectorView } from "./native-connector-view.js";
++
++it("recognizes Google account scope aliases without granting other scopes", () => {
++  const fingerprint = "a".repeat(64);
++  const requested = [
++    "openid",
++    "https://www.googleapis.com/auth/userinfo.email",
++  ];
++  const configuration: NativeConfiguration = {
++    version: 1,
++    providerId: "google-drive",
++    method: "oauth",
++    displayName: "Google",
++    icon: "",
++    parameters: {},
++    requestedScopes: { user: requested },
++    targetIds: {},
++    fingerprint,
++  };
++  const runtime: NativeRuntime = {
++    verifiedAt: 100,
++    identity: {
++      id: "account",
++      label: "Account",
++      kind: "account",
++      assurance: "account-verified",
++    },
++    targets: [],
++    grants: [
++      {
++        actor: "user",
++        label: "Account",
++        permissionState: "known",
++        grantedScopes: ["openid", "email"],
++        expiresAt: null,
++        needsReauth: false,
++      },
++    ],
++  };
++  const privateState: NativePrivateState = {
++    ...emptyNativePrivate(),
++    grants: {
++      user: {
++        providerId: "google-drive",
++        actor: "user",
++        kind: "oauth",
++        fingerprint,
++        accessToken: "test-token",
++        scopes: ["openid", "email"],
++        expiresAt: null,
++      },
++    },
++    verification: { fingerprint, verifiedAt: 100, kind: "provider" },
++  };
++  const view = () =>
++    nativeConnectorView("native-1", 1, configuration, runtime, privateState);
++  expect(view().status).toBe("connected");
++  runtime.grants[0]?.grantedScopes.push(
++    "https://www.googleapis.com/auth/drive.readonly",
++  );
++  expect(view().status).toBe("reauthorize");
++  runtime.grants[0]?.grantedScopes.pop();
++  requested.push("https://www.googleapis.com/auth/drive.readonly");
++  expect(view().status).toBe("reauthorize");
++});
+diff --git a/packages/app-core/src/lib/native-connector-view.ts b/packages/app-core/src/lib/native-connector-view.ts
+index 404dba178..89a8d9bc2 100644
+--- a/packages/app-core/src/lib/native-connector-view.ts
++++ b/packages/app-core/src/lib/native-connector-view.ts
+@@ -4,7 +4,7 @@ import type {
+   NativePrivateState,
+   NativeRuntime,
+ } from "./native-connector-schema.js";
+-import { requiredResourceScopes } from "./native-oauth-client-scopes.js";
++import { admissibleGrantScopes } from "./native-oauth-client-scopes.js";
+ 
+ export type NativeConnectorStatus =
+   | "configuration"
+@@ -93,9 +93,11 @@ function requiresReauthorization(
+       grant.needsReauth ||
+       (grant.expiresAt !== null && grant.expiresAt <= Date.now()) ||
+       (grant.permissionState === "known" &&
+-        requiredResourceScopes(
++        !admissibleGrantScopes(
++          configuration.providerId,
+           configuration.requestedScopes[grant.actor] ?? [],
+-        ).some((scope) => !grant.grantedScopes.includes(scope))),
++          grant.grantedScopes,
++        )),
+   );
+ }
+ 
+diff --git a/packages/app-core/src/lib/native-google-wallet-configuration.ts b/packages/app-core/src/lib/native-google-wallet-configuration.ts
+new file mode 100644
+index 000000000..5f300af9e
+--- /dev/null
++++ b/packages/app-core/src/lib/native-google-wallet-configuration.ts
+@@ -0,0 +1,38 @@
++import {
++  GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY,
++  googleWalletPemParts,
++  googleWalletPublicFailure,
++} from "@opensesame/wallet/google-wallet-policy";
++import { base64ToBytes } from "./native-base64.js";
++
++export function validateGoogleWalletPublic(
++  parameters: Record<string, string>,
++): void {
++  const failure = googleWalletPublicFailure(
++    parameters.issuer_id ?? "",
++    parameters.class_id ?? "",
++    parameters.service_account_email ?? "",
++  );
++  if (failure === "issuer_id")
++    throw new Error("Enter the numeric Google Wallet issuer id");
++  if (failure === "class_id")
++    throw new Error("Enter a Google Wallet class id belonging to this issuer");
++  if (failure === "service_account_email")
++    throw new Error("Enter a valid service account email");
++}
++
++export async function validateGoogleWalletKey(raw: string): Promise<void> {
++  try {
++    const parts = googleWalletPemParts(raw);
++    if (!parts) throw new Error("Invalid private key envelope");
++    await crypto.subtle.importKey(
++      POLICY.key.format,
++      base64ToBytes(parts.body),
++      { name: POLICY.key.algorithm, hash: POLICY.key.hash },
++      false,
++      [POLICY.key.usage],
++    );
++  } catch {
++    throw new Error("Enter a valid PKCS#8 RSA private key");
++  }
++}
+diff --git a/packages/app-core/src/lib/native-google-wallet-policy.test.ts b/packages/app-core/src/lib/native-google-wallet-policy.test.ts
+new file mode 100644
+index 000000000..e63ea74c2
+--- /dev/null
++++ b/packages/app-core/src/lib/native-google-wallet-policy.test.ts
+@@ -0,0 +1,103 @@
++import { generateKeyPairSync } from "node:crypto";
++import { readFileSync } from "node:fs";
++import { fileURLToPath } from "node:url";
++import { GOOGLE_WALLET_CONFIGURATION_POLICY } from "@opensesame/wallet/google-wallet-policy";
++import { describe, expect, it } from "vitest";
++import { googleWalletConfigurationPolicy } from "../../scripts/emit-google-wallet-configuration.mjs";
++import {
++  validateGoogleWalletKey,
++  validateGoogleWalletPublic,
++} from "./native-google-wallet-configuration.js";
++
++const vectors = JSON.parse(
++  readFileSync(
++    fileURLToPath(
++      new URL(
++        "../../../../spec/conformance/google-wallet-configuration.json",
++        import.meta.url,
++      ),
++    ),
++    "utf8",
++  ),
++);
++
++describe("Google Wallet shared configuration policy", () => {
++  it("matches the shared catalog without drift", () => {
++    expect(GOOGLE_WALLET_CONFIGURATION_POLICY).toEqual(
++      googleWalletConfigurationPolicy(),
++    );
++    for (const value of Object.values(GOOGLE_WALLET_CONFIGURATION_POLICY))
++      expect(Object.isFrozen(value)).toBe(true);
++  });
++
++  it("rejects an unsupported class qualification policy", () => {
++    const policy = JSON.parse(
++      readFileSync(
++        fileURLToPath(
++          new URL(
++            "../../../../spec/connectors/google-wallet-configuration.json",
++            import.meta.url,
++          ),
++        ),
++        "utf8",
++      ),
++    );
++    policy.class_id.qualification = "arbitrary-issuer";
++    expect(() => googleWalletConfigurationPolicy(policy)).toThrow();
++  });
++
++  it("replays shared public-field conformance vectors", () => {
++    expect(vectors.provider_id).toBe("google-wallet");
++    for (const item of vectors.public_cases) {
++      const validate = () =>
++        validateGoogleWalletPublic({
++          issuer_id: item.issuer_id,
++          class_id: item.class_id,
++          service_account_email: item.service_account_email,
++        });
++      if (item.accepted) expect(validate, item.name).not.toThrow();
++      else expect(validate, item.name).toThrow();
++    }
++  });
++
++  it("replays shared private-key conformance vectors", async () => {
++    const pair = generateKeyPairSync("rsa", { modulusLength: 2048 });
++    const pkcs8 = pair.privateKey
++      .export({ type: "pkcs8", format: "pem" })
++      .toString();
++    const pkcs1 = pair.privateKey
++      .export({ type: "pkcs1", format: "pem" })
++      .toString();
++    const ec = generateKeyPairSync("ec", { namedCurve: "P-384" })
++      .privateKey.export({ type: "pkcs8", format: "pem" })
++      .toString();
++    const keys = new Map<string, string>([
++      ["generated_pkcs8_rsa", pkcs8],
++      ["generated_pkcs8_rsa_escaped", pkcs8.replace(/\n/g, "\\n")],
++      ["generated_pkcs1_rsa", pkcs1],
++      ["not-a-private-key", "not-a-private-key"],
++      ["oversized", "a".repeat(32769)],
++      [
++        "invalid_der",
++        `-----BEGIN PRIVATE KEY-----\n${"A".repeat(256)}\n-----END PRIVATE KEY-----`,
++      ],
++      ["generated_ec_pkcs8", ec],
++      [
++        "invalid_padding",
++        `-----BEGIN PRIVATE KEY-----\n${"A".repeat(240)}=A\n-----END PRIVATE KEY-----`,
++      ],
++    ]);
++    for (const item of vectors.key_cases) {
++      const key = keys.get(item.value);
++      if (key === undefined)
++        throw new Error(`Unknown key fixture ${item.value}`);
++      if (item.accepted)
++        await expect(
++          validateGoogleWalletKey(key),
++          item.name,
++        ).resolves.toBeUndefined();
++      else
++        await expect(validateGoogleWalletKey(key), item.name).rejects.toThrow();
++    }
++  });
++});
+diff --git a/packages/app-core/src/lib/native-mcp-attestation.ts b/packages/app-core/src/lib/native-mcp-attestation.ts
+index db6fe6f4f..ea0d5daac 100644
+--- a/packages/app-core/src/lib/native-mcp-attestation.ts
++++ b/packages/app-core/src/lib/native-mcp-attestation.ts
+@@ -2,6 +2,7 @@
+ import { connectPlan } from "./connect-plan.js";
+ import { updateNativeConnector } from "./native-connector-store.js";
+ import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
++import { forgetRetainedNativeMcpPartialRefresh } from "./native-mcp-partial-refresh.js";
+ import {
+   MCP_CLASSIFICATION,
+   nativeMcpProviderMetadata,
+@@ -85,6 +86,7 @@ export async function attestNativeMcpRevocation(
+       return record;
+     },
+   );
++  forgetRetainedNativeMcpPartialRefresh(id, recoveryId);
+   forgetRetainedNativeOAuthGrant(id, recoveryId);
+   forgetRetainedNativeMcpRegistration(id, recoveryId);
+   return result;
+diff --git a/packages/app-core/src/lib/native-mcp-authorization.ts b/packages/app-core/src/lib/native-mcp-authorization.ts
+index 01a3f12a0..0f5dff340 100644
+--- a/packages/app-core/src/lib/native-mcp-authorization.ts
++++ b/packages/app-core/src/lib/native-mcp-authorization.ts
+@@ -12,7 +12,15 @@ import {
+ import { discardNativeConsent } from "./native-consent-cancel.js";
+ import type { NativeMcpOAuthTarget } from "./native-mcp-oauth-target.js";
+ import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
+-import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
++import {
++  type NativeMcpOAuthPorts,
++  NativeMcpPublicOAuth,
++} from "./native-mcp-oauth.js";
++import {
++  releaseNativeMcpPartialReservation,
++  reserveNativeMcpPartialRefresh,
++  retainNativeMcpPartialRefresh,
++} from "./native-mcp-partial-refresh.js";
+ import {
+   MCP_CLASSIFICATION,
+   nativeMcpClassification,
+@@ -38,23 +46,32 @@ import {
+ } from "./native-oauth-browser-port.js";
+ import {
+   claimNativeOAuthPending,
++  findNativeOAuthPending,
+   journalNativeOAuthGrant,
+   markNativeOAuthMutationInFlight,
+   nativeOAuthCallbackTarget,
+   nativeOAuthGuard,
++  nativeOAuthObligation,
++  parseNativeOAuthCallback,
+ } from "./native-oauth-session.js";
+ 
+ function oauth(
+   id: string,
+   transport: NativeProviderTransport,
+   browser: NativeOAuthBrowserPort,
++  retainPartialRefresh?: (token: string) => Promise<void>,
+ ): NativeMcpPublicOAuth {
++  const ports: NativeMcpOAuthPorts = {
++    ...transport,
++    signal: new AbortController().signal,
++  };
++  if (retainPartialRefresh) ports.retainPartialRefresh = retainPartialRefresh;
+   return new NativeMcpPublicOAuth(
+     nativeMcpRecordOAuthTarget(
+       requireNativeMcpRecord(id).configuration,
+       browser,
+     ),
+-    { ...transport, signal: new AbortController().signal },
++    ports,
+   );
+ }
+ function randomState(): string {
+@@ -207,22 +224,13 @@ export async function beginNativeMcpAuthorization(
+   }
+ }
+ 
+-/** Only the shared sealed-state claim chooses the connector/provider/actor. */
+-export async function finishNativeMcpAuthorization(
+-  search: string,
+-  baseTransport: NativeProviderTransport = nativeProviderTransport(),
++async function validateMcpClaim(
++  claim: Awaited<ReturnType<typeof claimNativeOAuthPending>>,
++  preview: NonNullable<ReturnType<typeof findNativeOAuthPending>>,
++  reservationId: string,
++  browser: NativeOAuthBrowserPort,
+ ) {
+-  const transport = captureNativeAuthorizationTransport(baseTransport);
+-  const browser = nativeOAuthBrowserPort();
+-  transport.assertCurrent();
+-  const callbackTarget = nativeOAuthCallbackTarget(search);
+-  if (callbackTarget?.method !== "mcp") throw new NativeMcpAuthError("pending");
+-  assertNativeBrowserMcpPolicy(callbackTarget.providerId);
+-  const { record, pending, obligation, code } = await claimNativeOAuthPending(
+-    search,
+-    MCP_CLASSIFICATION,
+-  );
+-  browser.scrubCallback();
++  const { record, pending, obligation } = claim;
+   if (record.configuration.method !== "mcp")
+     throw new NativeMcpAuthError("pending");
+   await assertNativeMcpContract(record);
+@@ -234,35 +242,85 @@ export async function finishNativeMcpAuthorization(
+     pending.issuer !== target.binding.issuer ||
+     pending.endpoint !== target.binding.endpoint ||
+     pending.clientId !== client.client_id ||
+-    pending.redirectUri !== target.redirectUri
++    pending.redirectUri !== target.redirectUri ||
++    record.connectionId !== preview.record.connectionId ||
++    pending.fingerprint !== preview.pending.fingerprint ||
++    obligation.id !== reservationId
+   )
+     throw new NativeMcpAuthError("pending");
+-  const release = markNativeOAuthMutationInFlight(
+-    record.connectionId,
+-    obligation.id,
++  return client;
++}
++
++/** Only the shared sealed-state claim chooses the connector/provider/actor. */
++export async function finishNativeMcpAuthorization(
++  search: string,
++  baseTransport: NativeProviderTransport = nativeProviderTransport(),
++) {
++  const transport = captureNativeAuthorizationTransport(baseTransport);
++  const browser = nativeOAuthBrowserPort();
++  transport.assertCurrent();
++  const callbackTarget = nativeOAuthCallbackTarget(search);
++  if (callbackTarget?.method !== "mcp") throw new NativeMcpAuthError("pending");
++  assertNativeBrowserMcpPolicy(callbackTarget.providerId);
++  const preview = findNativeOAuthPending(
++    parseNativeOAuthCallback(search).state,
++  );
++  if (!preview || preview.record.connectionId !== callbackTarget.connectionId)
++    throw new NativeMcpAuthError("pending");
++  const reservationId = nativeOAuthObligation(preview.pending).id;
++  reserveNativeMcpPartialRefresh(
++    preview.record.connectionId,
++    reservationId,
++    preview.pending.fingerprint,
+   );
+   try {
+-    const tokens = await oauth(
+-      record.connectionId,
+-      transport,
++    const claim = await claimNativeOAuthPending(search, MCP_CLASSIFICATION);
++    browser.scrubCallback();
++    const client = await validateMcpClaim(
++      claim,
++      preview,
++      reservationId,
+       browser,
+-    ).exchange(client, code, pending.verifier);
+-    const grant = nativeMcpIssuedGrant(pending, tokens);
+-    await journalNativeOAuthGrant(
+-      record.connectionId,
+-      obligation.id,
+-      grant,
+-      nativeMcpClassification,
+     );
+-    transport.assertCurrent();
+-    if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
+-    return activateNativeMcpGrant(
++    const { record, pending, obligation, code } = claim;
++    const release = markNativeOAuthMutationInFlight(
+       record.connectionId,
+       obligation.id,
+-      grant,
+-      transport,
+     );
++    try {
++      const tokens = await oauth(
++        record.connectionId,
++        transport,
++        browser,
++        (token) =>
++          retainNativeMcpPartialRefresh(
++            record.connectionId,
++            obligation.id,
++            token,
++          ),
++      ).exchange(client, code, pending.verifier);
++      const grant = nativeMcpIssuedGrant(pending, tokens);
++      await journalNativeOAuthGrant(
++        record.connectionId,
++        obligation.id,
++        grant,
++        nativeMcpClassification,
++      );
++      transport.assertCurrent();
++      if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
++      return activateNativeMcpGrant(
++        record.connectionId,
++        obligation.id,
++        grant,
++        transport,
++      );
++    } finally {
++      release();
++    }
+   } finally {
+-    release();
++    releaseNativeMcpPartialReservation(
++      preview.record.connectionId,
++      reservationId,
++    );
+   }
+ }
+diff --git a/packages/app-core/src/lib/native-mcp-cleanup.ts b/packages/app-core/src/lib/native-mcp-cleanup.ts
+index 209c82eb9..d8ef3d89a 100644
+--- a/packages/app-core/src/lib/native-mcp-cleanup.ts
++++ b/packages/app-core/src/lib/native-mcp-cleanup.ts
+@@ -10,6 +10,7 @@ import {
+ } from "./native-connector-transport.js";
+ import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
+ import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
++import { retryRetainedNativeMcpPartialRefresh } from "./native-mcp-partial-refresh.js";
+ import {
+   MCP_CLASSIFICATION,
+   nativeMcpClassification,
+@@ -30,6 +31,7 @@ import { deleteNativeMcpRegistration } from "./native-mcp-registration-cleanup.j
+ import { NativeMcpRegistrationReceiptSchema } from "./native-mcp-registration-receipt.js";
+ 
+ export async function prepareNativeMcpCleanup(id: string): Promise<void> {
++  await retryRetainedNativeMcpPartialRefresh(id);
+   await retryRetainedNativeOAuthGrants(id);
+   await retryRetainedNativeMcpRegistration(id);
+   const current = requireNativeMcpRecord(id);
+@@ -37,8 +39,9 @@ export async function prepareNativeMcpCleanup(id: string): Promise<void> {
+     !current.privateState.recovery.some(
+       (entry) =>
+         entry.kind === "configure" &&
+-        entry.credentials?.phase === "verify" &&
+-        entry.grant?.kind === "mcp",
++        ((entry.credentials?.phase === "verify" &&
++          entry.grant?.kind === "mcp") ||
++          entry.credentials?.phase === "partial-refresh"),
+     )
+   )
+     return;
+@@ -50,8 +53,9 @@ export async function prepareNativeMcpCleanup(id: string): Promise<void> {
+       record.privateState.recovery = record.privateState.recovery.map(
+         (entry) =>
+           entry.kind === "configure" &&
+-          entry.credentials?.phase === "verify" &&
+-          entry.grant?.kind === "mcp"
++          ((entry.credentials?.phase === "verify" &&
++            entry.grant?.kind === "mcp") ||
++            entry.credentials?.phase === "partial-refresh")
+             ? { ...entry, kind: "revoke" }
+             : entry,
+       );
+@@ -106,6 +110,35 @@ function cleanupGrant(
+   return grant;
+ }
+ 
++function partialRefreshToken(
++  obligation: NativeRecovery,
++  target: ReturnType<typeof nativeMcpRecordOAuthTarget>,
++  client: ReturnType<typeof nativeMcpClient>,
++): string | undefined {
++  const partial =
++    obligation.credentials?.phase === "partial-refresh"
++      ? obligation.credentials.partial_refresh_token
++      : undefined;
++  const binding = obligation.grant ?? obligation;
++  if (
++    partial !== undefined &&
++    (obligation.kind !== "revoke" ||
++      binding.providerId !== target.binding.providerId ||
++      binding.actor !== "user" ||
++      binding.fingerprint !== target.binding.fingerprint ||
++      binding.targetId !== target.binding.resource ||
++      binding.issuer !== target.binding.issuer ||
++      binding.resource !== target.binding.resource ||
++      binding.endpoint !== target.binding.endpoint ||
++      binding.clientId !== client.client_id ||
++      partial.length < 1 ||
++      partial.length > 32768 ||
++      !/^[!-~]+$/.test(partial))
++  )
++    throw new NativeMcpAuthError("pending");
++  return partial;
++}
++
+ async function cleanup(
+   obligation: NativeRecovery,
+   context: NativeCleanupContext,
+@@ -129,7 +162,11 @@ async function cleanup(
+       );
+     return "provider-revoked" as const;
+   }
+-  const grant = cleanupGrant(obligation, target, client);
++  const partial = partialRefreshToken(obligation, target, client);
++  const grant = obligation.grant
++    ? cleanupGrant(obligation, target, client)
++    : undefined;
++  if (!partial && !grant) throw new NativeMcpAuthError("pending");
+   if (!target.metadata.revocationEndpoint) {
+     if (await removeRegistration(context, target, client, transport))
+       return "provider-revoked" as const;
+@@ -139,9 +176,12 @@ async function cleanup(
+     ...transport,
+     signal: new AbortController().signal,
+   });
+-  if (grant.refreshToken)
+-    await protocol.revoke(client, grant.refreshToken, "refresh_token");
+-  await protocol.revoke(client, grant.accessToken, "access_token");
++  const refreshTokens = new Set(
++    [partial, grant?.refreshToken].filter((value) => value !== undefined),
++  );
++  for (const token of refreshTokens)
++    await protocol.revoke(client, token, "refresh_token");
++  if (grant) await protocol.revoke(client, grant.accessToken, "access_token");
+   await removeRegistration(context, target, client, transport);
+   return "provider-revoked" as const;
+ }
+diff --git a/packages/app-core/src/lib/native-mcp-connectors.test-support.ts b/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
+index 9b736e26a..ab5beabf1 100644
+--- a/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
++++ b/packages/app-core/src/lib/native-mcp-connectors.test-support.ts
+@@ -51,6 +51,8 @@ export type ConnectorFixtureOptions = {
+   management?: boolean;
+   deleteFailure?: boolean;
+   onRegistration?: () => void;
++  requestedScopes?: string[];
++  token?: JsonObject;
+ };
+ async function oauthFixtureFetch(
+   request: Request,
+@@ -80,6 +82,7 @@ async function oauthFixtureFetch(
+   return fixture(target, {
+     registered,
+     tokenFailure: options.tokenFailure,
++    token: options.token,
+     onToken: options.onToken,
+   }).ports.fetch(request);
+ }
+@@ -189,7 +192,7 @@ export async function mcpConnectorFixture(
+     method: "mcp",
+     parameters: {},
+     credentials: {},
+-    requestedScopes: { user: [] },
++    requestedScopes: { user: options.requestedScopes ?? [] },
+     targetIds: {},
+   };
+   const saved = await configureNativeMcpConnector(draft);
+diff --git a/packages/app-core/src/lib/native-mcp-oauth.ts b/packages/app-core/src/lib/native-mcp-oauth.ts
+index 4870ddb41..6ac514b6a 100644
+--- a/packages/app-core/src/lib/native-mcp-oauth.ts
++++ b/packages/app-core/src/lib/native-mcp-oauth.ts
+@@ -36,6 +36,8 @@ export type NativeMcpOAuthPorts = {
+   settleCredentialMutation?: typeof fetch;
+   signal: AbortSignal;
+   assertCurrent: () => void;
++  /** Seal an independently valid refresh token before reporting a malformed receipt. */
++  retainPartialRefresh?: (token: string) => Promise<void>;
+ };
+ 
+ function assertPublicClient(
+@@ -236,6 +238,7 @@ export class NativeMcpPublicOAuth {
+         ),
+       this.fetcher,
+       this.target.binding.issuer ?? "",
++      this.ports.retainPartialRefresh,
+     );
+   }
+ 
+@@ -259,6 +262,7 @@ export class NativeMcpPublicOAuth {
+         ),
+       this.fetcher,
+       this.target.binding.issuer ?? "",
++      this.ports.retainPartialRefresh,
+     );
+   }
+ 
+diff --git a/packages/app-core/src/lib/native-mcp-partial-refresh.ts b/packages/app-core/src/lib/native-mcp-partial-refresh.ts
+new file mode 100644
+index 000000000..3078266c7
+--- /dev/null
++++ b/packages/app-core/src/lib/native-mcp-partial-refresh.ts
+@@ -0,0 +1,96 @@
++/** Retain an independently valid refresh token even when its access token is malformed. */
++import { updateNativeConnector } from "./native-connector-store.js";
++import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
++import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
++import { requireNativeMcpRecord } from "./native-mcp-records.js";
++import { nativeOAuthGuard } from "./native-oauth-session.js";
++
++type Retained = { intentId: string; fingerprint: string; token: string | null };
++const retained = new Map<string, Retained>();
++
++export function reserveNativeMcpPartialRefresh(
++  id: string,
++  intentId: string,
++  fingerprint: string,
++): void {
++  if (retained.has(id) || retained.size >= 64)
++    throw new NativeMcpAuthError("storage");
++  retained.set(id, { intentId, fingerprint, token: null });
++}
++
++export function releaseNativeMcpPartialReservation(
++  id: string,
++  intentId: string,
++): void {
++  const entry = retained.get(id);
++  if (entry?.intentId === intentId && entry.token === null) retained.delete(id);
++}
++
++export function forgetRetainedNativeMcpPartialRefresh(
++  id: string,
++  intentId: string,
++): void {
++  if (retained.get(id)?.intentId === intentId) retained.delete(id);
++}
++
++async function seal(id: string, entry: Retained): Promise<void> {
++  if (entry.token === null) throw new NativeMcpAuthError("storage");
++  const token = entry.token;
++  const current = requireNativeMcpRecord(id);
++  await updateNativeConnector(
++    id,
++    nativeOAuthGuard(current),
++    MCP_CLASSIFICATION,
++    (record) => {
++      const intent = record.privateState.recovery.find(
++        (item) => item.id === entry.intentId,
++      );
++      if (
++        !intent ||
++        intent.fingerprint !== entry.fingerprint ||
++        !["exchange", "refresh"].includes(intent.credentials?.phase ?? "")
++      )
++        throw new NativeMcpAuthError("storage");
++      if (intent.credentials?.phase === "refresh") {
++        delete record.privateState.grants[intent.actor];
++        record.runtime.grants = record.runtime.grants.filter(
++          (item) => item.actor !== intent.actor,
++        );
++      }
++      intent.credentials = {
++        ...intent.credentials,
++        phase: "partial-refresh",
++        partial_refresh_token: token,
++      };
++      record.privateState.verification = null;
++      return record;
++    },
++  );
++  retained.delete(id);
++}
++
++export async function retainNativeMcpPartialRefresh(
++  id: string,
++  intentId: string,
++  token: string,
++): Promise<void> {
++  const entry = retained.get(id);
++  if (
++    !entry ||
++    entry.intentId !== intentId ||
++    entry.token !== null ||
++    token.length < 1 ||
++    token.length > 32768 ||
++    !/^[!-~]+$/.test(token)
++  )
++    throw new NativeMcpAuthError("storage");
++  entry.token = token;
++  await seal(id, entry);
++}
++
++export async function retryRetainedNativeMcpPartialRefresh(
++  id: string,
++): Promise<void> {
++  const entry = retained.get(id);
++  if (entry?.token) await seal(id, entry);
++}
+diff --git a/packages/app-core/src/lib/native-mcp-proof.ts b/packages/app-core/src/lib/native-mcp-proof.ts
+index 9502c73af..3d72dfd30 100644
+--- a/packages/app-core/src/lib/native-mcp-proof.ts
++++ b/packages/app-core/src/lib/native-mcp-proof.ts
+@@ -12,7 +12,10 @@ import {
+   nativeMcpRecordBinding,
+ } from "./native-mcp-profile.js";
+ import { requireNativeMcpRecord } from "./native-mcp-records.js";
+-import { nativeMcpRecordSession } from "./native-mcp-session.js";
++import {
++  assertNativeMcpGrantScopes,
++  nativeMcpRecordSession,
++} from "./native-mcp-session.js";
+ import { NativeMcpError } from "./native-mcp-target.js";
+ import { nativeOAuthGuard } from "./native-oauth-session.js";
+ 
+@@ -22,13 +25,7 @@ function verified(
+ ): NativeConnectorRecord {
+   const verifiedAt = Math.max(Date.now(), (record.runtime.verifiedAt ?? 0) + 1);
+   const binding = nativeMcpRecordBinding(record.configuration);
+-  if (
+-    grant?.scopes &&
+-    (record.configuration.requestedScopes.user ?? []).some(
+-      (scope) => !grant.scopes?.includes(scope),
+-    )
+-  )
+-    throw new NativeMcpError("permission");
++  assertNativeMcpGrantScopes(record, grant);
+   record.privateState.grants = grant ? { user: grant } : {};
+   record.privateState.verification = {
+     fingerprint: binding.fingerprint,
+diff --git a/packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts b/packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts
+new file mode 100644
+index 000000000..3602f960d
+--- /dev/null
++++ b/packages/app-core/src/lib/native-mcp-refresh-recovery.test.ts
+@@ -0,0 +1,367 @@
++import { describe, expect, it, vi } from "vitest";
++import { kvSeams } from "./kv.js";
++import { retryNativeConnectorCleanup } from "./native-connector-lifecycle.js";
++import {
++  readNativeConnector,
++  updateNativeConnector,
++} from "./native-connector-store.js";
++import { nativeMcpRevocationInstructions } from "./native-mcp-attestation.js";
++import {
++  beginNativeMcpAuthorization,
++  finishNativeMcpAuthorization,
++} from "./native-mcp-authorization.js";
++import {
++  installNativeMcpConnectorTests,
++  mcpConnectorFixture,
++} from "./native-mcp-connectors.test-support.js";
++import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
++import { requireNativeMcpRecord } from "./native-mcp-records.js";
++import { verifyNativeMcpConnector } from "./native-mcp-verification.js";
++import { nativeOAuthGuard } from "./native-oauth-session.js";
++
++installNativeMcpConnectorTests();
++function callback(id: string): string {
++  const pending = requireNativeMcpRecord(id).privateState.pending.user;
++  if (!pending) throw new Error("Expected sealed pending consent");
++  return `?native_state=${pending.state}&native_code=actual-provider-code`;
++}
++async function authorized(
++  options: Parameters<typeof mcpConnectorFixture>[0] = {},
++) {
++  const context = await mcpConnectorFixture(options);
++  await beginNativeMcpAuthorization(context.id);
++  await finishNativeMcpAuthorization(callback(context.id));
++  return context;
++}
++
++describe("native MCP refresh recovery", () => {
++  it("retains an under-scoped rotated grant for cleanup without contacting MCP", async () => {
++    const token = {
++      access_token: "initial-access",
++      refresh_token: "initial-refresh",
++      token_type: "Bearer",
++      scope: "openid AdobeID",
++      expires_in: 3600,
++    };
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token,
++    });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    token.access_token = "replacement-access";
++    token.refresh_token = "replacement-refresh";
++    token.scope = "openid";
++    context.methods.splice(0);
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "permission",
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: { phase: "verify" },
++      grant: {
++        accessToken: "replacement-access",
++        refreshToken: "replacement-refresh",
++        scopes: ["openid"],
++      },
++    });
++    expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    expect(context.methods).toEqual([]);
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual(
++      expect.arrayContaining(["replacement-refresh", "replacement-access"]),
++    );
++  });
++
++  it("keeps the old grant and requests reauthorization for invalid refresh", async () => {
++    const options = { tokenFailure: false };
++    const context = await authorized(options);
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    options.tokenFailure = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "authorization",
++      oauthError: "invalid_grant",
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery).toEqual([]);
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "rotated-refresh",
++    );
++    expect(record.runtime.grants[0].needsReauth).toBe(true);
++  });
++
++  it("keeps the old grant after a refresh failure before token issuance", async () => {
++    const options = { metadataFailure: false };
++    const context = await authorized(options);
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    options.metadataFailure = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery).toEqual([]);
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "rotated-refresh",
++    );
++    expect(record.privateState.verification).toBeNull();
++  });
++
++  it("retains a recovery obligation when a refresh response is lost after submission", async () => {
++    let loseResponse = false;
++    const context = await authorized({
++      onToken: () => {
++        if (loseResponse) throw new Error("response lost after issuance");
++      },
++    });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    loseResponse = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery[0]?.credentials?.phase).toBe("refresh");
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "rotated-refresh",
++    );
++    expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    expect(
++      nativeMcpRevocationInstructions(
++        context.id,
++        record.privateState.recovery[0].id,
++      ).canConfirm,
++    ).toBe(false);
++  });
++
++  it("retries sealing a rotated pair after a transient storage failure before cleanup", async () => {
++    const token = {
++      access_token: "initial-access",
++      refresh_token: "initial-refresh",
++      token_type: "Bearer",
++      scope: "openid AdobeID",
++      expires_in: 3600,
++    };
++    let fail = false;
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token,
++      onToken: () => {
++        if (fail)
++          vi.mocked(kvSeams.kvSetDurable).mockRejectedValueOnce(
++            new Error("storage unavailable"),
++          );
++      },
++    });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    token.access_token = "replacement-access";
++    token.refresh_token = "replacement-refresh";
++    fail = true;
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toThrow();
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.recovery[0]?.credentials?.phase).toBe("refresh");
++    expect(record.privateState.grants.user.refreshToken).toBe(
++      "initial-refresh",
++    );
++    fail = false;
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual(
++      expect.arrayContaining(["replacement-refresh", "replacement-access"]),
++    );
++  });
++
++  it.each(["excess scopes", "invalid refresh token"] as const)(
++    "retains the valid rotated access token on %s without MCP use",
++    async (malformed) => {
++      const token = {
++        access_token: "initial-access",
++        refresh_token: "initial-refresh",
++        token_type: "Bearer",
++        scope: "openid AdobeID",
++        expires_in: 3600,
++      };
++      const context = await authorized({
++        requestedScopes: ["openid", "AdobeID"],
++        token,
++      });
++      const initial = requireNativeMcpRecord(context.id);
++      await updateNativeConnector(
++        context.id,
++        nativeOAuthGuard(initial),
++        MCP_CLASSIFICATION,
++        (current) => {
++          current.privateState.grants.user.expiresAt = 1;
++          current.runtime.grants[0].expiresAt = 1;
++          return current;
++        },
++      );
++      token.access_token = "replacement-access";
++      token.refresh_token =
++        malformed === "invalid refresh token" ? "" : "replacement-refresh";
++      token.scope =
++        malformed === "excess scopes"
++          ? Array.from({ length: 257 }, (_, i) => `scope-${i}`).join(" ")
++          : "openid AdobeID";
++      context.methods.splice(0);
++      await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++        code: "authorization",
++      });
++      const record = requireNativeMcpRecord(context.id);
++      expect(record.privateState.grants).toEqual({});
++      expect(record.privateState.recovery[0]?.grant).toMatchObject({
++        accessToken: "replacement-access",
++        scopes: null,
++      });
++      expect(context.methods).toEqual([]);
++      expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    },
++  );
++
++  it("preserves and revokes both the refresh-only replacement and previously sealed pair", async () => {
++    const token = {
++      access_token: "previous-access",
++      refresh_token: "previous-refresh",
++      token_type: "Bearer",
++      scope: "openid",
++      expires_in: 3600,
++    };
++    const context = await authorized({ requestedScopes: ["openid"], token });
++    const initial = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(initial),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.expiresAt = 1;
++        current.runtime.grants[0].expiresAt = 1;
++        return current;
++      },
++    );
++    token.access_token = "";
++    token.refresh_token = "new-partial-refresh";
++    context.methods.splice(0);
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "authorization",
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: {
++        phase: "partial-refresh",
++        partial_refresh_token: "new-partial-refresh",
++      },
++      grant: {
++        accessToken: "previous-access",
++        refreshToken: "previous-refresh",
++      },
++    });
++    expect(context.methods).toEqual([]);
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual(
++      expect.arrayContaining([
++        "new-partial-refresh",
++        "previous-refresh",
++        "previous-access",
++      ]),
++    );
++  });
++
++  it("retries a refresh-only receipt after transient durable sealing failure", async () => {
++    let fail = true;
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid"],
++      token: {
++        access_token: "",
++        refresh_token: "partial-retry-secret",
++        token_type: "Bearer",
++      },
++      onToken: () => {
++        if (fail)
++          vi.mocked(kvSeams.kvSetDurable).mockRejectedValueOnce(
++            new Error("storage unavailable"),
++          );
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toThrow();
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery[0]?.credentials
++        ?.phase,
++    ).toBe("exchange");
++    fail = false;
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual([
++      "partial-retry-secret",
++    ]);
++  });
++});
+diff --git a/packages/app-core/src/lib/native-mcp-refresh.ts b/packages/app-core/src/lib/native-mcp-refresh.ts
+index d2464e1ff..023ac5e6a 100644
+--- a/packages/app-core/src/lib/native-mcp-refresh.ts
++++ b/packages/app-core/src/lib/native-mcp-refresh.ts
+@@ -5,7 +5,16 @@ import type { NativeConnectorRecord } from "./native-connector-store.js";
+ import { updateNativeConnector } from "./native-connector-store.js";
+ import type { NativeProviderTransport } from "./native-connector-transport.js";
+ import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
+-import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
++import {
++  type NativeMcpOAuthPorts,
++  NativeMcpPublicOAuth,
++} from "./native-mcp-oauth.js";
++import {
++  releaseNativeMcpPartialReservation,
++  reserveNativeMcpPartialRefresh,
++  retainNativeMcpPartialRefresh,
++} from "./native-mcp-partial-refresh.js";
++
+ import {
+   MCP_CLASSIFICATION,
+   nativeMcpClassification,
+@@ -23,6 +32,51 @@ import {
+   nativeOAuthGuard,
+ } from "./native-oauth-session.js";
+ 
++function refreshProtocol(
++  initial: NativeConnectorRecord,
++  intent: NativeRecovery,
++  transport: NativeProviderTransport,
++  target: ReturnType<typeof nativeMcpRecordOAuthTarget>,
++  onSubmit: () => void,
++): NativeMcpPublicOAuth {
++  const track =
++    (send: typeof fetch): typeof fetch =>
++    async (input, init) => {
++      const request = new Request(input, init);
++      if (
++        request.method === "POST" &&
++        request.url === target.metadata.tokenEndpoint
++      )
++        onSubmit();
++      return send(request);
++    };
++  const ports: NativeMcpOAuthPorts = {
++    ...transport,
++    retainPartialRefresh: (token) =>
++      retainNativeMcpPartialRefresh(initial.connectionId, intent.id, token),
++    fetch: track(transport.fetch),
++    signal: new AbortController().signal,
++  };
++  if (transport.settleCredentialMutation)
++    ports.settleCredentialMutation = track(transport.settleCredentialMutation);
++  return new NativeMcpPublicOAuth(target, ports);
++}
++
++async function recoverFailedRefresh(
++  id: string,
++  intentId: string,
++  invalidGrant: boolean,
++  received: boolean,
++  submitted: boolean,
++): Promise<void> {
++  if (
++    !received &&
++    invalidGrant
++  )
++    await markInvalidRefresh(id, intentId);
++  else if (!received && !submitted) await clearRefreshIntent(id, intentId);
++}
++
+ export async function refreshNativeMcpAuthorization(
+   initial: NativeConnectorRecord,
+   transport: NativeProviderTransport,
+@@ -63,26 +117,31 @@ export async function refreshNativeMcpAuthorization(
+     initial.connectionId,
+     intent.id,
+   );
+-  let journaled = false;
++  let received = false;
++  let submitted = false;
+   try {
+-    const protocol = new NativeMcpPublicOAuth(target, {
+-      ...transport,
+-      signal: new AbortController().signal,
++    reserveNativeMcpPartialRefresh(
++      initial.connectionId,
++      intent.id,
++      intent.fingerprint,
++    );
++    const protocol = refreshProtocol(initial, intent, transport, target, () => {
++      submitted = true;
+     });
+     const tokens = await protocol.refresh(
+       nativeMcpClient(initial),
+       old.refreshToken,
+     );
++    received = true;
+     const grant = nativeMcpIssuedGrant({ ...old, targetId }, tokens);
+     grant.refreshToken = grant.refreshToken ?? old.refreshToken;
+-    grant.scopes = grant.scopes ?? old.scopes;
++    if (tokens.protocolValid) grant.scopes = grant.scopes ?? old.scopes;
+     await journalNativeOAuthGrant(
+       initial.connectionId,
+       intent.id,
+       grant,
+       nativeMcpClassification,
+     );
+-    journaled = true;
+     transport.assertCurrent();
+     if (!tokens.protocolValid) throw new NativeMcpAuthError("authorization");
+     return await activateNativeMcpGrant(
+@@ -92,22 +151,20 @@ export async function refreshNativeMcpAuthorization(
+       transport,
+     );
+   } catch (error) {
+-    if (
+-      error instanceof NativeMcpAuthError &&
+-      error.oauthError === "invalid_grant"
+-    ) {
+-      await markInvalidRefresh(initial.connectionId, intent.id);
+-    } else if (journaled) {
+-      // The provider may have rotated the refresh token but the replacement
+-      // was not activated; keep the old grant but require consent again.
+-      await markInvalidRefresh(initial.connectionId, intent.id);
+-    } else {
+-      // Network, metadata, 5xx or SDK failure before any replacement was
+-      // journaled: unwinding the intent keeps verify/re-authorize/remove open.
+-      await clearRefreshIntent(initial.connectionId, intent.id);
+-    }
++    // Once a token response is captured, retain its recovery obligation.
++    // If sealing failed, the in-memory journal can retry against that intent;
++    // if verification failed, the sealed replacement can be revoked. A lost
++    // response after submission is indeterminate and also needs cleanup.
++    await recoverFailedRefresh(
++      initial.connectionId,
++      intent.id,
++      error instanceof NativeMcpAuthError && error.oauthError === "invalid_grant",
++      received,
++      submitted,
++    );
+     throw error;
+   } finally {
++    releaseNativeMcpPartialReservation(initial.connectionId, intent.id);
+     release();
+   }
+ }
+diff --git a/packages/app-core/src/lib/native-mcp-scope-recovery.test.ts b/packages/app-core/src/lib/native-mcp-scope-recovery.test.ts
+new file mode 100644
+index 000000000..7c7a48712
+--- /dev/null
++++ b/packages/app-core/src/lib/native-mcp-scope-recovery.test.ts
+@@ -0,0 +1,293 @@
++import { describe, expect, it } from "vitest";
++import { readDeviceRows } from "./device-connector-records.js";
++import { retryNativeConnectorCleanup } from "./native-connector-lifecycle.js";
++import {
++  readNativeConnector,
++  updateNativeConnector,
++} from "./native-connector-store.js";
++import {
++  beginNativeMcpAuthorization,
++  finishNativeMcpAuthorization,
++} from "./native-mcp-authorization.js";
++import {
++  installNativeMcpConnectorTests,
++  mcpConnectorFixture,
++} from "./native-mcp-connectors.test-support.js";
++import { listNativeMcpTools } from "./native-mcp-operations.js";
++import {
++  releaseNativeMcpPartialReservation,
++  reserveNativeMcpPartialRefresh,
++} from "./native-mcp-partial-refresh.js";
++import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
++import { requireNativeMcpRecord } from "./native-mcp-records.js";
++import { verifyNativeMcpConnector } from "./native-mcp-verification.js";
++import { nativeOAuthGuard } from "./native-oauth-session.js";
++
++installNativeMcpConnectorTests();
++function callback(id: string): string {
++  const pending = requireNativeMcpRecord(id).privateState.pending.user;
++  if (!pending) throw new Error("Expected sealed pending consent");
++  return `?native_state=${pending.state}&native_code=actual-provider-code`;
++}
++async function authorized(
++  options: Parameters<typeof mcpConnectorFixture>[0] = {},
++) {
++  const context = await mcpConnectorFixture(options);
++  await beginNativeMcpAuthorization(context.id);
++  await finishNativeMcpAuthorization(callback(context.id));
++  return context;
++}
++
++describe("native MCP scope and partial authorization recovery", () => {
++  it("does not consume a callback when partial-receipt capacity is unavailable", async () => {
++    const context = await mcpConnectorFixture();
++    await beginNativeMcpAuthorization(context.id);
++    const search = callback(context.id);
++    const before = context.requests.length;
++    for (let index = 0; index < 64; index += 1)
++      reserveNativeMcpPartialRefresh(
++        `reserved-${index}`,
++        `intent-${index}`,
++        "a".repeat(64),
++      );
++    try {
++      await expect(finishNativeMcpAuthorization(search)).rejects.toMatchObject({
++        code: "storage",
++      });
++      expect(
++        requireNativeMcpRecord(context.id).privateState.pending.user,
++      ).toBeDefined();
++      expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
++        [],
++      );
++      expect(context.requests).toHaveLength(before);
++    } finally {
++      for (let index = 0; index < 64; index += 1)
++        releaseNativeMcpPartialReservation(
++          `reserved-${index}`,
++          `intent-${index}`,
++        );
++    }
++    expect((await finishNativeMcpAuthorization(search)).status).toBe(
++      "connected",
++    );
++  });
++  it("retains an under-scoped initial grant without sending it to the MCP resource", async () => {
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid", "AdobeID"],
++      token: {
++        access_token: "under-scoped-access",
++        refresh_token: "under-scoped-refresh",
++        token_type: "Bearer",
++        scope: "openid",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "permission" });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]?.grant).toMatchObject({
++      accessToken: "under-scoped-access",
++      refreshToken: "under-scoped-refresh",
++      scopes: ["openid"],
++    });
++    expect(context.methods).toEqual([]);
++    expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++  });
++
++  it("rejects a previously saved under-scoped grant before MCP verification or use", async () => {
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token: {
++        access_token: "issued-access",
++        refresh_token: "rotated-refresh",
++        token_type: "Bearer",
++        scope: "openid AdobeID",
++      },
++    });
++    const record = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(record),
++      MCP_CLASSIFICATION,
++      (current) => {
++        current.privateState.grants.user.scopes = ["openid"];
++        current.runtime.grants[0].grantedScopes = ["openid"];
++        return current;
++      },
++    );
++    context.methods.splice(0);
++    await expect(verifyNativeMcpConnector(context.id)).rejects.toMatchObject({
++      code: "permission",
++    });
++    await expect(listNativeMcpTools(context.id)).rejects.toMatchObject({
++      code: "authorization",
++    });
++    expect(context.methods).toEqual([]);
++    const current = requireNativeMcpRecord(context.id);
++    await updateNativeConnector(
++      context.id,
++      nativeOAuthGuard(current),
++      MCP_CLASSIFICATION,
++      (updated) => {
++        updated.privateState.grants.user.expiresAt = 1;
++        updated.runtime.grants[0].expiresAt = 1;
++        return updated;
++      },
++    );
++    // A refresh may restore the missing permission. It is sent only to the
++    // pinned issuer; the replacement must pass the guard before MCP use.
++    const view = await verifyNativeMcpConnector(context.id);
++    expect(view.status).toBe("connected");
++    expect(context.methods).toContain("initialize");
++  });
++
++  it("accepts provider-managed unknown scopes without inventing granted scopes", async () => {
++    const context = await authorized({
++      requestedScopes: ["openid", "AdobeID"],
++      token: {
++        access_token: "issued-access",
++        refresh_token: "rotated-refresh",
++        token_type: "Bearer",
++      },
++    });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants.user.scopes).toBeNull();
++    expect(record.runtime.grants[0]).toMatchObject({
++      permissionState: "provider-managed",
++      grantedScopes: [],
++    });
++    expect(context.methods).toContain("initialize");
++  });
++
++  it("rejects an explicitly empty granted scope list before MCP use", async () => {
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid"],
++      token: {
++        access_token: "empty-scope-token",
++        token_type: "Bearer",
++        scope: "",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "permission" });
++    expect(context.methods).toEqual([]);
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery[0]?.grant
++        ?.scopes,
++    ).toEqual([]);
++  });
++
++  it.each(["excess scopes", "invalid refresh token"] as const)(
++    "retains the valid initial access token on %s without MCP use",
++    async (malformed) => {
++      const excessive = Array.from(
++        { length: 257 },
++        (_, i) => `scope-${i}`,
++      ).join(" ");
++      const context = await mcpConnectorFixture({
++        requestedScopes: ["openid"],
++        token: {
++          access_token: "issued-access",
++          refresh_token:
++            malformed === "invalid refresh token" ? "" : "issued-refresh",
++          token_type: "Bearer",
++          scope: malformed === "excess scopes" ? excessive : "openid",
++        },
++      });
++      await beginNativeMcpAuthorization(context.id);
++      await expect(
++        finishNativeMcpAuthorization(callback(context.id)),
++      ).rejects.toMatchObject({ code: "authorization" });
++      const record = requireNativeMcpRecord(context.id);
++      expect(record.privateState.grants).toEqual({});
++      expect(record.privateState.recovery[0]?.grant).toMatchObject({
++        accessToken: "issued-access",
++        scopes: null,
++      });
++      expect(context.methods).toEqual([]);
++      expect(readNativeConnector(context.id)?.status).toBe("cleanup");
++    },
++  );
++
++  it("accepts offline consent proved by a refresh token when omitted from access scopes", async () => {
++    const context = await authorized({
++      providerId: "amplitude",
++      requestedScopes: ["mcp:read", "offline_access"],
++      token: {
++        access_token: "issued-access",
++        refresh_token: "rotated-refresh",
++        token_type: "Bearer",
++        scope: "mcp:read",
++      },
++    });
++    expect(readNativeConnector(context.id)?.status).toBe("connected");
++    expect(context.methods).toContain("initialize");
++  });
++
++  it("rejects offline consent without either a refresh token or the returned scope", async () => {
++    const context = await mcpConnectorFixture({
++      providerId: "amplitude",
++      requestedScopes: ["mcp:read", "offline_access"],
++      token: {
++        access_token: "issued-access",
++        token_type: "Bearer",
++        scope: "mcp:read",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "permission" });
++    expect(context.methods).toEqual([]);
++    expect(
++      requireNativeMcpRecord(context.id).privateState.recovery[0]?.grant
++        ?.accessToken,
++    ).toBe("issued-access");
++  });
++
++  it("seals and revokes a refresh-only initial receipt without fabricating an access token", async () => {
++    const context = await mcpConnectorFixture({
++      requestedScopes: ["openid"],
++      token: {
++        access_token: "",
++        refresh_token: "partial-refresh-secret",
++        token_type: "Bearer",
++      },
++    });
++    await beginNativeMcpAuthorization(context.id);
++    await expect(
++      finishNativeMcpAuthorization(callback(context.id)),
++    ).rejects.toMatchObject({ code: "authorization" });
++    const record = requireNativeMcpRecord(context.id);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: {
++        phase: "partial-refresh",
++        partial_refresh_token: "partial-refresh-secret",
++      },
++    });
++    expect(record.privateState.recovery[0]?.grant).toBeUndefined();
++    expect(JSON.stringify(readDeviceRows())).not.toContain(
++      "partial-refresh-secret",
++    );
++    expect(context.methods).toEqual([]);
++    await retryNativeConnectorCleanup(context.id);
++    const revoked = context.requests.filter((request) =>
++      request.url.endsWith("/ims/revoke"),
++    );
++    const bodies = await Promise.all(
++      revoked.map(async (request) => new URLSearchParams(await request.text())),
++    );
++    expect(bodies.map((body) => body.get("token"))).toEqual([
++      "partial-refresh-secret",
++    ]);
++    expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
++      [],
++    );
++  });
++});
+diff --git a/packages/app-core/src/lib/native-mcp-session.ts b/packages/app-core/src/lib/native-mcp-session.ts
+index 6196d7c8e..f1b491bf2 100644
+--- a/packages/app-core/src/lib/native-mcp-session.ts
++++ b/packages/app-core/src/lib/native-mcp-session.ts
+@@ -16,6 +16,10 @@ import {
+   requireNativeMcpRecord,
+ } from "./native-mcp-records.js";
+ import { NativeMcpError } from "./native-mcp-target.js";
++import {
++  offlineConsentValid,
++  requiredResourceScopes,
++} from "./native-oauth-client-scopes.js";
+ import { nativeOAuthGuard } from "./native-oauth-session.js";
+ 
+ export async function markNativeMcpRefused(
+@@ -35,6 +39,23 @@ export async function markNativeMcpRefused(
+     },
+   );
+ }
++/** Enforce selected permissions before any grant is sent to the MCP resource. */
++export function assertNativeMcpGrantScopes(
++  record: NativeConnectorRecord,
++  grant?: NativeGrant,
++): void {
++  if (!grant) return;
++  const requested = record.configuration.requestedScopes.user ?? [];
++  if (
++    !offlineConsentValid(requested, grant.scopes, grant.refreshToken) ||
++    (grant.scopes !== null &&
++      requiredResourceScopes(requested).some(
++        (scope) => !grant.scopes?.includes(scope),
++      ))
++  )
++    throw new NativeMcpError("permission");
++}
++
+ export async function nativeMcpRecordSession(
+   record: NativeConnectorRecord,
+   transport: NativeProviderTransport,
+@@ -48,6 +69,7 @@ export async function nativeMcpRecordSession(
+   );
+   const binding = nativeMcpRecordBinding(record.configuration);
+   const grant = issuedGrant ?? record.privateState.grants.user;
++  assertNativeMcpGrantScopes(record, grant);
+   if (grant && grant.expiresAt !== null && grant.expiresAt <= Date.now())
+     throw new NativeMcpError("authorization");
+   const assertCurrent = () => {
+diff --git a/packages/app-core/src/lib/native-mcp-token-receipt.ts b/packages/app-core/src/lib/native-mcp-token-receipt.ts
+index 4595de77f..ce8ca14c6 100644
+--- a/packages/app-core/src/lib/native-mcp-token-receipt.ts
++++ b/packages/app-core/src/lib/native-mcp-token-receipt.ts
+@@ -8,10 +8,9 @@ const opaque = z
+   .min(1)
+   .max(32768)
+   .regex(/^[!-~]+$/);
+-const PairSchema = z.object({
+-  access_token: opaque,
+-  refresh_token: opaque.optional(),
+-});
++const AccessSchema = z.object({ access_token: opaque });
++const RefreshSchema = z.object({ refresh_token: opaque });
++const PairSchema = AccessSchema.extend({ refresh_token: opaque.optional() });
+ const DetailsSchema = z.object({
+   token_type: z.string().min(1),
+   expires_in: z
+@@ -23,7 +22,13 @@ const DetailsSchema = z.object({
+   scope: z
+     .string()
+     .max(32768)
+-    .refine((scope) => scope.split(/\s+/).every((value) => value.length <= 512))
++    .refine((scope) => {
++      const values = scope.split(/\s+/).filter(Boolean);
++      return (
++        values.every((value) => value.length <= 512) &&
++        new Set(values).size <= 256
++      );
++    })
+     .optional(),
+ });
+ export type NativeMcpIssuedTokens = OAuthTokens & { protocolValid: boolean };
+@@ -33,24 +38,32 @@ export async function captureNativeMcpTokenReply(
+   action: (fetcher: typeof fetch) => Promise<OAuthTokens>,
+   fetcher: typeof fetch,
+   issuer: string,
++  retainPartialRefresh?: (token: string) => Promise<void>,
+ ): Promise<NativeMcpIssuedTokens> {
+   const capture: TokenCapture = { value: null };
++  let partialRefresh: string | null = null;
+   const admitted: typeof fetch = async (input, init) => {
+     const response = await fetcher(input, init);
+     if (response.ok) {
+       const body = await response.clone().json();
++      const access = AccessSchema.safeParse(body);
+       const pair = PairSchema.safeParse(body);
+-      if (pair.success) {
++      const refresh = RefreshSchema.safeParse(body);
++      if (!access.success && refresh.success)
++        partialRefresh = refresh.data.refresh_token;
++      if (access.success) {
+         const details = DetailsSchema.safeParse(body);
++        const validDetails = pair.success && details.success;
+         capture.value = {
+-          ...pair.data,
+-          token_type: details.success ? details.data.token_type : "",
++          ...access.data,
++          token_type: validDetails ? details.data.token_type : "",
+           issuer,
+           protocolValid:
+-            details.success &&
+-            details.data.token_type.toLowerCase() === "bearer",
++            validDetails && details.data.token_type.toLowerCase() === "bearer",
+         };
+-        if (details.success) {
++        if (pair.success && pair.data.refresh_token)
++          capture.value.refresh_token = pair.data.refresh_token;
++        if (validDetails) {
+           capture.value.expires_in = details.data.expires_in;
+           capture.value.scope = details.data.scope;
+         }
+@@ -61,7 +74,12 @@ export async function captureNativeMcpTokenReply(
+   try {
+     await action(admitted);
+   } catch (error) {
+-    if (!capture.value) throw error;
++    if (!capture.value && !partialRefresh) throw error;
++  }
++  if (!capture.value && partialRefresh) {
++    if (!retainPartialRefresh) throw new NativeMcpAuthError("storage");
++    await retainPartialRefresh(partialRefresh);
++    throw new NativeMcpAuthError("authorization");
+   }
+   if (!capture.value) throw new NativeMcpAuthError("authorization");
+   return capture.value;
+diff --git a/packages/app-core/src/lib/native-oauth-client-exchange.ts b/packages/app-core/src/lib/native-oauth-client-exchange.ts
+index ce7b80458..a41a86c3f 100644
+--- a/packages/app-core/src/lib/native-oauth-client-exchange.ts
++++ b/packages/app-core/src/lib/native-oauth-client-exchange.ts
+@@ -19,8 +19,8 @@ import {
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
+ import {
++  admissibleGrantScopes,
+   offlineConsentValid,
+-  requiredResourceScopes,
+ } from "./native-oauth-client-scopes.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import { nativeOAuthHttp } from "./native-oauth-http.js";
+@@ -257,13 +257,18 @@ export async function exchangeNativeOAuthClient(
+     );
+     await recordDefinitiveRejection(claim, response);
+     const receipt = issued(response.body, response.status, pending);
++    const scopeValid = admissibleGrantScopes(
++      pending.providerId,
++      pending.scopes,
++      receipt.grant.scopes,
++    );
+     await journalNativeOAuthGrant(
+       id,
+       claim.obligation.id,
+       receipt.grant,
+       nativeOAuthClientClassification,
+       {
+-        protocol_valid: String(receipt.valid),
++        protocol_valid: String(receipt.valid && scopeValid),
+         requested_scopes: JSON.stringify(pending.scopes),
+       },
+     );
+@@ -277,13 +282,7 @@ export async function exchangeNativeOAuthClient(
+     if (readNativeOAuthClientSecret(id, owner) !== secret)
+       throw new NativeOAuthError("expired");
+     if (!receipt.valid) throw new NativeOAuthError("provider");
+-    if (
+-      receipt.grant.scopes &&
+-      requiredResourceScopes(pending.scopes).some(
+-        (scope) => !receipt.grant.scopes?.includes(scope),
+-      )
+-    )
+-      throw new NativeOAuthError("scope");
++    if (!scopeValid) throw new NativeOAuthError("scope");
+     return { connectionId: id, intentId: claim.obligation.id };
+   } finally {
+     release();
+diff --git a/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts b/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts
+new file mode 100644
+index 000000000..8fcea705b
+--- /dev/null
++++ b/packages/app-core/src/lib/native-oauth-client-google-exchange.test.ts
+@@ -0,0 +1,170 @@
++import { afterEach, expect, it } from "vitest";
++import { updateNativeConnector } from "./native-connector-store.js";
++import { GOOGLE_ACCOUNT_POLICY } from "./native-google-account-policy.generated.js";
++import {
++  beginNativeOAuthClient,
++  configureNativeOAuthClient,
++  nativeOAuthClientClassification,
++} from "./native-oauth-client-config.js";
++import {
++  exchangeNativeOAuthClient,
++  issued,
++} from "./native-oauth-client-exchange.js";
++import { nativeOAuthClientFixture } from "./native-oauth-client.test-support.js";
++import { verifyNativeOAuthMcpResource } from "./native-oauth-mcp-operations.js";
++import { verifyNativeOAuthResource } from "./native-oauth-resource.js";
++import {
++  nativeOAuthGuard,
++  requireNativeOAuthRecord,
++} from "./native-oauth-session.js";
++
++const EMAIL_URL = "https://www.googleapis.com/auth/userinfo.email";
++const closing: (() => Promise<void>)[] = [];
++afterEach(async () => {
++  for (const close of closing.splice(0).reverse()) await close();
++});
++
++async function googleExchange(requested: string[], issued: string) {
++  const fixture = await nativeOAuthClientFixture("none");
++  closing.push(fixture.close);
++  const localToken = fixture.input.parameters.token_endpoint;
++  if (!localToken) throw new Error("Missing local token endpoint");
++  const localFetch = fixture.owner.transport.fetch;
++  const redirected: typeof fetch = async (input, init) => {
++    const request = new Request(input, init);
++    if (request.url !== GOOGLE_ACCOUNT_POLICY.endpoints.token_endpoint)
++      throw new Error("Unexpected provider endpoint");
++    return localFetch(localToken, {
++      method: request.method,
++      headers: request.headers,
++      body: await request.text(),
++      signal: request.signal,
++    });
++  };
++  fixture.owner.transport.fetch = redirected;
++  fixture.owner.transport.settleCredentialMutation = redirected;
++  fixture.input.providerId = "google-drive";
++  fixture.input.parameters = {
++    client_id: fixture.input.parameters.client_id ?? "",
++    ...GOOGLE_ACCOUNT_POLICY.endpoints,
++    token_auth_method: "none",
++    resource_parameter: "omit",
++  };
++  fixture.input.requestedScopes.user = requested;
++  fixture.state.resourceParameter = "omit";
++  fixture.state.scope = issued;
++  const saved = await configureNativeOAuthClient(fixture.input, fixture.owner);
++  const authorization = new URL(
++    await beginNativeOAuthClient(saved.connectionId, fixture.owner),
++  );
++  fixture.state.challenge =
++    authorization.searchParams.get("code_challenge") ?? "";
++  const search = new URLSearchParams({
++    native_state: authorization.searchParams.get("state") ?? "",
++    native_code: "one-use-code",
++  }).toString();
++  return { ...fixture, saved, search };
++}
++
++it.each<{ requested: string[]; issued: string }>([
++  { requested: ["openid", EMAIL_URL], issued: `openid ${EMAIL_URL}` },
++  { requested: ["openid", EMAIL_URL], issued: "openid email" },
++  { requested: ["openid", "email"], issued: `openid ${EMAIL_URL}` },
++])(
++  "exchanges equivalent Google account scopes end to end",
++  async ({ requested, issued }) => {
++    const f = await googleExchange(requested, issued);
++    const receipt = await exchangeNativeOAuthClient(f.search, f.owner);
++    expect(f.requests).toHaveLength(1);
++    expect(
++      requireNativeOAuthRecord(receipt.connectionId).privateState.recovery[0]
++        ?.grant?.scopes,
++    ).toEqual(["openid", "email"]);
++  },
++);
++
++it("rejects an over-scoped Google token after retaining its credentials", async () => {
++  const f = await googleExchange(
++    ["openid", EMAIL_URL],
++    `openid ${EMAIL_URL} https://www.googleapis.com/auth/drive.readonly`,
++  );
++  await expect(
++    exchangeNativeOAuthClient(f.search, f.owner),
++  ).rejects.toMatchObject({
++    code: "provider",
++  });
++  const record = requireNativeOAuthRecord(f.saved.connectionId);
++  expect(record.privateState.recovery[0]).toMatchObject({
++    credentials: { protocol_valid: "false" },
++    grant: { accessToken: "issued-access-1" },
++  });
++});
++
++it("rejects legacy over-scoped Google grants before resource or MCP requests", async () => {
++  const f = await googleExchange(["openid", EMAIL_URL], `openid ${EMAIL_URL}`);
++  const receipt = await exchangeNativeOAuthClient(f.search, f.owner);
++  const record = requireNativeOAuthRecord(receipt.connectionId);
++  await updateNativeConnector(
++    receipt.connectionId,
++    nativeOAuthGuard(record),
++    nativeOAuthClientClassification(),
++    (current) => {
++      const grant = current.privateState.recovery[0]?.grant;
++      if (!grant) throw new Error("Missing retained grant");
++      grant.scopes = [
++        "openid",
++        "email",
++        "https://www.googleapis.com/auth/drive.readonly",
++      ];
++      return current;
++    },
++  );
++  await expect(
++    verifyNativeOAuthResource(receipt.connectionId, f.owner),
++  ).rejects.toMatchObject({ code: "scope" });
++  await expect(
++    verifyNativeOAuthMcpResource(receipt.connectionId, f.owner),
++  ).rejects.toMatchObject({ code: "scope" });
++  expect(f.requests).toHaveLength(1);
++});
++
++it("retains an over-scoped Google token response as protocol-invalid", async () => {
++  const f = await googleExchange(["openid", "email"], "openid email");
++  const pending = requireNativeOAuthRecord(f.saved.connectionId).privateState
++    .pending.user;
++  if (!pending) throw new Error("Missing pending");
++  const receipt = issued(
++    {
++      access_token: "issued-access-1",
++      refresh_token: "issued-refresh-1",
++      token_type: "Bearer",
++      scope: "openid email https://www.googleapis.com/auth/drive.readonly",
++    },
++    200,
++    { ...pending, providerId: "google-drive" },
++  );
++  expect(receipt.valid).toBe(false);
++  expect(receipt.grant).toMatchObject({
++    accessToken: "issued-access-1",
++    refreshToken: "issued-refresh-1",
++  });
++});
++
++it("accepts Google's documented URL-form email scope without granting Drive access", async () => {
++  const f = await googleExchange(["openid", "email"], "openid email");
++  const pending = requireNativeOAuthRecord(f.saved.connectionId).privateState
++    .pending.user;
++  if (!pending) throw new Error("Missing pending");
++  const receipt = issued(
++    {
++      access_token: "issued-access-1",
++      refresh_token: "issued-refresh-1",
++      token_type: "Bearer",
++      scope: "openid https://www.googleapis.com/auth/userinfo.email",
++    },
++    200,
++    { ...pending, providerId: "google-drive", scopes: ["openid", "email"] },
++  );
++  expect(receipt.valid).toBe(true);
++  expect(receipt.grant.scopes).toEqual(["openid", "email"]);
++});
+diff --git a/packages/app-core/src/lib/native-oauth-client-scope-retention.test.ts b/packages/app-core/src/lib/native-oauth-client-scope-retention.test.ts
+new file mode 100644
+index 000000000..ea0138abe
+--- /dev/null
++++ b/packages/app-core/src/lib/native-oauth-client-scope-retention.test.ts
+@@ -0,0 +1,66 @@
++import { expect, it } from "vitest";
++import { updateNativeConnector } from "./native-connector-store.js";
++import {
++  beginNativeOAuthClient,
++  configureNativeOAuthClient,
++  nativeOAuthClientClassification,
++} from "./native-oauth-client-config.js";
++import { exchangeNativeOAuthClient } from "./native-oauth-client-exchange.js";
++import { nativeOAuthClientFixture } from "./native-oauth-client.test-support.js";
++import { verifyNativeOAuthMcpResource } from "./native-oauth-mcp-operations.js";
++import { verifyNativeOAuthResource } from "./native-oauth-resource.js";
++import {
++  nativeOAuthGuard,
++  requireNativeOAuthRecord,
++} from "./native-oauth-session.js";
++
++it("requires selected permission evidence when the token endpoint returns scopes", async () => {
++  const f = await nativeOAuthClientFixture("none");
++  try {
++    const saved = await configureNativeOAuthClient(f.input, f.owner);
++    const authorization = new URL(
++      await beginNativeOAuthClient(saved.connectionId, f.owner),
++    );
++    f.state.challenge = authorization.searchParams.get("code_challenge") ?? "";
++    f.state.scope = "different:scope";
++    const search = new URLSearchParams({
++      native_state: authorization.searchParams.get("state") ?? "",
++      native_code: "one-use-code",
++    }).toString();
++    await expect(
++      exchangeNativeOAuthClient(search, f.owner),
++    ).rejects.toMatchObject({ code: "scope" });
++    const record = requireNativeOAuthRecord(saved.connectionId);
++    expect(record.privateState.grants).toEqual({});
++    expect(record.privateState.recovery[0]).toMatchObject({
++      credentials: { phase: "verify", protocol_valid: "false" },
++      grant: { accessToken: "issued-access-1", scopes: ["different:scope"] },
++    });
++    await expect(
++      verifyNativeOAuthResource(saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "cleanup" });
++    await expect(
++      verifyNativeOAuthMcpResource(saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "cleanup" });
++    await updateNativeConnector(
++      record.connectionId,
++      nativeOAuthGuard(record),
++      nativeOAuthClientClassification(),
++      (current) => {
++        const intent = current.privateState.recovery[0];
++        if (!intent?.credentials) throw new Error("Missing retained grant");
++        intent.credentials.protocol_valid = "true";
++        return current;
++      },
++    );
++    await expect(
++      verifyNativeOAuthResource(saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "scope" });
++    await expect(
++      verifyNativeOAuthMcpResource(saved.connectionId, f.owner),
++    ).rejects.toMatchObject({ code: "scope" });
++    expect(f.requests).toHaveLength(1);
++  } finally {
++    await f.close();
++  }
++});
+diff --git a/packages/app-core/src/lib/native-oauth-client-scopes.ts b/packages/app-core/src/lib/native-oauth-client-scopes.ts
+index 787651aa6..ea978c4c6 100644
+--- a/packages/app-core/src/lib/native-oauth-client-scopes.ts
++++ b/packages/app-core/src/lib/native-oauth-client-scopes.ts
+@@ -1,3 +1,8 @@
++import {
++  isGoogleDriveAccountScopeSet,
++  normalizeGoogleDriveAccountScopes,
++} from "./native-google-drive-account.js";
++
+ export function offlineConsentValid(
+   requested: readonly string[],
+   issued: readonly string[] | null,
+@@ -15,3 +20,31 @@ export function requiredResourceScopes(
+ ): readonly string[] {
+   return requested.filter((scope) => scope !== "offline_access");
+ }
++
++/** Compare equivalent provider scope spellings without broadening the requested set. */
++export function hasRequiredResourceScopes(
++  providerId: string,
++  requested: readonly string[],
++  granted: readonly string[],
++): boolean {
++  const required =
++    normalizeGoogleDriveAccountScopes(
++      providerId,
++      requiredResourceScopes(requested),
++    ) ?? [];
++  const issued = normalizeGoogleDriveAccountScopes(providerId, granted) ?? [];
++  return required.every((scope) => issued.includes(scope));
++}
++
++/** Require account-only Google grants and all known requested resource scopes. */
++export function admissibleGrantScopes(
++  providerId: string,
++  requested: readonly string[],
++  granted: readonly string[] | null,
++): boolean {
++  return (
++    isGoogleDriveAccountScopeSet(providerId, granted) &&
++    (granted === null ||
++      hasRequiredResourceScopes(providerId, requested, granted))
++  );
++}
+diff --git a/packages/app-core/src/lib/native-oauth-client.test.ts b/packages/app-core/src/lib/native-oauth-client.test.ts
+index 2fdef59d3..d63a6f7ca 100644
+--- a/packages/app-core/src/lib/native-oauth-client.test.ts
++++ b/packages/app-core/src/lib/native-oauth-client.test.ts
+@@ -258,16 +258,6 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
+     });
+     expect(record.privateState.grants).toEqual({});
+   });
+-  it("requires selected permission evidence when the token endpoint returns scopes", async () => {
+-    const f = await setup();
+-    f.state.scope = "different:scope";
+-    await expect(
+-      exchangeNativeOAuthClient(f.search, f.owner),
+-    ).rejects.toMatchObject({ code: "scope" });
+-    expect(
+-      requireNativeOAuthRecord(f.saved.connectionId).privateState.grants,
+-    ).toEqual({});
+-  });
+   it("preserves the exact revision/CAS and refuses configuration edits with a pending authorization", async () => {
+     const f = await setup("client_secret_post");
+     await expect(
+diff --git a/packages/app-core/src/lib/native-oauth-mcp-resource.ts b/packages/app-core/src/lib/native-oauth-mcp-resource.ts
+index a420ed0b6..7d9a919e7 100644
+--- a/packages/app-core/src/lib/native-oauth-mcp-resource.ts
++++ b/packages/app-core/src/lib/native-oauth-mcp-resource.ts
+@@ -21,6 +21,7 @@ import {
+   nativeOAuthClientTarget,
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
++import { admissibleGrantScopes } from "./native-oauth-client-scopes.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import {
+   nativeOAuthGuard,
+@@ -48,6 +49,14 @@ function actualGrant(
+     (grant.expiresAt !== null && grant.expiresAt <= Date.now())
+   )
+     throw new NativeOAuthError("expired");
++  if (
++    !admissibleGrantScopes(
++      record.configuration.providerId,
++      record.configuration.requestedScopes[grant.actor] ?? [],
++      grant.scopes,
++    )
++  )
++    throw new NativeOAuthError("scope");
+   const saved = [
+     record.privateState.grants.user,
+     ...record.privateState.recovery
+diff --git a/packages/app-core/src/lib/native-oauth-resource.ts b/packages/app-core/src/lib/native-oauth-resource.ts
+index 054362561..77e2913e4 100644
+--- a/packages/app-core/src/lib/native-oauth-resource.ts
++++ b/packages/app-core/src/lib/native-oauth-resource.ts
+@@ -17,6 +17,7 @@ import {
+   nativeOAuthClientTarget,
+   readNativeOAuthClientSecret,
+ } from "./native-oauth-client-config.js";
++import { admissibleGrantScopes } from "./native-oauth-client-scopes.js";
+ import { commitNativeOAuthGrant } from "./native-oauth-commit.js";
+ import { NativeOAuthError } from "./native-oauth-errors.js";
+ import {
+@@ -40,6 +41,14 @@ function actualResource(
+     (grant.expiresAt !== null && grant.expiresAt <= Date.now())
+   )
+     throw new NativeOAuthError("expired");
++  if (
++    !admissibleGrantScopes(
++      record.configuration.providerId,
++      record.configuration.requestedScopes[grant.actor] ?? [],
++      grant.scopes,
++    )
++  )
++    throw new NativeOAuthError("scope");
+   return target.resource;
+ }
+ function resourceTransport(
+diff --git a/packages/wallet/package.json b/packages/wallet/package.json
+index 63f07bd06..c2aaccc90 100644
+--- a/packages/wallet/package.json
++++ b/packages/wallet/package.json
+@@ -16,6 +16,10 @@
+     "./config": {
+       "types": "./src/config.ts",
+       "default": "./src/config.ts"
++    },
++    "./google-wallet-policy": {
++      "types": "./src/google-wallet-policy.ts",
++      "default": "./src/google-wallet-policy.ts"
+     }
+   },
+   "scripts": {
+diff --git a/packages/wallet/src/config.ts b/packages/wallet/src/config.ts
+index c3a595f65..8d3446bec 100644
+--- a/packages/wallet/src/config.ts
++++ b/packages/wallet/src/config.ts
+@@ -22,6 +22,13 @@
+  * ever reads what the environment supplies.
+  */
+ 
++import {
++  GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY,
++  googleWalletPemParts,
++  googleWalletPublicFailure,
++  normalizeGoogleWalletPem,
++} from "./google-wallet-policy.js";
++
+ /** Environment variable names, in the repository's `OPENSESAME_` namespace. */
+ export const GOOGLE_WALLET_ENV = {
+   issuerId: "OPENSESAME_WALLET_GOOGLE_ISSUER_ID",
+@@ -73,19 +80,6 @@ function read(env: WalletEnvSource, name: string): string {
+   return (env[name] ?? "").trim();
+ }
+ 
+-/**
+- * Normalize a PEM that travelled through an environment variable.
+- *
+- * A PKCS#8 key is multi-line and most secret stores, `.env` loaders, and
+- * container orchestrators either preserve the newlines or replace them with the
+- * two characters `\` and `n`. Accepting both is not laxity: the alternative is
+- * an operator silently pasting the escaped form, the key failing to import, and
+- * the resulting error pointing at signing rather than at configuration.
+- */
+-function normalizePem(raw: string): string {
+-  return raw.includes("-----BEGIN") ? raw.replace(/\\n/gu, "\n") : raw;
+-}
+-
+ /**
+  * Compose the fully qualified class id.
+  *
+@@ -96,8 +90,8 @@ function normalizePem(raw: string): string {
+  * belonging to somebody else.
+  */
+ function qualifyClassId(issuerId: string, raw: string): string {
+-  const dot = raw.indexOf(".");
+-  if (dot < 0) return `${issuerId}.${raw}`;
++  const dot = raw.indexOf(POLICY.walletClass.issuerSeparator);
++  if (dot < 0) return `${issuerId}${POLICY.walletClass.issuerSeparator}${raw}`;
+   const prefix = raw.slice(0, dot);
+   if (prefix !== issuerId) {
+     throw new WalletConfigError(
+@@ -204,7 +198,10 @@ export function parseGoogleWalletConfig(
+   // Google issuer ids are numeric. Checking that here turns "somebody pasted
+   // the class id into the issuer slot" into a startup error rather than a
+   // rejected save link that a human discovers at the door.
+-  if (!/^\d{6,32}$/u.test(issuerId)) {
++  if (
++    googleWalletPublicFailure(issuerId, "placeholder", "x@example.test") ===
++    "issuer_id"
++  ) {
+     throw new WalletConfigError(
+       `${GOOGLE_WALLET_ENV.issuerId} must be the numeric Google-assigned issuer id.`,
+       [GOOGLE_WALLET_ENV.issuerId],
+@@ -213,8 +210,10 @@ export function parseGoogleWalletConfig(
+ 
+   const classSuffixSource = read(env, GOOGLE_WALLET_ENV.classId);
+   const classId = qualifyClassId(issuerId, classSuffixSource);
+-  const suffix = classId.slice(issuerId.length + 1);
+-  if (!/^[A-Za-z0-9._-]+$/u.test(suffix)) {
++  if (
++    googleWalletPublicFailure(issuerId, classId, "x@example.test") ===
++    "class_id"
++  ) {
+     throw new WalletConfigError(
+       `${GOOGLE_WALLET_ENV.classId} suffix may only contain letters, digits, ".", "_" and "-".`,
+       [GOOGLE_WALLET_ENV.classId],
+@@ -226,8 +225,8 @@ export function parseGoogleWalletConfig(
+     GOOGLE_WALLET_ENV.serviceAccountEmail,
+   ).toLowerCase();
+   if (
+-    serviceAccountEmail.length > 320 ||
+-    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(serviceAccountEmail)
++    googleWalletPublicFailure(issuerId, classId, serviceAccountEmail) ===
++    "service_account_email"
+   ) {
+     throw new WalletConfigError(
+       `${GOOGLE_WALLET_ENV.serviceAccountEmail} must be the service account's client email address.`,
+@@ -235,9 +234,9 @@ export function parseGoogleWalletConfig(
+     );
+   }
+ 
+-  const serviceAccountKeyPem = normalizePem(
+-    read(env, GOOGLE_WALLET_ENV.serviceAccountKeyPem),
+-  );
++  const rawKey = read(env, GOOGLE_WALLET_ENV.serviceAccountKeyPem);
++  const keyParts = googleWalletPemParts(rawKey);
++  const serviceAccountKeyPem = normalizeGoogleWalletPem(rawKey);
+   if (/-----BEGIN RSA PRIVATE KEY-----/u.test(serviceAccountKeyPem)) {
+     // gitleaks:allow -- PEM delimiter validation, not private key material
+     // PKCS#1. Google's own service-account JSON ships PKCS#8, so seeing this
+@@ -248,7 +247,7 @@ export function parseGoogleWalletConfig(
+       [GOOGLE_WALLET_ENV.serviceAccountKeyPem],
+     );
+   }
+-  if (!/^-----BEGIN PRIVATE KEY-----/u.test(serviceAccountKeyPem)) {
++  if (!keyParts) {
+     throw new WalletConfigError(
+       `${GOOGLE_WALLET_ENV.serviceAccountKeyPem} must be a PKCS#8 PEM private key.`,
+       [GOOGLE_WALLET_ENV.serviceAccountKeyPem],
+diff --git a/packages/wallet/src/google-wallet-policy.generated.ts b/packages/wallet/src/google-wallet-policy.generated.ts
+new file mode 100644
+index 000000000..2c4323a4c
+--- /dev/null
++++ b/packages/wallet/src/google-wallet-policy.generated.ts
+@@ -0,0 +1,24 @@
++// Generated by scripts/emit-google-wallet-configuration.mjs from
++// spec/connectors/google-wallet-configuration.json — do not edit.
++export const GOOGLE_WALLET_CONFIGURATION_POLICY = Object.freeze({
++  issuer: Object.freeze({ pattern: "^\\d{6,32}$" }),
++  walletClass: Object.freeze({
++    qualification: "unqualified-or-this-issuer",
++    suffixPattern: "^[A-Za-z0-9._-]+$",
++    issuerSeparator: ".",
++  }),
++  email: Object.freeze({
++    pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
++    maxLength: 320,
++  }),
++  key: Object.freeze({
++    format: "pkcs8",
++    algorithm: "RSASSA-PKCS1-v1_5",
++    hash: "SHA-256",
++    usage: "sign",
++    maxRawLength: 32768,
++    pemPattern:
++      "^-----BEGIN PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]{200,32768})-----END PRIVATE KEY-----\\s*$",
++    escapedNewlines: true,
++  }),
++});
+diff --git a/packages/wallet/src/google-wallet-policy.test.ts b/packages/wallet/src/google-wallet-policy.test.ts
+new file mode 100644
+index 000000000..9faf77729
+--- /dev/null
++++ b/packages/wallet/src/google-wallet-policy.test.ts
+@@ -0,0 +1,92 @@
++import { generateKeyPairSync } from "node:crypto";
++import { readFileSync } from "node:fs";
++import { fileURLToPath } from "node:url";
++import { expect, it } from "vitest";
++import { GOOGLE_WALLET_ENV, parseGoogleWalletConfig } from "./config.js";
++import {
++  GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY,
++  googleWalletPemParts,
++} from "./google-wallet-policy.js";
++
++const vectors = JSON.parse(
++  readFileSync(
++    fileURLToPath(
++      new URL(
++        "../../../spec/conformance/google-wallet-configuration.json",
++        import.meta.url,
++      ),
++    ),
++    "utf8",
++  ),
++);
++const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey;
++const pkcs8 = rsa.export({ type: "pkcs8", format: "pem" }).toString();
++const pkcs1 = rsa.export({ type: "pkcs1", format: "pem" }).toString();
++const ec = generateKeyPairSync("ec", { namedCurve: "P-384" })
++  .privateKey.export({ type: "pkcs8", format: "pem" })
++  .toString();
++const keys = new Map<string, string>([
++  ["generated_pkcs8_rsa", pkcs8],
++  ["generated_pkcs8_rsa_escaped", pkcs8.replace(/\n/g, "\\n")],
++  ["generated_pkcs1_rsa", pkcs1],
++  ["not-a-private-key", "not-a-private-key"],
++  ["oversized", "a".repeat(32769)],
++  [
++    "invalid_der",
++    `-----BEGIN PRIVATE KEY-----\n${"A".repeat(256)}\n-----END PRIVATE KEY-----`,
++  ],
++  ["generated_ec_pkcs8", ec],
++  [
++    "invalid_padding",
++    `-----BEGIN PRIVATE KEY-----\n${"A".repeat(240)}=A\n-----END PRIVATE KEY-----`,
++  ],
++]);
++
++function config(issuer: string, classId: string, email: string, key = pkcs8) {
++  return parseGoogleWalletConfig({
++    [GOOGLE_WALLET_ENV.issuerId]: issuer,
++    [GOOGLE_WALLET_ENV.classId]: classId,
++    [GOOGLE_WALLET_ENV.serviceAccountEmail]: email,
++    [GOOGLE_WALLET_ENV.serviceAccountKeyPem]: key,
++    [GOOGLE_WALLET_ENV.publicBaseUrl]: "https://example.test",
++    [GOOGLE_WALLET_ENV.origins]: "https://example.test",
++  });
++}
++
++it("replays shared public-field vectors through the wallet parser", () => {
++  for (const item of vectors.public_cases) {
++    const parse = () =>
++      config(item.issuer_id, item.class_id, item.service_account_email);
++    if (item.wallet_accepted ?? item.accepted)
++      expect(parse, item.name).not.toThrow();
++    else expect(parse, item.name).toThrow();
++  }
++});
++
++it("replays shared key-envelope and RSA-import vectors", async () => {
++  for (const item of vectors.key_cases) {
++    const raw = keys.get(item.value);
++    if (raw === undefined) throw new Error(`Unknown key fixture ${item.value}`);
++    const parts = googleWalletPemParts(raw);
++    expect(parts !== null, item.name).toBe(item.pem_accepted ?? item.accepted);
++    const parse = () => config("123456", "pass", "x@example.test", raw);
++    if (item.pem_accepted ?? item.accepted)
++      expect(parse, item.name).not.toThrow();
++    else expect(parse, item.name).toThrow();
++    if (parts) {
++      const bytes = Uint8Array.from(atob(parts.body), (character) =>
++        character.charCodeAt(0),
++      );
++      const imported = crypto.subtle.importKey(
++        POLICY.key.format,
++        bytes,
++        { name: POLICY.key.algorithm, hash: POLICY.key.hash },
++        false,
++        [POLICY.key.usage],
++      );
++      if (item.accepted)
++        await expect(imported, item.name).resolves.toBeDefined();
++      else await expect(imported, item.name).rejects.toThrow();
++    }
++  }
++});
+diff --git a/packages/wallet/src/google-wallet-policy.ts b/packages/wallet/src/google-wallet-policy.ts
+new file mode 100644
+index 000000000..ca4d42c70
+--- /dev/null
++++ b/packages/wallet/src/google-wallet-policy.ts
+@@ -0,0 +1,57 @@
++/** Shared Google Wallet configuration rules compiled from the connector spec. */
++import { GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY } from "./google-wallet-policy.generated.js";
++
++export type GoogleWalletFieldFailure =
++  | "issuer_id"
++  | "class_id"
++  | "service_account_email";
++
++export function googleWalletPublicFailure(
++  issuer: string,
++  classId: string,
++  email: string,
++): GoogleWalletFieldFailure | null {
++  if (!new RegExp(POLICY.issuer.pattern).test(issuer)) return "issuer_id";
++  if (POLICY.walletClass.qualification !== "unqualified-or-this-issuer")
++    throw new Error("Unsupported Google Wallet class qualification");
++  const prefix = `${issuer}${POLICY.walletClass.issuerSeparator}`;
++  const qualified = classId.startsWith(prefix);
++  const suffix = qualified ? classId.slice(prefix.length) : classId;
++  if (
++    (classId.includes(POLICY.walletClass.issuerSeparator) && !qualified) ||
++    !new RegExp(POLICY.walletClass.suffixPattern).test(suffix)
++  )
++    return "class_id";
++  if (
++    email.length > POLICY.email.maxLength ||
++    !new RegExp(POLICY.email.pattern).test(email)
++  )
++    return "service_account_email";
++  return null;
++}
++
++export function normalizeGoogleWalletPem(raw: string): string {
++  return POLICY.key.escapedNewlines && raw.includes("-----BEGIN")
++    ? raw.replace(/\\n/g, "\n")
++    : raw;
++}
++
++/** Validate the PEM envelope; callers must also perform the specified key import. */
++export function googleWalletPemParts(
++  raw: string,
++): { pem: string; body: string } | null {
++  if (raw.length > POLICY.key.maxRawLength) return null;
++  const pem = normalizeGoogleWalletPem(raw).trim();
++  const body = new RegExp(POLICY.key.pemPattern)
++    .exec(pem)?.[1]
++    ?.replace(/\s+/g, "");
++  if (!body) return null;
++  try {
++    atob(body);
++  } catch {
++    return null;
++  }
++  return { pem, body };
++}
++
++export { GOOGLE_WALLET_CONFIGURATION_POLICY } from "./google-wallet-policy.generated.js";
+diff --git a/spec/conformance/google-wallet-configuration.json b/spec/conformance/google-wallet-configuration.json
+new file mode 100644
+index 000000000..339850240
+--- /dev/null
++++ b/spec/conformance/google-wallet-configuration.json
+@@ -0,0 +1,172 @@
++{
++  "provider_id": "google-wallet",
++  "public_cases": [
++    {
++      "name": "unqualified class",
++      "issuer_id": "123456",
++      "class_id": "travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "qualified class",
++      "issuer_id": "123456",
++      "class_id": "123456.travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "wrong issuer",
++      "issuer_id": "123456",
++      "class_id": "654321.travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "short issuer",
++      "issuer_id": "12345",
++      "class_id": "travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "oversized issuer",
++      "issuer_id": "111111111111111111111111111111111",
++      "class_id": "travel-pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "unsafe class",
++      "issuer_id": "123456",
++      "class_id": "pass/../../x",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "empty suffix",
++      "issuer_id": "123456",
++      "class_id": "123456.",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "invalid email",
++      "issuer_id": "123456",
++      "class_id": "travel-pass",
++      "service_account_email": "service@@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "oversized email",
++      "issuer_id": "123456",
++      "class_id": "travel-pass",
++      "service_account_email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "qualified class with dotted suffix",
++      "issuer_id": "123456",
++      "class_id": "123456.pass.v1",
++      "service_account_email": "service@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "dotted unqualified class",
++      "issuer_id": "123456",
++      "class_id": "pass.v1",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "non-ASCII digits rejected",
++      "issuer_id": "１２３４５６",
++      "class_id": "pass",
++      "service_account_email": "service@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "unicode email accepted",
++      "issuer_id": "123456",
++      "class_id": "pass",
++      "service_account_email": "ümlaut@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "email astral length counts UTF-16 units",
++      "issuer_id": "123456",
++      "class_id": "pass",
++      "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
++      "accepted": true
++    },
++    {
++      "name": "email astral length over limit",
++      "issuer_id": "123456",
++      "class_id": "pass",
++      "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
++      "accepted": false
++    },
++    {
++      "name": "wallet email case folding can expand length",
++      "issuer_id": "123456",
++      "class_id": "pass",
++      "service_account_email": "İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ@example.invalid",
++      "accepted": true,
++      "wallet_accepted": false
++    },
++    {
++      "name": "entrypoint trims surrounding public whitespace",
++      "issuer_id": " 123456 ",
++      "class_id": " pass ",
++      "service_account_email": " service@example.invalid ",
++      "accepted": false,
++      "native_entry_accepted": true,
++      "wallet_accepted": true
++    }
++  ],
++  "key_cases": [
++    {
++      "name": "valid RSA PKCS8",
++      "value": "generated_pkcs8_rsa",
++      "accepted": true
++    },
++    {
++      "name": "escaped newline PKCS8",
++      "value": "generated_pkcs8_rsa_escaped",
++      "accepted": true
++    },
++    {
++      "name": "PKCS1 RSA",
++      "value": "generated_pkcs1_rsa",
++      "accepted": false
++    },
++    {
++      "name": "invalid key",
++      "value": "not-a-private-key",
++      "accepted": false
++    },
++    {
++      "name": "oversized key",
++      "value": "oversized",
++      "accepted": false
++    },
++    {
++      "name": "malformed DER after valid PEM envelope",
++      "value": "invalid_der",
++      "pem_accepted": true,
++      "accepted": false
++    },
++    {
++      "name": "PKCS8 EC is not RSA",
++      "value": "generated_ec_pkcs8",
++      "pem_accepted": true,
++      "accepted": false
++    },
++    {
++      "name": "misplaced base64 padding",
++      "value": "invalid_padding",
++      "pem_accepted": false,
++      "accepted": false
++    }
++  ]
++}
+diff --git a/spec/connectors/google-wallet-configuration.json b/spec/connectors/google-wallet-configuration.json
+new file mode 100644
+index 000000000..63905c593
+--- /dev/null
++++ b/spec/connectors/google-wallet-configuration.json
+@@ -0,0 +1,35 @@
++{
++  "provider_id": "google-wallet",
++  "issuer_id": {
++    "pattern": "^\\d{6,32}$"
++  },
++  "class_id": {
++    "suffix_pattern": "^[A-Za-z0-9._-]+$",
++    "issuer_separator": ".",
++    "qualification": "unqualified-or-this-issuer"
++  },
++  "service_account_email": {
++    "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
++    "max_length": 320
++  },
++  "service_account_key": {
++    "format": "pkcs8",
++    "algorithm": "RSASSA-PKCS1-v1_5",
++    "hash": "SHA-256",
++    "usage": "sign",
++    "max_raw_length": 32768,
++    "pem_pattern": "^-----BEGIN PRIVATE KEY-----\\s*([A-Za-z0-9+/=\\s]{200,32768})-----END PRIVATE KEY-----\\s*$",
++    "escaped_newlines": true
++  },
++  "semantics": {
++    "regex_dialect": "ecmascript",
++    "length_unit": "utf16_code_units",
++    "pem_whitespace": "ecmascript",
++    "private_key_validation": "pem_then_webcrypto_import",
++    "pem_envelope_stage": "strip_ecmascript_whitespace_then_base64_decode",
++    "wallet_config_stage": "pem_envelope_only",
++    "native_storage_stage": "webcrypto_pkcs8_rsa_import",
++    "native_input_normalization": "trim_public_fields_preserve_private_before_validation",
++    "wallet_env_normalization": "trim_each_value_and_lowercase_email"
++  }
++}
