@@ -1,0 +1,35 @@
+name: Boat anti-slop diagnostic
+on:
+  push:
+    branches: [review/boat-antislop-diagnostic-20261029]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/boat-antislop-diagnostic-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: b748846e550dcbd5ce9c0674065b3f937488ef55
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Verify immutable source
+        run: |
+          test "$(git rev-parse HEAD)" = b748846e550dcbd5ce9c0674065b3f937488ef55
+          test "$(git rev-parse HEAD^{tree})" = 20891406c33d6a17bac703d69e0ac8c59192e031
+          test -z "$(git status --porcelain)"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Identify Boat anti-slop diagnostics
+        run: pnpm lint:anti-slop:files packages/agent-sandboxes/src/boat*.ts packages/agent-sandboxes/e2e/boat.spec.ts
+      - name: Verify source unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 20891406c33d6a17bac703d69e0ac8c59192e031
+          git diff --exit-code
