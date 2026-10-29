@@ -140,7 +140,11 @@ function ControlButtons(props: {
           aria-label="Request handoff"
           title="Request handoff"
           disabled={props.busy}
-          onClick={() => void act(() => client.requestHandoff(runId))}
+          onClick={() =>
+            void act(async () => {
+              await client.requestHandoff(runId);
+            })
+          }
         >
           <IconPause size={18} />
         </button>

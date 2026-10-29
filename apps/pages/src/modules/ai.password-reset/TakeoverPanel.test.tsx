@@ -42,7 +42,10 @@ function fakeClient(initialControl: string) {
     authenticate: vi.fn(async () => {}),
     getRun: vi.fn(async (id: string): Promise<AgentRun> => run(id)),
     listHookRecords: vi.fn(async () => []),
-    requestHandoff: vi.fn(async () => run()),
+    requestHandoff: vi.fn(async () => ({
+      status: "accepted" as const,
+      hint: "Handoff requested",
+    })),
     takeControl: vi.fn(async () => {
       state.control = "human_driving";
       return run();
