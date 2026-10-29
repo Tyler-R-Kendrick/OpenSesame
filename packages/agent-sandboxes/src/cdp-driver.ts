@@ -1,12 +1,8 @@
 /**
  * A `BrowserDriver` over the Chrome DevTools Protocol, for external
  * browser providers (Cloudflare Browser Run and any other CDP endpoint).
- *
- * Snapshots are produced by an in-page enumeration that registers the
- * interactive elements under the same `eN` refs the observation carries,
- * so recorded recipes replay identically across lanes. Secret fills use
- * `Input.insertText` after focusing, so the value never appears inside a
- * JavaScript source string.
+ * Construction is disabled until the provider can enforce network and
+ * credential-entry isolation throughout the browser session.
  */
 
 import type {
@@ -16,6 +12,12 @@ import type {
 import { z } from "zod";
 import type { CdpConnection } from "./cdp-connection.js";
 import { staticChallengePhrase } from "./wasm-dom-driver.js";
+
+export function requireSafeCdpBrowser(): void {
+  throw new Error(
+    "CDP browser provider is temporarily unavailable: browser network and credential isolation is not established",
+  );
+}
 
 const SNAPSHOT_SCRIPT = `(() => {
   const kindOf = (el) => {
@@ -91,7 +93,9 @@ export class CdpBrowserDriver implements BrowserDriver {
   private constructor(
     private readonly connection: CdpConnection,
     private readonly options: CdpDriverOptions,
-  ) {}
+  ) {
+    requireSafeCdpBrowser();
+  }
 
   /** Attach to a browser-level CDP endpoint and open a fresh page. */
   static async connect(
@@ -123,6 +127,7 @@ export class CdpBrowserDriver implements BrowserDriver {
     expression: string,
     schema: z.ZodType<T>,
   ): Promise<T> {
+    requireSafeCdpBrowser();
     const raw = await this.connection.call<unknown>(
       "Runtime.evaluate",
       { expression, returnByValue: true, awaitPromise: true },
@@ -137,6 +142,7 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   private async waitForLoad(): Promise<void> {
+    requireSafeCdpBrowser();
     const timeout = this.options.loadTimeoutMs ?? 15_000;
     const deadline = Date.now() + timeout;
     for (;;) {
@@ -151,6 +157,7 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async open(url: string): Promise<void> {
+    requireSafeCdpBrowser();
     const target = new URL(url);
     this.assertAllowed(target);
     await this.connection.call(
@@ -163,6 +170,7 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async snapshot(): Promise<Observation> {
+    requireSafeCdpBrowser();
     const value = await this.evaluate(SNAPSHOT_SCRIPT, snapshotValueSchema);
     const url = new URL(value.url);
     this.assertAllowed(url);
@@ -183,6 +191,7 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async click(ref: string): Promise<void> {
+    requireSafeCdpBrowser();
     await this.evaluate(
       `(() => { const el = window.__opensesameRefs?.get(${JSON.stringify(ref)}); if (!el) throw new Error("unknown ref"); el.click(); return true; })()`,
       z.boolean(),
@@ -191,6 +200,7 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async fill(ref: string, value: string): Promise<void> {
+    requireSafeCdpBrowser();
     await this.evaluate(
       `(() => {
         const el = window.__opensesameRefs?.get(${JSON.stringify(ref)});
@@ -209,6 +219,7 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async fillSecret(ref: string, value: string): Promise<void> {
+    requireSafeCdpBrowser();
     await this.evaluate(
       `(() => { const el = window.__opensesameRefs?.get(${JSON.stringify(ref)}); if (!el) throw new Error("unknown ref"); el.focus(); el.select?.(); return true; })()`,
       z.boolean(),
@@ -221,10 +232,12 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async pageUrl(): Promise<string> {
+    requireSafeCdpBrowser();
     return this.evaluate("location.href", z.string()).catch(() => "");
   }
 
   async close(): Promise<void> {
+    requireSafeCdpBrowser();
     if (this.targetId) {
       await this.connection
         .call("Target.closeTarget", { targetId: this.targetId })
