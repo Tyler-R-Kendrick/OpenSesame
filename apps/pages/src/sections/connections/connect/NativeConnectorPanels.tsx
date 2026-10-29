@@ -81,19 +81,24 @@ function mcpInactiveReason(): string | undefined {
 }
 
 function nativeOAuthAvailability(providerId: string) {
+  const genuine = vaultStore.isGenuineSession();
   const googleBlocked =
     providerId === "google" && !nativeGoogleBrowserAvailable();
   return {
     registeredAvailable:
+      genuine &&
       hasNativeConnectorDriver("oauth", providerId) &&
       supportsNativeOAuthResource(providerId),
     available:
+      genuine &&
       supportsNativeOAuthResource(providerId) &&
       !nativeConnectorWithdrawn("oauth") &&
       !googleBlocked,
-    reason: googleBlocked
-      ? "Google consent is unavailable under this deployment's isolation policy."
-      : undefined,
+    reason: !genuine
+      ? mcpInactiveReason()
+      : googleBlocked
+        ? "Google consent is unavailable under this deployment's isolation policy."
+        : undefined,
     profile: nativeBrowserOAuthProfile(providerId) ?? undefined,
   };
 }
@@ -117,9 +122,10 @@ export function nativeSettingsDescriptor(
   if (!plan)
     return nativeDeviceProviderDescriptor(provider.id, {
       has: (method, id) =>
-        method === "oidc"
+        vaultStore.isGenuineSession() &&
+        (method === "oidc"
           ? compiledOidcRoute(id) && !nativeConnectorWithdrawn(method)
-          : compiledApiKeyRoute(id) && !closed,
+          : compiledApiKeyRoute(id) && !closed),
     });
   const callbackUrl = new URL(
     `${import.meta.env.BASE_URL}auth/native-connector.html`,
@@ -135,6 +141,7 @@ export function nativeSettingsDescriptor(
       oauth: nativeOAuthAvailability(provider.id),
       mcp: {
         available:
+          vaultStore.isGenuineSession() &&
           (provider.id === "linear"
             ? hasNativeConnectorDriver("mcp", provider.id)
             : supportsConfiguredMcp(provider.id)) &&
