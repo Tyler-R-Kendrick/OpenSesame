@@ -33,9 +33,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = c4681fa6e08fec30bbe116b49ac4c678145590f8
           test "$(git rev-parse HEAD^{tree})" = 926de276804e924b89ddb2a39a533c3317ae83a2
-          printf '%s  %s\n' 92d4369f8540b53eb6deffe5d669c19d8d5bf4f1c04ad01ef2be9a19d9457bb2 ../controller/.github/verify-inputs/cdp-rest-contract.patch | sha256sum --check
+          printf '%s  %s\n' aa55b6ca5cdffa083be55b736ee30453dc2f9d4ea874f93e169ac718ed6cf9d9 ../controller/.github/verify-inputs/cdp-rest-contract.patch | sha256sum --check
           git apply --index ../controller/.github/verify-inputs/cdp-rest-contract.patch
-          test "$(git write-tree)" = f826f87967e701c7712e71c8d52420910bdb0ec5
+          test "$(git write-tree)" = c3e4687158370f7845a782d2bcf926220259feec
           git diff --exit-code
       - name: Install frozen dependency graph
         working-directory: candidate
@@ -44,7 +44,7 @@ jobs:
         working-directory: candidate
         run: |
           set -euo pipefail
-          pnpm exec biome check packages/agent-sandboxes/src/cloudflare-client.ts packages/agent-sandboxes/src/cloudflare-client.test.ts packages/agent-sandboxes/src/cloudflare-redirect.test.ts packages/agent-sandboxes/src/cloudflare-provider.ts packages/agent-sandboxes/src/cloudflare-provider.test.ts packages/agent-sandboxes/src/cdp-node-socket.ts packages/agent-sandboxes/e2e/cloudflare.spec.ts
+          pnpm exec biome check packages/agent-sandboxes/src/cloudflare-client.ts packages/agent-sandboxes/src/cloudflare-client.test.ts packages/agent-sandboxes/src/cloudflare-redirect.test.ts packages/agent-sandboxes/src/cloudflare-provider.ts packages/agent-sandboxes/src/cloudflare-provider.test.ts packages/agent-sandboxes/src/cdp-node-socket.ts packages/agent-sandboxes/src/vnet-cookie-jar.ts packages/agent-sandboxes/src/vnet-server.ts packages/agent-sandboxes/e2e/cloudflare.spec.ts
           pnpm --filter @opensesame/agent-sandboxes typecheck
       - name: Verify provider and real redirect negative controls
         working-directory: candidate
@@ -70,5 +70,5 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = c4681fa6e08fec30bbe116b49ac4c678145590f8
-          test "$(git write-tree)" = f826f87967e701c7712e71c8d52420910bdb0ec5
+          test "$(git write-tree)" = c3e4687158370f7845a782d2bcf926220259feec
           git diff --exit-code

@@ -493,10 +493,10 @@ index c552da9cf..c08d7d212 100644
 +  typeof CloudflareBrowserRunClient
 +>[0] & { sessionTimeoutMs: number };
 diff --git a/packages/agent-sandboxes/src/cloudflare-client.ts b/packages/agent-sandboxes/src/cloudflare-client.ts
-index 3ef47b10b..68e48375f 100644
+index 3ef47b10b..dff8c0ab8 100644
 --- a/packages/agent-sandboxes/src/cloudflare-client.ts
 +++ b/packages/agent-sandboxes/src/cloudflare-client.ts
-@@ -1,106 +1,207 @@
+@@ -1,106 +1,215 @@
  /**
 - * Cloudflare Browser Run (Browser Rendering) session client.
 - *
@@ -566,6 +566,56 @@ index 3ef47b10b..68e48375f 100644
 +const hostname =
 +  /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/u;
 +
++function validateOptions(options: CloudflareClientOptions): void {
++  if (!options.accountId || !options.apiToken)
++    throw new Error(
++      "cloudflare provider needs an account id and API token (environment)",
++    );
++  if (!identifier.test(options.accountId))
++    throw new Error("cloudflare: invalid account id");
++  if ("sessionTimeoutMs" in options)
++    throw new Error("cloudflare: sessionTimeoutMs is unsupported");
++  if (!/^[A-Za-z0-9._~+/-]+=*$/u.test(options.apiToken))
++    throw new Error("cloudflare: invalid API token");
++  if (
++    options.keepAliveMs !== undefined &&
++    (!Number.isInteger(options.keepAliveMs) ||
++      options.keepAliveMs < 10_000 ||
++      options.keepAliveMs > 1_200_000)
++  )
++    throw new Error("cloudflare: invalid keep_alive");
++}
++
++function providerBaseUrl(options: CloudflareClientOptions): string {
++  const expectedPath = `/client/v4/accounts/${options.accountId}/browser-run`;
++  let base: URL;
++  try {
++    base = new URL(
++      options.baseUrl ?? `https://api.cloudflare.com${expectedPath}`,
++    );
++  } catch {
++    throw new Error("cloudflare: untrusted API endpoint");
++  }
++  const production =
++    base.protocol === "https:" &&
++    base.hostname === "api.cloudflare.com" &&
++    !base.port &&
++    base.pathname.replace(/\/$/u, "") === expectedPath;
++  const testLoopback =
++    options.allowInsecureLoopbackForTesting === true &&
++    base.protocol === "http:" &&
++    base.hostname === "127.0.0.1";
++  if (
++    base.username ||
++    base.password ||
++    base.search ||
++    base.hash ||
++    !(production || testLoopback)
++  )
++    throw new Error("cloudflare: untrusted API endpoint");
++  return base.href.replace(/\/$/u, "");
++}
++
  export class CloudflareBrowserRunClient {
    private readonly baseUrl: string;
    private readonly fetchImpl: typeof fetch;
@@ -573,55 +623,17 @@ index 3ef47b10b..68e48375f 100644
 +  private readonly keepAliveMs: number | undefined;
  
 -  constructor(private readonly options: CloudflareClientOptions) {
-+  constructor(options: CloudflareClientOptions) {
-     if (!options.accountId || !options.apiToken)
-       throw new Error(
-         "cloudflare provider needs an account id and API token (environment)",
-       );
+-    if (!options.accountId || !options.apiToken)
+-      throw new Error(
+-        "cloudflare provider needs an account id and API token (environment)",
+-      );
 -    this.baseUrl = (
 -      options.baseUrl ??
 -      `https://api.cloudflare.com/client/v4/accounts/${options.accountId}/browser-run`
 -    ).replace(/\/$/u, "");
-+    if (!identifier.test(options.accountId))
-+      throw new Error("cloudflare: invalid account id");
-+    if ("sessionTimeoutMs" in options)
-+      throw new Error("cloudflare: sessionTimeoutMs is unsupported");
-+    if (!/^[A-Za-z0-9._~+/-]+=*$/u.test(options.apiToken))
-+      throw new Error("cloudflare: invalid API token");
-+    if (
-+      options.keepAliveMs !== undefined &&
-+      (!Number.isInteger(options.keepAliveMs) ||
-+        options.keepAliveMs < 10_000 ||
-+        options.keepAliveMs > 1_200_000)
-+    )
-+      throw new Error("cloudflare: invalid keep_alive");
-+    const expectedPath = `/client/v4/accounts/${options.accountId}/browser-run`;
-+    let base: URL;
-+    try {
-+      base = new URL(
-+        options.baseUrl ?? `https://api.cloudflare.com${expectedPath}`,
-+      );
-+    } catch {
-+      throw new Error("cloudflare: untrusted API endpoint");
-+    }
-+    const production =
-+      base.protocol === "https:" &&
-+      base.hostname === "api.cloudflare.com" &&
-+      !base.port &&
-+      base.pathname.replace(/\/$/u, "") === expectedPath;
-+    const testLoopback =
-+      options.allowInsecureLoopbackForTesting === true &&
-+      base.protocol === "http:" &&
-+      base.hostname === "127.0.0.1";
-+    if (
-+      base.username ||
-+      base.password ||
-+      base.search ||
-+      base.hash ||
-+      !(production || testLoopback)
-+    )
-+      throw new Error("cloudflare: untrusted API endpoint");
-+    this.baseUrl = base.href.replace(/\/$/u, "");
++  constructor(options: CloudflareClientOptions) {
++    validateOptions(options);
++    this.baseUrl = providerBaseUrl(options);
      this.fetchImpl = options.fetchImpl ?? fetch;
 +    this.apiToken = options.apiToken;
 +    this.keepAliveMs = options.keepAliveMs;
@@ -1521,10 +1533,10 @@ index 000000000..f35fd1102
 +});
 diff --git a/packages/agent-sandboxes/src/vnet-cookie-jar.ts b/packages/agent-sandboxes/src/vnet-cookie-jar.ts
 new file mode 100644
-index 000000000..39fbde08d
+index 000000000..81167ff6c
 --- /dev/null
 +++ b/packages/agent-sandboxes/src/vnet-cookie-jar.ts
-@@ -0,0 +1,111 @@
+@@ -0,0 +1,153 @@
 +/** Host-only jar; an exact-host Domain attribute never broadens its scope. */
 +type Cookie = {
 +  name: string;
@@ -1548,77 +1560,119 @@ index 000000000..39fbde08d
 +  );
 +}
 +
++type CookieAttributes = {
++  path: string;
++  secure: boolean;
++  expires: number | null;
++  maxAge: number | null;
++  hasDomain: boolean;
++  domainMatches: boolean;
++};
++
++function applyAttribute(
++  state: CookieAttributes,
++  url: URL,
++  attribute: string,
++): void {
++  const [rawName, ...rest] = attribute.trim().split("=");
++  const key = (rawName ?? "").toLowerCase();
++  const value = rest.join("=").trim();
++  if (key === "domain") {
++    state.hasDomain = true;
++    if (value.replace(/^\./u, "").toLowerCase() !== url.hostname.toLowerCase())
++      state.domainMatches = false;
++  }
++  if (key === "secure") state.secure = true;
++  if (key === "path" && value.startsWith("/")) state.path = value;
++  if (key === "expires") {
++    const parsed = Date.parse(value);
++    if (Number.isFinite(parsed)) state.expires = parsed;
++  }
++  if (key === "max-age" && /^-?\d+$/u.test(value)) state.maxAge = Number(value);
++}
++
++function cookiePair(
++  pair: string | undefined,
++): { name: string; value: string } | null {
++  if (!pair) return null;
++  const eq = pair.indexOf("=");
++  if (eq <= 0) return null;
++  const name = pair.slice(0, eq).trim();
++  const value = pair.slice(eq + 1).trim();
++  if (
++    !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) ||
++    [...value].some(
++      (char) =>
++        char.charCodeAt(0) <= 32 ||
++        char.charCodeAt(0) === 127 ||
++        char === ";" ||
++        char === ",",
++    )
++  )
++    return null;
++  return { name, value };
++}
++
++function validAttributes(
++  name: string,
++  url: URL,
++  state: CookieAttributes,
++): boolean {
++  return !(
++    !state.domainMatches ||
++    (state.secure && url.protocol !== "https:") ||
++    (name.startsWith("__Secure-") && !state.secure) ||
++    (name.startsWith("__Host-") &&
++      (!state.secure || state.path !== "/" || state.hasDomain))
++  );
++}
++
++function parseCookie(url: URL, line: string): Cookie | null {
++  const [pair, ...attributes] = line.split(";");
++  const parsed = cookiePair(pair);
++  if (!parsed) return null;
++  const state: CookieAttributes = {
++    path: defaultPath(url.pathname),
++    secure: false,
++    expires: null,
++    maxAge: null,
++    hasDomain: false,
++    domainMatches: true,
++  };
++  for (const attribute of attributes) applyAttribute(state, url, attribute);
++  if (!validAttributes(parsed.name, url, state)) return null;
++  const expires =
++    state.maxAge === null
++      ? state.expires
++      : state.maxAge <= 0
++        ? 0
++        : Date.now() + state.maxAge * 1000;
++  return {
++    name: parsed.name,
++    value: parsed.value,
++    host: url.hostname,
++    path: state.path,
++    secure: state.secure,
++    expires,
++  };
++}
++
 +export class CookieJar {
 +  private readonly cookies: Cookie[] = [];
 +
 +  store(url: URL, headers: Headers): void {
 +    for (const line of headers.getSetCookie?.() ?? []) {
-+      const [pair, ...attributes] = line.split(";");
-+      if (!pair) continue;
-+      const eq = pair.indexOf("=");
-+      if (eq <= 0) continue;
-+      const name = pair.slice(0, eq).trim();
-+      const value = pair.slice(eq + 1).trim();
-+      if (
-+        !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/u.test(name) ||
-+        [...value].some(
-+          (char) =>
-+            char.charCodeAt(0) <= 32 ||
-+            char.charCodeAt(0) === 127 ||
-+            char === ";" ||
-+            char === ",",
-+        )
-+      )
-+        continue;
-+      let path = defaultPath(url.pathname);
-+      let secure = false;
-+      let expires: number | null = null;
-+      let maxAge: number | null = null;
-+      let hasDomain = false;
-+      let domainMatches = true;
-+      for (const attribute of attributes) {
-+        const [rawName, ...rest] = attribute.trim().split("=");
-+        const key = (rawName ?? "").toLowerCase();
-+        const attrValue = rest.join("=").trim();
-+        if (key === "domain") {
-+          hasDomain = true;
-+          if (
-+            attrValue.replace(/^\./u, "").toLowerCase() !==
-+            url.hostname.toLowerCase()
-+          )
-+            domainMatches = false;
-+        }
-+        if (key === "secure") secure = true;
-+        if (key === "path" && attrValue.startsWith("/")) path = attrValue;
-+        if (key === "expires") {
-+          const parsed = Date.parse(attrValue);
-+          if (Number.isFinite(parsed)) expires = parsed;
-+        }
-+        if (key === "max-age" && /^-?\d+$/u.test(attrValue))
-+          maxAge = Number(attrValue);
-+      }
-+      if (
-+        !domainMatches ||
-+        (secure && url.protocol !== "https:") ||
-+        (name.startsWith("__Secure-") && !secure) ||
-+        (name.startsWith("__Host-") && (!secure || path !== "/" || hasDomain))
-+      )
-+        continue;
-+      if (maxAge !== null)
-+        expires = maxAge <= 0 ? 0 : Date.now() + maxAge * 1000;
++      const cookie = parseCookie(url, line);
++      if (!cookie) continue;
 +      const index = this.cookies.findIndex(
-+        (c) => c.host === url.hostname && c.path === path && c.name === name,
++        (c) =>
++          c.host === url.hostname &&
++          c.path === cookie.path &&
++          c.name === cookie.name,
 +      );
 +      if (index >= 0) this.cookies.splice(index, 1);
-+      if (expires === null || expires > Date.now())
-+        this.cookies.push({
-+          name,
-+          value,
-+          host: url.hostname,
-+          path,
-+          secure,
-+          expires,
-+        });
++      if (cookie.expires === null || cookie.expires > Date.now())
++        this.cookies.push(cookie);
 +    }
 +  }
 +
@@ -2098,10 +2152,10 @@ index b3bffaec2..cc8c59dab 100644
 +  });
 +});
 diff --git a/packages/agent-sandboxes/src/vnet-server.ts b/packages/agent-sandboxes/src/vnet-server.ts
-index 767370625..c2e6751ce 100644
+index 767370625..551f25bec 100644
 --- a/packages/agent-sandboxes/src/vnet-server.ts
 +++ b/packages/agent-sandboxes/src/vnet-server.ts
-@@ -3,11 +3,16 @@
+@@ -3,11 +3,21 @@
   * WASM-hosted drivers, one cookie jar per session, redirects followed
   * relay-side. This is user-controlled infrastructure by design — it sees
   * reset traffic in plaintext, so it must never be a shared public proxy.
@@ -2114,13 +2168,19 @@ index 767370625..c2e6751ce 100644
 + * IPv4 addresses; loopback target access is an explicit development option.
   */
  
- import { type Server, createServer } from "node:http";
+-import { type Server, createServer } from "node:http";
++import {
++  type IncomingMessage,
++  type Server,
++  type ServerResponse,
++  createServer,
++} from "node:http";
 +import { CookieJar } from "./vnet-cookie-jar.js";
 +import { pinnedFetch } from "./vnet-pinned-fetch.js";
  import {
    type VirtualFetchRequest,
    type VirtualFetchResponse,
-@@ -18,8 +23,15 @@ export interface VirtualNetworkRelayOptions {
+@@ -18,8 +28,15 @@ export interface VirtualNetworkRelayOptions {
    port?: number;
    host?: string;
    token: string;
@@ -2137,7 +2197,7 @@ index 767370625..c2e6751ce 100644
    fetchImpl?: typeof fetch;
  }
  
-@@ -29,35 +41,37 @@ export interface RunningVirtualNetworkRelay {
+@@ -29,35 +46,46 @@ export interface RunningVirtualNetworkRelay {
    close(): Promise<void>;
  }
  
@@ -2155,7 +2215,15 @@ index 767370625..c2e6751ce 100644
 -  if (!host) return "";
 -  return [...host.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 -}
--
++type RelayContext = {
++  options: VirtualNetworkRelayOptions;
++  sessions: Map<string, Session>;
++  ttl: number;
++  now: () => number;
++  allowed: ReadonlySet<string>;
++  fetchImpl: typeof fetch;
++};
+ 
 -function storeCookies(jar: CookieJar, hostname: string, headers: Headers) {
 -  const raw = headers.getSetCookie?.() ?? [];
 -  for (const line of raw) {
@@ -2196,7 +2264,7 @@ index 767370625..c2e6751ce 100644
  }
  
  function redirectTarget(
-@@ -75,8 +89,10 @@ function redirectTarget(
+@@ -75,34 +103,76 @@ function redirectTarget(
      response.status === 301 ||
      response.status === 302
    ) {
@@ -2209,7 +2277,45 @@ index 767370625..c2e6751ce 100644
    }
    return next;
  }
-@@ -85,24 +101,43 @@ async function performFetch(
+ 
++function requestHeaders(
++  request: VirtualFetchRequest,
++  forward: boolean,
++  jar: CookieJar,
++  url: URL,
++): Record<string, string> {
++  const headers: Record<string, string> = {};
++  for (const [name, value] of Object.entries(
++    forward ? (request.headers ?? {}) : {},
++  )) {
++    const lower = name.toLowerCase();
++    if (!["accept", "accept-language", "content-type"].includes(lower))
++      throw new Error("virtual network: request header is not permitted");
++    headers[lower] = value;
++  }
++  const cookies = jar.header(url);
++  if (cookies) headers.cookie = cookies;
++  return headers;
++}
++
++function isCrossOriginRedirect(
++  redirect: { url: URL; method: string },
++  url: URL,
++  allowed: ReadonlySet<string>,
++  session: Session,
++): boolean {
++  if (normalizedOrigin(redirect.url.href) === normalizedOrigin(url.href))
++    return false;
++  assertAllowed(redirect.url, allowed, session);
++  if (
++    (url.protocol === "https:" && redirect.url.protocol !== "https:") ||
++    (redirect.method !== "GET" && redirect.method !== "HEAD")
++  )
++    throw new Error("virtual network: unsafe cross-origin redirect");
++  return true;
++}
++
+ async function performFetch(
    fetchImpl: typeof fetch,
    jar: CookieJar,
    allowed: ReadonlySet<string>,
@@ -2225,18 +2331,9 @@ index 767370625..c2e6751ce 100644
 -    assertHostAllowed(url, allowed, pinnedHost);
 -    const headers = { ...(request.headers ?? {}) };
 -    const cookies = cookieHeader(jar, url.hostname);
+-    if (cookies) headers.cookie = cookies;
 +    assertAllowed(url, allowed, session);
-+    const headers: Record<string, string> = {};
-+    for (const [name, value] of Object.entries(
-+      forwardRequestHeaders ? (request.headers ?? {}) : {},
-+    )) {
-+      const lower = name.toLowerCase();
-+      if (!["accept", "accept-language", "content-type"].includes(lower))
-+        throw new Error("virtual network: request header is not permitted");
-+      headers[lower] = value;
-+    }
-+    const cookies = jar.header(url);
-     if (cookies) headers.cookie = cookies;
++    const headers = requestHeaders(request, forwardRequestHeaders, jar, url);
      const init: RequestInit = { method, headers, redirect: "manual" };
      if (body !== undefined && method !== "GET" && method !== "HEAD")
        init.body = body;
@@ -2245,20 +2342,156 @@ index 767370625..c2e6751ce 100644
 +    jar.store(url, response.headers);
      const redirect = redirectTarget(response, url, method, body);
      if (redirect) {
-+      if (normalizedOrigin(redirect.url.href) !== normalizedOrigin(url.href)) {
-+        assertAllowed(redirect.url, allowed, session);
-+        if (
-+          (url.protocol === "https:" && redirect.url.protocol !== "https:") ||
-+          (redirect.method !== "GET" && redirect.method !== "HEAD")
-+        )
-+          throw new Error("virtual network: unsafe cross-origin redirect");
++      if (isCrossOriginRedirect(redirect, url, allowed, session)) {
 +        forwardRequestHeaders = false;
 +        redirect.body = undefined;
 +      }
        url = redirect.url;
        method = redirect.method;
        body = redirect.body;
-@@ -125,13 +160,26 @@ async function performFetch(
+@@ -122,64 +192,181 @@ async function performFetch(
+   throw new Error("virtual network: too many redirects");
+ }
+ 
++async function readRequestBody(
++  request: IncomingMessage,
++  response: ServerResponse,
++): Promise<string | null> {
++  const chunks: Buffer[] = [];
++  let length = 0;
++  try {
++    for await (const chunk of request) {
++      const bytes = Buffer.from(chunk);
++      length += bytes.length;
++      if (length > 1_000_000) {
++        response.writeHead(413).end();
++        return null;
++      }
++      chunks.push(bytes);
++    }
++  } catch {
++    response.destroy();
++    return null;
++  }
++  return Buffer.concat(chunks).toString("utf8");
++}
++
++function closeSession(data: unknown, sessions: Map<string, Session>): void {
++  if (
++    !data ||
++    typeof data !== "object" ||
++    !("sessionId" in data) ||
++    typeof data.sessionId !== "string" ||
++    !data.sessionId ||
++    data.sessionId.length > 128
++  )
++    throw new Error("virtual network: invalid session id");
++  const session = sessions.get(data.sessionId);
++  if (session) {
++    session.closing = true;
++    if (session.active === 0) sessions.delete(data.sessionId);
++  }
++}
++
++function sessionFor(
++  parsed: VirtualFetchRequest,
++  context: RelayContext,
++): Session {
++  const currentTime = context.now();
++  for (const [id, existing] of context.sessions) {
++    if (
++      existing.active === 0 &&
++      (existing.closing || currentTime - existing.lastUsed >= context.ttl)
++    )
++      context.sessions.delete(id);
++  }
++  const origins = [
++    ...new Set((parsed.allowedOrigins ?? [parsed.url]).map(normalizedOrigin)),
++  ].sort();
++  let session = context.sessions.get(parsed.sessionId);
++  if (!session) {
++    if (context.sessions.size >= 500)
++      throw new Error("virtual network: session limit reached");
++    session = {
++      jar: new CookieJar(),
++      origins,
++      lastUsed: currentTime,
++      active: 0,
++      closing: false,
++    };
++    context.sessions.set(parsed.sessionId, session);
++  } else if (session.closing) {
++    throw new Error("virtual network: session is closing");
++  } else if (
++    parsed.allowedOrigins &&
++    JSON.stringify(origins) !== JSON.stringify(session.origins)
++  ) {
++    throw new Error("virtual network: session policy changed");
++  }
++  return session;
++}
++
++async function fetchSession(
++  parsed: VirtualFetchRequest,
++  context: RelayContext,
++): Promise<VirtualFetchResponse> {
++  const session = sessionFor(parsed, context);
++  session.active += 1;
++  try {
++    return await performFetch(
++      context.fetchImpl,
++      session.jar,
++      context.allowed,
++      session,
++      parsed,
++    );
++  } finally {
++    session.active -= 1;
++    session.lastUsed = context.now();
++    if (session.closing && session.active === 0)
++      context.sessions.delete(parsed.sessionId);
++  }
++}
++
++async function handleRequest(
++  request: IncomingMessage,
++  response: ServerResponse,
++  context: RelayContext,
++): Promise<void> {
++  if (
++    request.method !== "POST" ||
++    !["/fetch", "/close"].includes(request.url ?? "")
++  ) {
++    response.writeHead(404).end();
++    return;
++  }
++  if (request.headers.authorization !== `Bearer ${context.options.token}`) {
++    response.writeHead(401).end();
++    return;
++  }
++  const body = await readRequestBody(request, response);
++  if (body === null) return;
++  try {
++    const data: unknown = JSON.parse(body);
++    if (request.url === "/close") {
++      closeSession(data, context.sessions);
++      response.writeHead(204).end();
++      return;
++    }
++    const parsed = virtualFetchRequestSchema.parse(data);
++    const result = await fetchSession(parsed, context);
++    response
++      .writeHead(200, { "content-type": "application/json" })
++      .end(JSON.stringify(result));
++  } catch (error) {
++    response.writeHead(502, { "content-type": "application/json" }).end(
++      JSON.stringify({
++        error: error instanceof Error ? error.message : "fetch failed",
++      }),
++    );
++  }
++}
++
  export async function startVirtualNetworkRelay(
    options: VirtualNetworkRelayOptions,
  ): Promise<RunningVirtualNetworkRelay> {
@@ -2279,23 +2512,27 @@ index 767370625..c2e6751ce 100644
 -  const fetchImpl = options.fetchImpl ?? fetch;
 +  const fetchImpl =
 +    options.fetchImpl ?? pinnedFetch(options.allowLoopbackTargets === true);
++  const context: RelayContext = {
++    options,
++    sessions,
++    ttl,
++    now,
++    allowed,
++    fetchImpl,
++  };
    const server: Server = createServer((request, response) => {
-     void (async () => {
+-    void (async () => {
 -      if (request.method !== "POST" || request.url !== "/fetch") {
-+      if (
-+        request.method !== "POST" ||
-+        !["/fetch", "/close"].includes(request.url ?? "")
-+      ) {
-         response.writeHead(404).end();
-         return;
-       }
-@@ -140,26 +188,93 @@ export async function startVirtualNetworkRelay(
-         return;
-       }
-       const chunks: Buffer[] = [];
+-        response.writeHead(404).end();
+-        return;
+-      }
+-      if (request.headers.authorization !== `Bearer ${options.token}`) {
+-        response.writeHead(401).end();
+-        return;
+-      }
+-      const chunks: Buffer[] = [];
 -      for await (const chunk of request) chunks.push(Buffer.from(chunk));
-+      let length = 0;
-       try {
+-      try {
 -        const parsed = virtualFetchRequestSchema.parse(
 -          JSON.parse(Buffer.concat(chunks).toString("utf8")),
 -        );
@@ -2313,96 +2550,19 @@ index 767370625..c2e6751ce 100644
 -          allowed,
 -          pinned,
 -          parsed,
-+        for await (const chunk of request) {
-+          const bytes = Buffer.from(chunk);
-+          length += bytes.length;
-+          if (length > 1_000_000) {
-+            response.writeHead(413).end();
-+            return;
-+          }
-+          chunks.push(bytes);
-+        }
-+      } catch {
-+        response.destroy();
-+        return;
-+      }
-+      try {
-+        const data: unknown = JSON.parse(
-+          Buffer.concat(chunks).toString("utf8"),
-         );
-+        if (request.url === "/close") {
-+          if (
-+            !data ||
-+            typeof data !== "object" ||
-+            !("sessionId" in data) ||
-+            typeof data.sessionId !== "string" ||
-+            !data.sessionId ||
-+            data.sessionId.length > 128
-+          )
-+            throw new Error("virtual network: invalid session id");
-+          const session = sessions.get(data.sessionId);
-+          if (session) {
-+            session.closing = true;
-+            if (session.active === 0) sessions.delete(data.sessionId);
-+          }
-+          response.writeHead(204).end();
-+          return;
-+        }
-+        const parsed = virtualFetchRequestSchema.parse(data);
-+        const currentTime = now();
-+        for (const [id, existing] of sessions) {
-+          if (
-+            existing.active === 0 &&
-+            (existing.closing || currentTime - existing.lastUsed >= ttl)
-+          )
-+            sessions.delete(id);
-+        }
-+        const origins = [
-+          ...new Set(
-+            (parsed.allowedOrigins ?? [parsed.url]).map(normalizedOrigin),
-+          ),
-+        ].sort();
-+        let session = sessions.get(parsed.sessionId);
-+        if (!session) {
-+          if (sessions.size >= 500)
-+            throw new Error("virtual network: session limit reached");
-+          session = {
-+            jar: new CookieJar(),
-+            origins,
-+            lastUsed: currentTime,
-+            active: 0,
-+            closing: false,
-+          };
-+          sessions.set(parsed.sessionId, session);
-+        } else if (session.closing) {
-+          throw new Error("virtual network: session is closing");
-+        } else if (
-+          parsed.allowedOrigins &&
-+          JSON.stringify(origins) !== JSON.stringify(session.origins)
-+        ) {
-+          throw new Error("virtual network: session policy changed");
-+        }
-+        session.active += 1;
-+        let result: VirtualFetchResponse;
-+        try {
-+          result = await performFetch(
-+            fetchImpl,
-+            session.jar,
-+            allowed,
-+            session,
-+            parsed,
-+          );
-+        } finally {
-+          session.active -= 1;
-+          session.lastUsed = now();
-+          if (session.closing && session.active === 0)
-+            sessions.delete(parsed.sessionId);
-+        }
-         response
-           .writeHead(200, { "content-type": "application/json" })
-           .end(JSON.stringify(result));
-@@ -173,13 +288,13 @@ export async function startVirtualNetworkRelay(
-     })();
+-        );
+-        response
+-          .writeHead(200, { "content-type": "application/json" })
+-          .end(JSON.stringify(result));
+-      } catch (error) {
+-        response.writeHead(502, { "content-type": "application/json" }).end(
+-          JSON.stringify({
+-            error: error instanceof Error ? error.message : "fetch failed",
+-          }),
+-        );
+-      }
+-    })();
++    void handleRequest(request, response, context);
    });
    await new Promise<void>((resolve) => {
 -    server.listen(options.port ?? 0, options.host ?? "127.0.0.1", resolve);
