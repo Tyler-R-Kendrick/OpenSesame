@@ -46,7 +46,7 @@ async function bridgeBundle(here, repositoryRoot, pins) {
   const require = createRequire(join(repositoryRoot, "package.json"));
   const viteBytes = await readFile(require.resolve("vite/package.json"));
   if (
-    JSON.parse(viteBytes).version !== "6.4.4" ||
+    JSON.parse(viteBytes).version !== "6.4.5" ||
     hash(viteBytes) !== pins.composition.vite.packageSha256
   )
     throw new Error(
