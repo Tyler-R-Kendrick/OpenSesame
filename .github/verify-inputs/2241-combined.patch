@@ -1,0 +1,796 @@
+diff --git a/packages/app-core/scripts/emit-google-wallet-configuration.mjs b/packages/app-core/scripts/emit-google-wallet-configuration.mjs
+index c1f22b2a8..6377d60a8 100644
+--- a/packages/app-core/scripts/emit-google-wallet-configuration.mjs
++++ b/packages/app-core/scripts/emit-google-wallet-configuration.mjs
+@@ -63,7 +63,10 @@ function validateSemantics(semantics) {
+     semantics.native_storage_stage !== "webcrypto_pkcs8_rsa_import" ||
+     semantics.native_input_normalization !==
+       "trim_public_fields_preserve_private_before_validation" ||
+-    semantics.wallet_env_normalization !== "trim_each_value_and_lowercase_email"
++    semantics.wallet_env_normalization !==
++      "trim_each_value_and_lowercase_email" ||
++    semantics.native_verified_entry_stage !==
++      "service_account_json_then_wallet_config_then_signed_provider_proof"
+   )
+     throw new Error("Unsupported Google Wallet policy semantics");
+ }
+@@ -119,11 +122,23 @@ export function googleWalletConfigurationPolicy(
+   validateIdentifiers(issuer, walletClass);
+   validateEmail(email);
+   validateKey(key);
++  const account = policy.native_service_account;
++  if (
++    !isJsonObject(account) ||
++    account.type !== "service_account" ||
++    !isString(account.email_pattern) ||
++    !isString(account.key_pem_pattern) ||
++    !Number.isSafeInteger(account.json_max_length) ||
++    account.json_max_length < 1
++  )
++    throw new Error("Invalid Google Wallet service account policy");
+   for (const pattern of [
+     issuer.pattern,
+     walletClass.suffix_pattern,
+     email.pattern,
+     key.pem_pattern,
++    account.email_pattern,
++    account.key_pem_pattern,
+   ])
+     new RegExp(pattern);
+   return {
+@@ -134,6 +149,12 @@ export function googleWalletConfigurationPolicy(
+       issuerSeparator: walletClass.issuer_separator,
+     },
+     email: { pattern: email.pattern, maxLength: email.max_length },
++    nativeServiceAccount: {
++      type: account.type,
++      emailPattern: account.email_pattern,
++      keyPemPattern: account.key_pem_pattern,
++      jsonMaxLength: account.json_max_length,
++    },
+     key: {
+       format: key.format,
+       algorithm: key.algorithm,
+diff --git a/packages/app-core/src/lib/native-google-wallet-spec.integration.test.ts b/packages/app-core/src/lib/native-google-wallet-spec.integration.test.ts
+new file mode 100644
+index 000000000..75a08004c
+--- /dev/null
++++ b/packages/app-core/src/lib/native-google-wallet-spec.integration.test.ts
+@@ -0,0 +1,291 @@
++import { generateKeyPairSync, verify } from "node:crypto";
++import { readFileSync } from "node:fs";
++import { fileURLToPath } from "node:url";
++import { afterEach, expect, it, vi } from "vitest";
++import type { NativeApiConfigureInput } from "./native-api-connectors.js";
++import type { NativeProviderTransport } from "./native-connector-transport.js";
++import { googleWalletKeyFlows } from "./native-google-wallet.js";
++import { runtimeFixture } from "./secret-backends/runtime.test-support.js";
++
++const vectors = JSON.parse(
++  readFileSync(
++    fileURLToPath(
++      new URL(
++        "../../../../spec/conformance/google-wallet-configuration.json",
++        import.meta.url,
++      ),
++    ),
++    "utf8",
++  ),
++);
++const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 });
++const pkcs8 = rsa.privateKey
++  .export({ type: "pkcs8", format: "pem" })
++  .toString();
++const pkcs1 = rsa.privateKey
++  .export({ type: "pkcs1", format: "pem" })
++  .toString();
++const ec = generateKeyPairSync("ec", { namedCurve: "P-384" })
++  .privateKey.export({ type: "pkcs8", format: "pem" })
++  .toString();
++const keys = new Map<string, string>([
++  ["generated_pkcs8_rsa", pkcs8],
++  ["generated_pkcs8_rsa_escaped", pkcs8.replace(/\n/g, "\\n")],
++  ["generated_pkcs1_rsa", pkcs1],
++  ["not-a-private-key", "not-a-private-key"],
++  ["oversized", "a".repeat(32769)],
++  [
++    "invalid_der",
++    `-----BEGIN PRIVATE KEY-----\n${"A".repeat(256)}\n-----END PRIVATE KEY-----`,
++  ],
++  ["generated_ec_pkcs8", ec],
++  [
++    "invalid_padding",
++    `-----BEGIN PRIVATE KEY-----\n${"A".repeat(240)}=A\n-----END PRIVATE KEY-----`,
++  ],
++]);
++const email = "wallet@project-name.iam.gserviceaccount.com";
++const owner = new AbortController();
++const closes: (() => Promise<void>)[] = [];
++afterEach(async () => {
++  for (const close of closes.splice(0).reverse()) await close();
++});
++function input(
++  issuer: string,
++  classId: string,
++  clientEmail: string,
++  key: string,
++): NativeApiConfigureInput {
++  return {
++    providerId: "google-wallet",
++    displayName: "Wallet conformance",
++    parameters: {
++      issuer_id: issuer,
++      class_id: classId,
++      origin: "https://operator.example.test",
++    },
++    credentials: {
++      service_account_json: JSON.stringify({
++        type: "service_account",
++        client_email: clientEmail,
++        private_key: key,
++      }),
++    },
++  };
++}
++function transportFor(expectedEmail: string): {
++  transport: NativeProviderTransport;
++  fetcher: ReturnType<typeof vi.fn<typeof fetch>>;
++} {
++  const fetcher = vi.fn<typeof fetch>(async (raw, init) => {
++    const req = new Request(raw, init);
++    const url = new URL(req.url);
++    if (url.href === "https://oauth2.googleapis.com/token") {
++      expect(req.method).toBe("POST");
++      const form = new URLSearchParams(await req.text());
++      expect(form.get("grant_type")).toBe(
++        "urn:ietf:params:oauth:grant-type:jwt-bearer",
++      );
++      const assertion = form.get("assertion") ?? "";
++      const [header, payload, signature] = assertion.split(".");
++      if (
++        !header ||
++        !payload ||
++        !signature ||
++        !verify(
++          "RSA-SHA256",
++          Buffer.from(`${header}.${payload}`),
++          rsa.publicKey,
++          Buffer.from(signature, "base64url"),
++        )
++      )
++        throw new Error("Unverified assertion");
++      expect(
++        JSON.parse(Buffer.from(payload, "base64url").toString()),
++      ).toMatchObject({
++        iss: expectedEmail.toLowerCase(),
++        aud: "https://oauth2.googleapis.com/token",
++        scope: "https://www.googleapis.com/auth/wallet_object.issuer",
++      });
++      return Response.json({
++        access_token: "synthetic-wallet-token-000000000000",
++        expires_in: 3600,
++        token_type: "Bearer",
++      });
++    }
++    if (
++      url.origin !== "https://walletobjects.googleapis.com" ||
++      !url.pathname.startsWith("/walletobjects/v1/genericClass/")
++    )
++      throw new Error("Unexpected endpoint");
++    expect(req.method).toBe("GET");
++    expect(req.headers.get("authorization")).toBe(
++      "Bearer synthetic-wallet-token-000000000000",
++    );
++    return Response.json({
++      id: decodeURIComponent(
++        url.pathname.slice("/walletobjects/v1/genericClass/".length),
++      ),
++    });
++  });
++  return {
++    fetcher,
++    transport: {
++      fetch: fetcher,
++      signal: owner.signal,
++      assertCurrent: () => {},
++      supportsNativeOrigin: () => true,
++    },
++  };
++}
++it("replays public vectors through the specialized verified-key driver", async () => {
++  const fixture = await runtimeFixture();
++  closes.push(() => fixture.close());
++  for (const item of vectors.public_cases) {
++    const { transport, fetcher } = transportFor(item.service_account_email);
++    const result = googleWalletKeyFlows.configure(
++      input(item.issuer_id, item.class_id, item.service_account_email, pkcs8),
++      transport,
++    );
++    if (item.native_verified_entry_accepted) {
++      await expect(result, item.name).resolves.toMatchObject({
++        status: "connected",
++      });
++      expect(fetcher, item.name).toHaveBeenCalledTimes(2);
++    } else {
++      await expect(result, item.name).rejects.toThrow();
++      expect(fetcher, item.name).not.toHaveBeenCalled();
++    }
++  }
++});
++it("replays every issuer and class vector with a valid service account", async () => {
++  const fixture = await runtimeFixture();
++  closes.push(() => fixture.close());
++  for (const item of vectors.public_cases) {
++    const { transport, fetcher } = transportFor(email);
++    const result = googleWalletKeyFlows.configure(
++      input(item.issuer_id, item.class_id, email, pkcs8),
++      transport,
++    );
++    if (item.native_verified_with_valid_account) {
++      await expect(result, item.name).resolves.toMatchObject({
++        status: "connected",
++      });
++      expect(fetcher, item.name).toHaveBeenCalledTimes(2);
++    } else {
++      await expect(result, item.name).rejects.toThrow();
++      expect(fetcher, item.name).not.toHaveBeenCalled();
++    }
++  }
++});
++it("replays private-key vectors through the specialized verified-key driver", async () => {
++  const fixture = await runtimeFixture();
++  closes.push(() => fixture.close());
++  for (const item of vectors.key_cases) {
++    const key = keys.get(item.value);
++    if (key === undefined) throw new Error(`Unknown key fixture ${item.value}`);
++    const { transport, fetcher } = transportFor(email);
++    const result = googleWalletKeyFlows.configure(
++      input("123456", "pass", email, key),
++      transport,
++    );
++    if (item.native_verified_entry_accepted) {
++      await expect(result, item.name).resolves.toMatchObject({
++        status: "connected",
++      });
++      expect(fetcher, item.name).toHaveBeenCalledTimes(2);
++    } else {
++      await expect(result, item.name).rejects.toThrow();
++      expect(fetcher, item.name).not.toHaveBeenCalled();
++    }
++  }
++});
++
++it("replays service-account JSON boundary vectors through the verified driver", async () => {
++  const fixture = await runtimeFixture();
++  closes.push(() => fixture.close());
++  const account = {
++    type: "service_account",
++    client_email: email,
++    private_key: pkcs8,
++  };
++  const samples = new Map<string, string>([
++    ["valid", JSON.stringify(account)],
++    [
++      "legacy_domain",
++      JSON.stringify({
++        ...account,
++        client_email: "wallet@project-name.gserviceaccount.com",
++      }),
++    ],
++    ["wrong_type", JSON.stringify({ ...account, type: "authorized_user" })],
++    [
++      "missing_type",
++      JSON.stringify({ client_email: email, private_key: pkcs8 }),
++    ],
++    [
++      "missing_email",
++      JSON.stringify({ type: account.type, private_key: pkcs8 }),
++    ],
++    ["number_email", JSON.stringify({ ...account, client_email: 42 })],
++    [
++      "missing_key",
++      JSON.stringify({ type: account.type, client_email: email }),
++    ],
++    ["number_key", JSON.stringify({ ...account, private_key: 42 })],
++    ["malformed", "{"],
++    ["array", "[]"],
++    [
++      "oversized_json",
++      JSON.stringify({ ...account, extra: "x".repeat(32768) }),
++    ],
++    [
++      "uppercase_project",
++      JSON.stringify({
++        ...account,
++        client_email: "wallet@Project-name.iam.gserviceaccount.com",
++      }),
++    ],
++    [
++      "email_whitespace",
++      JSON.stringify({ ...account, client_email: ` ${email}` }),
++    ],
++    [
++      "short_project",
++      JSON.stringify({
++        ...account,
++        client_email: "wallet@abc.iam.gserviceaccount.com",
++      }),
++    ],
++    [
++      "escaped_newlines",
++      JSON.stringify({ ...account, private_key: pkcs8.replace(/\n/g, "\\n") }),
++    ],
++    [
++      "trailing_pem_whitespace",
++      JSON.stringify({ ...account, private_key: `${pkcs8}  \n` }),
++    ],
++  ]);
++  for (const item of vectors.native_service_account_cases) {
++    const raw = samples.get(item.value);
++    if (raw === undefined)
++      throw new Error(`Unknown account fixture ${item.value}`);
++    const { transport, fetcher } = transportFor(
++      item.value === "legacy_domain"
++        ? "wallet@project-name.gserviceaccount.com"
++        : email,
++    );
++    const draft = input("123456", "pass", email, pkcs8);
++    draft.credentials.service_account_json = raw;
++    const result = googleWalletKeyFlows.configure(draft, transport);
++    if (item.accepted) {
++      await expect(result, item.name).resolves.toMatchObject({
++        status: "connected",
++      });
++      expect(fetcher, item.name).toHaveBeenCalledTimes(2);
++    } else {
++      await expect(result, item.name).rejects.toThrow();
++      expect(fetcher, item.name).not.toHaveBeenCalled();
++    }
++  }
++});
+diff --git a/packages/app-core/src/lib/native-google-wallet.ts b/packages/app-core/src/lib/native-google-wallet.ts
+index 51c65ace2..60cc1ee6d 100644
+--- a/packages/app-core/src/lib/native-google-wallet.ts
++++ b/packages/app-core/src/lib/native-google-wallet.ts
+@@ -1,5 +1,5 @@
+ /** Native Google issuer class proof and an explicit, payload-screened Save-to-Wallet handoff. */
+-import { canonicalize } from "@opensesame/os-domain";
++import { canonicalize, isJsonObject, isString } from "@opensesame/os-domain";
+ import {
+   type GoogleWalletEnabled,
+   parseGoogleWalletConfig,
+@@ -8,6 +8,7 @@ import {
+   type GoogleClient,
+   createGoogleClient,
+ } from "@opensesame/wallet/google-client";
++import { GOOGLE_WALLET_CONFIGURATION_POLICY as WALLET_POLICY } from "@opensesame/wallet/google-wallet-policy";
+ import { z } from "zod";
+ import { canonicalProviderId } from "./connector-catalog.js";
+ import type { NativeApiConfigureInput } from "./native-api-connectors.js";
+@@ -21,7 +22,6 @@ import {
+   assertNativeConnectorRevision,
+ } from "./native-connector-store.js";
+ import type { NativeProviderTransport } from "./native-connector-transport.js";
+-import { parseGcpServiceAccount } from "./native-gcp-auth.js";
+ import { googleWalletTransportFlows } from "./native-google-wallet-transport.js";
+ import { googleWalletUi } from "./native-google-wallet-ui.js";
+ import { createNativeKeyFlows } from "./native-key-driver.js";
+@@ -42,8 +42,30 @@ const tokenReply = z.object({
+   token_type: z.literal("Bearer").optional(),
+ });
+ const accepts = (id: string) => canonicalProviderId(id) === "google-wallet";
++function parseWalletServiceAccount(text: string) {
++  let parsed: unknown;
++  try {
++    parsed = JSON.parse(text);
++  } catch {
++    throw new Error("Paste the service account key file, a JSON document");
++  }
++  if (
++    !isJsonObject(parsed) ||
++    parsed.type !== WALLET_POLICY.nativeServiceAccount.type ||
++    !isString(parsed.client_email) ||
++    !new RegExp(WALLET_POLICY.nativeServiceAccount.emailPattern).test(
++      parsed.client_email,
++    ) ||
++    !isString(parsed.private_key) ||
++    !new RegExp(WALLET_POLICY.nativeServiceAccount.keyPemPattern).test(
++      parsed.private_key,
++    )
++  )
++    throw new Error("That is not a service account key file");
++  return { clientEmail: parsed.client_email, privateKey: parsed.private_key };
++}
+ function config(target: NativeKeyTarget): GoogleWalletEnabled {
+-  const account = parseGcpServiceAccount(
++  const account = parseWalletServiceAccount(
+     target.credentials.service_account_json ?? "",
+   );
+   const result = parseGoogleWalletConfig({
+@@ -80,7 +102,10 @@ function parse(
+       saved?.privateState.credentials.service_account_json ||
+       "",
+   };
+-  if (credentials.service_account_json.length > 32768)
++  if (
++    credentials.service_account_json.length >
++    WALLET_POLICY.nativeServiceAccount.jsonMaxLength
++  )
+     throw new Error("Supply a bounded service-account JSON key");
+   const target: Target = {
+     providerId: input.providerId,
+diff --git a/packages/wallet/src/google-wallet-policy.generated.ts b/packages/wallet/src/google-wallet-policy.generated.ts
+index 2c4323a4c..f3a657100 100644
+--- a/packages/wallet/src/google-wallet-policy.generated.ts
++++ b/packages/wallet/src/google-wallet-policy.generated.ts
+@@ -11,6 +11,14 @@ export const GOOGLE_WALLET_CONFIGURATION_POLICY = Object.freeze({
+     pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+     maxLength: 320,
+   }),
++  nativeServiceAccount: Object.freeze({
++    type: "service_account",
++    emailPattern:
++      "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[a-z][a-z0-9-]{3,61}\\.(?:iam\\.)?gserviceaccount\\.com$",
++    keyPemPattern:
++      "^-----BEGIN PRIVATE KEY-----([A-Za-z0-9+/=\\s]{200,8192})-----END PRIVATE KEY-----\\s*$",
++    jsonMaxLength: 32768,
++  }),
+   key: Object.freeze({
+     format: "pkcs8",
+     algorithm: "RSASSA-PKCS1-v1_5",
+diff --git a/spec/conformance/google-wallet-configuration.json b/spec/conformance/google-wallet-configuration.json
+index 339850240..4de503630 100644
+--- a/spec/conformance/google-wallet-configuration.json
++++ b/spec/conformance/google-wallet-configuration.json
+@@ -6,105 +6,135 @@
+       "issuer_id": "123456",
+       "class_id": "travel-pass",
+       "service_account_email": "service@example.invalid",
+-      "accepted": true
++      "accepted": true,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "qualified class",
+       "issuer_id": "123456",
+       "class_id": "123456.travel-pass",
+       "service_account_email": "service@example.invalid",
+-      "accepted": true
++      "accepted": true,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "wrong issuer",
+       "issuer_id": "123456",
+       "class_id": "654321.travel-pass",
+       "service_account_email": "service@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": false
+     },
+     {
+       "name": "short issuer",
+       "issuer_id": "12345",
+       "class_id": "travel-pass",
+       "service_account_email": "service@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": false
+     },
+     {
+       "name": "oversized issuer",
+       "issuer_id": "111111111111111111111111111111111",
+       "class_id": "travel-pass",
+       "service_account_email": "service@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": false
+     },
+     {
+       "name": "unsafe class",
+       "issuer_id": "123456",
+       "class_id": "pass/../../x",
+       "service_account_email": "service@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": false
+     },
+     {
+       "name": "empty suffix",
+       "issuer_id": "123456",
+       "class_id": "123456.",
+       "service_account_email": "service@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": false
+     },
+     {
+       "name": "invalid email",
+       "issuer_id": "123456",
+       "class_id": "travel-pass",
+       "service_account_email": "service@@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "oversized email",
+       "issuer_id": "123456",
+       "class_id": "travel-pass",
+       "service_account_email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "qualified class with dotted suffix",
+       "issuer_id": "123456",
+       "class_id": "123456.pass.v1",
+       "service_account_email": "service@example.invalid",
+-      "accepted": true
++      "accepted": true,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "dotted unqualified class",
+       "issuer_id": "123456",
+       "class_id": "pass.v1",
+       "service_account_email": "service@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": false
+     },
+     {
+       "name": "non-ASCII digits rejected",
+       "issuer_id": "１２３４５６",
+       "class_id": "pass",
+       "service_account_email": "service@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": false
+     },
+     {
+       "name": "unicode email accepted",
+       "issuer_id": "123456",
+       "class_id": "pass",
+       "service_account_email": "ümlaut@example.invalid",
+-      "accepted": true
++      "accepted": true,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "email astral length counts UTF-16 units",
+       "issuer_id": "123456",
+       "class_id": "pass",
+       "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
+-      "accepted": true
++      "accepted": true,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "email astral length over limit",
+       "issuer_id": "123456",
+       "class_id": "pass",
+       "service_account_email": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀@example.invalid",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "wallet email case folding can expand length",
+@@ -112,7 +142,9 @@
+       "class_id": "pass",
+       "service_account_email": "İİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİİ@example.invalid",
+       "accepted": true,
+-      "wallet_accepted": false
++      "wallet_accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
+     },
+     {
+       "name": "entrypoint trims surrounding public whitespace",
+@@ -121,52 +153,162 @@
+       "service_account_email": " service@example.invalid ",
+       "accepted": false,
+       "native_entry_accepted": true,
+-      "wallet_accepted": true
++      "wallet_accepted": true,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": true
++    },
++    {
++      "name": "native verified real service account",
++      "issuer_id": "123456",
++      "class_id": "travel-pass",
++      "service_account_email": "wallet@project-name.iam.gserviceaccount.com",
++      "accepted": true,
++      "native_verified_entry_accepted": true,
++      "native_verified_with_valid_account": true
++    },
++    {
++      "name": "native verified rejects foreign issuer",
++      "issuer_id": "123456",
++      "class_id": "654321.travel-pass",
++      "service_account_email": "wallet@project-name.iam.gserviceaccount.com",
++      "accepted": false,
++      "native_verified_entry_accepted": false,
++      "native_verified_with_valid_account": false
+     }
+   ],
+   "key_cases": [
+     {
+       "name": "valid RSA PKCS8",
+       "value": "generated_pkcs8_rsa",
+-      "accepted": true
++      "accepted": true,
++      "native_verified_entry_accepted": true
+     },
+     {
+       "name": "escaped newline PKCS8",
+       "value": "generated_pkcs8_rsa_escaped",
+-      "accepted": true
++      "accepted": true,
++      "native_verified_entry_accepted": false
+     },
+     {
+       "name": "PKCS1 RSA",
+       "value": "generated_pkcs1_rsa",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false
+     },
+     {
+       "name": "invalid key",
+       "value": "not-a-private-key",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false
+     },
+     {
+       "name": "oversized key",
+       "value": "oversized",
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false
+     },
+     {
+       "name": "malformed DER after valid PEM envelope",
+       "value": "invalid_der",
+       "pem_accepted": true,
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false
+     },
+     {
+       "name": "PKCS8 EC is not RSA",
+       "value": "generated_ec_pkcs8",
+       "pem_accepted": true,
+-      "accepted": false
++      "accepted": false,
++      "native_verified_entry_accepted": false
+     },
+     {
+       "name": "misplaced base64 padding",
+       "value": "invalid_padding",
+       "pem_accepted": false,
++      "accepted": false,
++      "native_verified_entry_accepted": false
++    }
++  ],
++  "native_service_account_cases": [
++    {
++      "name": "valid service account JSON",
++      "value": "valid",
++      "accepted": true
++    },
++    {
++      "name": "valid legacy gserviceaccount domain",
++      "value": "legacy_domain",
++      "accepted": true
++    },
++    {
++      "name": "wrong document type",
++      "value": "wrong_type",
++      "accepted": false
++    },
++    {
++      "name": "missing account type",
++      "value": "missing_type",
+       "accepted": false
++    },
++    {
++      "name": "missing email",
++      "value": "missing_email",
++      "accepted": false
++    },
++    {
++      "name": "email is not a string",
++      "value": "number_email",
++      "accepted": false
++    },
++    {
++      "name": "missing key",
++      "value": "missing_key",
++      "accepted": false
++    },
++    {
++      "name": "key is not a string",
++      "value": "number_key",
++      "accepted": false
++    },
++    {
++      "name": "malformed JSON",
++      "value": "malformed",
++      "accepted": false
++    },
++    {
++      "name": "non-object JSON",
++      "value": "array",
++      "accepted": false
++    },
++    {
++      "name": "oversized service account JSON",
++      "value": "oversized_json",
++      "accepted": false
++    },
++    {
++      "name": "uppercase project rejected",
++      "value": "uppercase_project",
++      "accepted": false
++    },
++    {
++      "name": "email leading whitespace rejected",
++      "value": "email_whitespace",
++      "accepted": false
++    },
++    {
++      "name": "short project rejected",
++      "value": "short_project",
++      "accepted": false
++    },
++    {
++      "name": "escaped newline key rejected at JSON stage",
++      "value": "escaped_newlines",
++      "accepted": false
++    },
++    {
++      "name": "trailing PEM whitespace accepted",
++      "value": "trailing_pem_whitespace",
++      "accepted": true
+     }
+   ]
+ }
+diff --git a/spec/connectors/google-wallet-configuration.json b/spec/connectors/google-wallet-configuration.json
+index 63905c593..6d4aef4e8 100644
+--- a/spec/connectors/google-wallet-configuration.json
++++ b/spec/connectors/google-wallet-configuration.json
+@@ -30,6 +30,13 @@
+     "wallet_config_stage": "pem_envelope_only",
+     "native_storage_stage": "webcrypto_pkcs8_rsa_import",
+     "native_input_normalization": "trim_public_fields_preserve_private_before_validation",
+-    "wallet_env_normalization": "trim_each_value_and_lowercase_email"
++    "wallet_env_normalization": "trim_each_value_and_lowercase_email",
++    "native_verified_entry_stage": "service_account_json_then_wallet_config_then_signed_provider_proof"
++  },
++  "native_service_account": {
++    "type": "service_account",
++    "email_pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}@[a-z][a-z0-9-]{3,61}\\.(?:iam\\.)?gserviceaccount\\.com$",
++    "key_pem_pattern": "^-----BEGIN PRIVATE KEY-----([A-Za-z0-9+/=\\s]{200,8192})-----END PRIVATE KEY-----\\s*$",
++    "json_max_length": 32768
+   }
+ }

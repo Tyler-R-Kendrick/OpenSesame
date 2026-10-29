@@ -1,0 +1,63 @@
+name: Review combined connector scope and wallet policy
+on:
+  push:
+    branches: [review/2241-wallet-native-spec-proof-v4-20261029]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/2241-wallet-native-spec-proof-v4-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          path: candidate
+          ref: 344fdddc8d7afebf60d0c2e134d57118902888a9
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          package_json_file: candidate/package.json
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify source and candidate
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 344fdddc8d7afebf60d0c2e134d57118902888a9
+          test "$(git rev-parse HEAD^{tree})" = 7ebe72e131ee0d513167a6c1c4812f7fbe607650
+          printf '%s  %s\n' 3875d378fef8a2468aa7b0d8c45c3ced9e9efda89e1b1fd46baad5c914b99f24 ../controller/.github/verify-inputs/2241-combined.patch | sha256sum --check
+          git apply --index ../controller/.github/verify-inputs/2241-combined.patch
+          test "$(git write-tree)" = 6813eb32d43e068845683977839778a769e0b9c7
+          git diff --exit-code
+      - name: Install frozen dependencies
+        working-directory: candidate
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check affected formatting and types
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/scripts/emit-google-wallet-configuration.mjs packages/app-core/src/lib/native-google-wallet-spec.integration.test.ts packages/app-core/src/lib/native-google-wallet.ts packages/wallet/src/google-wallet-policy.generated.ts spec/conformance/google-wallet-configuration.json spec/connectors/google-wallet-configuration.json
+          pnpm lint:anti-slop:files packages/app-core/scripts/emit-google-wallet-configuration.mjs packages/app-core/src/lib/native-google-wallet-spec.integration.test.ts packages/app-core/src/lib/native-google-wallet.ts packages/wallet/src/google-wallet-policy.generated.ts
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/wallet typecheck
+          pnpm quality:gate
+      - name: Exercise OAuth and wallet policy
+        working-directory: candidate
+        run: pnpm --filter @opensesame/app-core exec vitest run src/lib/native-oauth-client-google-exchange.test.ts src/lib/native-oauth-client-scope-retention.test.ts src/lib/native-connector-scope-view.test.ts src/lib/native-oauth-client.test.ts src/lib/native-connector-records.storage.test.ts src/lib/native-oauth-resource-acceptance.test.ts src/lib/native-oauth-resource.test.ts src/lib/native-oauth-mcp.integration.test.ts src/lib/native-oauth-mcp-binding.integration.test.ts src/lib/native-google-wallet-policy.test.ts src/lib/native-catalog-configuration.test.ts src/lib/native-catalog-google-wallet-conformance.test.ts src/lib/native-google-wallet-spec.integration.test.ts src/lib/native-google-wallet-custody.integration.test.ts
+      - name: Run wallet tests
+        working-directory: candidate
+        run: pnpm --filter @opensesame/wallet test
+      - name: Check candidate unchanged
+        if: always()
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 344fdddc8d7afebf60d0c2e134d57118902888a9
+          test "$(git write-tree)" = 6813eb32d43e068845683977839778a769e0b9c7
+          git diff --exit-code
