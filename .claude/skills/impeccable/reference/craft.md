@@ -1,1 +1,0 @@
-../../../../.agents/skills/impeccable/reference/craft.md
