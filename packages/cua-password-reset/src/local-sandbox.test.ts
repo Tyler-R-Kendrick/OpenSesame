@@ -14,11 +14,16 @@ function spawnCapture(outputs: string[]) {
       const chunks: string[] = [];
       stdin.on("data", (c: Buffer) => chunks.push(c.toString("utf8")));
       stdinChunks.push("");
+      const stdio: [PassThrough, PassThrough, PassThrough] = [
+        stdin,
+        stdout,
+        stderr,
+      ];
       const child = Object.assign(new ChildProcess(), {
         stdin,
         stdout,
         stderr,
-        stdio: [stdin, stdout, stderr],
+        stdio,
         kill: vi.fn(),
       });
       const next = outputs.shift() ?? "";
@@ -40,7 +45,7 @@ describe("local ephemeral sandbox (zero-provision)", () => {
     const sandbox = createLocalSandbox({
       origin: "http://127.0.0.1:4317",
       executable: "/opt/agent-browser",
-      spawn: spawn as never,
+      spawn,
     });
     expect(sandbox.session).toMatch(/^cua-/u);
     expect(sandbox.allowedDomains).toEqual(["127.0.0.1"]);
@@ -52,13 +57,13 @@ describe("local ephemeral sandbox (zero-provision)", () => {
     expect(() =>
       createLocalSandbox({
         origin: "https://user:pass@example.test",
-        spawn: spawn as never,
+        spawn,
       }),
     ).toThrow(/credential-free/u);
     expect(() =>
       createLocalSandbox({
         origin: "file:///etc/passwd",
-        spawn: spawn as never,
+        spawn,
       }),
     ).toThrow(/credential-free/u);
   });
@@ -70,7 +75,7 @@ describe("local ephemeral sandbox (zero-provision)", () => {
     const sandbox = createLocalSandbox({
       origin: "http://127.0.0.1:4317",
       executable: "/opt/agent-browser",
-      spawn: spawn as never,
+      spawn,
     });
     await sandbox.browser.fillSecret("e3", "REAL_PASSWORD_CANARY");
     expect(calls).toHaveLength(1);
@@ -88,7 +93,7 @@ describe("local ephemeral sandbox (zero-provision)", () => {
     const sandbox = createLocalSandbox({
       origin: "http://127.0.0.1:4317",
       executable: "/opt/agent-browser",
-      spawn: spawn as never,
+      spawn,
     });
     await expect(sandbox.browser.open("https://evil.example/")).rejects.toThrow(
       /approved domains/u,

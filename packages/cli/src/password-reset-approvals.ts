@@ -111,7 +111,7 @@ export class LiveResetApprovals implements ResetApprovalSession {
           ? "metadata"
           : run.itemId,
       runtime: "agent-browser",
-      model: loaded.config.runtime.model,
+      model: loaded.config.runtime.model ?? "local recipe replay (no model)",
       expiresAt: Date.now() + 15 * 60_000,
       actions: [action],
     });

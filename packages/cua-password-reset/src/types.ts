@@ -179,6 +179,15 @@ export const recipeSchema = z
     domain: z.string().regex(/^(?=.{1,253}$)[a-z0-9.-]+$/),
     entryPath: z.string().startsWith("/").max(512),
     allowedOrigins: z.array(z.url()).min(1).max(20),
+    verification: z
+      .object({
+        path: z.string().startsWith("/").max(512),
+        expectedLabel: z.string().min(1).max(200),
+        loginPath: z.string().startsWith("/").max(512),
+        loginLabel: z.string().min(1).max(200),
+      })
+      .strict()
+      .optional(),
     steps: z.array(recipeStepSchema).min(1).max(80),
     proxySubstitution: proxyProofSchema.optional(),
   })

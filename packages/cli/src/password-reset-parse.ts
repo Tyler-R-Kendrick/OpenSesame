@@ -3,6 +3,9 @@ import type { GlobalFlags } from "./parse.js";
 
 export type PasswordResetAction = "configure" | "run" | "resume" | "reconcile";
 
+/** Runtime module sentinel selecting the in-repo local sandbox runtime. */
+export const BUNDLED_LOCAL_MODULE = "bundled:local" as const;
+
 const ACTIONS = ["configure", "run", "resume", "reconcile"] as const;
 const CONFIGURE_REQUIRED = [
   "origin",
@@ -104,9 +107,11 @@ function validateTransport(transport: string | undefined): void {
 
 function validateCommand(command: PasswordResetCommand): void {
   if (command.action === "configure") {
-    const missing = CONFIGURE_REQUIRED.filter(
-      (key) => command[key] === undefined,
-    );
+    const required =
+      command.runtimeModule === BUNDLED_LOCAL_MODULE
+        ? (["origin", "recipe", "transport", "runtimeModule"] as const)
+        : CONFIGURE_REQUIRED;
+    const missing = required.filter((key) => command[key] === undefined);
     if (missing.length > 0)
       throw new Error(
         `password-reset configure is missing ${missing.join(", ")}`,

@@ -43,17 +43,16 @@ export function createLocalSandbox(options: LocalSandboxOptions): LocalSandbox {
   const env = options.env ?? process.env;
   const browserExecutable =
     options.browserExecutable ?? env.AGENT_BROWSER_CHROME;
-  const browser = new AgentBrowser({
+  const config: AgentBrowserConfig = {
     executable: options.executable ?? env.AGENT_BROWSER ?? "agent-browser",
     session,
     allowedDomains,
-    ...(browserExecutable ? { browserExecutable } : {}),
-    ...(options.timeoutMs !== undefined
-      ? { timeoutMs: options.timeoutMs }
-      : {}),
-    ...(options.spawn ? { spawn: options.spawn } : {}),
-    ...(options.secretFill ? { secretFill: options.secretFill } : {}),
-  });
+  };
+  if (browserExecutable) config.browserExecutable = browserExecutable;
+  if (options.timeoutMs !== undefined) config.timeoutMs = options.timeoutMs;
+  if (options.spawn) config.spawn = options.spawn;
+  if (options.secretFill) config.secretFill = options.secretFill;
+  const browser = new AgentBrowser(config);
   return {
     browser,
     session,
