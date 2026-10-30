@@ -2,13 +2,15 @@
 
 ## Supported versions
 
-Security fixes target the default branch (`main`). The released Pages deploy tracks `main`. Fixes for older commits are best-effort.
+Security fixes target the default branch (`main`). Published Pages and native artifacts advance through candidate qualification and release approval. Fixes for older commits are best-effort.
 
 ## Reporting
 
 Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new). On this repository, open **Report a vulnerability** under Security Advisories. Do not file public issues that include exploit details, tokens, or claim secrets.
 
-We acknowledge a report within 3 business days and aim for an initial assessment within 10 business days.
+If private reporting is unavailable, contact the maintainer through the GitHub profile [@Tyler-R-Kendrick](https://github.com/Tyler-R-Kendrick).
+
+We acknowledge a report within 3 business days, aim for an initial assessment within 10 business days, and respond to every report within 14 days or less.
 
 ## Scope
 

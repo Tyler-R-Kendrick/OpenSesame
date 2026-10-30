@@ -38,12 +38,12 @@ export function productionDeviceAvailability(
 ): NativeDeviceAvailability {
   return {
     has: (method, id) =>
+      vaultStore.isGenuineSession() &&
       !nativeConnectorWithdrawn(method) &&
       (method === "oidc"
         ? compiledOidcRoute(id)
         : method === "native-local"
-          ? hasNativeConnectorDriver(method, id) &&
-            vaultStore.isGenuineSession()
+          ? hasNativeConnectorDriver(method, id)
           : compiledApiKeyRoute(id) && !apiKeyClosed),
   };
 }
