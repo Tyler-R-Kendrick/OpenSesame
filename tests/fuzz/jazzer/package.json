@@ -11,7 +11,7 @@
     "test:fuzz:batch": "tsx src/run.ts"
   },
   "dependencies": {
-    "@env-spec/parser": "0.4.1",
+    "@env-spec/parser": "0.6.2",
     "@opensesame/audit": "workspace:*",
     "@opensesame/auth-upstream": "workspace:*",
     "@opensesame/capability-composition": "workspace:*",
@@ -24,7 +24,7 @@
     "@jazzer.js/core": "4.0.0",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
-    "tsx": "4.20.3",
+    "tsx": "4.23.15",
     "typescript": "5.8.3",
     "vitest": "4.1.12"
   }

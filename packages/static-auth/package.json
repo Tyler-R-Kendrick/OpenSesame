@@ -15,7 +15,7 @@
     "@opensesame/browser-at-rest": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-browser": "workspace:*",
-    "jose": "6.2.8"
+    "jose": "6.2.13"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

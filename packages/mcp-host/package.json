@@ -23,14 +23,14 @@
     "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/telemetry": "workspace:*",
-    "posthog-node": "5.48.1",
-    "zod": "4.6.6"
+    "posthog-node": "5.57.2",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
-    "tsx": "4.19.4",
+    "tsx": "4.23.15",
     "typescript": "5.8.3",
     "vitest": "4.1.12"
   },

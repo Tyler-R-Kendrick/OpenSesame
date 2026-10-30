@@ -8,8 +8,8 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@oxlint/plugins": "1.79.0",
-    "oxlint": "1.79.0",
+    "@oxlint/plugins": "1.89.0",
+    "oxlint": "1.89.0",
     "vitest": "4.1.12"
   }
 }

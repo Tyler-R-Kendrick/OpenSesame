@@ -28,17 +28,17 @@
   "dependencies": {
     "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
-    "@xmldom/xmldom": "0.8.15",
-    "jose": "6.2.8",
+    "@xmldom/xmldom": "0.9.12",
+    "jose": "6.2.13",
     "selfsigned": "5.5.0",
-    "xml-crypto": "6.1.2"
+    "xml-crypto": "6.4.0"
   },
   "devDependencies": {
-    "@node-saml/node-saml": "5.1.0",
+    "@node-saml/node-saml": "5.2.0",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "ldapjs": "3.0.7",
-    "tsx": "4.19.4",
+    "tsx": "4.23.15",
     "typescript": "5.8.3",
     "vitest": "4.1.12"
   },

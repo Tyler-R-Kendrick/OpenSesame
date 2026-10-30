@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
-    "jose": "6.2.8"
+    "jose": "6.2.13"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

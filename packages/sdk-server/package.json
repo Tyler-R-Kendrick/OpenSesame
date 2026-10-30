@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
-    "jose": "6.2.8"
+    "jose": "6.2.13"
   },
   "peerDependencies": {
     "hono": "^4.7.0"
@@ -35,7 +35,7 @@
   "devDependencies": {
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
-    "hono": "4.13.11",
+    "hono": "4.13.14",
     "typescript": "5.8.3",
     "vitest": "4.1.12"
   },
