@@ -18,7 +18,7 @@ import {
 
 export const MCP_CLASSIFICATION: NativeFieldClassification = {
   publicParameters: ["mcp_url"],
-  privateCredentials: ["mcp_client"],
+  privateCredentials: ["mcp_client", "mcp_registration_mode"],
 };
 export function nativeMcpClassification(
   _configuration: NativeConfiguration,

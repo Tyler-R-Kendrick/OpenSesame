@@ -30,6 +30,7 @@
     "verify:live-netns": "node scripts/verify-live-netns.mjs",
     "verify:browser-sessions": "node scripts/verify-browser-sessions.mjs",
     "verify:browser-session-lifecycle": "node scripts/verify-browser-session-lifecycle.mjs",
+    "test:mcp-cross-realm": "node test/mcp-cross-realm/runner.mjs ../..",
     "test:browser-sessions": "VITE_BASE=/OpenSesame/ pnpm run build && pnpm run verify:browser-sessions",
     "verify:keyboard": "node scripts/verify-keyboard.mjs",
     "verify:tutorials": "node scripts/verify-tutorials.mjs",

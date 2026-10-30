@@ -1,4 +1,5 @@
 import { updateNativeConnector } from "./native-connector-store.js";
+import type { NativeMcpRegistrationMode } from "./native-mcp-oauth-metadata.js";
 import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
 import { MCP_CLASSIFICATION } from "./native-mcp-profile.js";
 import { requireNativeMcpRecord } from "./native-mcp-records.js";
@@ -8,7 +9,12 @@ import { nativeOAuthGuard } from "./native-oauth-session.js";
 
 const retained = new Map<
   string,
-  { intentId: string; fingerprint: string; client: string | null }
+  {
+    intentId: string;
+    fingerprint: string;
+    client: string | null;
+    mode: NativeMcpRegistrationMode | null;
+  }
 >();
 export function forgetRetainedNativeMcpRegistration(
   id: string,
@@ -20,14 +26,17 @@ export function assertNativeMcpRegistrationCapacity(id: string): void {
   if (retained.size >= 64 && !retained.has(id))
     throw new NativeMcpAuthError("storage");
 }
+export function assertNativeMcpRegistrationAvailable(id: string): void {
+  assertNativeMcpRegistrationCapacity(id);
+  if (retained.has(id)) throw new NativeMcpAuthError("storage");
+}
 export function reserveNativeMcpRegistration(
   id: string,
   intentId: string,
   fingerprint: string,
 ): void {
-  assertNativeMcpRegistrationCapacity(id);
-  if (retained.has(id)) throw new NativeMcpAuthError("storage");
-  retained.set(id, { intentId, fingerprint, client: null });
+  assertNativeMcpRegistrationAvailable(id);
+  retained.set(id, { intentId, fingerprint, client: null, mode: null });
 }
 export function releaseNativeMcpRegistrationReservation(
   id: string,
@@ -37,7 +46,7 @@ export function releaseNativeMcpRegistrationReservation(
   if (entry?.intentId === intentId && entry.client === null)
     retained.delete(id);
 }
-/** A registration that can never be sealed: clear its obligation so the connector stays removable. */
+/** Discard an obligation only when no registration request was submitted. */
 export async function discardNativeMcpRegistration(
   id: string,
   intentId: string,
@@ -67,6 +76,7 @@ async function sealRetained(
   intentId: string,
   fingerprint: string,
   client: string,
+  mode: NativeMcpRegistrationMode,
 ): Promise<void> {
   const current = requireNativeMcpRecord(id);
   let accepted = false;
@@ -87,10 +97,13 @@ async function sealRetained(
         )
           throw new NativeMcpAuthError("metadata");
         record.privateState.credentials.mcp_client = client;
+        record.privateState.credentials.mcp_registration_mode = mode;
         intent.credentials = {
           ...intent.credentials,
           client,
           phase: "registered",
+          registration_mode: mode,
+          submission: "settled",
         };
         accepted = true;
         return record;
@@ -113,23 +126,24 @@ export async function retainNativeMcpRegistration(
   intentId: string,
   fingerprint: string,
   client: NativeMcpRegisteredClient,
+  mode: NativeMcpRegistrationMode,
 ): Promise<void> {
   assertNativeMcpRegistrationCapacity(id);
   const sealed = JSON.stringify(client);
-  retained.set(id, { intentId, fingerprint, client: sealed });
-  await sealRetained(id, intentId, fingerprint, sealed);
+  retained.set(id, { intentId, fingerprint, client: sealed, mode });
+  await sealRetained(id, intentId, fingerprint, sealed, mode);
 }
-/** A later seal: a copy whose content is still refused ends as the removable metadata refusal. */
+/** Retry sealing the retained registration; keep its obligation on failure. */
 export async function retryRetainedNativeMcpRegistration(
   id: string,
 ): Promise<void> {
   const entry = retained.get(id);
-  if (!entry?.client) return;
-  try {
-    await sealRetained(id, entry.intentId, entry.fingerprint, entry.client);
-  } catch (error) {
-    if (error instanceof NativeMcpAuthError && error.code === "metadata")
-      await discardNativeMcpRegistration(id, entry.intentId);
-    throw error;
-  }
+  if (!entry?.client || !entry.mode) return;
+  await sealRetained(
+    id,
+    entry.intentId,
+    entry.fingerprint,
+    entry.client,
+    entry.mode,
+  );
 }
