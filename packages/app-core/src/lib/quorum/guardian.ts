@@ -11,7 +11,7 @@
  * about them.
  */
 
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import { fromB64url, utf8Bytes, utf8Text, wipe } from "./bytes.js";

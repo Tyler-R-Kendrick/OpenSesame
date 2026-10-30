@@ -1,4 +1,4 @@
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 /**
  * Packets (ADR 0187 §10): every document a circle passes between people,
  * built by the real protocol, survives the trip as one line of text; and
