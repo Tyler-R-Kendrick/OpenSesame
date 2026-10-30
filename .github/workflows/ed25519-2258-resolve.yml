@@ -1,0 +1,58 @@
+name: Ed25519 lock and compatibility investigation
+on:
+  push:
+    branches: [review/ed25519-2258-resolve-dd32-20261030]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/ed25519-2258-resolve-dd32-20261030' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ad201b9a165d19f6c98750be1ac1d1604c71baf1
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+      - name: Verify exact staged source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = ad201b9a165d19f6c98750be1ac1d1604c71baf1
+          test "$(git rev-parse HEAD^{tree})" = 7143f8757b89398e545d4e2210117b79a10c728d
+          test "$(git rev-parse HEAD^)" = dd3240fbf5bad52237d9e9fbe891d68d6ad7c889
+      - name: Install Linux native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config clang
+      - name: Resolve both lockfiles using Rust 1.88
+        id: locks
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 update -p ed25519-dalek@2.2.0
+          cargo +1.88.0 update --manifest-path tests/fuzz/cargo/Cargo.toml -p uuid --precise 1.26.0
+          cargo +1.88.0 metadata --locked --format-version 1 --no-deps > /dev/null
+          git diff --stat -- Cargo.lock tests/fuzz/cargo/Cargo.lock
+          mkdir -p "$RUNNER_TEMP/ed25519-lock/root" "$RUNNER_TEMP/ed25519-lock/fuzz"
+          cp Cargo.lock "$RUNNER_TEMP/ed25519-lock/root/Cargo.lock"
+          cp tests/fuzz/cargo/Cargo.lock "$RUNNER_TEMP/ed25519-lock/fuzz/Cargo.lock"
+          (cd "$RUNNER_TEMP/ed25519-lock" && sha256sum root/Cargo.lock fuzz/Cargo.lock > SHA256SUMS)
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: ed25519-2258-locks
+          path: ${{ runner.temp }}/ed25519-lock
+          if-no-files-found: error
+          retention-days: 7
+      - name: Check workspace targets with Rust 1.88
+        id: workspace
+        run: cargo +1.88.0 check --locked --workspace --all-targets
+      - name: Check fuzz bins with Rust 1.88
+        if: always() && steps.locks.outcome == 'success'
+        run: cargo +1.88.0 check --locked --manifest-path tests/fuzz/cargo/Cargo.toml --bins
