@@ -20,6 +20,7 @@ import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { samlBrowserCrypto } from "./scripts/saml-browser-crypto.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { sharedWorkerGraph } from "./scripts/shared-worker-graph.mjs";
+import { shellBuildMetadata } from "./scripts/shell-build-metadata-plugin.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 import {
   tailscaleWasmAssets,
@@ -271,6 +272,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    shellBuildMetadata(),
     zodCsp(),
     vercelOidcNamespace(fileURLToPath(new URL("../..", import.meta.url))),
     process.env.OPENSESAME_AI_COMPLETION_VERIFY === "1" && {
