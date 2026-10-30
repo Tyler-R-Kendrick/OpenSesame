@@ -3225,7 +3225,7 @@ dependencies = [
  "hkdf 0.12.4",
  "hmac 0.12.1",
  "libc",
- "pbkdf2 0.12.2",
+ "pbkdf2 0.13.0",
  "rand 0.8.7",
  "serde",
  "serde_json",
