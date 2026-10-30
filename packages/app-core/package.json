@@ -47,7 +47,7 @@
     "@effect/platform-node-shared": "4.0.6",
     "@gdp-ts/core": "0.1.0",
     "@levischuck/tiny-cbor": "0.3.6",
-    "@modelcontextprotocol/sdk": "1.32.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@nats-io/nkeys": "2.0.3",
     "@noble/ciphers": "2.4.0",
     "@noble/curves": "2.4.0",
@@ -75,7 +75,7 @@
     "@opensesame/wallet-budget": "workspace:*",
     "@opensesame/wallet-consent": "workspace:*",
     "@opensesame/webmcp": "workspace:*",
-    "@vercel/connect": "2.2.0",
+    "@vercel/connect": "2.5.6",
     "age-encryption": "0.3.1",
     "ai": "6.0.237",
     "effect": "4.0.6",
@@ -86,7 +86,7 @@
     "xml-core": "1.2.6",
     "xmldsigjs": "2.8.8",
     "yaml": "2.9.1",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "license": "MIT",
   "repository": {

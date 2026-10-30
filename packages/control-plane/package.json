@@ -52,7 +52,7 @@
     "ldapts": "9.2.0",
     "nodemailer": "10.2.1",
     "openid-client": "6.8.8",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.12",
