@@ -10,4 +10,4 @@ rust-version.workspace = true
 [dependencies]
 sqlx-core = { version = "0.8.6", default-features = false, features = ["_rt-tokio", "chrono", "uuid", "migrate"] }
 sqlx-sqlite = { version = "0.8.6", default-features = false, features = ["bundled", "chrono", "uuid", "migrate"] }
-sqlx-postgres = { version = "0.8.6", default-features = false, features = ["chrono", "uuid", "migrate"] }
+sqlx-postgres = { version = "0.9.0", default-features = false, features = ["chrono", "uuid", "migrate"] }
