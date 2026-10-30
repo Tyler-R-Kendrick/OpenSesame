@@ -1,0 +1,56 @@
+name: Probe TypeScript 6 API bridge
+on:
+  push:
+    branches: [review/typescript-v7-api-bridge-20261030]
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-api-bridge-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: a488d3d19548b040c68380232d0c11d8e30a9ff3
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact TypeScript 7 dependency graph
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a488d3d19548b040c68380232d0c11d8e30a9ff3
+          pnpm install --frozen-lockfile --ignore-scripts
+          npm install --prefix "$RUNNER_TEMP/ts6-api" --no-audit --no-fund --ignore-scripts typescript@6.0.3
+      - name: Probe compiler API compatibility and portability gate
+        run: |
+          set -euo pipefail
+          node -e 'const ts=require(process.env.RUNNER_TEMP+"/ts6-api/node_modules/typescript"); for(const n of ["version","createProgram","createCompilerHost","findConfigFile","isTypeNode","sys"]) console.log(n,typeof ts[n],n==="version"?ts[n]:"")'
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { pathToFileURL } from 'node:url';
+          const path = 'scripts/lib/app-core-portability.mjs';
+          const old = 'import ts from "typescript";';
+          const text = readFileSync(path, 'utf8');
+          if (text.split(old).length !== 2) throw new Error('Unexpected portability source');
+          const location = pathToFileURL(`${process.env.RUNNER_TEMP}/ts6-api/node_modules/typescript/lib/typescript.js`).href;
+          writeFileSync(path, text.replace(old, `import ts from "${location}";`));
+          JS
+          trap 'git restore -- scripts/lib/app-core-portability.mjs' EXIT
+          pnpm quality:app-core
+      - name: Probe declaration generator with TypeScript 6 API
+        if: always()
+        run: |
+          set -euo pipefail
+          dts_entry="$(cd packages/cli && node -p 'require.resolve("dts-bundle-generator")')"
+          dts_modules="$(dirname "$(dirname "$(dirname "$dts_entry")")")"
+          test ! -e "$dts_modules/typescript"
+          ln -s "$RUNNER_TEMP/ts6-api/node_modules/typescript" "$dts_modules/typescript"
+          trap 'rm -f "$dts_modules/typescript"' EXIT
+          (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; if (typeof bundleDeclarations !== "function") process.exit(1); console.log("declaration generator loads using TypeScript 6 API")')
+          pnpm --filter @opensesame/cli build
+      - name: Verify source remains unchanged
+        if: always()
+        run: git diff --exit-code
