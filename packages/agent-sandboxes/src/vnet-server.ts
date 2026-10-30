@@ -16,6 +16,7 @@ import {
   type ServerResponse,
   createServer,
 } from "node:http";
+import { z } from "zod";
 import { CookieJar } from "./vnet-cookie-jar.js";
 import { pinnedFetch } from "./vnet-pinned-fetch.js";
 import {
@@ -116,7 +117,7 @@ function requestHeaders(
   forward: boolean,
   jar: CookieJar,
   url: URL,
-): Record<string, string> {
+) {
   const headers: Record<string, string> = {};
   for (const [name, value] of Object.entries(
     forward ? (request.headers ?? {}) : {},
@@ -215,20 +216,13 @@ async function readRequestBody(
   return Buffer.concat(chunks).toString("utf8");
 }
 
-function closeSession(data: unknown, sessions: Map<string, Session>): void {
-  if (
-    !data ||
-    typeof data !== "object" ||
-    !("sessionId" in data) ||
-    typeof data.sessionId !== "string" ||
-    !data.sessionId ||
-    data.sessionId.length > 128
-  )
-    throw new Error("virtual network: invalid session id");
-  const session = sessions.get(data.sessionId);
+const closeSessionSchema = z.object({ sessionId: z.string().min(1).max(128) });
+
+function closeSession(sessionId: string, sessions: Map<string, Session>): void {
+  const session = sessions.get(sessionId);
   if (session) {
     session.closing = true;
-    if (session.active === 0) sessions.delete(data.sessionId);
+    if (session.active === 0) sessions.delete(sessionId);
   }
 }
 
@@ -311,9 +305,12 @@ async function handleRequest(
   const body = await readRequestBody(request, response);
   if (body === null) return;
   try {
-    const data: unknown = JSON.parse(body);
+    const data = JSON.parse(body);
     if (request.url === "/close") {
-      closeSession(data, context.sessions);
+      const parsed = closeSessionSchema.safeParse(data);
+      if (!parsed.success)
+        throw new Error("virtual network: invalid session id");
+      closeSession(parsed.data.sessionId, context.sessions);
       response.writeHead(204).end();
       return;
     }

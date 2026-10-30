@@ -1,98 +1,144 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { once } from "node:events";
+import { type Server, createServer } from "node:http";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import WebSocket, { WebSocketServer } from "ws";
+import { z } from "zod";
 import {
   CloudflareBrowserRunClient,
   CloudflareSessionCleanupError,
 } from "./cloudflare-client.js";
 import { CloudflareSandboxProvider } from "./cloudflare-provider.js";
 
-const mocks = vi.hoisted(() => ({
-  connect: vi.fn(),
-  driverConnect: vi.fn(),
-}));
+const servers: Server[] = [];
+const sockets: WebSocketServer[] = [];
+const commandSchema = z.object({ id: z.number(), method: z.string() });
+type DriverMode = "fail" | "wait" | "success";
 
-vi.mock("./cdp-node-socket.js", () => ({ connectCdp: mocks.connect }));
-vi.mock("./cdp-driver.js", () => ({
-  CdpBrowserDriver: { connect: mocks.driverConnect },
-}));
-
-function fakeClient(deleteStatus = 200) {
+async function fakeProvider(mode: DriverMode, deleteStatus = 200) {
+  const server = createServer();
+  const socketServer = new WebSocketServer({ server });
+  servers.push(server);
+  sockets.push(socketServer);
+  let closed = 0;
+  socketServer.on("connection", (socket) => {
+    socket.on("close", () => {
+      closed += 1;
+    });
+    socket.on("message", (bytes) => {
+      const command = commandSchema.parse(JSON.parse(bytes.toString()));
+      if (mode === "wait") return;
+      if (mode === "fail") {
+        socket.send(
+          JSON.stringify({
+            id: command.id,
+            error: { message: "driver refused" },
+          }),
+        );
+        return;
+      }
+      const result =
+        command.method === "Target.createTarget"
+          ? { targetId: "target-1" }
+          : command.method === "Target.attachToTarget"
+            ? { sessionId: "attached-1" }
+            : {};
+      socket.send(JSON.stringify({ id: command.id, result }));
+    });
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = z
+    .object({ port: z.number().int().positive() })
+    .parse(server.address());
+  const baseUrl = `http://127.0.0.1:${port}`;
   const calls: string[] = [];
+  const close = vi.spyOn(WebSocket.prototype, "close");
+  let closeCallsAtDelete = 0;
   const client = new CloudflareBrowserRunClient({
     accountId: "acct-1",
     apiToken: "token-1",
+    baseUrl,
+    allowInsecureLoopbackForTesting: true,
     fetchImpl: async (url, init) => {
       calls.push(`${init?.method} ${url}`);
+      if (init?.method === "DELETE")
+        closeCallsAtDelete = close.mock.calls.length;
       return new Response(JSON.stringify({ sessionId: "sess-9" }), {
         status: init?.method === "DELETE" ? deleteStatus : 200,
       });
     },
   });
-  return { client, calls };
+  return {
+    provider: new CloudflareSandboxProvider({ client }),
+    calls,
+    closed: () => closed,
+    closeCallsAtDelete: () => closeCallsAtDelete,
+  };
 }
 
-beforeEach(() => {
-  mocks.connect.mockReset();
-  mocks.driverConnect.mockReset();
+afterEach(async () => {
+  try {
+    for (const socketServer of sockets.splice(0)) {
+      for (const socket of socketServer.clients) socket.terminate();
+      await new Promise<void>((resolve) => socketServer.close(() => resolve()));
+    }
+    for (const server of servers.splice(0)) {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  } finally {
+    vi.restoreAllMocks();
+  }
 });
-afterEach(() => vi.useRealTimers());
 
 describe("Cloudflare provider lifecycle", () => {
   it("closes an open socket and deletes the session when driver initialization fails", async () => {
-    const { client, calls } = fakeClient();
-    const close = vi.fn();
-    mocks.connect.mockResolvedValue({ close });
-    mocks.driverConnect.mockRejectedValue(new Error("driver refused"));
-    const provider = new CloudflareSandboxProvider({ client });
+    const { provider, calls, closed, closeCallsAtDelete } =
+      await fakeProvider("fail");
     await expect(
       provider.allocate({ origin: "https://accounts.example.test" }),
     ).rejects.toThrow("driver refused");
-    expect(close).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(closed()).toBe(1));
+    expect(closeCallsAtDelete()).toBe(1);
     expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
   });
 
   it("bounds initialization and closes the socket before session deletion", async () => {
-    vi.useFakeTimers();
-    const { client, calls } = fakeClient();
-    const close = vi.fn();
-    mocks.connect.mockResolvedValue({ close });
-    mocks.driverConnect.mockImplementation(() => new Promise(() => {}));
-    const provider = new CloudflareSandboxProvider({ client });
+    const { provider, calls, closed, closeCallsAtDelete } =
+      await fakeProvider("wait");
+    await expect(
+      provider.allocate({ origin: "https://accounts.example.test" }),
+    ).rejects.toThrow("initialization timed out");
+    await vi.waitFor(() => expect(closed()).toBe(1));
+    expect(closeCallsAtDelete()).toBe(1);
+    expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
+  }, 25_000);
+
+  it("returns the validated session ID when cleanup fails", async () => {
+    const { provider, closed, closeCallsAtDelete } = await fakeProvider(
+      "fail",
+      500,
+    );
     const pending = provider.allocate({
       origin: "https://accounts.example.test",
     });
-    const rejected = expect(pending).rejects.toThrow(
-      "initialization timed out",
-    );
-    await vi.advanceTimersByTimeAsync(15_001);
-    await rejected;
-    expect(close).toHaveBeenCalledOnce();
-    expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
-  });
-
-  it("returns the validated session ID when cleanup fails", async () => {
-    const { client } = fakeClient(500);
-    const close = vi.fn();
-    mocks.connect.mockResolvedValue({ close });
-    mocks.driverConnect.mockRejectedValue(new Error("driver refused"));
-    const provider = new CloudflareSandboxProvider({ client });
-    const failure = await provider
-      .allocate({ origin: "https://accounts.example.test" })
-      .catch((error: unknown) => error);
-    expect(failure).toBeInstanceOf(CloudflareSessionCleanupError);
-    expect(failure).toMatchObject({ sessionId: "sess-9" });
-    expect(close).toHaveBeenCalledOnce();
+    await expect(pending).rejects.toBeInstanceOf(CloudflareSessionCleanupError);
+    await expect(pending).rejects.toMatchObject({
+      name: "CloudflareSessionCleanupError",
+      sessionId: "sess-9",
+    });
+    await vi.waitFor(() => expect(closed()).toBe(1));
+    expect(closeCallsAtDelete()).toBe(1);
   });
 
   it("attempts session deletion even if closing the browser throws", async () => {
-    const { client, calls } = fakeClient();
-    mocks.connect.mockResolvedValue({ close: vi.fn() });
-    mocks.driverConnect.mockResolvedValue({
-      close: vi.fn().mockRejectedValue(new Error("close failed")),
-    });
-    const provider = new CloudflareSandboxProvider({ client });
+    const { provider, calls } = await fakeProvider("success");
     const sandbox = await provider.allocate({
       origin: "https://accounts.example.test",
     });
+    vi.spyOn(sandbox.browser, "close").mockRejectedValue(
+      new Error("close failed"),
+    );
     await expect(sandbox.close()).rejects.toThrow("close failed");
     expect(calls[1]).toMatch(/^DELETE .*\/sess-9$/u);
   });
