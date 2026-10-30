@@ -3,6 +3,7 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { CATALOG_ROW_JSON } from "@opensesame/app-core/lib/connector-catalog.generated.js";
+import { providerFromView } from "@opensesame/app-core/lib/connector-catalog.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
@@ -33,7 +34,7 @@ installConnectorIntegration();
 export function provider(id: string): Provider {
   const providers =
     id === "azure-kms"
-      ? CATALOG_ROW_JSON.map((row) => JSON.parse(row) as Provider)
+      ? CATALOG_ROW_JSON.map((row) => providerFromView(JSON.parse(row)))
       : mergeVercelCatalog(getBundledProviders());
   const found = connectionRouteProvider(providers, id);
   if (!found) throw new Error(`${id} is not bundled`);
