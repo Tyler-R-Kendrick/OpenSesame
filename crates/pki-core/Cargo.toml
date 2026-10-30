@@ -11,7 +11,7 @@
 #   the patched RustCrypto generation; PEM/DER bytes bridge their newer
 #   signature and PKCS#8 traits without changing encoded keys or signatures.
 #   RSA key generation and PKCS#1 signing use AWS-LC through rcgen and aws-lc-rs.
-# * PKCS#12 uses `p12-keystore` 0.3.1. `p12` 0.6 is `yasna`-based and
+# * PKCS#12 uses `p12-keystore` 0.4.1. `p12` 0.6 is `yasna`-based and
 #   single-entry; RustCrypto `pkcs12` 0.2 is a pre-release with no high-level
 #   keystore API. `p12-keystore` was the only crate that both builds here and
 #   enumerates multiple entries with friendly names, which the brief requires.
@@ -40,7 +40,7 @@ x509-cert = "0.2.5"
 der = { version = "0.7.10", features = ["oid", "derive", "alloc"] }
 spki = "0.7.3"
 pkcs8 = { version = "0.11.0", features = ["alloc", "pem"] }
-p12-keystore = "0.3.1"
+p12-keystore = "0.4.1"
 aws-lc-rs = "1.18.0"
 p256 = { version = "0.14", features = ["ecdsa", "pkcs8"] }
 p384 = { version = "0.14", features = ["ecdsa", "pkcs8"] }
