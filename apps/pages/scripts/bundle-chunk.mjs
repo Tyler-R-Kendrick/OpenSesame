@@ -32,14 +32,12 @@ export function bundleChunk(id) {
   if (path.includes("/lib/device-identity-host.ts")) {
     return "device-identity-host";
   }
-  // The same @noble/hashes and @noble/curves modules are emitted into more
-  // than one lazy chunk. One chunk keeps a single copy. The /esm/ entry
-  // stays put: the bootstrap registration chunk imports it, and folding it
-  // in here would pull the lazy curves onto the first page.
+  // Curves are shared by lazy features. Hashes also serve bootstrap, so
+  // leave all hash modules to Rollup: grouping them with curves would pull
+  // the lazy curves onto the first page. Noble v2 hashes live at the package
+  // root rather than under /esm/.
   if (
-    (path.includes("/node_modules/@noble/hashes/") ||
-      path.includes("/node_modules/@noble/curves/")) &&
-    !path.includes("/node_modules/@noble/hashes/esm/") &&
+    path.includes("/node_modules/@noble/curves/") &&
     !path.includes("/node_modules/@noble/curves/esm/")
   ) {
     return "noble-crypto";

@@ -28,7 +28,7 @@
  * can be large, so it travels as a file.
  */
 
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { z } from "zod";
 import { fromB64url, toB64url, toHex, utf8Bytes, utf8Text } from "./bytes.js";
 import { ShareDeliverySchema } from "./circle.js";

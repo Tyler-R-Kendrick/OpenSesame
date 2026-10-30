@@ -4,7 +4,7 @@
  * these are platform algorithms, and a synthetic generator never contacts an
  * issuer or proves that a credential is live.
  */
-import { keccak_256 } from "@noble/hashes/sha3";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import type { JsonValue } from "@opensesame/os-domain";
 import type { FieldValues } from "@opensesame/vault-item-types";
@@ -459,7 +459,7 @@ const vinFormat: ItemFormat = {
 };
 
 function checksumAddress(lower: string): string {
-  const hash = hex(keccak_256(lower));
+  const hash = hex(keccak_256(new TextEncoder().encode(lower)));
   let out = "0x";
   for (let index = 0; index < lower.length; index += 1) {
     const char = lower.charAt(index);

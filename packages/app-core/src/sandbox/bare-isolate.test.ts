@@ -142,6 +142,27 @@ describe("the portable core in a bare V8 context", () => {
     ).toBe("undefined");
   });
 
+  it("derives PBKDF2 without timers after yielding between work windows", async () => {
+    const context = isolate();
+    const result = await inside(
+      context,
+      `
+      let clock = 0;
+      Date.now = () => (clock += 11);
+      const password = new TextEncoder().encode("password");
+      const salt = new TextEncoder().encode("salt");
+      const key = await crypto.subtle.importKey("raw", password, "PBKDF2", false, ["deriveBits"]);
+      const derived = await crypto.subtle.deriveBits({name: "PBKDF2", salt, iterations: 3, hash: "SHA-256"}, key, 512);
+      return { timer: typeof setTimeout, clock, hex: Array.from(new Uint8Array(derived), byte => byte.toString(16).padStart(2, "0")).join("") };
+    `,
+    );
+    expect(result).toEqual({
+      timer: "undefined",
+      clock: 110,
+      hex: "ad35240ac683febfaf3cd49d845473fbbbaa2437f5f82d5a415ae00ac76c6bfccf9a9b8d6d2fe4a1e700c4460b040dbed692c1cb85a747f35588c08930fcfc41",
+    });
+  });
+
   it("refuses a host without Unicode normalisation", async () => {
     const context = isolate();
     expect(
