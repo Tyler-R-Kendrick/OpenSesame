@@ -3,7 +3,7 @@
 # Installed via `pnpm setup:hooks` (see scripts/dev/setup-hooks.sh).
 #
 # Mode is controlled by OPENSESAME_PREPUSH:
-#   off  -> skip entirely
+#   off  -> skip optional checks; exposure policy remains mandatory
 #   fast -> lint, static quality and typecheck (default when unset)
 #   full -> pnpm verify, including tests (explicit local opt-in)
 set -e
@@ -19,8 +19,20 @@ mode="${OPENSESAME_PREPUSH:-fast}"
 echo "pre-push: mode=$mode (set with: export OPENSESAME_PREPUSH=off|fast|full)"
 
 case "$mode" in
+  off|fast|full) ;;
+  *)
+    echo "pre-push: unknown OPENSESAME_PREPUSH value '$mode' (expected off|fast|full)" >&2
+    exit 1
+    ;;
+esac
+
+# The exposure invariant is mandatory, including when optional checks are off.
+# Git supplies the actual pushed refs on stdin; a different branch is not HEAD.
+node scripts/security/exposure-matrix-gate.mjs --push-refs
+
+case "$mode" in
   off)
-    echo "pre-push: OPENSESAME_PREPUSH=off, skipping checks"
+    echo "pre-push: OPENSESAME_PREPUSH=off, skipping optional checks"
     exit 0
     ;;
   fast|full)

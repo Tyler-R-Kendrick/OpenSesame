@@ -105,6 +105,7 @@ pnpm verify              # lint + lint:anti-slop + test:anti-slop + quality + te
 # Security/audit gates (scripts/audit/*-gate.sh; the fuzz passes are in scripts/fuzz/)
 pnpm audit:cve-lite
 pnpm audit:ast-grep
+pnpm audit:exposure        # deterministic exposure combinations and reviewed source bindings
 pnpm audit:clippy          # rustfmt + full-feature Clippy; pedantic/complexity denied
 pnpm audit:osv
 pnpm audit:cargo-audit

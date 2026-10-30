@@ -83,6 +83,7 @@ test("ordinary pushes run static checks and typechecking without test suites", (
   const result = fixture(t).run();
   assert.equal(result.status, 0, result.stderr);
   for (const command of [
+    "node scripts/security/exposure-matrix-gate.mjs --push-refs",
     "node scripts/quality/evidence-gate.mjs",
     "node scripts/quality/repository-size-gate.mjs",
     "node scripts/dev/sync-agent-skills.mjs --check",
@@ -142,16 +143,51 @@ test("full verification stays an explicit local opt-in", (t) => {
   const result = fixture(t).run("pre-push", { OPENSESAME_PREPUSH: "full" });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.commands, /pnpm verify\n/);
+  assert.match(
+    result.commands,
+    /node scripts\/security\/exposure-matrix-gate\.mjs --push-refs\n/,
+  );
   assert.doesNotMatch(result.commands, /pnpm typecheck/);
 });
 
-test("disabled hooks do no work and unknown modes fail", (t) => {
+test("off skips optional checks but still enforces exposure policy; unknown modes fail", (t) => {
   const disabled = fixture(t).run("pre-push", { OPENSESAME_PREPUSH: "off" });
   assert.equal(disabled.status, 0, disabled.stderr);
-  assert.equal(disabled.commands, "");
+  assert.equal(
+    disabled.commands,
+    "node scripts/security/exposure-matrix-gate.mjs --push-refs\n",
+  );
   const invalid = fixture(t).run("pre-push", { OPENSESAME_PREPUSH: "typo" });
   assert.equal(invalid.status, 1);
   assert.equal(invalid.commands, "");
+});
+
+test("exposure failure stops every push mode before optional checks", (t) => {
+  for (const mode of ["off", "fast", "full"]) {
+    const result = fixture(t).run("pre-push", {
+      OPENSESAME_PREPUSH: mode,
+      HOOK_FAIL: "node scripts/security/exposure-matrix-gate.mjs --push-refs",
+    });
+    assert.equal(result.status, 17);
+    assert.equal(
+      result.commands,
+      "node scripts/security/exposure-matrix-gate.mjs --push-refs\n",
+    );
+    assert.doesNotMatch(result.stdout, /pre-push: OK/);
+  }
+});
+
+test("commits check index exposure before any working-tree lint", (t) => {
+  const result = fixture(t).run("pre-commit", {
+    HOOK_STAGED_PATHS: "packages/control-plane/src/routes/claims.ts",
+    HOOK_FAIL: "node scripts/security/exposure-matrix-gate.mjs --staged",
+  });
+  assert.equal(result.status, 17);
+  assert.equal(
+    result.commands,
+    "node scripts/security/exposure-matrix-gate.mjs --staged\n",
+  );
+  assert.doesNotMatch(result.stdout, /pre-commit: OK/);
 });
 
 test("hook setup is idempotent and installs both executable hooks", (t) => {
