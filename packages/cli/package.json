@@ -42,19 +42,19 @@
     "@opensesame/sdk-cli": "workspace:*",
     "@opensesame/vault-core": "workspace:*",
     "agent-browser": "0.39.4",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
-    "@types/ws": "8.18.1",
+    "@types/ws": "8.18.2",
     "dts-bundle-generator": "9.5.1",
     "esbuild": "0.25.12",
-    "tsx": "4.19.4",
+    "tsx": "4.23.15",
     "typescript": "5.8.3",
     "vitest": "4.1.12",
-    "ws": "8.21.3"
+    "ws": "8.22.0"
   },
   "license": "MIT",
   "repository": {
