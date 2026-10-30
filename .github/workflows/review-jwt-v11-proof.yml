@@ -1,0 +1,40 @@
+name: JWT fail-closed upgrade proof
+on:
+  push:
+    branches: [review/jwt-v11-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 0e0b4d4ff7d8e6548b370c1b112f87d072f9a223
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          components: rustfmt
+      - name: Check formatting
+        run: rustfmt --edition 2021 --check crates/proof/src/jwk.rs crates/proof/src/adversarial.rs
+      - name: Prepare DBus
+        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
+      - name: Test proof policy and negative controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          cargo test -p opensesame-proof --locked
+      - name: Check all workspace targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          cargo check --workspace --all-targets --locked
