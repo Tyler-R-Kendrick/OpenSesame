@@ -173,7 +173,7 @@ export function DropClaimScreen({
             id="drop-user-code"
             ref={codeRef}
             name="userCode"
-            className="mono"
+            className="mono f__input--mono"
             autoComplete="one-time-code"
             spellCheck={false}
             value={userCode}
