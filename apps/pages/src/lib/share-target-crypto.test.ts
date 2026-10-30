@@ -64,7 +64,18 @@ it("opens an offset ciphertext view without copying its input", async () => {
   expect(offered.byteLength).toBe(view.byteLength - 12);
 });
 
-it("uses the real ciphertext view despite spoofed properties and methods", async () => {
+it("does not decrypt a different valid ciphertext through a spoofed subarray", async () => {
+  const key = newShareTargetKey();
+  const actual = await sealShareTarget(key, new Uint8Array([1, 2]));
+  const other = await sealShareTarget(key, new Uint8Array([9, 9]));
+  Object.defineProperty(actual, "subarray", {
+    value: (...args: number[]) =>
+      Reflect.apply(Uint8Array.prototype.subarray, other, args),
+  });
+  expect(await openShareTarget(key, actual)).toEqual(new Uint8Array([1, 2]));
+});
+
+it("uses the real ciphertext view despite spoofed metadata", async () => {
   const key = newShareTargetKey();
   const actual = await sealShareTarget(key, new Uint8Array([1, 2]));
   const other = await sealShareTarget(key, new Uint8Array([9, 9]));
@@ -73,10 +84,6 @@ it("uses the real ciphertext view despite spoofed properties and methods", async
     byteLength: { value: 0 },
     byteOffset: { value: 0 },
     buffer: { value: other.buffer },
-    subarray: {
-      value: (...args: number[]) =>
-        Reflect.apply(Uint8Array.prototype.subarray, other, args),
-    },
   });
   expect(await openShareTarget(key, actual)).toEqual(new Uint8Array([1, 2]));
 });
