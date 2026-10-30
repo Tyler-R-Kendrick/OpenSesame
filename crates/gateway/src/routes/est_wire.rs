@@ -18,7 +18,7 @@
 //! Certificate authentication requires direct end-client mTLS. Trusted-ingress
 //! peers prove the proxy's key; originating assertions are not an EST proof.
 
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{Extensions, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use base64::Engine as _;
@@ -71,7 +71,7 @@ pub(super) async fn load_profile(
 pub(super) async fn authenticate(
     st: &AppState,
     headers: &HeaderMap,
-    peer: Option<&PeerExtension>,
+    extensions: &Extensions,
     config: &StoredEstConfig,
     profile: &StoredCertificateProfile,
     reenroll: bool,
@@ -79,7 +79,8 @@ pub(super) async fn authenticate(
     // Apply the same end-client requirement before BOTH inventory replacement
     // and bootstrap authentication. A proxy can itself be in the inventory;
     // neither that row nor its TLS key proves possession by a downstream client.
-    let verified = peer
+    let verified = extensions
+        .get::<PeerExtension>()
         .map(|PeerExtension(verified)| verified.as_ref())
         .filter(|verified| {
             verified.source() == EvidenceSource::DirectTls
@@ -112,10 +113,12 @@ pub(super) async fn authenticate(
     if replacing || bootstrap {
         return Ok(());
     }
+    let password = basic_password(headers)
+        .ok_or_else(|| www_authenticate("valid EST credentials are required"))?;
     if config.sealed_passphrase.is_some() {
-        passphrase_budget::reserve(st, config).await?;
+        passphrase_budget::reserve(st, config, extensions).await?;
     }
-    if passphrase_matches(st, headers, config)? {
+    if passphrase_matches(st, &password, config)? {
         return Ok(());
     }
     Err(www_authenticate("valid EST credentials are required"))
@@ -178,13 +181,10 @@ fn bootstrap_ok(
 /// HTTP Basic password check against the sealed passphrase, constant time.
 fn passphrase_matches(
     st: &AppState,
-    headers: &HeaderMap,
+    password: &str,
     config: &StoredEstConfig,
 ) -> Result<bool, Response> {
     let Some(material) = config.sealed_passphrase.as_ref() else {
-        return Ok(false);
-    };
-    let Some(password) = basic_password(headers) else {
         return Ok(false);
     };
     if material.key_id != KEY_ID {

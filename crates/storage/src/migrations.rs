@@ -230,4 +230,8 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0058_bitwarden_attempt_budgets",
         include_str!("../migrations/0058_bitwarden_attempt_budgets.sql"),
     ),
+    (
+        "0059_est_source_budgets",
+        include_str!("../migrations/0059_est_source_budgets.sql"),
+    ),
 ];

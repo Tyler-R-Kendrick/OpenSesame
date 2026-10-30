@@ -116,7 +116,16 @@ the listener's complete trust-anchor set must match it; a listener trusting
 additional CAs fails closed because verified peer evidence does not retain the
 accepted certificate path. Use a dedicated listener with matching anchors.
 Profiles that explicitly allow password authentication can use a random
-passphrase of at least 16 bytes, with five shared checks per ten minutes.
+passphrase of at least 16 bytes, with five durable checks per profile and trusted
+source per ten minutes. A source is a verified originating-client fingerprint or
+canonical TCP IP (IPv4 address, IPv6 /64), never a forwarded address header or
+caller-selected field. Missing source metadata, including declared
+`TrustedIngress` without validated originating-client evidence, fails closed for
+password fallback. Same-NAT clients and clients behind an ordinary unmarked
+reverse proxy share its TCP budget; distributed sources have separate budgets.
+Origin evidence partitions the password budget; it does not replace direct
+client TLS proof for certificate authentication. Active source capacity is bounded
+per profile and only expired entries are removed.
 Omitted configuration fields preserve the existing bootstrap requirement.
 
 Not implemented: the ACME server (RFC 8555, mandatory per-profile EAB,

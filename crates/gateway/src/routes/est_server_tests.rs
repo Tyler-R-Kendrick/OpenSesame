@@ -14,6 +14,25 @@ use crate::app_state::{self, test_env, test_session_headers};
 use crate::config::Args;
 
 fn router(state: crate::app_state::AppState) -> Router {
+    // Unit route fixtures model a socket address supplied by a listener.
+    // Explicit addresses remain intact; production has no such default.
+    router_without_source(state).layer(axum::middleware::from_fn(
+        |mut request: axum::extract::Request, next: axum::middleware::Next| async move {
+            if request
+                .extensions()
+                .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+                .is_none()
+            {
+                request.extensions_mut().insert(axum::extract::ConnectInfo(
+                    "192.0.2.10:4000".parse::<std::net::SocketAddr>().unwrap(),
+                ));
+            }
+            next.run(request).await
+        },
+    ))
+}
+
+fn router_without_source(state: crate::app_state::AppState) -> Router {
     Router::new()
         .route("/.well-known/est/{profile_id}/cacerts", get(super::cacerts))
         .route(
@@ -244,3 +263,6 @@ mod legacy_passphrase;
 
 #[path = "est_certificate_proof_tests.rs"]
 mod certificate_proof;
+
+#[path = "est_source_budget_tests.rs"]
+mod source_budget;

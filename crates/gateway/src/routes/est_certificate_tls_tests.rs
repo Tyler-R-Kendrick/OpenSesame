@@ -183,3 +183,68 @@ async fn a_bound_live_ingress_cannot_enroll_with_its_own_or_forwarded_certificat
         );
     }
 }
+
+#[tokio::test]
+async fn password_sources_remain_independent_through_a_real_bound_ingress() {
+    let _guard = test_env::lock();
+    let state = sealed_state().await;
+    let profile = seed_self_signed_profile(&state, "random-value-16b").await;
+    let server = DisposableCa::new("est-server");
+    let proxy_ca = DisposableCa::new("ingresses");
+    let origin_ca = DisposableCa::new("originating-clients");
+    let proxy = proxy_ca.issue_client(PeerIdentitySelector::DnsName("edge.test".into()));
+    let attacker = origin_ca.issue_client(PeerIdentitySelector::DnsName("attacker.test".into()));
+    let legitimate =
+        origin_ca.issue_client(PeerIdentitySelector::DnsName("legitimate.test".into()));
+    let live = serve(
+        state,
+        &server,
+        &proxy_ca.root_pem(),
+        &origin_ca,
+        TransportPolicy::TrustedIngress,
+    )
+    .await;
+    for index in 0..6 {
+        let der = rustls_pki_types::CertificateDer::from_pem_slice(&attacker.leaf_pem).unwrap();
+        let headers = format!(
+            "Client-Cert: :{}:\r\nAuthorization: {}\r\nX-Forwarded-For: 192.0.2.{index}\r\n",
+            base64::engine::general_purpose::STANDARD.encode(der),
+            super::basic("est", "wrong")
+        );
+        assert_eq!(
+            post(
+                &server,
+                &proxy,
+                &live,
+                &profile,
+                ["simpleenroll", "simplereenroll"][index % 2],
+                &headers
+            )
+            .await,
+            if index < 5 { 401 } else { 429 }
+        );
+    }
+    let der = rustls_pki_types::CertificateDer::from_pem_slice(&legitimate.leaf_pem).unwrap();
+    let headers = format!(
+        "Client-Cert: :{}:\r\nAuthorization: {}\r\n",
+        base64::engine::general_purpose::STANDARD.encode(der),
+        super::basic("est", "random-value-16b")
+    );
+    assert_eq!(
+        post(&server, &proxy, &live, &profile, "simpleenroll", &headers).await,
+        400
+    );
+    let no_origin = format!(
+        "Authorization: {}\r\nX-Forwarded-For: 192.0.2.99\r\n",
+        super::basic("est", "random-value-16b")
+    );
+    assert_eq!(
+        post(&server, &proxy, &live, &profile, "simpleenroll", &no_origin).await,
+        503
+    );
+    let forged = format!("Client-Cert: :Zm9yZ2Vk:\r\n{no_origin}");
+    assert_eq!(
+        post(&server, &proxy, &live, &profile, "simpleenroll", &forged).await,
+        403
+    );
+}

@@ -7,6 +7,18 @@ use axum::{
 };
 use tower::ServiceExt;
 
+async fn guess(app: axum::Router, profile: &str, password: &str) -> StatusCode {
+    app.oneshot(
+        Request::post(format!("/.well-known/est/{profile}/simpleenroll"))
+            .header(axum::http::header::AUTHORIZATION, basic("est", password))
+            .body(Body::from("not a csr"))
+            .unwrap(),
+    )
+    .await
+    .unwrap()
+    .status()
+}
+
 #[tokio::test]
 async fn parallel_enroll_and_reenroll_guesses_share_one_budget() {
     let _guard = test_env::lock();
@@ -88,9 +100,19 @@ async fn exhausted_password_budget_does_not_block_bootstrap_certificates() {
         .await
         .unwrap()
         .unwrap();
+    let app = router(state.clone());
+    for _ in 0..5 {
+        assert_eq!(
+            guess(app.clone(), &profile_id, "wrong").await,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+    assert_eq!(
+        guess(app.clone(), &profile_id, "wrong").await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
     config.require_bootstrap = true;
     assert!(state.db.update_est_config(&config).await.unwrap());
-    let app = router(state.clone());
     for _ in 0..8 {
         let response = app
             .clone()
@@ -104,18 +126,8 @@ async fn exhausted_password_budget_does_not_block_bootstrap_certificates() {
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
-    // A password is never examined without the mandatory certificate.
-    let now = chrono::Utc::now().timestamp();
-    for attempt in 1..=5 {
-        assert_eq!(
-            state
-                .db
-                .admit_est_passphrase_attempt(&organization, &config.id, now)
-                .await
-                .unwrap(),
-            Some(attempt)
-        );
-    }
+    // Mandatory certificate checks do not charge or bypass the exhausted
+    // source budget; valid direct certificate proof remains independent.
     let verified = crate::transport::test_support::peer(
         "enrollee.test",
         crate::transport::test_support::THUMB_A,
@@ -140,7 +152,7 @@ async fn password_verification_fails_closed_when_budget_storage_fails() {
     let _guard = test_env::lock();
     let state = sealed_state().await;
     let profile_id = seed_self_signed_profile(&state, "random-value-16b").await;
-    sqlx::query("CREATE TRIGGER reject_est_attempt BEFORE UPDATE OF passphrase_attempts ON est_configs BEGIN SELECT RAISE(ABORT, 'budget unavailable'); END")
+    sqlx::query("CREATE TRIGGER reject_est_attempt BEFORE INSERT ON est_source_attempt_budgets BEGIN SELECT RAISE(ABORT, 'budget unavailable'); END")
         .execute(state.db.pool()).await.unwrap();
     let response = router(state)
         .oneshot(
@@ -195,14 +207,11 @@ async fn newly_configured_passwords_cannot_be_empty_or_short_and_omission_keeps_
         .await
         .unwrap()
         .unwrap();
-    let now = chrono::Utc::now().timestamp();
     for _ in 0..5 {
-        assert!(state
-            .db
-            .admit_est_passphrase_attempt(&organization, &config.id, now)
-            .await
-            .unwrap()
-            .is_some());
+        assert_eq!(
+            guess(app.clone(), &profile_id, "wrong").await,
+            StatusCode::UNAUTHORIZED
+        );
     }
     let mut request = Request::put(format!("/api/v1/certmgr/profiles/{profile_id}/est-config"))
         .body(Body::from("{}"))
@@ -212,7 +221,10 @@ async fn newly_configured_passwords_cannot_be_empty_or_short_and_omission_keeps_
         axum::http::header::CONTENT_TYPE,
         "application/json".parse().unwrap(),
     );
-    assert_eq!(app.oneshot(request).await.unwrap().status(), StatusCode::OK);
+    assert_eq!(
+        app.clone().oneshot(request).await.unwrap().status(),
+        StatusCode::OK
+    );
     let updated = state
         .db
         .get_est_config(&organization, &profile_id)
@@ -221,12 +233,8 @@ async fn newly_configured_passwords_cannot_be_empty_or_short_and_omission_keeps_
         .unwrap();
     assert_eq!(config.sealed_passphrase, updated.sealed_passphrase);
     assert_eq!(
-        state
-            .db
-            .admit_est_passphrase_attempt(&organization, &config.id, now)
-            .await
-            .unwrap(),
-        None
+        guess(app, &profile_id, "random-value-16b").await,
+        StatusCode::TOO_MANY_REQUESTS
     );
 }
 

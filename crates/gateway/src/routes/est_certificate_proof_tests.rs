@@ -151,7 +151,7 @@ async fn proxy_identity_and_forwarded_assertions_never_replace_direct_est_proof(
 }
 
 #[tokio::test]
-async fn a_proxy_may_use_a_password_only_when_the_profile_explicitly_allows_it() {
+async fn a_proxy_without_origin_cannot_use_password_fallback() {
     let _guard = test_env::lock();
     let state = sealed_state().await;
     let profile = seed_self_signed_profile(&state, "random-value-16b").await;
@@ -173,7 +173,7 @@ async fn a_proxy_may_use_a_password_only_when_the_profile_explicitly_allows_it()
                 Some("random-value-16b")
             )
             .await,
-            StatusCode::BAD_REQUEST
+            StatusCode::SERVICE_UNAVAILABLE
         );
     }
     let mut config = config(&state, &profile).await;

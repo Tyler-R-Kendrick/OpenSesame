@@ -27,7 +27,7 @@
 //! like every certmgr route (the one place `resolve_caller` runs).
 
 use axum::extract::{DefaultBodyLimit, Path, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{Extensions, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{body::Bytes, Json, Router};
@@ -36,7 +36,6 @@ use opensesame_pki_core::types::ProfileDefaults;
 use opensesame_pki_core::PolicyRules;
 use opensesame_storage::seal_scopes;
 use opensesame_storage::{SealedCertificateMaterial, StoredCertificateProfile, StoredEstConfig};
-use opensesame_transport_security::PeerExtension;
 use serde_json::json;
 
 use super::est_enrollment;
@@ -293,10 +292,10 @@ pub async fn simple_enroll(
     State(st): State<AppState>,
     Path(profile_id): Path<String>,
     headers: HeaderMap,
-    peer: Option<axum::Extension<PeerExtension>>,
+    extensions: Extensions,
     body: Bytes,
 ) -> Response {
-    enroll(&st, &profile_id, &headers, peer, body, false).await
+    enroll(&st, &profile_id, &headers, extensions, body, false).await
 }
 
 /// `POST /.well-known/est/{profileId}/simplereenroll` — like `simpleenroll`,
@@ -306,17 +305,17 @@ pub async fn simple_reenroll(
     State(st): State<AppState>,
     Path(profile_id): Path<String>,
     headers: HeaderMap,
-    peer: Option<axum::Extension<PeerExtension>>,
+    extensions: Extensions,
     body: Bytes,
 ) -> Response {
-    enroll(&st, &profile_id, &headers, peer, body, true).await
+    enroll(&st, &profile_id, &headers, extensions, body, true).await
 }
 
 async fn enroll(
     st: &AppState,
     profile_id: &str,
     headers: &HeaderMap,
-    peer: Option<axum::Extension<PeerExtension>>,
+    extensions: Extensions,
     body: Bytes,
     reenroll: bool,
 ) -> Response {
@@ -324,9 +323,7 @@ async fn enroll(
         Ok(found) => found,
         Err(response) => return response,
     };
-    let peer = peer.map(|axum::Extension(peer)| peer);
-    if let Err(response) =
-        authenticate(st, headers, peer.as_ref(), &config, &profile, reenroll).await
+    if let Err(response) = authenticate(st, headers, &extensions, &config, &profile, reenroll).await
     {
         return response;
     }
