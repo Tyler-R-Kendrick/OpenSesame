@@ -54,6 +54,42 @@ function ownedPrfView(first: ArrayBuffer | null): Uint8Array | null {
   }
 }
 
+function wipeOwnedPrf(
+  prfOutput: Uint8Array | null,
+  ownedFirst: ArrayBuffer | null,
+  originalLength: number,
+): void {
+  try {
+    prfOutput?.fill(0);
+  } catch (error) {
+    // A resized buffer may invalidate the fixed view while retaining a
+    // prefix. Wipe only surviving original bytes, then fail closed.
+    if (ownedFirst) {
+      try {
+        const byteLength = Object.getOwnPropertyDescriptor(
+          ArrayBuffer.prototype,
+          "byteLength",
+        )?.get;
+        if (byteLength) {
+          const currentLength: number = Reflect.apply(
+            byteLength,
+            ownedFirst,
+            [],
+          );
+          new Uint8Array(
+            ownedFirst,
+            0,
+            Math.min(originalLength, currentLength),
+          ).fill(0);
+        }
+      } catch {
+        // A detached buffer no longer has writable bytes.
+      }
+    }
+    throw error;
+  }
+}
+
 type SignInPrfRow = { salt: Uint8Array; existing: boolean };
 
 function localCredentialId(standardB64: string): string {
@@ -185,35 +221,7 @@ export async function applySignInPrf(
     return true;
   } finally {
     try {
-      try {
-        prfOutput?.fill(0);
-      } catch (error) {
-        // A resized buffer may invalidate the fixed view while retaining a
-        // prefix. Wipe only surviving original bytes, then fail closed.
-        if (ownedFirst) {
-          try {
-            const byteLength = Object.getOwnPropertyDescriptor(
-              ArrayBuffer.prototype,
-              "byteLength",
-            )?.get;
-            if (byteLength) {
-              const currentLength: number = Reflect.apply(
-                byteLength,
-                ownedFirst,
-                [],
-              );
-              new Uint8Array(
-                ownedFirst,
-                0,
-                Math.min(originalLength, currentLength),
-              ).fill(0);
-            }
-          } catch {
-            // A detached buffer no longer has writable bytes.
-          }
-        }
-        throw error;
-      }
+      wipeOwnedPrf(prfOutput, ownedFirst, originalLength);
     } finally {
       zeroSignInPrfSalts(plan);
     }
