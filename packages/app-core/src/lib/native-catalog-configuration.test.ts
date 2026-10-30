@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from "node:crypto";
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { canonicalize, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";

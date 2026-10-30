@@ -11,9 +11,9 @@
  * secret key is held `Redacted`, so nothing made from these objects can print
  * it.
  */
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { Redacted } from "effect";
 
 export type S3Credentials = Readonly<{

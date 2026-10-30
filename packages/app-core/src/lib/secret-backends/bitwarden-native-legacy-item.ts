@@ -1,4 +1,4 @@
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import { bytesToB64 } from "@opensesame/vault-core/bytes.js";
 import { z } from "zod";

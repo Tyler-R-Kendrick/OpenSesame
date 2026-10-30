@@ -8,8 +8,8 @@
  * A store holds opaque bytes at relative, slash-separated paths. What the
  * bytes are — sealed documents, a manifest — is `secret-docs.ts`'s business.
  */
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { Context, Effect } from "effect";
 import { SecretFsRejected } from "./errors.js";
 import type { SecretFsError } from "./errors.js";
