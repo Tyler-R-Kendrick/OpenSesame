@@ -23,8 +23,8 @@
  * never the only copy of a value: the row carries the value under the seal.
  */
 
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha256";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 
 /** The widest domain, in bits: millisecond times for the next 8,900 years. */
 export const OPE_MAX_DOMAIN_BITS = 48;

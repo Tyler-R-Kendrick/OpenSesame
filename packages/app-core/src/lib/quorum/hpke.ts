@@ -13,8 +13,8 @@
 import { gcm } from "@noble/ciphers/aes.js";
 import { chacha20poly1305 } from "@noble/ciphers/chacha.js";
 import { x25519 } from "@noble/curves/ed25519.js";
-import { expand, extract } from "@noble/hashes/hkdf";
-import { sha256 } from "@noble/hashes/sha2";
+import { expand, extract } from "@noble/hashes/hkdf.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 
 export type HpkeAead = "aes-128-gcm" | "chacha20-poly1305";
 

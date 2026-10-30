@@ -15,8 +15,8 @@
  */
 
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
-import { hkdf } from "@noble/hashes/hkdf";
-import { sha256 } from "@noble/hashes/sha2";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { z } from "zod";
 import {
   fromB64url,
