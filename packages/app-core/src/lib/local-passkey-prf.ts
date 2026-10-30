@@ -126,26 +126,39 @@ export async function applySignInPrf(
               localCredentialId(item.credentialIdB64) === credential.id),
         );
       if (record?.kind === "webauthn-prf") {
-        const opened = await unwrapVaultKeyWithPrf(
-          {
-            credentialIdB64: record.credentialIdB64,
-            userIdB64: "",
-            prfSaltB64: record.saltB64,
-            wrap: record.wrap,
-          },
-          viewBuffer(prfOutput),
-        );
-        opened.fill(0);
+        const heldPrf = viewBuffer(prfOutput);
+        try {
+          const opened = await unwrapVaultKeyWithPrf(
+            {
+              credentialIdB64: record.credentialIdB64,
+              userIdB64: "",
+              prfSaltB64: record.saltB64,
+              wrap: record.wrap,
+            },
+            heldPrf,
+          );
+          opened.fill(0);
+        } finally {
+          new Uint8Array(heldPrf).fill(0);
+        }
       }
       return true;
     }
     const userId = new TextEncoder().encode(principalId);
-    const candidate = await vaultStore.protection.enrollHeldWebauthnPrf({
-      prfOutput: viewBuffer(prfOutput),
-      prfSalt: row.salt,
-      credentialId: viewBuffer(new Uint8Array(credential.rawId)),
-      userId: viewBuffer(userId),
-    });
+    const heldPrf = viewBuffer(prfOutput);
+    let candidate: Awaited<
+      ReturnType<SignInPrfVault["protection"]["enrollHeldWebauthnPrf"]>
+    >;
+    try {
+      candidate = await vaultStore.protection.enrollHeldWebauthnPrf({
+        prfOutput: heldPrf,
+        prfSalt: row.salt,
+        credentialId: viewBuffer(new Uint8Array(credential.rawId)),
+        userId: viewBuffer(userId),
+      });
+    } finally {
+      new Uint8Array(heldPrf).fill(0);
+    }
     await vaultStore.protection.commitEnrollment(candidate.operationId);
     return true;
   } finally {
