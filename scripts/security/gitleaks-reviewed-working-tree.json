@@ -1526,5 +1526,93 @@
     "fileSha256": "4f7b02f5ad7794905c8116b7562b927afc8c5bb71fa3303e26c1bd729450f602",
     "matchSha256": "93083ab4ae3e6e5c8dbd83a3ca66bb211438e30887c4fda849613d932a2aaa73",
     "reason": "generated Cargo lock dependency-list entry, not secret or checksum"
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 765,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "eca435ea8692a22e49b3d4fed7f506c55e56b944e0a8cadbfd35131fac56c16a",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/os-domain/src/crypto/claim-token.ts; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 766,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "56871516b53d062c1404697eb26d13804482c84ee6b49acadf03c931ab2cd84d",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/os-domain/src/__tests__/claim-token.test.ts; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 767,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "a7cbc90cb133a750e15d2349c058406c5a17b35d4203c85e8ab10b1ab3b01664",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/os-domain/src/__tests__/claim-token-extended.test.ts; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 786,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "542d7d06e90cd5c28e0ddb077dbbc4a8f83f2bd12bad065df979989d88d07150",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/provider-bitwarden/src/api.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 832,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "84aaadb803b7e5e6257e3ab82bc1e998a9e09082698a320367f4b7b7a7e932c5",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/auth.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 841,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "cb05624d84f5ecfcdad0f9542c84cca04fba832d8ba8d842e2adf900129f9d57",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/routes/auth_requests.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 845,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "4bc417f132fda869dd35eb614a3155010a897ebdf20d1b116b629fedbff7fc67",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/routes/credentials.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 866,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "db4062f4bc3bdb55bf50fa98be1af13ea7611063283918ee7f2a2db6847b17cf",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/routes/send_access.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 872,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "4c0840d7593cdf28df18c65a7b0c439e78f4f7dd50750a813e3d2c38f6e116e6",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/tokens.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 946,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "34386d5892c652a9c94eb19d5e9f638ce3717a9a7e07ef5dbe48dfd46bf7ea80",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/oauth-provider/src/__tests__/signing-keys.test.ts; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 949,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "447cf5eb223530ddcce9d45f3d8c214c973bcbfeb2fd7f80c9764b86de1823e5",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/oauth-provider/src/keys/dev-signing-key-provider.ts; deterministic exposure source binding, not a credential."
   }
 ]

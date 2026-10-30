@@ -16,6 +16,7 @@ finding.
 - The gitleaks configuration itself is [`.gitleaks.toml`](../../.gitleaks.toml)
   at the root, read by `scripts/audit/gitleaks-gate.sh` (`pnpm audit:gitleaks`);
   only its negative control lives here.
+- [`exposure-matrix.json`](exposure-matrix.json) records observer/artifact combinations and reviewed implementation bindings. `pnpm audit:exposure`, commit/push hooks and the existing CI admission job enforce [the exposure policy](../../docs/security/exposure-matrix.md). Source drift and missing classifications fail closed; fingerprints supplement behavioral tests.
 - A gate that is permanently red reports nothing, so each suppression is made
   at its call site with a reason, not by widening a rule's scope.
 

@@ -66,6 +66,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: node scripts/lib/ci-main-baseline.mjs
+      - name: Enforce reviewed exposure combinations
+        # Core Node only: this policy runs even when no affected build is selected.
+        run: node scripts/security/exposure-matrix-gate.mjs --ref HEAD
       - name: Select affected TypeScript packages
         id: packages
         env:

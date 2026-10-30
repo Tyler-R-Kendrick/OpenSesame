@@ -12,6 +12,7 @@ unset NODE_OPTIONS
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+node scripts/security/exposure-matrix-gate.mjs --staged
 node scripts/quality/evidence-gate.mjs --staged
 node scripts/quality/repository-size-gate.mjs --staged
 node scripts/dev/sync-agent-skills.mjs --check

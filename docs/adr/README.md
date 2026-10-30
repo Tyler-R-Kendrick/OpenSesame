@@ -279,3 +279,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0213](0213-cua-password-reset-recipes.md) | CUA password reset: deterministic recipes, bounded fallback, durable reconciliation | Accepted |
 | [0214](0214-trunk-ci-artifact-promotion.md) | Trunk integration and scheduled artifact promotion | Accepted |
 | [0215](0215-trunk-builds-only.md) | Trunk only builds the impacted graph | Accepted |
+| [0216](0216-deterministic-exposure-matrix.md) | Enforce the exposure matrix at reviewed boundaries | Accepted |

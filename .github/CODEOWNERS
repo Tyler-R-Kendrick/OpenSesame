@@ -10,6 +10,10 @@
 /docs/security/ @Tyler-R-Kendrick
 /SECURITY.md @Tyler-R-Kendrick
 /AGENTS.md @Tyler-R-Kendrick
+/.gitattributes @Tyler-R-Kendrick
+/tools/security/ @Tyler-R-Kendrick
+/scripts/security/ @Tyler-R-Kendrick
+/scripts/lib/exposure-*.mjs @Tyler-R-Kendrick
 /*.lock @Tyler-R-Kendrick
 /pnpm-lock.yaml @Tyler-R-Kendrick
 /package.json @Tyler-R-Kendrick
