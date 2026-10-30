@@ -1,3 +1,4 @@
+import { isArrayBufferBackedBytes } from "@opensesame/os-domain";
 import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
@@ -58,6 +59,8 @@ export async function verifyPasskeyAuthentication(
   input: VerifyPasskeyAuthenticationInput,
 ): Promise<number | null | undefined> {
   try {
+    if (!isArrayBufferBackedBytes(input.credential.publicKey)) return null;
+    const publicKey = new Uint8Array(input.credential.publicKey);
     const result = await simpleWebAuthnSeams.verifyAuthenticationResponse({
       response: input.response,
       expectedChallenge: input.challenge,
@@ -65,7 +68,7 @@ export async function verifyPasskeyAuthentication(
       expectedRPID: input.rp.rpID,
       credential: {
         id: input.credential.credentialId,
-        publicKey: input.credential.publicKey,
+        publicKey,
         counter: input.credential.counter,
       },
       requireUserVerification: input.requireUserVerification ?? true,
