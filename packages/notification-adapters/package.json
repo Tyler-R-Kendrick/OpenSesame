@@ -30,7 +30,7 @@
     "http_ece": "1.2.1",
     "jws": "4.0.1",
     "tsx": "4.19.4",
-    "typescript": "5.8.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.12"
   },
   "license": "MIT",

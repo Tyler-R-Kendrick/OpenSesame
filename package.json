@@ -145,7 +145,7 @@
     "react-dom": "19.2.8",
     "react-router": "8.3.0",
     "turbo": "2.9.14",
-    "typescript": "5.8.3",
+    "typescript": "7.0.2",
     "vite": "6.4.5",
     "vitest": "4.1.12",
     "wxt": "0.20.19",

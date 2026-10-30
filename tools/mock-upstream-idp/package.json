@@ -39,7 +39,7 @@
     "@types/node": "22.15.29",
     "ldapjs": "3.0.7",
     "tsx": "4.19.4",
-    "typescript": "5.8.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.12"
   },
   "engines": {

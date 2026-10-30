@@ -36,7 +36,7 @@
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "hono": "4.13.11",
-    "typescript": "5.8.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.12"
   },
   "license": "MIT",
