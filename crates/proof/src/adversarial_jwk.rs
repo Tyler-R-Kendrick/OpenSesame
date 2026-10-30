@@ -35,13 +35,13 @@ fn unrecognized_and_malformed_jwk_types_are_refused() {
 
         // A key represented as Other cannot become an accepted self-signed proof.
         let header = serde_json::json!({"typ": "dpop+jwt", "alg": "EdDSA", "jwk": value});
-        let jwt = format!(
+        let compact_proof = format!(
             "{}.{}.signature-not-reached",
             b64(&serde_json::to_vec(&header).unwrap()),
             b64(&serde_json::to_vec(&claims).unwrap())
         );
         let error = decode_dpop_proof(
-            &jwt,
+            &compact_proof,
             "POST",
             "https://api.example/resource",
             None,
