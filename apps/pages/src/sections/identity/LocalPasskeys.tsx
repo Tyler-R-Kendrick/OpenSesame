@@ -4,8 +4,8 @@ import {
   revokeLocalPasskey,
 } from "@opensesame/app-core/lib/local-credentials.js";
 import { LocalDirectoryError } from "@opensesame/app-core/lib/local-directory.js";
-import { copyPrfBytes } from "@opensesame/app-core/lib/local-passkey-prf-bytes.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { copyPrfBytes } from "@opensesame/app-core/lib/local-passkey-prf-bytes.js";
 import {
   type LocalPasskeyVaultOffer,
   viewBuffer,
