@@ -45,6 +45,12 @@ import { type AgUiEndpoint, currentAgUiEndpoint } from "./endpoint.js";
 import { buildAgUiOutboundBody } from "./outbound.js";
 import type { AgUiOutboundBody } from "./outbound.js";
 import {
+  type MessageRoles,
+  acceptsDelta,
+  rememberRole,
+  validateTextIdentity,
+} from "./text-identity.js";
+import {
   type AgUiTransport,
   type AgUiTransportOptions,
   createAgUiTransport,
@@ -74,9 +80,6 @@ const MAX_STREAM_CHARS = 65_536;
 /** A stream longer than this is a flood whatever each event contains. */
 const MAX_STREAM_EVENTS = 4096;
 
-/** Enough to track the open messages of a real run, not enough to be a leak. */
-const MAX_TRACKED_MESSAGES = 256;
-
 type TextAccumulator = {
   readonly chunks: string[];
   remaining: number;
@@ -94,30 +97,6 @@ const MAX_THOUGHT_CHARS = 4000;
 const MAX_COMPUTER_STEPS = 8;
 const MAX_COMPUTER_TITLE_CHARS = 80;
 const MAX_COMPUTER_DETAIL_CHARS = 500;
-
-/**
- * Which open message ids are assistant text. A `TEXT_MESSAGE_START` that
- * declares any other role opens a message whose deltas are dropped — a server
- * cannot smuggle a "system" or "tool" message into the answer by streaming it
- * as text.
- */
-type MessageRoles = Map<string, boolean>;
-
-function acceptsDelta(roles: MessageRoles, event: JsonObject): boolean {
-  const role = readString(event.role);
-  if (role !== undefined && role !== "assistant") return false;
-  const id = readString(event.messageId);
-  if (id === undefined) return true;
-  return roles.get(id) !== false;
-}
-
-function rememberRole(roles: MessageRoles, event: JsonObject): void {
-  const id = readString(event.messageId);
-  if (id === undefined) return;
-  if (!roles.has(id) && roles.size >= MAX_TRACKED_MESSAGES) return;
-  const role = readString(event.role);
-  roles.set(id, role === undefined || role === "assistant");
-}
 
 function appendDelta(text: TextAccumulator, event: JsonObject): void {
   const delta = readString(event.delta);
@@ -183,13 +162,16 @@ function consumeEvent(
 ): boolean {
   switch (readString(event.type)) {
     case "TEXT_MESSAGE_START":
+      validateTextIdentity(event, true);
       rememberRole(roles, event);
       return false;
     case "TEXT_MESSAGE_CHUNK":
+      validateTextIdentity(event, false);
       rememberRole(roles, event);
       if (acceptsDelta(roles, event)) appendDelta(text, event);
       return false;
     case "TEXT_MESSAGE_CONTENT":
+      validateTextIdentity(event, true);
       if (acceptsDelta(roles, event)) appendDelta(text, event);
       return false;
     case "REASONING_MESSAGE_START":
