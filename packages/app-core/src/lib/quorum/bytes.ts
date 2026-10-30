@@ -2,7 +2,7 @@
 
 const utf8 = new TextEncoder();
 
-export function utf8Bytes(text: string): Uint8Array {
+export function utf8Bytes(text: string) {
   return utf8.encode(text);
 }
 
@@ -10,7 +10,7 @@ export function utf8Text(bytes: Uint8Array): string {
   return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }
 
-export function concat(...parts: readonly Uint8Array[]): Uint8Array {
+export function concat(...parts: readonly Uint8Array[]) {
   const out = new Uint8Array(parts.reduce((n, part) => n + part.length, 0));
   let offset = 0;
   for (const part of parts) {
@@ -33,7 +33,7 @@ export function toB64url(bytes: ArrayBuffer | Uint8Array): string {
 
 const B64URL = /^[A-Za-z0-9_-]*$/;
 
-export function fromB64url(text: string): Uint8Array {
+export function fromB64url(text: string) {
   if (!B64URL.test(text) || text.length % 4 === 1) {
     throw new Error("not base64url");
   }
@@ -58,6 +58,6 @@ export function wipe(bytes: Uint8Array): void {
   bytes.fill(0);
 }
 
-export function randomBytes(length: number): Uint8Array {
+export function randomBytes(length: number) {
   return crypto.getRandomValues(new Uint8Array(length));
 }

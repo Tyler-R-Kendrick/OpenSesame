@@ -66,7 +66,7 @@ export type Ceremony = Readonly<{
   assert(input: AssertInput): Promise<Asserted>;
 }>;
 
-function bytesOf(source: BufferSource): Uint8Array {
+function bytesOf(source: BufferSource) {
   return ArrayBuffer.isView(source)
     ? new Uint8Array(
         source.buffer,
