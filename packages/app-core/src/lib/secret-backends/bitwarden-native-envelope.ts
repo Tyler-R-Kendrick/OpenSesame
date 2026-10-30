@@ -1,5 +1,5 @@
-import { cbc } from "@noble/ciphers/aes";
-import { equalBytes } from "@noble/ciphers/utils";
+import { cbc } from "@noble/ciphers/aes.js";
+import { equalBytes } from "@noble/ciphers/utils.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
