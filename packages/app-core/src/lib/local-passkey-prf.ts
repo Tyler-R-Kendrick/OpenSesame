@@ -3,7 +3,7 @@ import { bytesToB64url } from "@opensesame/sdk-browser";
 import { b64ToBytes } from "@opensesame/vault-core";
 import type { LocalPasskey } from "./local-credentials.js";
 import {
-  hasUsablePrfOutput,
+  MIN_PRF_OUTPUT_BYTES,
   readPrfFirst,
 } from "./vault/protection/adapters/webauthn-prf-output.js";
 import type { VaultProtectionBrowserService } from "./vault/protection/browser-service.js";
@@ -35,6 +35,23 @@ function currentSignInPrfVault(): Promise<SignInPrfVault | null> {
 
 function viewBuffer(bytes: Uint8Array): ArrayBuffer {
   return copyArrayBufferBytes(bytes);
+}
+
+// WebAuthn owns the result until it returns it to us. A genuine, non-shared
+// ArrayBuffer is then consumed and wiped even when it is unusable for sign-in.
+function ownedPrfView(first: ArrayBuffer | null): Uint8Array | null {
+  if (!first) return null;
+  try {
+    const byteLength = Object.getOwnPropertyDescriptor(
+      ArrayBuffer.prototype,
+      "byteLength",
+    )?.get;
+    if (!byteLength) return null;
+    Reflect.apply(byteLength, first, []);
+    return new Uint8Array(first);
+  } catch {
+    return null;
+  }
 }
 
 type SignInPrfRow = { salt: Uint8Array; existing: boolean };
@@ -100,14 +117,10 @@ export async function applySignInPrf(
     plan.get(bytesToB64url(new Uint8Array(credential.rawId)));
   const results = credential.getClientExtensionResults();
   const first = readPrfFirst(results);
-  const supported =
-    hasUsablePrfOutput(results) && first !== null && row !== undefined;
-  if (!supported || !row || !first) {
-    zeroSignInPrfSalts(plan);
-    return false;
-  }
-  const prfOutput = new Uint8Array(first);
+  const prfOutput = ownedPrfView(first);
   try {
+    if (!row || !prfOutput || prfOutput.byteLength < MIN_PRF_OUTPUT_BYTES)
+      return false;
     const vaultStore = await currentSignInPrfVault();
     if (
       !vaultStore ||
@@ -164,7 +177,10 @@ export async function applySignInPrf(
     await vaultStore.protection.commitEnrollment(candidate.operationId);
     return true;
   } finally {
-    prfOutput.fill(0);
-    zeroSignInPrfSalts(plan);
+    try {
+      prfOutput?.fill(0);
+    } finally {
+      zeroSignInPrfSalts(plan);
+    }
   }
 }
