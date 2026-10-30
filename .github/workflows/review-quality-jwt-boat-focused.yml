@@ -1,0 +1,32 @@
+name: Quality and JWT focused verification
+on:
+  push:
+    branches: [review/quality-jwt-boat-focused-20261030]
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: a3cc5ae43de8fcb6b1151606e71cf438c7cd52dc
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Confirm exact candidate tree
+        run: |
+          test "$(git rev-parse HEAD)" = a3cc5ae43de8fcb6b1151606e71cf438c7cd52dc
+          test "$(git rev-parse HEAD^{tree})" = 837bd4ca756ec324502ffee776a350efd23a03b8
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+      - name: Anti-slop and structural quality
+        run: |
+          pnpm lint:anti-slop
+          pnpm quality:gate
+      - name: Repository quality and security contract tests
+        run: pnpm quality:test
