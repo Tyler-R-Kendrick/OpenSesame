@@ -146,8 +146,7 @@ fn a_future_dated_signature_is_refused() {
 
 #[test]
 fn profile_registered() {
-    let profile =
-        ProtocolProfile::parse_slug(PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1).unwrap();
+    let profile = ProtocolProfile::parse_slug(PROFILE_HTTP_MESSAGE_SIGNATURES_RFC9421_V1).unwrap();
     assert_eq!(
         profile.minimum_presentation,
         TokenPresentation::HttpMessageSignature
