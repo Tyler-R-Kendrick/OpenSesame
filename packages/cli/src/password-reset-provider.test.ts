@@ -101,11 +101,9 @@ describe("sandbox provider configuration", () => {
     expect(loaded.config.runtime.provider).toBe("cloudflare");
   });
 
-  it("refuses Cloudflare allocation before accessing provider credentials", async () => {
+  it("constructs the Cloudflare provider for allocation", () => {
     const provider = createSandboxProvider("cloudflare");
-    await expect(
-      provider.allocate({ origin: "https://accounts.example.test" }),
-    ).rejects.toThrow("CDP browser provider is temporarily unavailable");
+    expect(provider.id).toBe("cloudflare");
   });
 
   it("refuses a sandbox provider on an external runtime module", async () => {

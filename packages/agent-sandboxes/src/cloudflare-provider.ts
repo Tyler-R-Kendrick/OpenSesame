@@ -13,11 +13,7 @@
 
 import type { BrowserDriver } from "@opensesame/cua-password-reset";
 import type { CdpConnection } from "./cdp-connection.js";
-import {
-  CdpBrowserDriver,
-  type CdpDriverOptions,
-  requireSafeCdpBrowser,
-} from "./cdp-driver.js";
+import { CdpBrowserDriver, type CdpDriverOptions } from "./cdp-driver.js";
 import { connectCdp } from "./cdp-node-socket.js";
 import {
   CloudflareBrowserRunClient,
@@ -61,8 +57,6 @@ export interface CloudflareProviderOptions
     connection: CdpConnection,
     options: CdpDriverOptions,
   ) => Promise<BrowserDriver>;
-  /** CDP safety gate seam (tests); defaults to the suspended gate. */
-  requireSafeBrowser?: () => void;
 }
 
 interface ResolvedClient {
@@ -158,12 +152,13 @@ export class CloudflareSandboxProvider implements SandboxProvider {
     connection: CdpConnection,
     options: CdpDriverOptions,
   ): Promise<BrowserDriver> {
-    return (this.options.connectDriver ??
-      CdpBrowserDriver.connect.bind(CdpBrowserDriver))(connection, options);
+    return (
+      this.options.connectDriver ??
+      CdpBrowserDriver.connect.bind(CdpBrowserDriver)
+    )(connection, options);
   }
 
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
-    (this.options.requireSafeBrowser ?? requireSafeCdpBrowser)();
     const { allowedDomains } = allowedDomainsFor(request);
     const effectiveOptions: CloudflareProviderOptions = { ...this.options };
     if (this.retainedTemporary)
