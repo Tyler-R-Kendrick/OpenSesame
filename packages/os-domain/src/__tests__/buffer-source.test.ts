@@ -27,6 +27,21 @@ describe("isArrayBufferBackedBytes", () => {
     Reflect.apply(Reflect.get(buffer, "resize"), buffer, [0]);
     expect(isArrayBufferBackedBytes(view)).toBe(false);
   });
+  it("checks the intrinsic Uint8Array brand, ignoring spoofed tags", () => {
+    const wrong = new Uint16Array([0x1234]);
+    Object.defineProperty(wrong, Symbol.toStringTag, { value: "Uint8Array" });
+    expect(Reflect.apply(isArrayBufferBackedBytes, undefined, [wrong])).toBe(
+      false,
+    );
+    const valid = new Uint8Array([1, 2]);
+    Object.defineProperty(valid, Symbol.toStringTag, { value: "Uint16Array" });
+    expect(isArrayBufferBackedBytes(valid)).toBe(true);
+    expect(
+      Reflect.apply(isArrayBufferBackedBytes, undefined, [
+        new DataView(new ArrayBuffer(2)),
+      ]),
+    ).toBe(false);
+  });
   it("uses the real backing store when an ordinary view spoofs buffer", () => {
     const normal = new Uint8Array([1, 2]);
     Object.defineProperty(normal, "buffer", {

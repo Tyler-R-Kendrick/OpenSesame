@@ -26,3 +26,11 @@ it("refuses a shared or detached view rather than hashing substituted or empty b
   structuredClone(detached.buffer, { transfer: [detached.buffer] });
   await expect(sha256Hex(detached)).rejects.toThrow(TypeError);
 });
+
+it("refuses a non-Uint8 view even when it spoofs its tag", async () => {
+  const wrong = new Uint16Array([0x1234]);
+  Object.defineProperty(wrong, Symbol.toStringTag, { value: "Uint8Array" });
+  await expect(Reflect.apply(sha256Hex, undefined, [wrong])).rejects.toThrow(
+    TypeError,
+  );
+});

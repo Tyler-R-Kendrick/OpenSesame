@@ -11,13 +11,23 @@ export function isArrayBufferBackedBytes(
     typedArrayPrototype,
     "values",
   )?.value;
+  const typedArrayTag = Object.getOwnPropertyDescriptor(
+    typedArrayPrototype,
+    Symbol.toStringTag,
+  )?.get;
   const arrayBufferLength = Object.getOwnPropertyDescriptor(
     ArrayBuffer.prototype,
     "byteLength",
   )?.get;
-  if (!typedArrayBuffer || !typedArrayValues || !arrayBufferLength)
+  if (
+    !typedArrayBuffer ||
+    !typedArrayValues ||
+    !typedArrayTag ||
+    !arrayBufferLength
+  )
     return false;
   try {
+    if (typedArrayTag.call(bytes) !== "Uint8Array") return false;
     typedArrayValues.call(bytes);
     const buffer = typedArrayBuffer.call(bytes);
     arrayBufferLength.call(buffer);
