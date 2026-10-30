@@ -19,6 +19,17 @@ config's `runtime.provider` field (`--provider` at configure time),
 defaulting to `local`. Providers belong to the bundled runtime only;
 external runtime adapters own their browser.
 
+No vendor account is required to start either remote lane. With no
+Boat API key, allocation registers the agent anonymously via auth.md
+(`boat-auth.ts`); Boat then requires two human steps before a sandbox
+can be created — the claim ceremony (needs an email, `BOAT_CLAIM_EMAIL`)
+and the free-trial checkout — both surfaced as claim errors. With no
+Cloudflare account, allocation provisions a temporary Cloudflare
+account (`cloudflare-provisioning.ts`, proof of work, no signup);
+temporary credentials cannot call Browser Run, so the first allocation
+surfaces the account claim URL, and the claimed free account's Browser
+Rendering token then drives sessions (free plan: 10 browser-minutes/day).
+
 ## Security invariants
 
 - Provider credentials are read only at allocation time, from the
@@ -52,10 +63,15 @@ external runtime adapters own their browser.
   a takeover URL here (its hosted/desktop URLs carry access tokens),
   and Boat allocation does not yet rejoin a prior sandbox by session
   id — keep the allocation alive in the host process for the run.
-- The Boat lane needs an operator-configured agent start command
-  (`BOAT_RELAY_AGENT_COMMAND`), typically run from a saved snapshot
-  with this package installed. Sandboxes are created with none of the
-  account's secrets, monitoring off and snapshots off. Close waits for
+- The Boat lane starts its in-sandbox agent with a zero-provision
+  bootstrap by default: clone the public repository, install this
+  package's workspace graph, run `boat-agent-main.ts`
+  (pinned to a reviewed commit, verified before install;
+  `OPENSESAME_BOAT_AGENT_REF` may name another full commit SHA; first
+  boot takes minutes).
+  Set `BOAT_RELAY_AGENT_COMMAND` or a saved snapshot for a faster,
+  pinned start. Sandboxes are created with none of the account's
+  secrets, monitoring off and snapshots off. Close waits for
   Boat to confirm deletion. If it raises `BoatDeletionPendingError`, retain
   its operation and sandbox IDs and resume with the provider's
   `waitForDeletion`; erasure is not confirmed until that call succeeds.

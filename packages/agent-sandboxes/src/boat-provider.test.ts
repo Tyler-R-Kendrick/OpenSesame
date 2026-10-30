@@ -216,6 +216,14 @@ function fakeBoat(wrongRelayToken = false) {
         pollIntervalMs: 1,
         state,
       }),
+    // SAFETY: checked at the fake-fetch boundary: the mock implements exactly the (url, init) call shapes the Boat clients send.
+    bootstrapProvider: () =>
+      new BoatSandboxProvider({
+        origin: "http://127.0.0.1:12345",
+        fetchImpl: fetchImpl as typeof fetch,
+        apiToken: "boat_live",
+        pollIntervalMs: 1,
+      }),
     closeRelay: async () => {
       await relay?.close();
     },
@@ -227,12 +235,33 @@ describe("BoatSandboxProvider", () => {
     vi.unstubAllEnvs();
   });
 
-  it("refuses to allocate without an agent start command", async () => {
+  it("allocates with the default bootstrap when no command is configured", async () => {
     vi.stubEnv("BOAT_RELAY_AGENT_COMMAND", "");
-    const provider = new BoatSandboxProvider({ apiToken: "boat_key" });
-    await expect(
-      provider.allocate({ origin: "https://accounts.example.test" }),
-    ).rejects.toThrow("agent start command");
+    vi.stubEnv("OPENSESAME_BOAT_AGENT_REF", "");
+    const boat = fakeBoat();
+    try {
+      boat.state.claimed = true;
+      boat.state.billed = true;
+      const sandbox = await boat.bootstrapProvider().allocate({
+        origin: "https://accounts.example.test",
+      });
+      expect(sandbox.session).toBe("bx_23456789");
+      await sandbox.close();
+      const commands = boat.requests.filter((entry) =>
+        entry.path.endsWith("/commands"),
+      );
+      expect(commands).toHaveLength(1);
+      // SAFETY: checked at the fake Boat boundary: the only sender is this test's BoatClient, which serializes CommandBody objects.
+      const sent = JSON.parse(commands[0]?.body ?? "{}") as {
+        command: string;
+      };
+      expect(sent.command).toMatch(
+        /git fetch --depth 1 origin '[0-9a-f]{40}'/u,
+      );
+      expect(sent.command).toContain("src/boat-agent-main.ts");
+    } finally {
+      await boat.closeRelay();
+    }
   });
 
   it("resumes a persisted claim in a fresh provider without re-registering", async () => {

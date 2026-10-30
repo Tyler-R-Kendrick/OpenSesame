@@ -198,10 +198,12 @@ function fakeDriver(): BrowserDriver {
   };
 }
 
-function providerContext(): ResetRuntimeContext {
+function providerContext(
+  provider: "boat" | "cloudflare" = "boat",
+): ResetRuntimeContext {
   const config: PasswordResetConfiguration = {
     ...bundledConfig(),
-    runtime: { module: BUNDLED_LOCAL_MODULE, maxSteps: 40, provider: "boat" },
+    runtime: { module: BUNDLED_LOCAL_MODULE, maxSteps: 40, provider },
   };
   const run: ResetRun = {
     id: "run-1",
@@ -324,6 +326,30 @@ describe("sandbox provider allocation", () => {
     ).rejects.toEqual(new Error("Sandbox allocation needs a person first"));
     expect(messages).toHaveLength(1);
     expect(messages[0]).toContain("finish billing");
+    expect(readSecretLine).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a Cloudflare account claim link for the person", async () => {
+    const messages: string[] = [];
+    const readSecretLine = vi.fn(async () => "");
+    await expect(
+      createLocalPasswordResetEffects(providerContext("cloudflare"), {
+        createProvider: (id) => ({
+          id,
+          allocate: async () => {
+            throw new SandboxClaimRequiredError({
+              verificationUri:
+                "https://dash.cloudflare.com/claim-preview?claimToken=attempt",
+            });
+          },
+        }),
+        readSecretLine,
+        notify: (message) => messages.push(message),
+      }),
+    ).rejects.toEqual(new Error("Sandbox allocation needs a person first"));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain("claimToken=attempt");
+    expect(messages[0]).toContain("claim the temporary Cloudflare account");
     expect(readSecretLine).not.toHaveBeenCalled();
   });
 

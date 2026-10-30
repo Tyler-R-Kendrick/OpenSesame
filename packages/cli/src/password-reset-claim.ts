@@ -53,3 +53,22 @@ export function boatClaimHandoff(input: BoatHandoffInput): BoatHandoff {
     return { url: url.href };
   throw new Error("Boat returned an untrusted human handoff URL");
 }
+
+/**
+ * A temporary Cloudflare account is claimed on the dashboard claim
+ * page with exactly one claim token and no user code.
+ */
+export function cloudflareClaimHandoff(input: BoatHandoffInput): BoatHandoff {
+  const url = parseHandoffUrl(input.verificationUri);
+  const tokens = url.searchParams.getAll("claimToken");
+  if (
+    url.origin !== "https://dash.cloudflare.com" ||
+    url.pathname !== "/claim-preview" ||
+    url.hash ||
+    tokens.length !== 1 ||
+    !tokens[0] ||
+    input.userCode !== undefined
+  )
+    throw new Error("Cloudflare returned an invalid claim handoff");
+  return { url: url.href };
+}

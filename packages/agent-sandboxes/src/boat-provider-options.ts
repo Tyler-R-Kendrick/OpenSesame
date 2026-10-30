@@ -34,11 +34,15 @@ export interface BoatProviderOptions {
   /** The user's email, for the claim ceremony (`service_auth`). */
   claimEmail?: string;
   /**
-   * Shell command that starts the relay agent inside the sandbox
-   * (typically from a saved snapshot with this package installed). It
-   * reads the `BOAT_AGENT_ENV` variables; see `boat-agent.ts`.
+   * Shell command that starts the relay agent inside the sandbox. When
+   * omitted, the zero-provision bootstrap from `boat-agent.ts` clones
+   * the public repository and runs the agent entry; set this (or
+   * `BOAT_RELAY_AGENT_COMMAND`) to use a saved snapshot instead. The
+   * command reads the `BOAT_AGENT_ENV` variables; see `boat-agent.ts`.
    */
   agentCommand?: string;
+  /** Full commit SHA the bootstrap checks out (default: pinned reviewed commit). */
+  agentRepoRef?: string;
   /** Saved snapshot to create sandboxes from. */
   fromSnapshot?: string;
   /** Stop (archive) instead of permanently deleting on close. */

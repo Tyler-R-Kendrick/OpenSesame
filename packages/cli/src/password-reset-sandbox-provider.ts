@@ -10,12 +10,15 @@
  * the claim ceremony spans processes (the run stops for a person), so
  * the claim token / identity assertion are kept in a plaintext `0600` state file
  * beside the reset config and reloaded on the next invocation. It is
- * never printed and never written to the config or journal.
+ * never printed and never written to the config or journal. Cloudflare
+ * temporary-account credentials get the same treatment so the claim
+ * link survives until the operator claims the account.
  */
 
 import { realpathSync } from "node:fs";
 import {
   BoatSandboxProvider,
+  type CloudflareProviderOptions,
   CloudflareSandboxProvider,
   LocalSandboxProvider,
   type SandboxProvider,
@@ -32,6 +35,14 @@ export {
   loadBoatProviderState,
   saveBoatProviderState,
 } from "./boat-provider-state.js";
+import {
+  loadCloudflareTemporaryAccount,
+  saveCloudflareTemporaryAccount,
+} from "./cloudflare-provider-state.js";
+export {
+  loadCloudflareTemporaryAccount,
+  saveCloudflareTemporaryAccount,
+} from "./cloudflare-provider-state.js";
 
 export type SandboxProviderFactory = (id: SandboxProviderId) => SandboxProvider;
 
@@ -83,8 +94,17 @@ export function createSandboxProvider(
       pendingBoatProviders.set(stateDirectory, wrapper);
       return wrapper;
     }
-    case "cloudflare":
-      return new CloudflareSandboxProvider();
+    case "cloudflare": {
+      if (!directory) return new CloudflareSandboxProvider();
+      const stateDirectory = realpathSync(directory);
+      const providerOptions: CloudflareProviderOptions = {
+        onTemporaryAccount: (account) =>
+          saveCloudflareTemporaryAccount(stateDirectory, account),
+      };
+      const temporaryAccount = loadCloudflareTemporaryAccount(stateDirectory);
+      if (temporaryAccount) providerOptions.temporaryAccount = temporaryAccount;
+      return new CloudflareSandboxProvider(providerOptions);
+    }
     case "wasm-relay": {
       const options: WasmRelayProviderOptions = {};
       const relayUrl = process.env.OPENSESAME_VNET_RELAY_URL;

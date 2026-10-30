@@ -22,6 +22,13 @@ export interface CloudflareSession {
   webSocketUrl: string;
 }
 
+export class CloudflareSessionAllocationError extends Error {
+  constructor(readonly status: number) {
+    super(`cloudflare: session allocation failed (HTTP ${status})`);
+    this.name = "CloudflareSessionAllocationError";
+  }
+}
+
 export class CloudflareSessionCleanupError extends Error {
   constructor(
     readonly sessionId: string,
@@ -40,6 +47,10 @@ const sessionResponseSchema = z.object({
 const identifier = /^[A-Za-z0-9_-]{1,128}$/u;
 const hostname =
   /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/u;
+const guardrailHostnamesSchema = z
+  .array(z.string().regex(hostname))
+  .min(1)
+  .max(50);
 
 function validateOptions(options: CloudflareClientOptions): void {
   if (!options.accountId || !options.apiToken)
@@ -119,11 +130,7 @@ export class CloudflareBrowserRunClient {
   async createSession(
     allowedDomains: readonly string[],
   ): Promise<CloudflareSession> {
-    const parsedDomains = z
-      .array(z.string().regex(hostname))
-      .min(1)
-      .max(50)
-      .safeParse(allowedDomains);
+    const parsedDomains = guardrailHostnamesSchema.safeParse(allowedDomains);
     if (!parsedDomains.success)
       throw new Error("cloudflare: invalid guardrail hostnames");
     const endpoint = new URL(`${this.baseUrl}/devtools/browser`);
@@ -144,9 +151,7 @@ export class CloudflareBrowserRunClient {
       throw new Error("cloudflare: session allocation request failed");
     }
     if (!response.ok)
-      throw new Error(
-        `cloudflare: session allocation failed (HTTP ${response.status})`,
-      );
+      throw new CloudflareSessionAllocationError(response.status);
     let raw: unknown;
     try {
       raw = await response.json();

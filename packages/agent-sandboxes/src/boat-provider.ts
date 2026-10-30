@@ -1,10 +1,17 @@
 /**
- * Boat provider allocates a sandbox and drives its authenticated relay.
+ * Boat sandbox provider: allocates a cloud sandbox with no
+ * pre-provisioned account, runs the relay agent inside it, and drives
+ * the browser over the authenticated relay. With no API key, the
+ * provider registers via auth.md; Boat's human gates (claim ceremony,
+ * billing checkout) surface as `SandboxClaimRequiredError`, and a later
+ * allocation resumes the flow. Secrets cross only per fill over the
+ * relay — never through Boat's command history — and sandboxes are
+ * created `noEnv`, monitoring off, snapshots off, deleted on close.
  * Registration, billing and cleanup are handled through the provider API.
  */
 
 import { randomUUID } from "node:crypto";
-import { BOAT_AGENT_ENV } from "./boat-agent.js";
+import { BOAT_AGENT_ENV, resolveBoatAgentCommand } from "./boat-agent.js";
 import {
   BoatAgentAuth,
   type BoatAuthOptions,
@@ -292,12 +299,12 @@ export class BoatSandboxProvider implements SandboxProvider {
   }
 
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
-    const agentCommand =
-      this.options.agentCommand ?? process.env.BOAT_RELAY_AGENT_COMMAND;
-    if (!agentCommand)
-      throw new Error(
-        "boat provider needs an agent start command (BOAT_RELAY_AGENT_COMMAND)",
-      );
+    const { command: agentCommand, bootstrapped } = resolveBoatAgentCommand(
+      this.options,
+    );
+    // Cloning and installing on first boot takes minutes, not seconds.
+    const relayTimeoutMs =
+      this.options.agentReadyTimeoutMs ?? (bootstrapped ? 900_000 : 60_000);
     const { url, allowedDomains } = allowedDomainsFor(request);
     const token = await this.ensureAccessToken();
     const client = this.client();
@@ -334,7 +341,11 @@ export class BoatSandboxProvider implements SandboxProvider {
         this.origin,
         RELAY_PORT,
       );
-      await waitBoatRelay(this.options, relay.url, relay.cookie);
+      await waitBoatRelay(
+        { ...this.options, agentReadyTimeoutMs: relayTimeoutMs },
+        relay.url,
+        relay.cookie,
+      );
       const connection = await connectBoatRelay(
         relay.url,
         relayToken,

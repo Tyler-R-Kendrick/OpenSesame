@@ -216,7 +216,6 @@ test("full reset in a Boat sandbox: claim gate, in-sandbox relay, secret-free hi
     const provider = new BoatSandboxProvider({
       origin: boat.origin,
       claimEmail: "person@example.test",
-      agentCommand: "opensesame-boat-agent",
       pollIntervalMs: 10,
     });
     // Zero pre-provisioned account: allocation first surfaces the
@@ -259,7 +258,8 @@ test("full reset in a Boat sandbox: claim gate, in-sandbox relay, secret-free hi
     expect(boat.deletion.polls).toBe(1);
     // Boat's retained command history contains exactly the operator's
     // agent start command — no secret ever crossed as a command.
-    expect(boat.commandHistory).toEqual(["opensesame-boat-agent"]);
+    expect(boat.commandHistory).toHaveLength(1);
+    expect(boat.commandHistory[0]).toContain("src/boat-agent-main.ts");
     expect(boat.commandHistory.join("\n")).not.toContain(PEPPER);
   } finally {
     await test.step("stop fake services", async () => {

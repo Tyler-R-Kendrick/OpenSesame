@@ -7,6 +7,7 @@ export * from "./cdp-driver.js";
 export * from "./cdp-node-socket.js";
 export * from "./cloudflare-client.js";
 export * from "./cloudflare-provider.js";
+export * from "./cloudflare-provisioning.js";
 export * from "./local-provider.js";
 export * from "./relay-driver.js";
 export * from "./relay-protocol.js";

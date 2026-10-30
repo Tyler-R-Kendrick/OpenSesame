@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { boatClaimHandoff } from "./password-reset-claim.js";
+import {
+  boatClaimHandoff,
+  cloudflareClaimHandoff,
+} from "./password-reset-claim.js";
 
 const claim =
   "https://boat.dev/api/boat/agent/identity/claim?claim_attempt_token=abc123";
@@ -47,6 +50,24 @@ describe("Boat human handoff", () => {
       ).toThrow();
     },
   );
+
+  it("accepts the Cloudflare dashboard claim link", () => {
+    const url = "https://dash.cloudflare.com/claim-preview?claimToken=abc123";
+    expect(cloudflareClaimHandoff({ verificationUri: url })).toEqual({
+      url,
+    });
+  });
+
+  it.each([
+    "https://dash.cloudflare.com/claim-preview",
+    "https://dash.cloudflare.com/claim-preview?claimToken=x&claimToken=y",
+    "https://dash.cloudflare.com/claim-preview?claimToken=x#fragment",
+    "https://dash.cloudflare.com.evil.example/claim-preview?claimToken=x",
+    "http://dash.cloudflare.com/claim-preview?claimToken=x",
+    "https://dash.cloudflare.com/other?claimToken=x",
+  ])("rejects unsafe Cloudflare claim URL %j", (verificationUri) => {
+    expect(() => cloudflareClaimHandoff({ verificationUri })).toThrow();
+  });
 
   it("rejects claim codes attached to checkout and claim fragments", () => {
     expect(() =>

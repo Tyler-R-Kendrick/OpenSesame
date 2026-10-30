@@ -13,7 +13,10 @@ import {
   createLocalSandbox,
 } from "@opensesame/cua-password-reset";
 import { emitStderrLine } from "./output.js";
-import { boatClaimHandoff } from "./password-reset-claim.js";
+import {
+  boatClaimHandoff,
+  cloudflareClaimHandoff,
+} from "./password-reset-claim.js";
 import {
   createLocalLoginVerifier,
   localAgentBrowserExecutable,
@@ -310,6 +313,14 @@ async function allocateProviderSandbox(
     });
   } catch (error) {
     if (error instanceof SandboxClaimRequiredError) {
+      if (provider.id === "cloudflare") {
+        const handoff = cloudflareClaimHandoff(error);
+        notify(
+          `Sandbox allocation needs you: open ${handoff.url} to claim the temporary Cloudflare account, then configure its Browser Rendering API token and retry.`,
+        );
+        // The link carries a takeover token; show it only to the user.
+        throw new Error("Sandbox allocation needs a person first");
+      }
       if (provider.id !== "boat")
         throw new Error("Sandbox provider returned an unsupported handoff");
       const handoff = boatClaimHandoff(error);
