@@ -74,8 +74,9 @@ export async function dispatchPasswordResetRotation(
   );
   try {
     const result = await handOff(origin);
-    const accepted = typeof result === "boolean" ? result : result.accepted;
-    const jobId = typeof result === "boolean" ? null : (result.jobId ?? null);
+    const accepted = result === true || (result !== false && result.accepted);
+    const jobId =
+      result === true || result === false ? null : (result.jobId ?? null);
     if (accepted) {
       // Accepted is not done: the ceremony runs on the Host from here. The
       // queue event is consumed, but the run stays in-progress (with its
