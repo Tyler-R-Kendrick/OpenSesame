@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: 5573eece18787d094d9234fdab889e33d21f6ae7
+          ref: 031d47d7499efe20b1819cf0ba05bc98007ad255
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
@@ -22,8 +22,8 @@ jobs:
           node-version: 24
       - name: Verify exact candidate
         run: |
-          test "$(git rev-parse HEAD)" = 5573eece18787d094d9234fdab889e33d21f6ae7
-          test "$(git rev-parse HEAD^{tree})" = 77a025f9ff32b9d5332dea3184ec06d83c7057b0
+          test "$(git rev-parse HEAD)" = 031d47d7499efe20b1819cf0ba05bc98007ad255
+          test "$(git rev-parse HEAD^{tree})" = 0c12f1f8b61b7b4ce931758c8a919b64edeb98f9
       - name: Install frozen graph
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Check format
