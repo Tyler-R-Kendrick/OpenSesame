@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: f5f25e9a7a9055f23b4f9ecc477abaeda3edc8be
+          ref: 9e72b21a336eac3713a71de167a05b10ae17258d
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
@@ -24,8 +24,8 @@ jobs:
           node-version: 24
       - name: Verify exact source
         run: |
-          test "$(git rev-parse HEAD)" = f5f25e9a7a9055f23b4f9ecc477abaeda3edc8be
-          test "$(git rev-parse HEAD^{tree})" = 304a3acc98b78f1d743a004103416027d0fdb6f6
+          test "$(git rev-parse HEAD)" = 9e72b21a336eac3713a71de167a05b10ae17258d
+          test "$(git rev-parse HEAD^{tree})" = 024ba408b362d5d84724ee9e0d41e9a84d780fd6
       - name: Install frozen graph
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Lint changed crypto tests
@@ -49,5 +49,22 @@ jobs:
         run: pnpm verify:customer-vault-browser
       - name: Build pages and check bundle budgets
         run: pnpm quality:bundle
+      - name: Verify bootstrap excludes the lazy curves chunk
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          import { entryClosure } from "./apps/pages/scripts/lib/capability-graph.mjs";
+          const graph = JSON.parse(readFileSync("apps/pages/dist/capability-graph.json", "utf8"));
+          const curves = graph.chunks.filter((chunk) => chunk.name === "noble-crypto").map((chunk) => chunk.file);
+          assert.ok(curves.length > 0, "expected a lazy Noble curves chunk");
+          const closures = entryClosure(graph, { staticOnly: true });
+          for (const entry of graph.entries) {
+            const closure = closures.get(entry.html);
+            assert.ok(closure, `missing closure for ${entry.html}`);
+            for (const file of curves) assert.ok(!closure.chunks.has(file), `${entry.html} eagerly loads ${file}`);
+          }
+          NODE
       - name: Verify source unchanged
         run: git diff --exit-code
