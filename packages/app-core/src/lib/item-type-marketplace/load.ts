@@ -9,8 +9,8 @@
  * pasted definition goes through; a marketplace confers no trust at all.
  */
 
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { isJsonObject, isString } from "@opensesame/os-domain";
 import {
   type ItemTypeDefinition,

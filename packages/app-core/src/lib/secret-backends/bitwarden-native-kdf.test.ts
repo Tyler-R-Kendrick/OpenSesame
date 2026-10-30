@@ -1,5 +1,5 @@
 import { createHash, createHmac, hkdfSync, pbkdf2Sync } from "node:crypto";
-import { argon2idAsync } from "@noble/hashes/argon2";
+import { argon2idAsync } from "@noble/hashes/argon2.js";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   type BitwardenKdf,

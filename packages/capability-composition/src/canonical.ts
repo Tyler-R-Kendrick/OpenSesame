@@ -6,8 +6,8 @@
  * Every digest is `sha256:<hex>` over a canonical body built from *sorted*
  * copies of the relevant fields, so input ordering can never leak into it.
  */
-import { sha256 } from "@noble/hashes/sha256";
-import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import {
   type BoundaryValue,
   isBoolean,
