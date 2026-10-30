@@ -10,7 +10,7 @@
  * canonical base64, the frame must end at `]`, and the type must be known.
  */
 
-import { gcm } from "@noble/ciphers/aes";
+import { gcm } from "@noble/ciphers/aes.js";
 import { SopsError } from "./errors.js";
 import {
   GCM_TAG_BYTES,

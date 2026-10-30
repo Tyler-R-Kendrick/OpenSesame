@@ -1,4 +1,4 @@
-import { ecb, gcm } from "@noble/ciphers/aes";
+import { ecb, gcm } from "@noble/ciphers/aes.js";
 
 /** Codec allocation policy, below the algorithm's theoretical input limits. */
 export const MAX_BITWARDEN_XAES_PLAINTEXT_BYTES = 4 * 1024 * 1024;
