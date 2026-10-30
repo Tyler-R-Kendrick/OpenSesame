@@ -1,0 +1,69 @@
+name: Review TypeScript 7 wallet unshared byte validation
+on:
+  push:
+    branches: [review/typescript-v7-wallet-brand-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-wallet-brand-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: dc1a63ec8c9120356e0c96249e4058f1bf5413f2
+          fetch-depth: 3
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = b83c004710c46143f0fe5a6b867836825d7d117c
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Record original compiler errors
+        run: |
+          set -euo pipefail
+          files=(packages/wallet-consent/src/verify.ts)
+          trap 'git restore -- "${files[@]}"' EXIT
+          for f in "${files[@]}"; do git show "HEAD^^:$f" > "$f"; done
+          if pnpm --filter @opensesame/pages typecheck > /tmp/duress-original.log 2>&1; then exit 1; fi
+          grep -E 'wallet-consent/src/verify.ts.*error TS[0-9]+' /tmp/duress-original.log
+      - name: Confirm spoof and detach tests catch the prior implementation
+        run: |
+          set -euo pipefail
+          file=packages/wallet-consent/src/verify.ts
+          trap 'git restore -- "$file"' EXIT
+          git show "HEAD^:$file" > "$file"
+          if pnpm --filter @opensesame/wallet-consent exec vitest run src/verify.test.ts -t 'checks the intrinsic backing buffer|signature detached while' > /tmp/wallet-original-security.log 2>&1; then
+            cat /tmp/wallet-original-security.log
+            exit 1
+          fi
+          cat /tmp/wallet-original-security.log
+          grep -qE '2 failed' /tmp/wallet-original-security.log
+      - name: Check exact TypeScript results
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/wallet-consent/src/verify.ts packages/wallet-consent/src/verify.test.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/duress-fixed.log 2>&1; then
+            echo 'Pages typecheck passed.'
+          else
+            before=$(grep -cE 'error TS[0-9]+' /tmp/duress-original.log || true)
+            after=$(grep -cE 'error TS[0-9]+' /tmp/duress-fixed.log || true)
+            echo "Pages diagnostics before=$before after=$after; remaining errors block complete migration."
+            grep -E 'error TS[0-9]+' /tmp/duress-fixed.log || true
+            test "$after" -lt "$before"
+          fi
+      - name: Verify security and byte round trips
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/wallet-consent exec vitest run src/verify.test.ts
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/spending-consent.test.ts
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = b83c004710c46143f0fe5a6b867836825d7d117c
+          git diff --exit-code
