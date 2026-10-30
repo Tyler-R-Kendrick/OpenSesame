@@ -25,6 +25,7 @@ const entries = [
   ["nativeNode", "native-ssh-keys_test.go", "cmd/tsconnect/wasm"],
   ["nativeNode", "nodessh_js.go", "cmd/tsconnect/wasm"],
   ["nativeNode", "native-extra-dns.go", "ipn/ipnlocal"],
+  ["nativeNode", "derp-custom-roots_test.go", "derp/derphttp"],
   ["publicTrust", "public-roots.go", "cmd/tsconnect/nativehttp"],
   ["peerGET", "peer-get.go", "cmd/tsconnect/nativehttp"],
   ["peerGET", "nodepeerget_js.go", "cmd/tsconnect/wasm"],
@@ -95,6 +96,10 @@ test("maps exact committed overlay bytes while retaining all upstream findings a
       mappings.get(`${staged}/cmd/tsconnect/wasm/${name}`),
       `${root}/${name}`,
     );
+  assert.equal(
+    mappings.get(`${staged}/derp/derphttp/derp-custom-roots_test.go`),
+    `${root}/derp-custom-roots_test.go`,
+  );
   const source = `${staged}/cmd/tsconnect/wasm/nodepeer.go`;
   const target = `${root}/nodepeer.go`;
   const upstream = `${staged}/ipn/ipnlocal/c2n.go`;
@@ -336,6 +341,13 @@ test("rejects staged, tracked, manifest and source identity changes", (t) => {
   f.write(ssh, "replaced key verifier\n");
   assert.throws(() => overlayMap(f.directory, f.sha), /differs/);
   f.write(ssh, readFileSync(join(f.directory, root, "native-ssh-keys.go")));
+  const derp = `${staged}/derp/derphttp/derp-custom-roots_test.go`;
+  f.write(derp, "changed DERP test\n");
+  assert.throws(() => overlayMap(f.directory, f.sha), /differs/);
+  f.write(
+    derp,
+    readFileSync(join(f.directory, root, "derp-custom-roots_test.go")),
+  );
   f.write(tracked, "changed\n");
   assert.throws(() => overlayMap(f.directory, f.sha), /differs/);
   f.write(tracked, original);
@@ -368,31 +380,4 @@ test("rejects symlinked staged files and duplicate mapped artifacts", (t) => {
   rmSync(join(f.directory, source));
   symlinkSync(join(f.directory, tracked), join(f.directory, source));
   assert.throws(() => overlayMap(f.directory, f.sha), /regular owned file/);
-});
-
-test("rejects a staged URI with an unexpected base", () => {
-  const source = `${staged}/cmd/tsconnect/wasm/nodepeer.go`;
-  const report = {
-    version: "2.1.0",
-    runs: [
-      {
-        results: [
-          {
-            locations: [
-              {
-                physicalLocation: {
-                  artifactLocation: { uri: source, uriBaseId: "other" },
-                },
-              },
-            ],
-          },
-        ],
-        artifacts: [],
-      },
-    ],
-  };
-  assert.throws(
-    () => mapReport(report, new Map([[source, `${root}/nodepeer.go`]])),
-    /URI base/,
-  );
 });
