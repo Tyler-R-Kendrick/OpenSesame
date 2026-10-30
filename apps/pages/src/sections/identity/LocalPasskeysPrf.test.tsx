@@ -45,6 +45,9 @@ afterEach(() => {
 
 it("wipes each borrowed PRF copy while preserving the offer for retry", async () => {
   const prfOutput = new Uint8Array(32).fill(7);
+  Object.defineProperty(prfOutput.buffer, "slice", {
+    value: () => prfOutput.buffer,
+  });
   const prfSalt = new Uint8Array(32).fill(3);
   const discard = vi.fn(() => {
     prfOutput.fill(0);

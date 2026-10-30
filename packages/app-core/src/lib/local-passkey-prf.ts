@@ -1,6 +1,7 @@
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { b64ToBytes } from "@opensesame/vault-core";
 import type { LocalPasskey } from "./local-credentials.js";
+import { copyPrfBytes } from "./local-passkey-prf-bytes.js";
 import {
   MIN_PRF_OUTPUT_BYTES,
   readPrfFirst,
@@ -33,10 +34,7 @@ function currentSignInPrfVault(): Promise<SignInPrfVault | null> {
 }
 
 function viewBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  );
+  return copyPrfBytes(bytes);
 }
 
 // WebAuthn owns the result until it returns it to us. A genuine, non-shared
