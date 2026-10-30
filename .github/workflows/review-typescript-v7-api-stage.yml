@@ -1,0 +1,76 @@
+name: Probe staged TypeScript API routing
+on:
+  push:
+    branches: [review/typescript-v7-api-stage-hosted-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-api-stage-hosted-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 2ac96eb6df326ae6b00f5a3ffb3bd1d7de5e15dd
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install and check compiler routing
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 2ac96eb6df326ae6b00f5a3ffb3bd1d7de5e15dd
+          test "$(git rev-parse HEAD^{tree})" = 81bc9274b2b86e822ddc9c8c9939bfdba54225b4
+          pnpm install --frozen-lockfile --ignore-scripts
+          test "$(pnpm exec tsc --version)" = 'Version 7.0.2'
+          test "$(node apps/pages/node_modules/typescript-compiler/bin/tsc --version)" = 'Version 7.0.2'
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const { createRequire } = require('node:module');
+          const { resolve } = require('node:path');
+          const root = createRequire(resolve('package.json'));
+          const pages = createRequire(resolve('apps/pages/package.json'));
+          const cli = createRequire(resolve('packages/cli/package.json'));
+          const anti = createRequire(resolve('tools/oxlint/anti-slop/package.json'));
+          const dts = createRequire(cli.resolve('dts-bundle-generator'));
+          const reactVite = createRequire(pages.resolve('@storybook/react-vite'));
+          const storybookReact = createRequire(reactVite.resolve('@storybook/react'));
+          for (const [name, version] of [
+            ['root API alias', root('typescript-api').version],
+            ['Pages JS API', pages('typescript').version],
+            ['anti-slop JS API', anti('typescript').version],
+            ['declaration generator JS API', dts('typescript').version],
+            ['Storybook React JS API', storybookReact('typescript').version],
+          ]) { console.log(`${name}: ${version}`); assert.equal(version, '5.8.3'); }
+          JS
+      - name: Verify portability and anti-slop API consumers
+        run: |
+          set -euo pipefail
+          pnpm exec biome check package.json apps/pages/package.json packages/cli/package.json packages/cli/scripts/test-archive.mjs scripts/lib/app-core-portability.mjs tools/oxlint/anti-slop/package.json
+          pnpm quality:app-core
+          pnpm test:anti-slop
+      - name: Generate the actual CLI declarations
+        run: |
+          set -euo pipefail
+          mkdir -p packages/cli/dist
+          (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; await bundleDeclarations(process.cwd())')
+          test -s packages/cli/dist/index.d.ts
+      - name: Build Storybook with the compatible compiler API
+        run: pnpm --filter @opensesame/pages build-storybook
+      - name: Report remaining TypeScript 7 Pages errors
+        run: |
+          set -uo pipefail
+          pnpm --filter @opensesame/pages typecheck > /tmp/typescript-v7-stage-pages.log 2>&1
+          result=$?
+          count=$(grep -cE 'error TS[0-9]+' /tmp/typescript-v7-stage-pages.log || true)
+          echo "Pages typecheck exit=$result diagnostics=$count; this staging probe does not assert complete migration."
+          grep -E 'error TS[0-9]+' /tmp/typescript-v7-stage-pages.log | head -30 || true
+          if grep -q 'typescript@7.0.2/node_modules/typescript/lib/version' /tmp/typescript-v7-stage-pages.log; then
+            echo 'Some direct API imports still resolve to TypeScript 7' >&2
+            exit 1
+          fi
+      - name: Check source stayed unchanged
+        if: always()
+        run: git diff --exit-code
