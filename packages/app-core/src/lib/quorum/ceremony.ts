@@ -206,6 +206,7 @@ export function webauthnCeremony(
     async assert(input) {
       const challenge = ownedCeremonyBytes(input.challenge);
       const prfInput = input.prfInput;
+      const prfBytes = prfInput ? ownedCeremonyBytes(prfInput) : undefined;
       const prfOptional = input.prfOptional === true;
       const publicKey: PublicKeyCredentialRequestOptions = {
         rpId: input.rpId,
@@ -215,10 +216,8 @@ export function webauthnCeremony(
           ? "required"
           : "preferred",
       };
-      if (prfInput) {
-        publicKey.extensions = {
-          prf: { eval: { first: ownedCeremonyBytes(prfInput) } },
-        };
+      if (prfBytes) {
+        publicKey.extensions = { prf: { eval: { first: prfBytes } } };
       }
       const got = await container.get({ publicKey });
       return readAsserted(got, prfInput !== undefined, prfOptional);
