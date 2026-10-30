@@ -143,7 +143,7 @@
     "terser": "5.51.2",
     "typescript": "5.8.3",
     "vite": "6.4.5",
-    "vite-plugin-pwa": "1.0.3",
+    "vite-plugin-pwa": "2.0.0",
     "vitest": "4.1.12",
     "wbn": "0.0.9",
     "wbn-sign": "0.3.3",
