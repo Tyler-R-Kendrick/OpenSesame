@@ -1,0 +1,43 @@
+name: Review Noble Ciphers v2 compatibility
+on:
+  push:
+    branches: [review/noble-v2-2285-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/noble-v2-2285-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 5573eece18787d094d9234fdab889e33d21f6ae7
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact candidate
+        run: |
+          test "$(git rev-parse HEAD)" = 5573eece18787d094d9234fdab889e33d21f6ae7
+          test "$(git rev-parse HEAD^{tree})" = 77a025f9ff32b9d5332dea3184ec06d83c7057b0
+      - name: Install frozen graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check format
+        run: pnpm exec biome check packages/app-core/src/lib/noble-v1-compat.test.ts
+      - name: Test cipher interoperability and affected consumers
+        run: |
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/noble-v1-compat.test.ts src/lib/sops src/lib/at-rest src/lib/quorum src/lib/secret-backends/bitwarden-native-envelope.test.ts src/lib/secret-backends/bitwarden-native-xaes.test.ts src/lib/secret-backends/bitwarden-native-blob-item.test.ts src/sandbox
+          pnpm --filter @opensesame/observability test
+      - name: Typecheck affected packages
+        run: |
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/observability typecheck
+          pnpm --filter @opensesame/pages typecheck
+      - name: Test actual browser vault integration
+        run: pnpm verify:customer-vault-browser
+      - name: Check source unchanged
+        run: git diff --exit-code
