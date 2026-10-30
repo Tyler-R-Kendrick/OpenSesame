@@ -13,4 +13,4 @@ path = "src/lib.rs"
 thiserror = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
-nix = { version = "0.30.1", default-features = false, features = ["socket", "user"] }
+nix = { version = "0.31.3", default-features = false, features = ["socket", "user"] }

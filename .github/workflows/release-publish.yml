@@ -192,7 +192,7 @@ jobs:
         gzip -dc "$PAGES_ARCHIVE" > hosting/artifact.tar
     - name: Upload the original tar in the Pages hosting transport
       id: hosting
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ env.PAGES_ARTIFACT }}
         path: hosting/artifact.tar

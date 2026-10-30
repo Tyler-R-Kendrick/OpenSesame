@@ -114,6 +114,44 @@ test("only the owner's exact branch event can reach the fixed build command", ()
     assert.throws(() => assertNativeCIRequest({ ...valid(), ...patch }));
 });
 
+test("weekly qualification accepts a separately selected source only in the main controller context", () => {
+  const weekly = {
+    ...valid(),
+    GITHUB_ACTIONS: "true",
+    GITHUB_EVENT_NAME: "schedule",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_SHA: "b".repeat(40),
+    GITHUB_WORKFLOW_SHA: "b".repeat(40),
+    GITHUB_WORKFLOW_REF:
+      "Tyler-R-Kendrick/OpenSesame/.github/workflows/release-weekly.yml@refs/heads/main",
+    REQUESTED_HEAD: "",
+  };
+  assert.equal(assertNativeCIRequest(weekly), "a".repeat(40));
+  assert.equal(
+    assertNativeCIRequest({
+      ...weekly,
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+    }),
+    "a".repeat(40),
+  );
+  for (const patch of [
+    { GITHUB_ACTIONS: "false" },
+    { GITHUB_EVENT_NAME: "push" },
+    { GITHUB_EVENT_NAME: "pull_request" },
+    { GITHUB_REF: "refs/heads/other" },
+    {
+      GITHUB_WORKFLOW_REF:
+        "Tyler-R-Kendrick/OpenSesame/.github/workflows/other.yml@refs/heads/main",
+    },
+    { GITHUB_WORKFLOW_SHA: "main" },
+    { GITHUB_SHA: "c".repeat(40) },
+    { GITHUB_ACTOR: "outside-user" },
+    { GITHUB_REPOSITORY: "outside-user/OpenSesame" },
+    { EXPECTED_HEAD: "main" },
+  ])
+    assert.throws(() => assertNativeCIRequest({ ...weekly, ...patch }));
+});
+
 test("an existing empty, populated or symlinked cache never becomes a claimed cold build", async () => {
   const scope = await mkdtemp(join(tmpdir(), "native-ci-cache-"));
   onTestFinished(() => rm(scope, { recursive: true, force: true }));
