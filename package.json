@@ -117,7 +117,7 @@
     "test:ci-promotion": "node --test scripts/release/*.test.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
+    "@biomejs/biome": "2.6.3",
     "@env-spec/parser": "0.6.2",
     "@gdp-ts/core": "0.1.0",
     "@hono/node-server": "2.1.5",
