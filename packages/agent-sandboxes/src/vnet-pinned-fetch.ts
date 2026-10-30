@@ -3,6 +3,7 @@ import { lookup } from "node:dns/promises";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
+import { z } from "zod";
 
 const blocked = new BlockList();
 for (const [address, prefix] of [
@@ -123,7 +124,8 @@ export function pinnedFetch(allowLoopback: boolean): typeof fetch {
       req.setTimeout(15_000, () =>
         req.destroy(new Error("virtual network: request timed out")),
       );
-      if (typeof init?.body === "string") req.write(init.body);
+      const body = z.string().safeParse(init?.body);
+      if (body.success) req.write(body.data);
       req.end();
     });
   };
