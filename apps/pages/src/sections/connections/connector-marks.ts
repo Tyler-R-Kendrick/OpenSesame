@@ -4,7 +4,8 @@
  * Official logomarks come from the simple-icons catalog (CC0; each icon is a
  * single 24×24 path in the brand's official color). AWS and Azure publish
  * wordmarks that simple-icons no longer carries, so those render as their
- * official wordmarks; any other missing mark falls back to a neutral monogram.
+ * official wordmarks. Slack uses a plain text label after its catalog mark
+ * was removed; other missing marks fall back to a neutral monogram.
  *
  * Marks whose official color would vanish on one of the two themes (GitHub's
  * near-black, Vercel's black) render in the app ink color instead, which is
@@ -55,7 +56,6 @@ import {
   siResend,
   siSendgrid,
   siSentry,
-  siSlack,
   siVault,
   siVaultwarden,
   siVercel,
@@ -104,7 +104,7 @@ const MARKS = {
   "google-wallet": markOf(siGoogle),
   "google-vertex": markOf(siGooglecloud),
   "google-cloud": markOf(siGooglecloud),
-  slack: markOf(siSlack),
+  slack: { path: "", hex: null, wordmark: "Slack" },
   linear: markOf(siLinear),
   hubspot: markOf(siHubspot),
   zoom: markOf(siZoom),

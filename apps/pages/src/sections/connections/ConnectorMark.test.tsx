@@ -70,6 +70,16 @@ describe("ConnectorMark", () => {
     expect(container.querySelectorAll("svg rect").length).toBe(4);
   });
 
+  it("identifies Slack with readable text when its catalog mark is unavailable", () => {
+    const { container } = render(
+      <ConnectorMark providerId="slack" displayName="Slack" />,
+    );
+    const label = container.querySelector(".conn-mark--wordmark");
+    expect(label?.textContent).toBe("Slack");
+    expect(label?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
   it("renders the Azure wordmark in its official blue", () => {
     const { container } = render(
       <ConnectorMark providerId="azure" displayName="Azure" />,
