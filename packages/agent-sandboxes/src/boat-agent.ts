@@ -26,6 +26,59 @@ export const BOAT_AGENT_ENV = {
 
 export type BoatAgentEnvironment = Readonly<Record<string, string | undefined>>;
 
+export interface BoatAgentCommandOptions {
+  agentCommand?: string;
+  agentRepoRef?: string;
+}
+
+export interface ResolvedBoatAgentCommand {
+  command: string;
+  /** True when the zero-provision bootstrap will clone and install. */
+  bootstrapped: boolean;
+}
+
+/** An explicit command wins; blank values count as unconfigured. */
+export function resolveBoatAgentCommand(
+  options: BoatAgentCommandOptions,
+  env: BoatAgentEnvironment = process.env,
+): ResolvedBoatAgentCommand {
+  const configured = options.agentCommand ?? env.BOAT_RELAY_AGENT_COMMAND;
+  if (configured?.trim()) return { command: configured, bootstrapped: false };
+  const ref = options.agentRepoRef ?? env.OPENSESAME_BOAT_AGENT_REF;
+  return {
+    command: defaultBoatAgentCommand(ref?.trim() ? ref : "main"),
+    bootstrapped: true,
+  };
+}
+
+/** Public repository the default bootstrap installs the agent from. */
+export const BOAT_AGENT_REPO_URL =
+  "https://github.com/Tyler-R-Kendrick/OpenSesame.git";
+
+const SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
+
+/**
+ * The zero-provision start command: clone the public repository into
+ * the sandbox, install only this package's workspace graph, and run
+ * the relay agent entry. Boat sandboxes ship Node and Chrome; the
+ * pinned tsx runner executes the TypeScript entry directly.
+ */
+export function defaultBoatAgentCommand(ref = "main"): string {
+  if (!SAFE_REF.test(ref) || ref.includes(".."))
+    throw new Error("boat agent: invalid repository ref");
+  return [
+    "set -e",
+    'cd "$HOME"',
+    `if [ ! -d opensesame-agent ]; then git clone --depth 1 --branch '${ref}' ${BOAT_AGENT_REPO_URL} opensesame-agent; fi`,
+    "cd opensesame-agent",
+    "corepack enable",
+    "corepack pnpm install --filter @opensesame/agent-sandboxes...",
+    "cd packages/agent-sandboxes",
+    'export AGENT_BROWSER="$HOME/opensesame-agent/packages/cua-password-reset/node_modules/.bin/agent-browser"',
+    "exec corepack pnpm dlx tsx@4.20.3 src/boat-agent-main.ts",
+  ].join("\n");
+}
+
 export interface RunningBoatAgent {
   port: number;
   close(): Promise<void>;

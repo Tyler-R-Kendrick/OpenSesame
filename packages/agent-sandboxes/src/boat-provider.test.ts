@@ -3,7 +3,7 @@ import type {
   Observation,
 } from "@opensesame/cua-password-reset";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BOAT_AGENT_ENV } from "./boat-agent.js";
+import { BOAT_AGENT_ENV, defaultBoatAgentCommand } from "./boat-agent.js";
 import type { BoatJsonValue } from "./boat-client.js";
 
 async function captureError<T>(run: () => Promise<T>): Promise<Error> {
@@ -192,6 +192,14 @@ function fakeBoat() {
         pollIntervalMs: 1,
         state,
       }),
+    // SAFETY: checked at the fake-fetch boundary: the mock implements exactly the (url, init) call shapes the Boat clients send.
+    bootstrapProvider: () =>
+      new BoatSandboxProvider({
+        origin: "https://boat.test",
+        fetchImpl: fetchImpl as typeof fetch,
+        apiToken: "boat_live",
+        pollIntervalMs: 1,
+      }),
     closeRelay: async () => {
       await relay?.close();
     },
@@ -203,12 +211,39 @@ describe("BoatSandboxProvider", () => {
     vi.unstubAllEnvs();
   });
 
-  it("refuses to allocate without an agent start command", async () => {
+  it("builds a zero-provision bootstrap command with a validated ref", () => {
+    const command = defaultBoatAgentCommand();
+    expect(command).toContain("git clone --depth 1 --branch 'main'");
+    expect(command).toContain("src/boat-agent-main.ts");
+    expect(() => defaultBoatAgentCommand("main; rm -rf /")).toThrow("ref");
+    expect(() => defaultBoatAgentCommand("../escape")).toThrow("ref");
+  });
+
+  it("allocates with the default bootstrap when no command is configured", async () => {
     vi.stubEnv("BOAT_RELAY_AGENT_COMMAND", "");
-    const provider = new BoatSandboxProvider({ apiToken: "boat_key" });
-    await expect(
-      provider.allocate({ origin: "https://accounts.example.test" }),
-    ).rejects.toThrow("agent start command");
+    vi.stubEnv("OPENSESAME_BOAT_AGENT_REF", "");
+    const boat = fakeBoat();
+    try {
+      boat.state.claimed = true;
+      boat.state.billed = true;
+      const sandbox = await boat.bootstrapProvider().allocate({
+        origin: "https://accounts.example.test",
+      });
+      expect(sandbox.session).toBe("bx_23456789");
+      await sandbox.close();
+      const commands = boat.requests.filter((entry) =>
+        entry.path.endsWith("/commands"),
+      );
+      expect(commands).toHaveLength(1);
+      // SAFETY: checked at the fake Boat boundary: the only sender is this test's BoatClient, which serializes CommandBody objects.
+      const sent = JSON.parse(commands[0]?.body ?? "{}") as {
+        command: string;
+      };
+      expect(sent.command).toContain("git clone --depth 1 --branch 'main'");
+      expect(sent.command).toContain("src/boat-agent-main.ts");
+    } finally {
+      await boat.closeRelay();
+    }
   });
 
   it("resumes a persisted claim in a fresh provider without re-registering", async () => {

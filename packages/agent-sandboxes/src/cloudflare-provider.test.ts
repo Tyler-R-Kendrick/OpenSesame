@@ -4,6 +4,26 @@ import {
   CloudflareSessionCleanupError,
 } from "./cloudflare-client.js";
 import { CloudflareSandboxProvider } from "./cloudflare-provider.js";
+import type { CloudflareTemporaryAccount } from "./cloudflare-provisioning.js";
+import { SandboxClaimRequiredError } from "./types.js";
+
+const TEMPORARY_ACCOUNT: CloudflareTemporaryAccount = {
+  accountId: "acct-temp",
+  apiToken: "temp-token",
+  claimUrl: "https://dash.cloudflare.com/claim-preview?claimToken=abc",
+  accountExpiresAt: "2999-01-01T00:00:00Z",
+  claimExpiresAt: "2999-01-01T00:00:00Z",
+};
+
+async function captureError<T>(run: () => Promise<T>): Promise<Error> {
+  try {
+    await run();
+  } catch (error) {
+    if (error instanceof Error) return error;
+    throw new Error("expected an Error rejection");
+  }
+  throw new Error("expected the operation to reject");
+}
 
 const mocks = vi.hoisted(() => ({
   connect: vi.fn(),
@@ -34,7 +54,10 @@ beforeEach(() => {
   mocks.connect.mockReset();
   mocks.driverConnect.mockReset();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+});
 
 describe("Cloudflare provider lifecycle", () => {
   it("closes an open socket and deletes the session when driver initialization fails", async () => {
@@ -81,6 +104,35 @@ describe("Cloudflare provider lifecycle", () => {
     expect(failure).toBeInstanceOf(CloudflareSessionCleanupError);
     expect(failure).toMatchObject({ sessionId: "sess-9" });
     expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("provisions a temporary account and surfaces its claim URL on auth rejection", async () => {
+    vi.stubEnv("CLOUDFLARE_ACCOUNT_ID", "");
+    vi.stubEnv("CLOUDFLARE_API_TOKEN", "");
+    vi.stubEnv("BROWSER_RUN_API_TOKEN", "");
+    const persisted: CloudflareTemporaryAccount[] = [];
+    const provider = new CloudflareSandboxProvider({
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            errors: [{ code: 10000, message: "Authentication error" }],
+          }),
+          { status: 401 },
+        ),
+      provisionTemporaryAccount: async () => TEMPORARY_ACCOUNT,
+      onTemporaryAccount: (account) => {
+        persisted.push(account);
+      },
+    });
+    const failure = await captureError(() =>
+      provider.allocate({ origin: "https://accounts.example.test" }),
+    );
+    expect(failure).toBeInstanceOf(SandboxClaimRequiredError);
+    // SAFETY: checked immediately above with toBeInstanceOf on the same value.
+    const claim = failure as SandboxClaimRequiredError;
+    expect(claim.verificationUri).toBe(TEMPORARY_ACCOUNT.claimUrl);
+    expect(persisted).toEqual([TEMPORARY_ACCOUNT]);
   });
 
   it("attempts session deletion even if closing the browser throws", async () => {

@@ -18,7 +18,9 @@ import { createLocalPasswordResetEffects } from "./password-reset-local-runtime.
 import type { ResetRuntimeContext } from "./password-reset-runtime.js";
 import {
   loadBoatProviderState,
+  loadCloudflareTemporaryAccount,
   saveBoatProviderState,
+  saveCloudflareTemporaryAccount,
 } from "./password-reset-sandbox-provider.js";
 import type { ResetVault } from "./password-reset-vault.js";
 
@@ -234,6 +236,30 @@ function providerContext(): ResetRuntimeContext {
     },
   };
 }
+
+describe("cloudflare temporary account persistence", () => {
+  it("round-trips sealed beside the config and ignores expired accounts", async () => {
+    const directory = await configDir(bundledConfig());
+    expect(loadCloudflareTemporaryAccount(directory)).toBeUndefined();
+    const account = {
+      accountId: "acct-temp",
+      apiToken: "temp-token",
+      claimUrl: "https://dash.cloudflare.com/claim-preview?claimToken=abc",
+      accountExpiresAt: "2999-01-01T00:00:00Z",
+      claimExpiresAt: "2999-01-01T00:00:00Z",
+    };
+    saveCloudflareTemporaryAccount(directory, account);
+    expect(loadCloudflareTemporaryAccount(directory)).toEqual(account);
+    const mode = (await stat(join(directory, ".cloudflare-agent-state.json")))
+      .mode;
+    expect(mode & 0o777).toBe(0o600);
+    saveCloudflareTemporaryAccount(directory, {
+      ...account,
+      accountExpiresAt: "2000-01-01T00:00:00Z",
+    });
+    expect(loadCloudflareTemporaryAccount(directory)).toBeUndefined();
+  });
+});
 
 describe("sandbox provider allocation", () => {
   it("allocates the configured sandbox provider for the run", async () => {

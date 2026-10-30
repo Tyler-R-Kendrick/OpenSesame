@@ -1,27 +1,17 @@
 /**
  * Boat sandbox provider: allocates a cloud sandbox with no
  * pre-provisioned account, runs the relay agent inside it, and drives
- * the browser over the authenticated relay.
- *
- * Zero-provision path (auth.md): with no API key configured, the
- * provider registers this agent with Boat, and when Boat requires a
- * person — the claim ceremony, then billing checkout — it throws
- * `SandboxClaimRequiredError` carrying only the link/code the person
- * needs, so the caller surfaces it through the notifications queue and
- * toast. Retrying allocation with the same provider instance resumes
- * the flow (claim poll, then sandbox create).
- *
- * Secrets: the relay token and navigation scope travel in per-sandbox
- * environment created with the sandbox. The only command ever sent is
- * the operator-configured agent start command, so Boat's command
- * history never sees a site secret; secrets cross per fill over the
- * relay. Sandboxes are created `noEnv` (none of the account's secrets),
- * monitoring off, snapshots off, and deleted on close.
+ * the browser over the authenticated relay. With no API key, the
+ * provider registers via auth.md; Boat's human gates (claim ceremony,
+ * billing checkout) surface as `SandboxClaimRequiredError`, and a later
+ * allocation resumes the flow. Secrets cross only per fill over the
+ * relay — never through Boat's command history — and sandboxes are
+ * created `noEnv`, monitoring off, snapshots off, deleted on close.
  */
 
 import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
-import { BOAT_AGENT_ENV } from "./boat-agent.js";
+import { BOAT_AGENT_ENV, resolveBoatAgentCommand } from "./boat-agent.js";
 import {
   BoatAgentAuth,
   type BoatAuthOptions,
@@ -84,11 +74,15 @@ export interface BoatProviderOptions {
   /** The user's email, for the claim ceremony (`service_auth`). */
   claimEmail?: string;
   /**
-   * Shell command that starts the relay agent inside the sandbox
-   * (typically from a saved snapshot with this package installed). It
-   * reads the `BOAT_AGENT_ENV` variables; see `boat-agent.ts`.
+   * Shell command that starts the relay agent inside the sandbox. When
+   * omitted, the zero-provision bootstrap from `boat-agent.ts` clones
+   * the public repository and runs the agent entry; set this (or
+   * `BOAT_RELAY_AGENT_COMMAND`) to use a saved snapshot instead. The
+   * command reads the `BOAT_AGENT_ENV` variables; see `boat-agent.ts`.
    */
   agentCommand?: string;
+  /** Git ref the default bootstrap checks out (default `main`). */
+  agentRepoRef?: string;
   /** Saved snapshot to create sandboxes from. */
   fromSnapshot?: string;
   /** Stop (archive) instead of permanently deleting on close. */
@@ -324,8 +318,11 @@ export class BoatSandboxProvider implements SandboxProvider {
   }
 
   /** Wait until the in-sandbox relay accepts a WebSocket upgrade. */
-  private async waitForRelay(webSocketUrl: string): Promise<void> {
-    const deadline = Date.now() + (this.options.agentReadyTimeoutMs ?? 60_000);
+  private async waitForRelay(
+    webSocketUrl: string,
+    timeoutMs: number,
+  ): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
     const interval = this.options.pollIntervalMs ?? 1_000;
     for (;;) {
       const opened = await new Promise<boolean>((resolve) => {
@@ -344,12 +341,12 @@ export class BoatSandboxProvider implements SandboxProvider {
   }
 
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
-    const agentCommand =
-      this.options.agentCommand ?? process.env.BOAT_RELAY_AGENT_COMMAND;
-    if (!agentCommand)
-      throw new Error(
-        "boat provider needs an agent start command (BOAT_RELAY_AGENT_COMMAND)",
-      );
+    const { command: agentCommand, bootstrapped } = resolveBoatAgentCommand(
+      this.options,
+    );
+    // Cloning and installing on first boot takes minutes, not seconds.
+    const relayTimeoutMs =
+      this.options.agentReadyTimeoutMs ?? (bootstrapped ? 900_000 : 60_000);
     const { url, allowedDomains } = allowedDomainsFor(request);
     const token = await this.ensureAccessToken();
     const client = this.client();
@@ -376,7 +373,7 @@ export class BoatSandboxProvider implements SandboxProvider {
       await client.startDetachedCommand(liveToken, sandboxId, agentCommand);
       const hostedUrl = await client.hostPort(liveToken, sandboxId, RELAY_PORT);
       const webSocketUrl = hostedUrl.replace(/^http/u, "ws");
-      await this.waitForRelay(webSocketUrl);
+      await this.waitForRelay(webSocketUrl, relayTimeoutMs);
       const browser = relayDriverOverWebSocket(webSocketUrl, {
         token: relayToken,
       });
