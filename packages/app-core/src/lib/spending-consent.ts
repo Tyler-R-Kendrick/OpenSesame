@@ -41,7 +41,7 @@ function utf8Bytes(value: string): Uint8Array {
   return new TextEncoder().encode(value);
 }
 
-function concatBytes(parts: readonly Uint8Array[]): Uint8Array {
+function concatBytes(parts: readonly Uint8Array[]) {
   let total = 0;
   for (const part of parts) total += part.byteLength;
   const out = new Uint8Array(total);
