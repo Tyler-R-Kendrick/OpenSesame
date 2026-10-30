@@ -1,0 +1,55 @@
+name: Review TypeScript 7 share byte ownership
+on:
+  push:
+    branches: [review/typescript-v7-share-hosted-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-share-hosted-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 7329ba39f2d8f6f79d1e3121a6a225367ab2d73b
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = f7c8ce93012259af009ceff40d3a48b07a06c86f
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Record original compiler errors
+        run: |
+          set -euo pipefail
+          trap 'git restore -- apps/pages/src/lib/share-target.ts' EXIT
+          git show HEAD^:apps/pages/src/lib/share-target.ts > apps/pages/src/lib/share-target.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/share-original.log 2>&1; then exit 1; fi
+          grep -E '(share-target-intake.test.ts|src/sw/share-target.ts).*error TS[0-9]+' /tmp/share-original.log
+      - name: Confirm owned result removes the targeted errors
+        run: |
+          set -euo pipefail
+          pnpm exec biome check apps/pages/src/lib/share-target.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/share-fixed.log 2>&1; then
+            echo 'Pages typecheck passed; all remaining diagnostics also resolved.'
+          else
+            before=$(grep -cE 'error TS[0-9]+' /tmp/share-original.log || true)
+            after=$(grep -cE 'error TS[0-9]+' /tmp/share-fixed.log || true)
+            echo "Pages diagnostics before=$before after=$after; remaining errors block complete migration."
+            test "$after" -lt "$before"
+            if grep -E '(share-target-intake.test.ts|src/sw/share-target.ts).*error TS[0-9]+' /tmp/share-fixed.log; then exit 1; fi
+          fi
+      - name: Verify sharing encryption and intake behavior
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/pages exec vitest run src/lib/share-target-intake.test.ts src/sw/share-target.test.ts src/sections/vault/DropCeremony.share.test.tsx
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = f7c8ce93012259af009ceff40d3a48b07a06c86f
+          git diff --exit-code
