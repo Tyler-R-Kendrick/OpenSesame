@@ -31,6 +31,7 @@ import {
   listingOf,
   movementTarget,
 } from "./keymap-targets.js";
+import { afterPaneTraversal } from "./pane-trail.js";
 
 export type CommandRun = Readonly<{
   /**
@@ -139,9 +140,11 @@ export function isMotion(id: string): boolean {
   return MOTIONS.has(id);
 }
 
-function jump(id: string, { navigate }: CommandRun): void {
+function jump(id: string, run: CommandRun): void {
   const path = sectionCommandPath(id);
   if (path === null) return;
+  if (afterPaneTraversal(() => jump(id, run))) return;
+  const { navigate } = run;
   const rail = currentRailTarget();
   if (rail?.goTo) {
     rail.goTo(path);
