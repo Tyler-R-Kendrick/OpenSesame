@@ -96,7 +96,7 @@ function bytesToBase64Url(bytes: Uint8Array): string {
     .replace(/=+$/u, "");
 }
 
-function base64UrlToBytes(value: string): Uint8Array | null {
+function base64UrlToBytes(value: string) {
   if (!/^[A-Za-z0-9_-]{43}$/u.test(value)) return null;
   try {
     const padded = value.replace(/-/gu, "+").replace(/_/gu, "/");
@@ -116,10 +116,7 @@ export function newShareTargetKey(): string {
   return bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32)));
 }
 
-export async function sealShareTarget(
-  keyB64: string,
-  plain: Uint8Array,
-): Promise<Uint8Array> {
+export async function sealShareTarget(keyB64: string, plain: Uint8Array) {
   const raw = base64UrlToBytes(keyB64);
   if (!raw) throw new Error("invalid share key");
   const key = await crypto.subtle.importKey(
@@ -139,10 +136,7 @@ export async function sealShareTarget(
   return out;
 }
 
-export async function openShareTarget(
-  keyB64: string,
-  sealed: Uint8Array,
-): Promise<Uint8Array> {
+export async function openShareTarget(keyB64: string, sealed: Uint8Array) {
   const raw = base64UrlToBytes(keyB64);
   if (!raw || sealed.length <= 12) throw new Error("invalid share entry");
   const key = await crypto.subtle.importKey(
