@@ -25,6 +25,7 @@ use super::credentials::text;
 use super::folders::list_json;
 use super::identity::normalize_email;
 use crate::auth::Authed;
+use crate::budget_subject::BudgetSubject;
 use crate::error::{ApiError, ApiResult};
 use crate::wire::account::date;
 use crate::wire::cipher::{is_enc_string, normalize};
@@ -149,12 +150,6 @@ async fn create(
     let (Some(public_key), Some(identifier), Some(code)) = (public_key, identifier, code) else {
         return Err(ApiError::bad_request("The request is incomplete."));
     };
-    // Every address is charged the same, whether or not it has an account, so
-    // the answer to "too many" says nothing about who does. The count is its
-    // own: failed passwords neither spend it nor are blocked by it.
-    if !server.sign_in_requests.reserve(&email).await? {
-        return Err(ApiError::too_many_requests());
-    }
     let user = server.db.bitwarden_user_by_email(&email).await?;
     let request = BitwardenAuthRequest {
         id: uuid::Uuid::new_v4().to_string(),
@@ -172,11 +167,20 @@ async fn create(
     };
     if let Some(user) = &user {
         if !server
+            .sign_in_requests
+            .reserve(&BudgetSubject::SignInRequest(user))
+            .await?
+        {
+            // Match an unknown address without allocating or notifying. A
+            // creation-status difference must not become an account oracle.
+            return Ok(Json(request_json(&server, &request)));
+        }
+        if !server
             .db
             .bitwarden_add_auth_request(&request, window_start(), MAX_PENDING)
             .await?
         {
-            return Err(ApiError::too_many_requests());
+            return Ok(Json(request_json(&server, &request)));
         }
         server.hub.sign_in_requested(&user.id, &request.id);
     }
@@ -289,7 +293,7 @@ async fn response(
         .bitwarden_auth_request(&id, window_start())
         .await?
         .ok_or_else(ApiError::not_found)?;
-    let limit = format!("auth-request:{id}");
+    let limit = BudgetSubject::AuthRequest(&request);
     if !server.sign_in_failures.reserve(&limit).await? {
         return Err(ApiError::too_many_requests());
     }

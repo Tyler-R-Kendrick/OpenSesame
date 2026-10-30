@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use super::second_step;
+use crate::budget_subject::BudgetSubject;
 use crate::error::{ApiError, ApiResult};
 use crate::kdf::KdfConfig;
 use crate::second_factor::api_key_matches;
@@ -94,15 +95,16 @@ async fn password_grant(
         .and_then(|raw| raw.parse::<i64>().ok())
         .unwrap_or(14);
 
-    // Refused before any hash is spent; known and unknown addresses alike.
-    let budget = format!("account:{email}");
-    if !server.sign_in_failures.reserve(&budget).await? {
-        return Err(ApiError::too_many_requests());
-    }
+    let admission = server.hash_slot().await?;
     let Some(user) = server.db.bitwarden_user_by_email(&email).await? else {
-        server.decoy_check(secret).await?;
+        server.decoy_check_admitted(&admission, secret).await?;
         return Err(ApiError::invalid_grant());
     };
+    let budget = BudgetSubject::Account(&user);
+    if !server.sign_in_failures.reserve(&budget).await? {
+        server.decoy_check_admitted(&admission, secret).await?;
+        return Err(ApiError::invalid_grant());
+    }
     // "Log in with device": the password is the access code of a request
     // one of the account's devices approved, spent here once; it stands in
     // for both steps, as on Bitwarden.
@@ -113,7 +115,7 @@ async fn password_grant(
     if !by_device
         && (form.contains_key("authRequest")
             || !server
-                .check_secret(&user.id, &user.master_password_hash, secret)
+                .check_secret_admitted(&admission, &user.id, &user.master_password_hash, secret)
                 .await?)
     {
         return Err(ApiError::invalid_grant());
@@ -179,7 +181,7 @@ async fn api_key_grant(
     let (Some(user), Some(key)) = (user, key) else {
         return Err(refused());
     };
-    let budget = format!("api-key:{client_id}");
+    let budget = BudgetSubject::ApiKey(&user);
     if !server.sign_in_failures.reserve(&budget).await? {
         return Err(ApiError::too_many_requests());
     }

@@ -17,6 +17,7 @@ use super::credentials::text;
 use super::identity::normalize_email;
 use super::second_step;
 use crate::auth::Authed;
+use crate::budget_subject::BudgetSubject;
 use crate::error::{ApiError, ApiResult};
 use crate::second_factor::{
     code_step, is_authenticator_key, new_api_key, new_authenticator_key, new_recovery_code,
@@ -227,16 +228,18 @@ pub async fn recover(
     let secret = text(&body, "masterPasswordHash").unwrap_or_default();
     let code = text(&body, "recoveryCode").unwrap_or_default();
     let refused = || ApiError::bad_request("Invalid information. Try again.");
-    let budget = format!("account:{email}");
-    if !server.sign_in_failures.reserve(&budget).await? {
-        return Err(ApiError::too_many_requests());
-    }
+    let admission = server.hash_slot().await?;
     let Some(user) = server.db.bitwarden_user_by_email(&email).await? else {
-        server.decoy_check(&secret).await?;
+        server.decoy_check_admitted(&admission, &secret).await?;
         return Err(refused());
     };
+    let budget = BudgetSubject::Account(&user);
+    if !server.sign_in_failures.reserve(&budget).await? {
+        server.decoy_check_admitted(&admission, &secret).await?;
+        return Err(refused());
+    }
     if !server
-        .check_secret(&user.id, &user.master_password_hash, &secret)
+        .check_secret_admitted(&admission, &user.id, &user.master_password_hash, &secret)
         .await?
         || second_step::recover(&server, &user, &code).await.is_err()
     {

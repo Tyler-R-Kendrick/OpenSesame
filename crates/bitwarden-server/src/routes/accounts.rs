@@ -7,6 +7,7 @@ use serde_json::{json, Map, Value};
 
 use super::credentials::{self, text, Names};
 use crate::auth::Authed;
+use crate::budget_subject::BudgetSubject;
 use crate::error::{ApiError, ApiResult};
 use crate::kdf::KdfConfig;
 use crate::tokens::new_security_stamp;
@@ -43,12 +44,13 @@ pub(crate) async fn prove_password_value(
     user: &BitwardenUser,
     secret: &str,
 ) -> ApiResult<()> {
-    let budget = format!("account:{}", super::identity::normalize_email(&user.email));
+    let admission = server.hash_slot().await?;
+    let budget = BudgetSubject::Account(user);
     if !server.sign_in_failures.reserve(&budget).await? {
         return Err(ApiError::too_many_requests());
     }
     if server
-        .check_secret(&user.id, &user.master_password_hash, secret)
+        .check_secret_admitted(&admission, &user.id, &user.master_password_hash, secret)
         .await?
     {
         server.sign_in_failures.clear(&budget).await?;

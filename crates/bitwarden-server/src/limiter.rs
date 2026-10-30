@@ -1,17 +1,18 @@
 //! Durable, bounded admission before credential verification.
 //!
 //! Reservations happen atomically before a password or code is examined. Live
-//! buckets are never evicted: capacity exhaustion refuses new attempts rather
-//! than reopening an account's budget. A successful proof clears its bucket.
+//! buckets are never evicted. Subjects come from loaded credential objects;
+//! invented IDs allocate nothing, and one object's guesses cannot exhaust a
+//! global bucket capacity. A successful proof clears only its own bucket.
 
 use std::time::Duration;
 
 use opensesame_storage::Db;
 use sha2::{Digest, Sha256};
 
-const CAPACITY: i64 = 10_000;
+use crate::budget_subject::BudgetSubject;
 
-pub struct FailureLimiter {
+pub(crate) struct FailureLimiter {
     db: Db,
     namespace: &'static str,
     max_attempts: u32,
@@ -20,7 +21,12 @@ pub struct FailureLimiter {
 
 impl FailureLimiter {
     #[must_use]
-    pub fn new(db: Db, namespace: &'static str, max_attempts: u32, window: Duration) -> Self {
+    pub(crate) fn new(
+        db: Db,
+        namespace: &'static str,
+        max_attempts: u32,
+        window: Duration,
+    ) -> Self {
         Self {
             db,
             namespace,
@@ -38,20 +44,20 @@ impl FailureLimiter {
     ///
     /// # Errors
     /// Returns a storage or clock-overflow error.
-    pub async fn reserve(&self, key: &str) -> anyhow::Result<bool> {
-        self.reserve_at(key, chrono::Utc::now().timestamp_millis())
+    pub(crate) async fn reserve(&self, subject: &BudgetSubject<'_>) -> anyhow::Result<bool> {
+        self.reserve_at(subject, chrono::Utc::now().timestamp_millis())
             .await
     }
 
-    async fn reserve_at(&self, key: &str, now: i64) -> anyhow::Result<bool> {
+    async fn reserve_at(&self, subject: &BudgetSubject<'_>, now: i64) -> anyhow::Result<bool> {
         let duration = i64::try_from(self.window.as_millis())?;
         let expiry = now
             .checked_add(duration)
             .ok_or_else(|| anyhow::anyhow!("clock overflow"))?;
-        let bucket = Self::bucket(key);
+        let bucket = Self::bucket(&subject.key());
         let mut tx = self.db.pool().begin().await?;
-        // Taking the write lock before checking capacity serializes separate
-        // Host instances too. Only expired rows can ever make room.
+        // Taking the write lock serializes separate Host instances too.
+        // Only expired rows are collected; a live lockout is never displaced.
         sqlx::query(
             "DELETE FROM bitwarden_attempt_budgets WHERE namespace = ? AND expires_at <= ?",
         )
@@ -61,19 +67,13 @@ impl FailureLimiter {
         .await?;
         let reserved = sqlx::query(
             "INSERT INTO bitwarden_attempt_budgets (namespace, bucket, expires_at, attempts)
-             SELECT ?, ?, ?, 1 WHERE
-             EXISTS (SELECT 1 FROM bitwarden_attempt_budgets WHERE namespace = ? AND bucket = ?)
-             OR (SELECT COUNT(*) FROM bitwarden_attempt_budgets WHERE namespace = ?) < ?
+             VALUES (?, ?, ?, 1)
              ON CONFLICT(namespace, bucket) DO UPDATE SET attempts = attempts + 1
              WHERE attempts < ? RETURNING attempts",
         )
         .bind(self.namespace)
         .bind(&bucket)
         .bind(expiry)
-        .bind(self.namespace)
-        .bind(&bucket)
-        .bind(self.namespace)
-        .bind(CAPACITY)
         .bind(i64::from(self.max_attempts))
         .fetch_optional(&mut *tx)
         .await?
@@ -84,10 +84,10 @@ impl FailureLimiter {
 
     /// # Errors
     /// Returns an error when the successful proof's budget cannot be cleared.
-    pub async fn clear(&self, key: &str) -> anyhow::Result<()> {
+    pub(crate) async fn clear(&self, subject: &BudgetSubject<'_>) -> anyhow::Result<()> {
         sqlx::query("DELETE FROM bitwarden_attempt_budgets WHERE namespace = ? AND bucket = ?")
             .bind(self.namespace)
-            .bind(Self::bucket(key))
+            .bind(Self::bucket(&subject.key()))
             .execute(self.db.pool())
             .await?;
         Ok(())

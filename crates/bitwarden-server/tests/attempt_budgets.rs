@@ -50,15 +50,16 @@ async fn parallel_guesses_cannot_overrun_or_displace_the_account_fence() {
             password(&base, "limited@example.com", "wrong").await
         }));
     }
-    let mut attempted = 0;
     for task in tasks {
-        match task.await.unwrap() {
-            400 => attempted += 1,
-            429 => {}
-            other => panic!("unexpected status {other}"),
-        }
+        assert_eq!(task.await.unwrap(), 400);
     }
-    assert_eq!(attempted, 3);
+    let attempts: i64 = sqlx::query_scalar(
+        "SELECT attempts FROM bitwarden_attempt_budgets WHERE namespace='verification'",
+    )
+    .fetch_one(harness.db.pool())
+    .await
+    .unwrap();
+    assert_eq!(attempts, 3);
     // Fabricated request identifiers used to allocate and evict live buckets.
     for index in 0..32 {
         assert_eq!(
@@ -96,7 +97,7 @@ async fn parallel_guesses_cannot_overrun_or_displace_the_account_fence() {
     assert_eq!(count, 1);
     assert_eq!(
         password(&harness.http_url, &user.email, &user.password_hash()).await,
-        429
+        400
     );
 }
 
@@ -127,7 +128,7 @@ async fn a_stolen_session_cannot_bypass_the_sign_in_budget_at_password_reproof()
     }
     assert_eq!(
         password(&harness.http_url, &user.email, &user.password_hash()).await,
-        429
+        400
     );
     let response = http()
         .post(format!("{}/api/accounts/verify-password", harness.http_url))
