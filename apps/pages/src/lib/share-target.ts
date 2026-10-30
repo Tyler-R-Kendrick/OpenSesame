@@ -11,6 +11,7 @@
 
 import {
   type JsonValue,
+  isArrayBufferBackedBytes,
   isJsonObject,
   isNumber,
   isString,
@@ -126,6 +127,8 @@ export async function sealShareTarget(keyB64: string, plain: Uint8Array) {
     false,
     ["encrypt"],
   );
+  if (!isArrayBufferBackedBytes(plain))
+    throw new TypeError("invalid share bytes");
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const cipher = new Uint8Array(
     await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain),
@@ -146,6 +149,8 @@ export async function openShareTarget(keyB64: string, sealed: Uint8Array) {
     false,
     ["decrypt"],
   );
+  if (!isArrayBufferBackedBytes(sealed))
+    throw new TypeError("invalid share bytes");
   return new Uint8Array(
     await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: sealed.subarray(0, 12) },
