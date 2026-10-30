@@ -1,0 +1,58 @@
+name: Review rejected sign-in PRF cleanup
+on:
+  push:
+    branches: [review/typescript-v7-prf-early-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-prf-early-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 82f98c9d0a6c45ab6fc86857473a6014e8e22ad8
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 7452ba660ab4e6b55a1764a79674af86d4ae1403
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify red controls against prior implementation
+        run: |
+          set -euo pipefail
+          file=packages/app-core/src/lib/local-passkey-prf.ts
+          trap 'git restore -- "$file"' EXIT
+          git show "HEAD^:$file" > "$file"
+          if pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf-early.test.ts > /tmp/prf-early-original.log 2>&1; then cat /tmp/prf-early-original.log; exit 1; fi
+          cat /tmp/prf-early-original.log
+          grep -Eq 'FAIL.*wipes an otherwise valid result when there is no matching plan row' /tmp/prf-early-original.log
+          grep -Eq 'FAIL.*wipes a short result and returns unsupported' /tmp/prf-early-original.log
+          grep -Eq 'FAIL.*reads the first result once and assesses and wipes that same result' /tmp/prf-early-original.log
+          grep -Eq 'FAIL.*rejects shared and fake PRF buffers without modifying caller memory' /tmp/prf-early-original.log
+          grep -Eq 'FAIL.*cleans up salts and fails closed if the result is detached during vault lookup' /tmp/prf-early-original.log
+      - name: Check exact sources and report remaining compiler diagnostics
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/local-passkey-prf.ts packages/app-core/src/lib/local-passkey-prf-early.test.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/prf-early-pages.log 2>&1; then echo 'Pages typecheck passed'; else
+            count=$(grep -cE 'error TS[0-9]+' /tmp/prf-early-pages.log || true)
+            echo "Pages diagnostics remaining=$count; migration remains blocked."
+            if grep -E 'local-passkey-prf(-early)?.test.ts.*error TS[0-9]+' /tmp/prf-early-pages.log; then exit 1; fi
+          fi
+      - name: Verify early exits and real enrollment
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf-early.test.ts src/lib/local-passkey-prf-wipe.test.ts src/lib/local-passkey-prf.test.ts src/lib/local-passkeys.test.ts src/lib/vault/protection/adapters/webauthn-prf.test.ts
+          pnpm quality:app-core
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 7452ba660ab4e6b55a1764a79674af86d4ae1403
+          git diff --exit-code
