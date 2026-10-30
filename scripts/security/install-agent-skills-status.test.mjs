@@ -33,20 +33,43 @@ test("catalogue failure degrades currency, while a successful install remains ok
   );
   put(".codex/hooks.json", "{}\n");
   put(".claude/settings.json", "{}\n");
-  put(".gitignore", ".agents/\nbin/\n");
-  execFileSync("git", ["init", "-q", root]);
-  execFileSync("git", ["-C", root, "add", "."]);
-  execFileSync("git", [
-    "-C",
-    root,
-    "-c",
-    "user.name=test",
-    "-c",
-    "user.email=test@example.invalid",
-    "commit",
-    "-qm",
-    "fixture",
-  ]);
+  put(".gitignore", ".agents/\nbin/\nglobal.gitconfig\n");
+  put("bin/fail-sign", "#!/bin/sh\nexit 1\n");
+  chmodSync(join(root, "bin/fail-sign"), 0o755);
+  put(
+    "global.gitconfig",
+    `[commit]\n  gpgsign = true\n[gpg]\n  program = ${join(root, "bin/fail-sign")}\n`,
+  );
+  const gitEnv = {
+    ...process.env,
+    GIT_CONFIG_GLOBAL: join(root, "global.gitconfig"),
+  };
+  assert.equal(
+    execFileSync("git", ["config", "--global", "--get", "commit.gpgsign"], {
+      env: gitEnv,
+      encoding: "utf8",
+    }).trim(),
+    "true",
+  );
+  execFileSync("git", ["init", "-q", root], { env: gitEnv });
+  execFileSync("git", ["-C", root, "add", "."], { env: gitEnv });
+  execFileSync(
+    "git",
+    [
+      "-C",
+      root,
+      "-c",
+      "user.name=test",
+      "-c",
+      "user.email=test@example.invalid",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "-qm",
+      "fixture",
+    ],
+    { env: gitEnv },
+  );
   put(
     "bin/npx",
     '#!/bin/sh\nif [ "$2" = skills@1.7.4 ] && [ "$3" = add ]; then exit 1; fi\nexit 0\n',
@@ -55,7 +78,7 @@ test("catalogue failure degrades currency, while a successful install remains ok
   const run = () =>
     execFileSync("bash", ["scripts/dev/install-agent-skills.sh"], {
       cwd: root,
-      env: { ...process.env, PATH: `${join(root, "bin")}:${process.env.PATH}` },
+      env: { ...gitEnv, PATH: `${join(root, "bin")}:${process.env.PATH}` },
       stdio: "pipe",
     });
   const status = () =>
