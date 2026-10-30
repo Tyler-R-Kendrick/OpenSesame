@@ -1352,8 +1352,8 @@ importers:
   packages/cua-password-reset:
     dependencies:
       '@ai-sdk/openai-compatible':
-        specifier: 1.0.59
-        version: 1.0.59(zod@4.6.6)
+        specifier: 2.0.88
+        version: 2.0.88(zod@4.6.6)
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain
@@ -2442,14 +2442,8 @@ packages:
     peerDependencies:
       zod: 4.6.6
 
-  '@ai-sdk/openai-compatible@1.0.59':
-    resolution: {integrity: sha512-L9nne434Qji2kNogFyg1Ts/F4H5DFDYT+7qnUnYxh54d7+a2R5ptEQniyVQj3fFNtcNpRlKr63mb/52qabY7uQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: 4.6.6
-
-  '@ai-sdk/provider-utils@3.0.42':
-    resolution: {integrity: sha512-5DMgJ2HD4rR6mvoc7mqeW5roLHTTqDKNkGuLOWnF0+UCOu96xqPFMy3RbGKYAYDh5YhkwGBdbV7f6xSkLxzGXw==}
+  '@ai-sdk/openai-compatible@2.0.88':
+    resolution: {integrity: sha512-1TFACX7hi18IVTJxLWRj+lHiidSxer6ERLkejHaa+e8h9ClkiRfBwx1p1e8ElTAWlho5Mg5o7QeIPlfBUYU5+g==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: 4.6.6
@@ -2460,12 +2454,18 @@ packages:
     peerDependencies:
       zod: 4.6.6
 
-  '@ai-sdk/provider@2.0.5':
-    resolution: {integrity: sha512-cmG40u10QFEUrYXWYom6Lo6DLR+pND3wWABTTT9Nf7zg9F7BD46KNj+STekndp9Kg5ZAIPA0WxmTI0IwRvKvvQ==}
-    engines: {node: '>=18'}
+  '@ai-sdk/provider-utils@4.0.63':
+    resolution: {integrity: sha512-QSrfUn7pnb+2EZLLtpkcY6208ZZVi15QEJFyp/1jAYEH2UecthgAsyYWOJbpMSLtraviCByd6ii2meISIhkTZA==}
+    engines: {node: '>=18.17'}
+    peerDependencies:
+      zod: 4.6.6
 
   '@ai-sdk/provider@3.0.14':
     resolution: {integrity: sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA==}
+    engines: {node: '>=18'}
+
+  '@ai-sdk/provider@3.0.19':
+    resolution: {integrity: sha512-5lWq7zSfRaU5ylDESn3sDQjgGl2AI1vjZKO/6JY3aFW70ct4zcP1kN+ZUYOuTXr28fVsYbyu2YFhddLdIgQFZQ==}
     engines: {node: '>=18'}
 
   '@aklinker1/rollup-plugin-visualizer@5.12.0':
@@ -8508,7 +8508,6 @@ packages:
 
   libsql@0.5.29:
     resolution: {integrity: sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==}
-    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -11048,18 +11047,10 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.6.6
 
-  '@ai-sdk/openai-compatible@1.0.59(zod@4.6.6)':
+  '@ai-sdk/openai-compatible@2.0.88(zod@4.6.6)':
     dependencies:
-      '@ai-sdk/provider': 2.0.5
-      '@ai-sdk/provider-utils': 3.0.42(zod@4.6.6)
-      zod: 4.6.6
-
-  '@ai-sdk/provider-utils@3.0.42(zod@4.6.6)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.5
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.1.1
-      undici: 6.29.1
+      '@ai-sdk/provider': 3.0.19
+      '@ai-sdk/provider-utils': 4.0.63(zod@4.6.6)
       zod: 4.6.6
 
   '@ai-sdk/provider-utils@4.0.40(zod@4.6.6)':
@@ -11069,11 +11060,19 @@ snapshots:
       eventsource-parser: 3.1.1
       zod: 4.6.6
 
-  '@ai-sdk/provider@2.0.5':
+  '@ai-sdk/provider-utils@4.0.63(zod@4.6.6)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.19
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.1
+      undici: 6.29.1
+      zod: 4.6.6
+
+  '@ai-sdk/provider@3.0.14':
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/provider@3.0.14':
+  '@ai-sdk/provider@3.0.19':
     dependencies:
       json-schema: 0.4.0
 
