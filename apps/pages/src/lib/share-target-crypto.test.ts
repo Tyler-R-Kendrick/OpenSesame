@@ -64,6 +64,36 @@ it("opens an offset ciphertext view without copying its input", async () => {
   expect(offered.byteLength).toBe(view.byteLength - 12);
 });
 
+it("uses the real ciphertext view despite spoofed properties and methods", async () => {
+  const key = newShareTargetKey();
+  const actual = await sealShareTarget(key, new Uint8Array([1, 2]));
+  const other = await sealShareTarget(key, new Uint8Array([9, 9]));
+  Object.defineProperties(actual, {
+    length: { value: 0 },
+    byteLength: { value: 0 },
+    byteOffset: { value: 0 },
+    buffer: { value: other.buffer },
+    subarray: {
+      value: (...args: number[]) =>
+        Reflect.apply(Uint8Array.prototype.subarray, other, args),
+    },
+  });
+  expect(await openShareTarget(key, actual)).toEqual(new Uint8Array([1, 2]));
+});
+
+it("does not consult a ciphertext subclass species", async () => {
+  const key = newShareTargetKey();
+  const actual = await sealShareTarget(key, new Uint8Array([1, 2]));
+  class SpoofedSpecies extends Uint8Array {
+    static get [Symbol.species]() {
+      throw new Error("unexpected species");
+    }
+  }
+  expect(await openShareTarget(key, new SpoofedSpecies(actual))).toEqual(
+    new Uint8Array([1, 2]),
+  );
+});
+
 it("retains authentication failure when ciphertext changes during import", async () => {
   const key = newShareTargetKey();
   const sealed = await sealShareTarget(key, new Uint8Array([1, 2]));

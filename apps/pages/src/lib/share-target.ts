@@ -15,6 +15,7 @@ import {
   isJsonObject,
   isNumber,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 
 export const SHARE_TARGET_CACHE_PREFIX = "opensesame-share-target";
@@ -139,9 +140,43 @@ export async function sealShareTarget(keyB64: string, plain: Uint8Array) {
   return out;
 }
 
+/** Read the native view length without dispatching to an input property. */
+function shareByteLength(bytes: Uint8Array): number {
+  const proto = Object.getPrototypeOf(Uint8Array.prototype);
+  const getter = Object.getOwnPropertyDescriptor(proto, "byteLength")?.get;
+  if (!getter) throw new TypeError("invalid share bytes");
+  return getter.call(bytes);
+}
+
+/** After validation, construct ordinary views without calling input methods or species. */
+function shareCipherViews(bytes: Uint8Array<ArrayBuffer>) {
+  const proto = Object.getPrototypeOf(Uint8Array.prototype);
+  const bufferGetter = Object.getOwnPropertyDescriptor(proto, "buffer")?.get;
+  const offsetGetter = Object.getOwnPropertyDescriptor(
+    proto,
+    "byteOffset",
+  )?.get;
+  const lengthGetter = Object.getOwnPropertyDescriptor(
+    proto,
+    "byteLength",
+  )?.get;
+  if (!bufferGetter || !offsetGetter || !lengthGetter)
+    throw new TypeError("invalid share bytes");
+  // SAFETY: the caller just validated this exact view as an attached, nonshared Uint8Array.
+  const buffer: ArrayBuffer = overlapCast(bufferGetter.call(bytes));
+  const offset: number = offsetGetter.call(bytes);
+  const length: number = lengthGetter.call(bytes);
+  if (length <= 12) throw new Error("invalid share entry");
+  return {
+    iv: new Uint8Array(buffer, offset, 12),
+    ciphertext: new Uint8Array(buffer, offset + 12, length - 12),
+  };
+}
+
 export async function openShareTarget(keyB64: string, sealed: Uint8Array) {
   const raw = base64UrlToBytes(keyB64);
-  if (!raw || sealed.length <= 12) throw new Error("invalid share entry");
+  if (!raw || shareByteLength(sealed) <= 12)
+    throw new Error("invalid share entry");
   const key = await crypto.subtle.importKey(
     "raw",
     raw,
@@ -151,12 +186,9 @@ export async function openShareTarget(keyB64: string, sealed: Uint8Array) {
   );
   if (!isArrayBufferBackedBytes(sealed))
     throw new TypeError("invalid share bytes");
+  const { iv, ciphertext } = shareCipherViews(sealed);
   return new Uint8Array(
-    await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: sealed.subarray(0, 12) },
-      key,
-      sealed.subarray(12),
-    ),
+    await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext),
   );
 }
 
