@@ -1,0 +1,63 @@
+name: Review visual comparator v8 compatibility
+on:
+  push:
+    branches: [review/pixelmatch-v8-dual-hosted-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/pixelmatch-v8-dual-hosted-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      VITE_BASE: /
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 12d05d167acdc5e656acff6bf426dc0e54047b13
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact source and record baseline bytes
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 12d05d167acdc5e656acff6bf426dc0e54047b13
+          test "$(git rev-parse HEAD^{tree})" = 8a8b5c24827e89da10c7fd90de8f525fb67582a2
+          sha256sum tests/visual-contract/baselines/*.png > /tmp/visual-baselines.sha256
+      - name: Install frozen graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check visual comparator contracts
+        run: |
+          set -euo pipefail
+          pnpm exec biome check tests/visual-contract/src/compare.ts tests/visual-contract/src/compare.pact.test.ts
+          pnpm --filter @opensesame/visual-contract typecheck
+          pnpm --filter @opensesame/visual-contract test
+      - name: Restore pinned native build inputs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Exercise the existing six real visual baselines
+        run: |
+          set -euo pipefail
+          test -z "${VISUAL_UPDATE:-}"
+          pnpm --filter @opensesame/visual-contract test:visual
+      - name: Verify baseline and source bytes
+        if: always()
+        run: |
+          set -euo pipefail
+          sha256sum -c /tmp/visual-baselines.sha256
+          test "$(git rev-parse HEAD^{tree})" = 8a8b5c24827e89da10c7fd90de8f525fb67582a2
+          git diff --exit-code
+      - name: Retain unapproved visual run evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: pixelmatch-v8-visual-review-only
+          path: tests/visual-contract/output/
+          retention-days: 2
+          if-no-files-found: warn
