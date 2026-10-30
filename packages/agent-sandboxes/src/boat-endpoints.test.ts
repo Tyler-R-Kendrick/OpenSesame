@@ -47,6 +47,13 @@ describe("Boat endpoint trust", () => {
         "https://boat.dev",
       ),
     ).toContain("checkout.stripe.com");
+    // Live hosted-checkout URLs carry a client fragment.
+    expect(
+      boatCheckoutUrl(
+        "https://checkout.stripe.com/c/pay/cs_live_example#fidnandhYHdWcXxpYCc",
+        "https://boat.dev",
+      ),
+    ).toContain("#fidnandhYHdWcXxpYCc");
     for (const value of [
       "http://checkout.stripe.com/",
       "https://checkout.stripe.com.evil.test/",

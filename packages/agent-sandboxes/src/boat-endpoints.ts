@@ -49,10 +49,12 @@ export function boatCheckoutUrl(value: string, origin: string): string {
   const url = parseEndpoint(value, origin);
   const development =
     isLoopback(parseEndpoint(origin)) && url.origin === origin;
+  // Hosted Stripe Checkout URLs carry a client fragment; the claim
+  // path above stays fragment-free.
   if (
     url.username ||
     url.password ||
-    url.hash ||
+    (url.hash && url.hostname !== "checkout.stripe.com") ||
     !(
       development ||
       (url.protocol === "https:" &&
