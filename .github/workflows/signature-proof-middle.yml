@@ -1,0 +1,8 @@
+name: Nested signature proof middle
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  leaf:
+    uses: ./.github/workflows/signature-proof-leaf.yml

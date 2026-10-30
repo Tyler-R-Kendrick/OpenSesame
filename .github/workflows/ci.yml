@@ -1,215 +1,217 @@
-# Trunk admission compiles only the affected dependency graph.
-# Tests and artifact qualification belong to environment delivery workflows.
-name: CI
-
+name: Native signature verifier proof
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  merge_group:
-  push:
-    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-  actions: read
-
-concurrency:
-  group: ci-${{ github.event_name }}-${{ github.ref }}
-  # Main scope includes failed, cancelled and coalesced pushes since the last
-  # successful ancestor. Active main/merge-group builds finish.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
-  changes:
-    name: Affected build graph
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      base_sha: ${{ steps.scope.outputs.base_sha }}
-      head_sha: ${{ steps.scope.outputs.head_sha }}
-      typescript: ${{ github.event.pull_request.draft == true && 'false' || steps.packages.outputs.selected }}
-      rust: ${{ github.event.pull_request.draft == true && 'false' || steps.crates.outputs.selected }}
-      draft: ${{ github.event.pull_request.draft == true && 'true' || 'false' }}
-      linux_runner: ${{ steps.runner.outputs.linux }}
-      # The native PWA compiler requires Linux AMD64 on a cold build.
-      typescript_runner: ${{ (steps.packages.outputs.scope == 'all' || contains(steps.packages.outputs.packages, '@opensesame/pages')) && '"ubuntu-latest"' || steps.runner.outputs.linux }}
+  nested:
+    uses: ./.github/workflows/signature-proof-middle.yml
+  proof:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_HEAD: b965fa2885643e4c6ae9658a2348b7b4b65395d3
+      CONTROLLER_SHA: ${{ github.workflow_sha }}
     steps:
-      - name: Choose the Linux runner
-        id: runner
-        # Off unless the repository variable CI_SELF_HOSTED_ARM64 is "true", so
-        # the default is GitHub-hosted and flipping it back is the whole rollback.
-        # Only the owner's own branches may reach the self-hosted box: this
-        # repository is public, and a runner executes whatever the PR contains.
-        env:
-          ENABLED: ${{ vars.CI_SELF_HOSTED_ARM64 }}
-          EVENT: ${{ github.event_name }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          REPO: ${{ github.repository }}
-          ACTOR: ${{ github.actor }}
-          OWNER: ${{ github.repository_owner }}
-        run: |
-          linux='"ubuntu-latest"'
-          if [ "$ENABLED" = "true" ] && [ "$ACTOR" = "$OWNER" ] \
-            && { [ "$EVENT" != "pull_request" ] || [ "$HEAD_REPO" = "$REPO" ]; }; then
-            linux='["self-hosted","linux","ARM64","os-devbox"]'
-          fi
-          echo "linux=$linux" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Check out signed proposed source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
+          ref: b965fa2885643e4c6ae9658a2348b7b4b65395d3
           persist-credentials: false
-          fetch-depth: 0
-      - name: Resolve the cumulative integration diff
-        id: scope
+      - name: Copy exact candidate guard and verifier scripts
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/controller-guard" <<'GUARD'
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = Tyler-R-Kendrick/OpenSesame
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main"
+          case "$GITHUB_EVENT_NAME" in schedule|workflow_dispatch) ;; *) exit 1 ;; esac
+          [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test ! -e .opensesame-signature-controller && test ! -L .opensesame-signature-controller
+          GUARD
+          cat > "$RUNNER_TEMP/controller-verify" <<'VERIFY'
+          set -euo pipefail
+          test "$(git -C .opensesame-signature-controller rev-parse HEAD)" = "$CONTROLLER_SHA"
+          controller="$RUNNER_TEMP/opensesame-signature-controller-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          test ! -e "$controller" && test ! -L "$controller"
+          mv .opensesame-signature-controller "$controller"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          node "$controller/scripts/release/check-merge-group-signature.mjs" "$GITHUB_REPOSITORY" "$EXPECTED_HEAD"
+          VERIFY
+      - name: Refuse the real non-main workflow context
+        shell: bash
+        run: |
+          if bash "$RUNNER_TEMP/controller-guard"; then
+            echo 'non-main controller unexpectedly accepted' >&2
+            exit 1
+          fi
+      - name: Accept exact-source validation with simulated main caller context
+        shell: bash
+        run: |
+          env GITHUB_REF=refs/heads/main GITHUB_EVENT_NAME=workflow_dispatch \
+            GITHUB_WORKFLOW_REF="$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main" \
+            bash "$RUNNER_TEMP/controller-guard"
+      - name: Check out exact proof controller
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .opensesame-signature-controller
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/release/check-merge-group-signature.mjs
+            scripts/lib/pr-signatures.mjs
+      - name: Verify real signed source with the exact candidate verifier script
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: node scripts/lib/ci-main-baseline.mjs
-      - name: Select affected TypeScript packages
-        id: packages
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: bash "$RUNNER_TEMP/controller-verify"
+      - name: Reject a synthetic unsigned response even if candidate helper is malicious
+        shell: bash
         env:
-          BASE_SHA: ${{ steps.scope.outputs.base_sha }}
-          HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-builds.mjs plan-ts
-      - name: Select affected Rust crates
-        id: crates
-        env:
-          BASE_SHA: ${{ steps.scope.outputs.base_sha }}
-          HEAD_SHA: ${{ steps.scope.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-builds.mjs plan-cargo
-
-  typescript-build:
-    name: Build affected TypeScript graph
-    needs: changes
-    if: needs.changes.outputs.typescript == 'true'
-    runs-on: ${{ fromJSON(needs.changes.outputs.typescript_runner) }}
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Select affected packages
-        id: affected
-        env:
-          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-builds.mjs plan-ts
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install the frozen dependency graph
-        run: pnpm install --frozen-lockfile
-      - name: Cache the pinned native PWA distribution
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: .cache/pwa-tailscale-native-http/distributions
-          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
-      - name: Build affected packages and their prerequisites
-        env:
-          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-          VITE_BASE: /OpenSesame/
-        run: node scripts/lib/ci-affected-builds.mjs run-ts
-
-  rust-build:
-    name: Build affected Rust graph
-    needs: changes
-    if: needs.changes.outputs.rust == 'true'
-    runs-on: ${{ fromJSON(needs.changes.outputs.linux_runner) }}
-    timeout-minutes: 45
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: |
+          set -euo pipefail
+          controller="$RUNNER_TEMP/opensesame-signature-controller-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mv "$controller" .opensesame-signature-controller
+          mkdir -p "$RUNNER_TEMP/fakebin"
+          cat > "$RUNNER_TEMP/fakebin/gh" <<'MOCK'
+          #!/usr/bin/env bash
+          printf '{"sha":"%s","commit":{"verification":{"verified":false,"reason":"unsigned"}}}\n' "$EXPECTED_HEAD"
+          MOCK
+          chmod +x "$RUNNER_TEMP/fakebin/gh"
+          if PATH="$RUNNER_TEMP/fakebin:$PATH" bash "$RUNNER_TEMP/controller-verify"; then
+            echo 'unsigned source unexpectedly accepted' >&2
+            exit 1
+          fi
+      - name: Reject a dirty candidate before an altered helper can run
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'require("node:fs").writeFileSync(process.env.RUNNER_TEMP + "/candidate-helper-ran", "bad")\n' > scripts/release/check-merge-group-signature.mjs
+          if env GITHUB_REF=refs/heads/main GITHUB_EVENT_NAME=workflow_dispatch \
+              GITHUB_WORKFLOW_REF="$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main" \
+              bash "$RUNNER_TEMP/controller-guard"; then
+            echo 'dirty candidate unexpectedly accepted' >&2
+            exit 1
+          fi
+          test ! -e "$RUNNER_TEMP/candidate-helper-ran"
+  native-cold:
+    name: Exact candidate native WASM cold build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     env:
-      CARGO_BUILD_JOBS: 2
-      CARGO_INCREMENTAL: 0
-      CARGO_PROFILE_DEV_DEBUG: 0
+      EXPECTED_HEAD: b965fa2885643e4c6ae9658a2348b7b4b65395d3
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Select affected crates
-        id: affected
-        env:
-          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-        run: node scripts/lib/ci-affected-builds.mjs plan-cargo
-      - name: Install Linux keychain build dependencies
-        run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
-        with:
-          toolchain: 1.88.0
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-      - name: Build affected crates and their prerequisites
-        env:
-          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
-          HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
-        run: |
-          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          node scripts/lib/ci-affected-builds.mjs run-cargo
-      - name: Build the affected Bitwarden bridge feature
-        if: steps.affected.outputs.bitwarden == 'true'
-        run: |
-          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          cargo build --locked -p opensesame-gateway -p opensesame-cli --features bitwarden-compat
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        ref: b965fa2885643e4c6ae9658a2348b7b4b65395d3
+        persist-credentials: false
+    - name: Require the exact clean source and main release controller
+      shell: bash
+      env:
+        CONTROLLER_SHA: ${{ github.workflow_sha }}
+      run: 'export GITHUB_REF=refs/heads/main GITHUB_EVENT_NAME=workflow_dispatch
 
-  typescript:
-    # Preserve the existing protected-check names and candidate admission API.
-    name: TypeScript
-    needs: [changes, typescript-build]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - name: Report the required build check
-        env:
-          DRAFT: ${{ needs.changes.outputs.draft }}
-          PREFLIGHT_RESULT: ${{ needs.changes.result }}
-          SELECTED: ${{ needs.changes.outputs.typescript }}
-          SUITE_RESULT: ${{ needs.typescript-build.result }}
-        run: node scripts/lib/ci-required-result.mjs
+        export GITHUB_WORKFLOW_REF="$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main"
 
-  bundle-check:
-    # Legacy name: reports the TS build; actual budget checks qualify delivery.
-    # Preserve the existing protected-check names and candidate admission API.
-    name: Bundle budgets
-    needs: [changes, typescript-build]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - name: Report the required build check
-        env:
-          DRAFT: ${{ needs.changes.outputs.draft }}
-          PREFLIGHT_RESULT: ${{ needs.changes.result }}
-          SELECTED: ${{ needs.changes.outputs.typescript }}
-          SUITE_RESULT: ${{ needs.typescript-build.result }}
-        run: node scripts/lib/ci-required-result.mjs
+        set -euo pipefail
 
-  rust-check:
-    # Preserve the existing protected-check names and candidate admission API.
-    name: Rust
-    needs: [changes, rust-build]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - name: Report the required build check
-        env:
-          DRAFT: ${{ needs.changes.outputs.draft }}
-          PREFLIGHT_RESULT: ${{ needs.changes.result }}
-          SELECTED: ${{ needs.changes.outputs.rust }}
-          SUITE_RESULT: ${{ needs.rust-build.result }}
-        run: node scripts/lib/ci-required-result.mjs
+        test "$GITHUB_REPOSITORY" = Tyler-R-Kendrick/OpenSesame
+
+        test "$GITHUB_REF" = refs/heads/main
+
+        test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main"
+
+        case "$GITHUB_EVENT_NAME" in schedule|workflow_dispatch) ;; *) exit 1 ;; esac
+
+        [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+        test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+
+        test -z "$(git status --porcelain --untracked-files=all)"
+
+        test ! -e .opensesame-signature-controller && test ! -L .opensesame-signature-controller
+
+        '
+    - name: Check out the main release controller as data
+      uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: .opensesame-signature-controller
+        persist-credentials: false
+        sparse-checkout-cone-mode: false
+        sparse-checkout: 'scripts/release/check-merge-group-signature.mjs
+
+          scripts/lib/pr-signatures.mjs
+
+          '
+    - name: Verify the selected source with the main controller
+      shell: bash
+      env:
+        CONTROLLER_SHA: ${{ github.workflow_sha }}
+        GH_TOKEN: ${{ github.token }}
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+      run: 'set -euo pipefail
+
+        test "$(git -C .opensesame-signature-controller rev-parse HEAD)" = "$CONTROLLER_SHA"
+
+        controller="$RUNNER_TEMP/opensesame-signature-controller-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+
+        test ! -e "$controller" && test ! -L "$controller"
+
+        mv .opensesame-signature-controller "$controller"
+
+        test -z "$(git status --porcelain --untracked-files=all)"
+
+        node "$controller/scripts/release/check-merge-group-signature.mjs" "$GITHUB_REPOSITORY" "$EXPECTED_HEAD"
+
+        '
+    - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      with:
+        node-version: 24
+        package-manager-cache: false
+    - name: Install exact locked build dependencies
+      run: pnpm install --frozen-lockfile
+    - name: Run native admission regression tests
+      run: pnpm exec vitest run scripts/lib/native-wasm-proof.test.mjs
+    - name: Build and verify all four original native phases
+      run: 'export GITHUB_REF=refs/heads/main GITHUB_EVENT_NAME=schedule
+
+        export GITHUB_WORKFLOW_REF="$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main"
+
+        set -euo pipefail
+
+        mkdir -m 700 "$RUNNER_TEMP/pwa-native-wasm-logs"
+
+        df -h . | tee "$RUNNER_TEMP/pwa-native-wasm-logs/disk.log"
+
+        free -h | tee "$RUNNER_TEMP/pwa-native-wasm-logs/memory.log"
+
+        timeout --signal=TERM --kill-after=10s 900s node scripts/ci-native-wasm.mjs 2>&1 | tee "$RUNNER_TEMP/pwa-native-wasm-logs/validation.log"
+
+        '
+    - name: Retain exact source, raw phases, emitted assets and failure logs
+      if: always()
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+      with:
+        name: pwa-native-wasm-b965fa2885643e4c6ae9658a2348b7b4b65395d3-${{ github.run_attempt }}
+        retention-days: 14
+        include-hidden-files: true
+        if-no-files-found: error
+        path: '${{ runner.temp }}/pwa-native-wasm-logs
+
+          .cache/pwa-tailscale-native-http/ci-evidence
+
+          .cache/pwa-tailscale-native-http/work/*/*.log
+
+          .cache/pwa-tailscale-native-http/work/*/build/logs
+
+          '

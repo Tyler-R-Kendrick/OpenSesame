@@ -1,0 +1,20 @@
+name: Nested signature proof leaf
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  context:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Assert outer caller context is preserved through two reusable workflows
+        env:
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/review/pwa-weekly-proof-20261030
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/ci.yml@refs/heads/review/pwa-weekly-proof-20261030"
+          test "$WORKFLOW_SHA" = "$GITHUB_SHA"
+          printf 'nested ref=%s workflow=%s sha=%s event=%s\n' "$GITHUB_REF" "$WORKFLOW_REF" "$WORKFLOW_SHA" "$GITHUB_EVENT_NAME"
