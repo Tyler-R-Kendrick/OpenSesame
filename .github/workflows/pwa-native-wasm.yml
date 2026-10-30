@@ -27,14 +27,46 @@ jobs:
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
-      - name: Verify exact signed branch source
+      - name: Require the exact clean source and main release controller
+        shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          CONTROLLER_SHA: ${{ github.workflow_sha }}
         run: |
           set -euo pipefail
+          test "$GITHUB_REPOSITORY" = Tyler-R-Kendrick/OpenSesame
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main"
+          case "$GITHUB_EVENT_NAME" in schedule|workflow_dispatch) ;; *) exit 1 ;; esac
+          [[ "$CONTROLLER_SHA" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test -z "$(git status --porcelain --untracked-files=all)"
-          node scripts/release/check-merge-group-signature.mjs "$GITHUB_REPOSITORY" "$EXPECTED_HEAD"
+          test ! -e .opensesame-signature-controller && test ! -L .opensesame-signature-controller
+      # The candidate must not supply the verifier used to accept itself.
+      - name: Check out the main release controller as data
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .opensesame-signature-controller
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/release/check-merge-group-signature.mjs
+            scripts/lib/pr-signatures.mjs
+      - name: Verify the selected source with the main controller
+        shell: bash
+        env:
+          CONTROLLER_SHA: ${{ github.workflow_sha }}
+          GH_TOKEN: ${{ github.token }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: |
+          set -euo pipefail
+          test "$(git -C .opensesame-signature-controller rev-parse HEAD)" = "$CONTROLLER_SHA"
+          controller="$RUNNER_TEMP/opensesame-signature-controller-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          test ! -e "$controller" && test ! -L "$controller"
+          mv .opensesame-signature-controller "$controller"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          node "$controller/scripts/release/check-merge-group-signature.mjs" "$GITHUB_REPOSITORY" "$EXPECTED_HEAD"
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:

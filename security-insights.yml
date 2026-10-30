@@ -3,8 +3,8 @@
 # `header.last-reviewed` when the posture changes, not on a calendar.
 header:
   schema-version: 2.2.0
-  last-updated: '2026-10-23'
-  last-reviewed: '2026-10-23'
+  last-updated: '2026-10-29'
+  last-reviewed: '2026-10-29'
   url: https://raw.githubusercontent.com/Tyler-R-Kendrick/OpenSesame/main/security-insights.yml
   comment: |
     OpenSesame is an authorization fabric for the agentic era: agents hold
@@ -50,9 +50,10 @@ project:
       - denial of service against the Pages origin (static GitHub Pages)
       - the mock upstream IdP (tools/mock-upstream-idp) — local dev only
     comment: |
-      Reports are acknowledged within 3 business days and assessed within 10
-      (SECURITY.md). Every confirmed finding is recorded as a dated document
-      under docs/security/audits/ rather than by editing history.
+      Reports are acknowledged within 3 business days. We aim for an initial
+      assessment within 10 business days and respond to every report within
+      14 days or less (SECURITY.md). Dated audit notes are retained under
+      docs/security/audits/; GitHub security findings may also remain open.
 
 repository:
   url: https://github.com/Tyler-R-Kendrick/OpenSesame
@@ -77,21 +78,28 @@ repository:
   release:
     automated-pipeline: true
     attestations:
-      - name: Release kit build provenance
-        predicate-uri: https://slsa.dev/provenance/v1
+      - name: Candidate build provenance
+        predicate-uri: https://opensesame.dev/attestations/candidate-build/v1
         location: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
         comment: |
-          A pushed v* tag builds the native binaries, publishes them as a
-          GitHub release with a SHA256SUMS over every file, and issues a
-          build-provenance attestation for each (ADR 0212). Consumers
-          verify with --signer-workflow and --source-ref refs/tags/<tag>.
+          The configured candidate builder signs the source identity and
+          payload checksums. Release qualification and environment protection
+          must be satisfied before promotion; a tag push alone does not publish.
+          The release guide documents verification and the previous tag-based
+          contract for older releases.
+      - name: Release promotion evidence
+        predicate-uri: https://opensesame.dev/attestations/release-promotion/v1
+        location: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
+        comment: |
+          The configured publisher signs SHA256SUMS and the qualification
+          evidence separately from the original build attestation.
     distribution-points:
       - uri: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
-        comment: GitHub Releases — release-kit binaries with SHA256SUMS and provenance
+        comment: GitHub Releases — qualified release kits, checksums and provenance
       - uri: https://ghcr.io/tyler-r-kendrick/opensesame
-        comment: The host container image, published by publish-containers.yml
+        comment: Host container image location; the previous publisher is retired.
       - uri: https://tyler-r-kendrick.github.io/OpenSesame/
-        comment: The offline Pages PWA, deployed from main by deploy-pages.yml
+        comment: The offline Pages PWA; the configured release workflow promotes qualified Pages bytes.
   security:
     assessments:
       self:
@@ -100,14 +108,8 @@ repository:
         comment: |
           The standing self-assessment is the security documentation set:
           security-boundaries.md (13 numbered separations), threat-model.md
-          and its per-surface addenda, and key-hierarchy.md.
-      third-party:
-        - evidence: https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/docs/security/audits
-          date: '2026-10-23'
-          comment: |
-            The append-only audit record: dated documents, one per found-and-
-            fixed vulnerability, written by scheduled agent security reviews
-            and human passes. Each names the gate that caught it.
+          and its per-surface addenda, and key-hierarchy.md. Dated audit notes
+          are retained under docs/security/audits/.
     champions:
       - name: Tyler Kendrick
         primary: true
@@ -120,15 +122,15 @@ repository:
           - .github/codeql/codeql-config.yml
         version: github/codeql-action v4
         integration:
-          adhoc: false
+          adhoc: true
           ci: true
-          release: false
+          release: true
         results:
           ci:
             name: Code scanning (CodeQL)
             predicate-uri: https://intoto.SAST
             location: https://github.com/Tyler-R-Kendrick/OpenSesame/security/code-scanning
-            comment: Runs on every pull request and weekly on main.
+            comment: Configured for non-draft pull requests, main, weekly runs and release qualification.
       - name: OSV-Scanner
         type: SCA
         rulesets:
@@ -137,7 +139,7 @@ repository:
         integration:
           adhoc: true
           ci: true
-          release: false
+          release: true
         results:
           ci:
             name: Security scanning workflow (weekly OSV pass)
@@ -153,15 +155,16 @@ repository:
         integration:
           adhoc: true
           ci: true
-          release: false
+          release: true
         results:
           ci:
             name: Security scanning workflow (weekly gitleaks pass)
             predicate-uri: https://intoto.SCA
             location: https://github.com/Tyler-R-Kendrick/OpenSesame/security/code-scanning
             comment: |
-              Full history weekly in security.yml; the pre-commit hook scans
-              every commit as it is made.
+              Full history is scheduled weekly in security.yml. The optional
+              pre-commit hook scans when gitleaks is installed; release
+              qualification requires the strict history gate.
       - name: cargo-audit / cargo-deny
         type: SCA
         rulesets:
@@ -170,7 +173,7 @@ repository:
         integration:
           adhoc: true
           ci: false
-          release: false
+          release: true
         results:
           adhoc:
             name: RustSec advisory gate
@@ -184,15 +187,16 @@ repository:
         integration:
           adhoc: true
           ci: false
-          release: false
+          release: true
         results:
           adhoc:
             name: Coverage-guided fuzz pass
             predicate-uri: https://intoto.fuzzing
             location: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/validation/fuzzing.md
             comment: |
-              48 libFuzzer targets; pnpm audit:fuzz per change and the
-              nightly batch routine; enrolled in hosted OSS-Fuzz per ADR 0211.
+              48 libFuzzer targets; pnpm audit:fuzz and the release batch
+              gate. ADR 0211 describes the in-tree OSS-Fuzz submission pack;
+              acceptance into hosted OSS-Fuzz is not asserted here.
       - name: Jazzer.js
         type: fuzzing
         rulesets:
@@ -200,7 +204,7 @@ repository:
         integration:
           adhoc: true
           ci: false
-          release: false
+          release: true
         results:
           adhoc:
             name: TypeScript fuzz pass
