@@ -21,7 +21,7 @@ const OID_EXTENSION_REQUEST = [
 const OID_SUBJECT_ALT_NAME = [0x55, 0x1d, 0x11];
 const OID_ECDSA_SHA256 = [0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02];
 
-function concat(parts: readonly Uint8Array[]): Uint8Array {
+function concat(parts: readonly Uint8Array[]) {
   const out = new Uint8Array(
     parts.reduce((size, part) => size + part.length, 0),
   );
@@ -41,7 +41,7 @@ function lengthOf(size: number): Uint8Array {
   return Uint8Array.of(0x80 | bytes.length, ...bytes);
 }
 
-export function der(tag: number, ...parts: readonly Uint8Array[]): Uint8Array {
+export function der(tag: number, ...parts: readonly Uint8Array[]) {
   const body = concat(parts);
   return concat([Uint8Array.of(tag), lengthOf(body.length), body]);
 }
