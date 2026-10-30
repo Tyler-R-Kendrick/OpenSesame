@@ -11,6 +11,7 @@
 
 import {
   type JsonValue,
+  isArrayBufferBackedBytes,
   isJsonObject,
   isNumber,
   isString,
@@ -119,26 +120,36 @@ export function newShareTargetKey(): string {
 export async function sealShareTarget(keyB64: string, plain: Uint8Array) {
   const raw = base64UrlToBytes(keyB64);
   if (!raw) throw new Error("invalid share key");
-  const key = await crypto.subtle.importKey(
-    "raw",
-    raw,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt"],
-  );
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const cipher = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain),
-  );
-  const out = new Uint8Array(iv.length + cipher.length);
-  out.set(iv);
-  out.set(cipher, iv.length);
-  return out;
+  if (!isArrayBufferBackedBytes(plain))
+    throw new TypeError("invalid share bytes");
+  const snapshot = new Uint8Array(plain);
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      raw,
+      { name: "AES-GCM" },
+      false,
+      ["encrypt"],
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const cipher = new Uint8Array(
+      await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, snapshot),
+    );
+    const out = new Uint8Array(iv.length + cipher.length);
+    out.set(iv);
+    out.set(cipher, iv.length);
+    return out;
+  } finally {
+    snapshot.fill(0);
+  }
 }
 
 export async function openShareTarget(keyB64: string, sealed: Uint8Array) {
   const raw = base64UrlToBytes(keyB64);
-  if (!raw || sealed.length <= 12) throw new Error("invalid share entry");
+  if (!raw || !isArrayBufferBackedBytes(sealed))
+    throw new Error("invalid share entry");
+  const snapshot = new Uint8Array(sealed);
+  if (snapshot.length <= 12) throw new Error("invalid share entry");
   const key = await crypto.subtle.importKey(
     "raw",
     raw,
@@ -148,9 +159,9 @@ export async function openShareTarget(keyB64: string, sealed: Uint8Array) {
   );
   return new Uint8Array(
     await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: sealed.subarray(0, 12) },
+      { name: "AES-GCM", iv: snapshot.subarray(0, 12) },
       key,
-      sealed.subarray(12),
+      snapshot.subarray(12),
     ),
   );
 }
