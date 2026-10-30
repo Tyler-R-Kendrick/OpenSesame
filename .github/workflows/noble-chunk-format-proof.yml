@@ -1,0 +1,27 @@
+name: Verify Noble chunk formatting
+on:
+  push:
+    branches: [review/noble-chunk-format-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  test:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.ref == 'refs/heads/review/noble-chunk-format-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 7f480222fd43a4a5055916def412cd8286a468b6
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact source
+        run: |
+          test "$(git rev-parse HEAD)" = 7f480222fd43a4a5055916def412cd8286a468b6
+          test "$(git rev-parse HEAD^{tree})" = 5324dfd93a1edb24bbfa0f4ff4a35a9cee910d1a
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm exec biome check apps/pages/scripts/bundle-chunk.mjs apps/pages/scripts/bundle-chunk.test.mjs
+      - run: pnpm --filter @opensesame/pages exec vitest run scripts/bundle-chunk.test.mjs
