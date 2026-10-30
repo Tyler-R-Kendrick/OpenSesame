@@ -69,7 +69,7 @@ const COMMIT_SHA = /^[0-9a-f]{40}$/u;
  * `OPENSESAME_BOAT_AGENT_REF` at another full commit SHA.
  */
 export const BOAT_AGENT_PINNED_COMMIT =
-  "878908a635a0b558781bcf8e6126c23da7b9b358";
+  "a89684800a024fb482d2fd1f98377d6cab9ad95c";
 
 /**
  * The zero-provision start command: fetch one immutable commit from
