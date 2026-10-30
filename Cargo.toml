@@ -86,7 +86,7 @@ rust-version = "1.88"
 
 [workspace.dependencies]
 anyhow = "1.0.98"
-async-nats = "0.50.0"
+async-nats = "0.51.0"
 async-trait = "0.1.88"
 axum = { version = "0.8.4", features = ["macros"] }
 base64 = "0.23.1"
