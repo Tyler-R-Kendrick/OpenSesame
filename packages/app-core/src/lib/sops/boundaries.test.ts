@@ -94,7 +94,7 @@ describe("SB-020 the shipped primitives are the platform's, with no fallback", (
           external.add(name);
       }
     expect([...external].sort()).toEqual([
-      "@noble/ciphers/aes",
+      "@noble/ciphers/aes.js",
       "age-encryption",
       "yaml",
     ]);

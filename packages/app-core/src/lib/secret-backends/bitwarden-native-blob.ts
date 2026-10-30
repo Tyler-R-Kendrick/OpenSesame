@@ -1,6 +1,6 @@
 import type { CBORType } from "@levischuck/tiny-cbor";
-import { gcm } from "@noble/ciphers/aes";
-import { equalBytes } from "@noble/ciphers/utils";
+import { gcm } from "@noble/ciphers/aes.js";
+import { equalBytes } from "@noble/ciphers/utils.js";
 import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
 import { z } from "zod";
 import {
