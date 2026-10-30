@@ -1,0 +1,46 @@
+name: Verify pixel comparison upgrade on current main
+on:
+  push:
+    branches: [review/pixel-e2db-focused-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/pixel-e2db-focused-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: c65d3dfcb17a0b9585b044946f9b88395c605748
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: wasm32-unknown-unknown
+      - name: Verify exact source
+        run: |
+          test "$(git rev-parse HEAD)" = c65d3dfcb17a0b9585b044946f9b88395c605748
+          test "$(git rev-parse HEAD^{tree})" = b5db9d965c435eb1120079d13ee4f1b1cc4e6876
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify visual comparator contracts and types
+        run: |
+          pnpm --filter @opensesame/visual-contract typecheck
+          pnpm --filter @opensesame/visual-contract test
+      - name: Verify all six baselines in real Chromium
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /
+        run: |
+          test -x "$PLAYWRIGHT_CHROMIUM"
+          pnpm --filter @opensesame/visual-contract test:visual
+      - name: Verify source unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = b5db9d965c435eb1120079d13ee4f1b1cc4e6876
+          git diff --exit-code
