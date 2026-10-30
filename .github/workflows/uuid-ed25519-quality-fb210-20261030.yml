@@ -1,0 +1,36 @@
+name: Current-base exact source structural quality
+on:
+  push:
+    branches: [review/uuid-ed25519-quality-fb210-20261030]
+permissions:
+  contents: read
+jobs:
+  quality:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/uuid-ed25519-quality-fb210-20261030' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 36567f048f0e5a74a840eab87d089c7f25c162d2
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Verify exact source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 36567f048f0e5a74a840eab87d089c7f25c162d2
+          test "$(git rev-parse HEAD^{tree})" = 89f17e8e9831a1ef43b85b404bd6869e6040596e
+          test "$(git rev-parse HEAD^)" = fb210c5d9983add883c8496d99e49916db6e5603
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check structural quality without modifying limits
+        run: pnpm quality:gate
+      - name: Check source unchanged
+        run: |
+          git diff --exit-code
+          git diff --cached --exit-code
