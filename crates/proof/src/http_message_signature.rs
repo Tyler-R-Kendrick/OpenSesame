@@ -286,10 +286,15 @@ fn build_signature_base(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::OsRng;
+    use rand::{rngs::OsRng, RngCore};
+    use zeroize::Zeroizing;
 
     fn fixture() -> (SigningKey, LocalHttpMessageSignatureValidator) {
-        let signing_key = SigningKey::generate(&mut OsRng);
+        let mut seed = Zeroizing::new([0u8; 32]);
+        OsRng
+            .try_fill_bytes(&mut *seed)
+            .expect("system RNG unavailable");
+        let signing_key = SigningKey::from_bytes(&seed);
         let mut validator = LocalHttpMessageSignatureValidator::new(300);
         validator.register_signing_key("test-key", &signing_key);
         (signing_key, validator)
