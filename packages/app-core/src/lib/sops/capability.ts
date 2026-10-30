@@ -8,7 +8,7 @@
  * detect and no environment variable to read.
  */
 
-import { gcm } from "@noble/ciphers/aes";
+import { gcm } from "@noble/ciphers/aes.js";
 import { SopsEngine } from "./engine.js";
 import type { VerifiedDocument } from "./engine.js";
 import { HandleRegistry } from "./handles.js";
