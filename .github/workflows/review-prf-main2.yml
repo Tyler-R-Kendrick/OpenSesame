@@ -1,0 +1,72 @@
+name: Review passkey PRF cleanup on main
+on:
+  push:
+    branches: [review/prf-main-cleanup2-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/prf-main-cleanup2-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 478fb6e980c05b74f9b476f15b3167982a175212
+          fetch-depth: 3
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 15e708b9d0b78ebe5aa8ad4477e10d593bb4be60
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify red controls on main
+        run: |
+          set -euo pipefail
+          app=packages/app-core/src/lib/local-passkey-prf.ts
+          ui=apps/pages/src/sections/identity/LocalPasskeys.tsx
+          trap 'git restore -- "$app" "$ui"' EXIT
+          git show "HEAD^^:$app" > "$app"
+          git show "HEAD^^:$ui" > "$ui"
+          if pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf-wipe.test.ts src/lib/local-passkey-prf-early.test.ts > /tmp/prf-main-original.log 2>&1; then cat /tmp/prf-main-original.log; exit 1; fi
+          cat /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the held enrollment PRF copy on success' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the held enrollment PRF copy on failure' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the held enrollment PRF copy on commit failure' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the copied PRF after existing protector unwrap success' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the copied PRF after existing protector unwrap failure' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes an otherwise valid result when there is no matching plan row' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes a short result and returns unsupported' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*reads the first result once and assesses and wipes that same result' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes salts if the extension getter throws' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes only the original PRF range when a resizable result grows' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*fails closed and wipes salts when a resizable result shrinks' /tmp/prf-main-original.log
+          if pnpm --filter @opensesame/pages exec vitest run src/sections/identity/LocalPasskeysPrf.test.tsx > /tmp/prf-ui-original.log 2>&1; then cat /tmp/prf-ui-original.log; exit 1; fi
+          cat /tmp/prf-ui-original.log
+          grep -Eq 'FAIL.*wipes each borrowed PRF copy while preserving the offer for retry' /tmp/prf-ui-original.log
+      - name: Lint and typecheck
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/local-passkey-prf-bytes.ts packages/app-core/src/lib/local-passkey-prf-bytes.test.ts packages/app-core/src/lib/local-passkey-prf.ts packages/app-core/src/lib/local-passkey-prf.test.ts packages/app-core/src/lib/local-passkey-prf-wipe.test.ts packages/app-core/src/lib/local-passkey-prf-early.test.ts apps/pages/src/sections/identity/LocalPasskeys.tsx apps/pages/src/sections/identity/LocalPasskeysPrf.test.tsx
+          pnpm --filter @opensesame/pages typecheck
+      - name: Verify real vault, cleanup and user retry
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf-bytes.test.ts src/lib/local-passkey-prf-early.test.ts src/lib/local-passkey-prf-wipe.test.ts src/lib/local-passkey-prf.test.ts src/lib/local-passkeys.test.ts src/lib/vault/protection/adapters/webauthn-prf.test.ts
+          pnpm --filter @opensesame/pages exec vitest run src/sections/identity/LocalPasskeysPrf.test.tsx
+          pnpm quality:app-core
+      - name: Verify exact helper in Chromium
+        run: |
+          set -euo pipefail
+          printf '%s' 'Y29uc3QgaHR0cCA9IHJlcXVpcmUoJ25vZGU6aHR0cCcpOwpjb25zdCB7IGNyZWF0ZVJlcXVpcmUgfSA9IHJlcXVpcmUoJ25vZGU6bW9kdWxlJyk7CmNvbnN0IHsgY2hyb21pdW0gfSA9IHJlcXVpcmUoJ0BwbGF5d3JpZ2h0L3Rlc3QnKTsKY29uc3QgZXNidWlsZCA9IGNyZWF0ZVJlcXVpcmUocmVxdWlyZS5yZXNvbHZlKCd2aXRlJykpKCdlc2J1aWxkJyk7Cihhc3luYyAoKSA9PiB7CiAgYXdhaXQgZXNidWlsZC5idWlsZCh7ZW50cnlQb2ludHM6WycuLi8uLi9wYWNrYWdlcy9hcHAtY29yZS9zcmMvbGliL2xvY2FsLXBhc3NrZXktcHJmLWJ5dGVzLnRzJ10sYnVuZGxlOnRydWUscGxhdGZvcm06J2Jyb3dzZXInLGZvcm1hdDonaWlmZScsZ2xvYmFsTmFtZToncHJvb2YnLG91dGZpbGU6Jy90bXAvcHJmLWNvcHktYnJvd3Nlci5qcyd9KTsKICBjb25zdCBzZXJ2ZXIgPSBodHRwLmNyZWF0ZVNlcnZlcigoXyxyZXMpPT57cmVzLndyaXRlSGVhZCgyMDAseydDb250ZW50LVR5cGUnOid0ZXh0L2h0bWwnLCdDcm9zcy1PcmlnaW4tT3BlbmVyLVBvbGljeSc6J3NhbWUtb3JpZ2luJywnQ3Jvc3MtT3JpZ2luLUVtYmVkZGVyLVBvbGljeSc6J3JlcXVpcmUtY29ycCd9KTtyZXMuZW5kKCc8IWRvY3R5cGUgaHRtbD48dGl0bGU+UFJGIGNvcHkgcHJvb2Y8L3RpdGxlPicpfSk7CiAgYXdhaXQgbmV3IFByb21pc2UocmVzb2x2ZT0+c2VydmVyLmxpc3RlbigwLHJlc29sdmUpKTsKICBsZXQgYnJvd3NlcjsKICB0cnkgewogICAgYnJvd3Nlcj1hd2FpdCBjaHJvbWl1bS5sYXVuY2goe2V4ZWN1dGFibGVQYXRoOicvdXNyL2Jpbi9nb29nbGUtY2hyb21lJyxoZWFkbGVzczp0cnVlLGFyZ3M6WyctLW5vLXNhbmRib3gnXX0pOwogICAgY29uc3QgcGFnZT1hd2FpdCBicm93c2VyLm5ld1BhZ2UoKTsKICAgIGF3YWl0IHBhZ2UuZ290byhgaHR0cDovL2xvY2FsaG9zdDoke3NlcnZlci5hZGRyZXNzKCkucG9ydH0vYCk7CiAgICBhd2FpdCBwYWdlLmFkZFNjcmlwdFRhZyh7cGF0aDonL3RtcC9wcmYtY29weS1icm93c2VyLmpzJ30pOwogICAgY29uc3QgcmVzdWx0PWF3YWl0IHBhZ2UuZXZhbHVhdGUoKCk9PnsKICAgICAgaWYoIWNyb3NzT3JpZ2luSXNvbGF0ZWQpIHRocm93IG5ldyBFcnJvcignc2hhcmVkIGlzb2xhdGlvbiB1bmF2YWlsYWJsZScpOwogICAgICBjb25zdCBvcmlnaW5hbD1uZXcgQXJyYXlCdWZmZXIoMTIpLCB2aWV3PW5ldyBVaW50OEFycmF5KG9yaWdpbmFsLDMsNCk7dmlldy5zZXQoWzEsMiwzLDRdKTsKICAgICAgY29uc3Qgb3RoZXI9bmV3IFVpbnQ4QXJyYXkoWzksOSw5LDldKS5idWZmZXI7CiAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShvcmlnaW5hbCwnc2xpY2UnLHt2YWx1ZTooKT0+b3RoZXJ9KTsKICAgICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG9yaWdpbmFsLCdjb25zdHJ1Y3Rvcicse3ZhbHVlOntnZXQgW1N5bWJvbC5zcGVjaWVzXSgpe3Rocm93IG5ldyBFcnJvcignc3BlY2llcyB1c2VkJyl9fX0pOwogICAgICBPYmplY3QuZGVmaW5lUHJvcGVydGllcyh2aWV3LHtidWZmZXI6e3ZhbHVlOm90aGVyfSxieXRlT2Zmc2V0Ont2YWx1ZTowfSxieXRlTGVuZ3RoOnt2YWx1ZTowfX0pOwogICAgICBjb25zdCBjb3BpZWQ9bmV3IFVpbnQ4QXJyYXkocHJvb2YuY29weVByZkJ5dGVzKHZpZXcpKTsKICAgICAgY29uc3QgaWZyYW1lPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2lmcmFtZScpO2RvY3VtZW50LmJvZHkuYXBwZW5kKGlmcmFtZSk7CiAgICAgIGNvbnN0IGZvcmVpZ249bmV3IGlmcmFtZS5jb250ZW50V2luZG93LlVpbnQ4QXJyYXkoWzUsNiw3XSk7CiAgICAgIGNvbnN0IGNyb3NzUmVhbG09Wy4uLm5ldyBVaW50OEFycmF5KHByb29mLmNvcHlQcmZCeXRlcyhmb3JlaWduKSldOwogICAgICBjb25zdCByZWplY3RzPShpbnB1dCk9Pnt0cnl7cHJvb2YuY29weVByZkJ5dGVzKGlucHV0KTtyZXR1cm4gZmFsc2V9Y2F0Y2h7cmV0dXJuIHRydWV9fTsKICAgICAgY29uc3Qgc2hhcmVkPW5ldyBVaW50OEFycmF5KG5ldyBTaGFyZWRBcnJheUJ1ZmZlcig0KSk7CiAgICAgIGNvbnN0IGRldGFjaGVkPW5ldyBVaW50OEFycmF5KDQpO3N0cnVjdHVyZWRDbG9uZShkZXRhY2hlZC5idWZmZXIse3RyYW5zZmVyOltkZXRhY2hlZC5idWZmZXJdfSk7CiAgICAgIGNvbnN0IHJlc2l6ZT1uZXcgQXJyYXlCdWZmZXIoOCx7bWF4Qnl0ZUxlbmd0aDoxNn0pLCBvb2I9bmV3IFVpbnQ4QXJyYXkocmVzaXplLDIsNCk7cmVzaXplLnJlc2l6ZSgwKTsKICAgICAgY29waWVkLmZpbGwoMCk7CiAgICAgIHJldHVybiB7Y29weTpbLi4ubmV3IFVpbnQ4QXJyYXkocHJvb2YuY29weVByZkJ5dGVzKHZpZXcpKV0sc291cmNlOlsuLi5uZXcgVWludDhBcnJheShvcmlnaW5hbCwzLDQpXSxvdGhlcjpbLi4ubmV3IFVpbnQ4QXJyYXkob3RoZXIpXSxjcm9zc1JlYWxtLHNoYXJlZDpyZWplY3RzKHNoYXJlZCksZGV0YWNoZWQ6cmVqZWN0cyhkZXRhY2hlZCksb29iOnJlamVjdHMob29iKSxicmFuZDpyZWplY3RzKG5ldyBVaW50MTZBcnJheShbMV0pKX07CiAgICB9KTsKICAgIGNvbnN0IGVxPShhLGIpPT5KU09OLnN0cmluZ2lmeShhKT09PUpTT04uc3RyaW5naWZ5KGIpOwogICAgaWYoIWVxKHJlc3VsdC5jb3B5LFsxLDIsMyw0XSl8fCFlcShyZXN1bHQuc291cmNlLFsxLDIsMyw0XSl8fCFlcShyZXN1bHQub3RoZXIsWzksOSw5LDldKXx8IWVxKHJlc3VsdC5jcm9zc1JlYWxtLFs1LDYsN10pfHwhW3Jlc3VsdC5zaGFyZWQscmVzdWx0LmRldGFjaGVkLHJlc3VsdC5vb2IscmVzdWx0LmJyYW5kXS5ldmVyeShCb29sZWFuKSl0aHJvdyBuZXcgRXJyb3IoSlNPTi5zdHJpbmdpZnkocmVzdWx0KSk7CiAgICBwcm9jZXNzLnN0ZG91dC53cml0ZShgQ2hyb21pdW0gUFJGIGNvcHkgY2hlY2tzIHBhc3NlZDogJHtKU09OLnN0cmluZ2lmeShyZXN1bHQpfVxuYCk7CiAgfSBmaW5hbGx5IHsgaWYoYnJvd3NlcikgYXdhaXQgYnJvd3Nlci5jbG9zZSgpOyBhd2FpdCBuZXcgUHJvbWlzZShyZXNvbHZlPT5zZXJ2ZXIuY2xvc2UocmVzb2x2ZSkpOyB9Cn0pKCkuY2F0Y2goZXJyb3I9Pntwcm9jZXNzLnN0ZGVyci53cml0ZShgJHtlcnJvci5zdGFja3x8ZXJyb3J9XG5gKTtwcm9jZXNzLmV4aXRDb2RlPTF9KTsK' | base64 --decode > /tmp/prf-copy-browser.cjs
+          cd apps/pages
+          NODE_PATH="$PWD/node_modules:$PWD/../../node_modules" node /tmp/prf-copy-browser.cjs
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 15e708b9d0b78ebe5aa8ad4477e10d593bb4be60
+          git diff --exit-code
