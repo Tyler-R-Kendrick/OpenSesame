@@ -97,7 +97,7 @@ function key(context?: string): Promise<CryptoKey | null> {
   return pending;
 }
 
-function binding(store: string, name: string): Uint8Array {
+function binding(store: string, name: string) {
   return new TextEncoder().encode(
     `opensesame.client-at-rest.v1\u0000${store}\u0000${name}`,
   );
@@ -109,7 +109,7 @@ function toB64(bytes: Uint8Array): string {
   return btoa(text);
 }
 
-function fromB64(value: string): Uint8Array {
+function fromB64(value: string) {
   const text = atob(value);
   const bytes = new Uint8Array(text.length);
   for (let index = 0; index < text.length; index += 1) {
