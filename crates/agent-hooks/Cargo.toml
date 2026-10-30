@@ -9,7 +9,7 @@ description = "OpenSesame as an agent-hooks/0.1 interceptor and approval resolve
 # The canonical agent-hooks core (MIT, responsibleai/agent-hooks). Pinned
 # exactly: the contract is pre-1.0 and every bump is a deliberate re-read of
 # the spec (ADR 0159 §1).
-agent-hooks-sdk = "=0.1.0-beta.3"
+agent-hooks-sdk = "=0.1.0-alpha.5"
 async-trait = { workspace = true }
 regex = "1.11.1"
 # The Interaction-backed approver's transport to the Identity API (ADR 0086):
