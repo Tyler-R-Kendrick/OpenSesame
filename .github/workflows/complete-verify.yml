@@ -72,7 +72,7 @@ jobs:
       - name: Install the frozen dependency graph
         run: pnpm install --frozen-lockfile
       - name: Cache the pinned native PWA distribution
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           lookup-only: true
           path: .cache/pwa-tailscale-native-http/distributions
