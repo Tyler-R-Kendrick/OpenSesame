@@ -57,7 +57,7 @@ function candidateKeys(
   return enrolled.filter((key) => sameBytes(key, hint));
 }
 
-function hexToBytes(hex: string): Uint8Array {
+function hexToBytes(hex: string) {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i += 1) {
     out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);

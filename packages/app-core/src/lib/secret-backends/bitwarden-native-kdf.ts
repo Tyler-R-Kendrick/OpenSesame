@@ -64,7 +64,7 @@ function snapshotKdf(
 }
 
 /** Count UTF-8 before allocation; malformed scalar strings are rejected. */
-function boundedTextBytes(text: string): Uint8Array {
+function boundedTextBytes(text: string) {
   if (!inputText.safeParse(text).success)
     throw new Error("Invalid Bitwarden key derivation input.");
   let bytes = 0;
@@ -94,8 +94,8 @@ export function bitwardenLegacyEmailSalt(email: string): Uint8Array {
 }
 
 async function derivePbkdf2(
-  password: Uint8Array,
-  salt: Uint8Array,
+  password: Uint8Array<ArrayBuffer>,
+  salt: Uint8Array<ArrayBuffer>,
   iterations: number,
 ): Promise<Uint8Array> {
   const material = await crypto.subtle.importKey(
