@@ -1,11 +1,12 @@
 import { overlapCast } from "@opensesame/os-domain";
-import { WrongPasswordError } from "@opensesame/vault-core";
+import { WrongPasswordError, bytesToB64 } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type PasskeyUnlockSessionHost,
   probePasskeyCeremony,
+  wrapVaultKeyWithCeremony,
 } from "./passkey-unlock-session.js";
-import { unlockMethodsSeams } from "./unlock-methods.js";
+import { unlockMethodsSeams, unwrapVaultKeyWithPrf } from "./unlock-methods.js";
 
 const original = { ...unlockMethodsSeams };
 afterEach(() => Object.assign(unlockMethodsSeams, original));
@@ -37,6 +38,23 @@ function host(ids: string[]) {
   });
   return { value, recordFailedUnlock };
 }
+
+it("wraps and unwraps a passkey while preserving only the user ID view", async () => {
+  const raw = crypto.getRandomValues(new Uint8Array(32));
+  const prfOutput = crypto.getRandomValues(new Uint8Array(32)).buffer;
+  const userId = new Uint8Array([99, 1, 2, 3, 99]).subarray(1, 4);
+  const record = await wrapVaultKeyWithCeremony(raw, {
+    credential: overlapCast({ rawId: new ArrayBuffer(16) }),
+    prfOutput,
+    prfSalt: crypto.getRandomValues(new Uint8Array(32)),
+    userId,
+  });
+  expect(record.userIdB64).toBe(bytesToB64(new Uint8Array([1, 2, 3])));
+  const opened = await unwrapVaultKeyWithPrf(record, prfOutput);
+  expect(opened).toEqual(raw);
+  opened.fill(0);
+  raw.fill(0);
+});
 
 describe("probePasskeyCeremony", () => {
   it("names the credential that answered a single-credential vault", async () => {
