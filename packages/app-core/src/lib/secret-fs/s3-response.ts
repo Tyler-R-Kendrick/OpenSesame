@@ -40,7 +40,7 @@ async function consume(
   retain: boolean,
   check: () => void,
   eof: () => void,
-): Promise<Uint8Array> {
+) {
   const buffer = new Uint8Array(retain ? max : 0);
   let total = 0;
   while (true) {

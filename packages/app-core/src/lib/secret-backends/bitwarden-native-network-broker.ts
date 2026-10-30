@@ -39,7 +39,7 @@ async function body(
   maximum: number,
   signal: AbortSignal,
   check: () => void,
-): Promise<Uint8Array> {
+) {
   validateResponse(response, maximum);
   const reader = response.body?.getReader();
   if (!reader) return ended();

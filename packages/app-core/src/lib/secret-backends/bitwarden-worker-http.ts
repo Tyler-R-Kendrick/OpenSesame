@@ -7,7 +7,7 @@ import { secretBackendUrl } from "./http.js";
 import { SecretBackendError, type SecretBackendFetch } from "./types.js";
 
 const MAX_BYTES = 4 * 1024 * 1024;
-async function boundedBody(response: Response): Promise<Uint8Array> {
+async function boundedBody(response: Response) {
   if (Number(response.headers.get("content-length") ?? 0) > MAX_BYTES)
     throw new Error("Response too large");
   const reader = response.body?.getReader();
