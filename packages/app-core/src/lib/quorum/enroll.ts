@@ -9,7 +9,7 @@
  * same guardian: it unwraps the same share and casts no second vote.
  */
 
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import { fromB64url, randomBytes, toB64url, wipe } from "./bytes.js";

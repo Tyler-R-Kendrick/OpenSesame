@@ -7,8 +7,8 @@
  * whose hash it also checks. A client whose signature is wrong, or whose body
  * is not the one it signed, is refused 403.
  */
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { Redacted } from "effect";
 import { signS3 } from "./s3-sigv4.js";
 

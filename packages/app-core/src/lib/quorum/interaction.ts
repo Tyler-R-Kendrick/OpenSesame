@@ -36,7 +36,7 @@
  * release separately, each from their own device, after `releaseNotBefore`.
  */
 
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import {
   type ApprovalProof,
   type BoundaryValue,
