@@ -4,6 +4,29 @@
  * isolates previously yielded to a microtask every 10ms, not to a host task.
  * Where a host scheduler exists we use noble's maintained async PBKDF2.
  */
+/*
+The MIT License (MIT)
+
+Copyright (c) 2022 Paul Miller (https://paulmillr.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 
@@ -44,13 +67,13 @@ export async function pbkdf2WithoutTimers(
     ) {
       const target = output.subarray(offset, offset + HASH_BYTES);
       view.setUint32(0, block, false);
-      working = salted._cloneInto(working).update(counter);
-      working.digestInto(u);
+      working = salted._cloneInto(working);
+      working.update(counter).digestInto(u);
       target.set(u.subarray(0, target.length));
       let lastYield = Date.now();
       for (let round = 1; round < iterations; round += 1) {
-        working = prf._cloneInto(working).update(u);
-        working.digestInto(u);
+        working = prf._cloneInto(working);
+        working.update(u).digestInto(u);
         for (let index = 0; index < target.length; index += 1)
           target[index] ^= u[index];
         const elapsed = Date.now() - lastYield;
