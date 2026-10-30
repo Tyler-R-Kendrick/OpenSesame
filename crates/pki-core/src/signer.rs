@@ -13,9 +13,6 @@
 use aws_lc_rs::{rand::SystemRandom, signature as aws_signature};
 use p256::ecdsa::signature::{Signer as _, Verifier as _};
 use p256::pkcs8::{DecodePrivateKey as _, DecodePublicKey as _};
-use pkcs8::DecodePrivateKey as _;
-use signature::{Signer as _, Verifier as _};
-use spki::DecodePublicKey as _;
 
 use crate::error::PkiError;
 use crate::keys::KeyPair;
@@ -159,6 +156,7 @@ impl Signer for SealedKeySigner {
             SigningKey::Ed25519(key) => key
                 .try_sign(message)
                 .map_err(|_| PkiError::Signing)?
+                .to_bytes()
                 .to_vec(),
         };
         Ok(signature)
