@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 import type { Page, TestInfo } from "@playwright/test";
 import { expect } from "@playwright/test";
 import pixelmatch from "pixelmatch";
+import pixelmatchLegacy from "pixelmatch-legacy";
 import { PNG } from "pngjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -102,17 +103,28 @@ export function comparePngBuffers(
   }
 
   const { width, height } = img1;
-  const diff = new PNG({ width, height });
-  const diffPixelCount = pixelmatch(
+  const currentDiff = new PNG({ width, height });
+  const legacyDiff = new PNG({ width, height });
+  const currentCount = pixelmatch(
     img1.data,
     img2.data,
-    diff.data,
+    currentDiff.data,
     width,
     height,
-    {
-      threshold: PIXELMATCH_THRESHOLD,
-    },
+    { threshold: PIXELMATCH_THRESHOLD },
   );
+  const legacyCount = pixelmatchLegacy(
+    img1.data,
+    img2.data,
+    legacyDiff.data,
+    width,
+    height,
+    { threshold: PIXELMATCH_THRESHOLD },
+  );
+  // v8 uses a different color metric. Keep every rejection from the approved
+  // v7 contract until its thresholds have been reviewed against real captures.
+  const diffPixelCount = Math.max(currentCount, legacyCount);
+  const diff = currentCount >= legacyCount ? currentDiff : legacyDiff;
   const totalPixels = width * height;
   const diffRatio = totalPixels === 0 ? 0 : diffPixelCount / totalPixels;
   const contentPixels = countContentPixels(img1.data, img2.data);
