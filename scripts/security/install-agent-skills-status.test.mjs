@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -34,7 +35,7 @@ test("catalogue failure degrades currency, while a successful install remains ok
   put(".codex/hooks.json", "{}\n");
   put(".claude/settings.json", "{}\n");
   put(".gitignore", ".agents/\nbin/\nglobal.gitconfig\n");
-  put("bin/fail-sign", "#!/bin/sh\nexit 1\n");
+  put("bin/fail-sign", "#!/bin/sh\ntouch bin/sign-invoked\nexit 1\n");
   chmodSync(join(root, "bin/fail-sign"), 0o755);
   put(
     "global.gitconfig",
@@ -53,6 +54,24 @@ test("catalogue failure degrades currency, while a successful install remains ok
   );
   execFileSync("git", ["init", "-q", root], { env: gitEnv });
   execFileSync("git", ["-C", root, "add", "."], { env: gitEnv });
+  assert.throws(() =>
+    execFileSync(
+      "git",
+      [
+        "-C",
+        root,
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "-qm",
+        "fixture",
+      ],
+      { env: gitEnv, cwd: root, stdio: "pipe" },
+    ),
+  );
+  assert.equal(existsSync(join(root, "bin/sign-invoked")), true);
   execFileSync(
     "git",
     [
