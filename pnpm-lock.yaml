@@ -752,8 +752,8 @@ importers:
         specifier: 0.5.0
         version: 0.5.0
       '@ag-ui/client':
-        specifier: 0.0.59
-        version: 0.0.59
+        specifier: 1.0.3
+        version: 1.0.3
       '@ai-sdk/provider':
         specifier: 3.0.14
         version: 3.0.14
@@ -2419,17 +2419,22 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
-  '@ag-ui/client@0.0.59':
-    resolution: {integrity: sha512-d7++r8sBAq6z9G/D/WKrMznQ1Mdvew14pCqOVATReFIvl06mCi1BPqTwmos3zCDGAIiSgcvxc/8m472rYQgFFQ==}
+  '@ag-ui/client@1.0.3':
+    resolution: {integrity: sha512-pqp6hEiO+gjAKIBSA/g8SzPy17XHZhbKZFK3Q4DhZ7bNLR34xNpPfXogP3bSQrzsKh2hmSc9ZYUutTpe/BQBpw==}
 
-  '@ag-ui/core@0.0.59':
-    resolution: {integrity: sha512-hDgy4ipTqXieT8YG8Mr917Y+FD/f11VK1GefZ5CwTDCuNqS/oTwjJ5l/DZkicThgS8hQW/Y7wPylPBMBJ8BkUg==}
+  '@ag-ui/core@1.0.3':
+    resolution: {integrity: sha512-HdMdZPOqworKlnzLaNktnbNYgIzOPbzt5ow6J4bPhbmHCdpWpCSZQFgkifQkn1zVHgCK1V+pmKc8xtW6FsQZKA==}
+    peerDependencies:
+      zod: 4.6.7
+    peerDependenciesMeta:
+      zod:
+        optional: true
 
-  '@ag-ui/encoder@0.0.59':
-    resolution: {integrity: sha512-wQCzBsStyZMm8nzhTdTx1G0B1C8yv5rbzZLnz1ka/l5LcJEsK3KTounU8CR9l+7QtcpOUUDJKd0xAbyI6gNcSw==}
+  '@ag-ui/encoder@1.0.3':
+    resolution: {integrity: sha512-Uj/znRLejAQ7PWcY/Qio2ucymbJNuiDMKU34aTQV+v0EeB6Up9vj6nHNtH+eAAVSVZADs4/U+8gXVnN0on51ew==}
 
-  '@ag-ui/proto@0.0.59':
-    resolution: {integrity: sha512-X+uvDaegLEHw5kJu8tv2eSqHH8ouat+JCfFokGV1uuMquY8qCEQSlGsM7xzexwX9fujuxgHOWumg5kJDqa0+RA==}
+  '@ag-ui/proto@1.0.3':
+    resolution: {integrity: sha512-L3YVEJN1hCYx3P7Zfrf4e1obA1pwzykkkPZkNHAdcXyUZ05/ezvWCkErnfNoUlER8QCasBwRjKiDjicu3Tt7+g==}
 
   '@ai-sdk/gateway@3.0.159':
     resolution: {integrity: sha512-BJ1SMVpD2Qie/OVmQho1b1wb8rcGYC38p2D20MyP0+zUGBlXJOMfq1zP97+tl1oyT1u/A84R+oaYrUT18dIdWg==}
@@ -3642,24 +3647,28 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@biomejs/cli-linux-arm64@1.9.4':
     resolution: {integrity: sha512-fJIW0+LYujdjUgJJuwesP4EjIBl/N/TcOX3IvIHJQNsAqvV2CHIogsmA94BPG6jZATS4Hi+xv4SkBBQSt1N4/g==}
     engines: {node: '>=14.21.3'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@biomejs/cli-linux-x64-musl@1.9.4':
     resolution: {integrity: sha512-gEhi/jSBhZ2m6wjV530Yy8+fNqG8PAinM3oV7CyO+6c3CEh16Eizm21uHVsyVBEB6RIM8JHIl6AGYCv6Q6Q9Tg==}
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@biomejs/cli-linux-x64@1.9.4':
     resolution: {integrity: sha512-lRCJv/Vi3Vlwmbd6K+oQ0KhLHMAysN8lXoCI7XeHlxaajk06u7G+UsFSO01NAs5iYuWKmVZjmiOzJ0OJmGsMwg==}
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@biomejs/cli-win32-arm64@1.9.4':
     resolution: {integrity: sha512-tlbhLk+WXZmgwoIKwHIHEBZUwxml7bRJgk0X2sPyNR3S93cdRq6XulAZRQJ17FYGGzWne0fgrXBKpl7l4M87Hg==}
@@ -11001,11 +11010,11 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
-  '@ag-ui/client@0.0.59':
+  '@ag-ui/client@1.0.3':
     dependencies:
-      '@ag-ui/core': 0.0.59
-      '@ag-ui/encoder': 0.0.59
-      '@ag-ui/proto': 0.0.59
+      '@ag-ui/core': 1.0.3(zod@4.6.7)
+      '@ag-ui/encoder': 1.0.3(zod@4.6.7)
+      '@ag-ui/proto': 1.0.3
       '@types/uuid': 10.0.0
       compare-versions: 6.1.1
       fast-json-patch: 3.1.1
@@ -11014,20 +11023,23 @@ snapshots:
       uuid: 14.0.1
       zod: 4.6.7
 
-  '@ag-ui/core@0.0.59':
-    dependencies:
+  '@ag-ui/core@1.0.3(zod@4.6.7)':
+    optionalDependencies:
       zod: 4.6.7
 
-  '@ag-ui/encoder@0.0.59':
+  '@ag-ui/encoder@1.0.3(zod@4.6.7)':
     dependencies:
-      '@ag-ui/core': 0.0.59
-      '@ag-ui/proto': 0.0.59
+      '@ag-ui/core': 1.0.3(zod@4.6.7)
+      '@ag-ui/proto': 1.0.3
+    transitivePeerDependencies:
+      - zod
 
-  '@ag-ui/proto@0.0.59':
+  '@ag-ui/proto@1.0.3':
     dependencies:
-      '@ag-ui/core': 0.0.59
+      '@ag-ui/core': 1.0.3(zod@4.6.7)
       '@bufbuild/protobuf': 2.16.0
       '@protobuf-ts/protoc': 2.11.1
+      zod: 4.6.7
 
   '@ai-sdk/gateway@3.0.159(zod@4.6.7)':
     dependencies:
@@ -17051,7 +17063,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.20.0(debug@4.4.3))
+      retry-axios: 2.6.0(axios@1.20.0)
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -19003,7 +19015,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.20.0(debug@4.4.3)):
+  retry-axios@2.6.0(axios@1.20.0):
     dependencies:
       axios: 1.20.0(debug@4.4.3)
     optional: true
