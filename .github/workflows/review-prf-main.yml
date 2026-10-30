@@ -1,0 +1,66 @@
+name: Review passkey PRF cleanup on main
+on:
+  push:
+    branches: [review/prf-main-cleanup-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/prf-main-cleanup-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 9b5187632f8a387b6eb8f334b9e5b14028e4fb7d
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 9636806d6daaaa5bc23c9c295a3eacc27b221fab
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify red controls on main
+        run: |
+          set -euo pipefail
+          app=packages/app-core/src/lib/local-passkey-prf.ts
+          ui=apps/pages/src/sections/identity/LocalPasskeys.tsx
+          trap 'git restore -- "$app" "$ui"' EXIT
+          git show "HEAD^:$app" > "$app"
+          git show "HEAD^:$ui" > "$ui"
+          if pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf-wipe.test.ts src/lib/local-passkey-prf-early.test.ts > /tmp/prf-main-original.log 2>&1; then cat /tmp/prf-main-original.log; exit 1; fi
+          cat /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the held enrollment PRF copy on success' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the held enrollment PRF copy on failure' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the held enrollment PRF copy on commit failure' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the copied PRF after existing protector unwrap success' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes the copied PRF after existing protector unwrap failure' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes an otherwise valid result when there is no matching plan row' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes a short result and returns unsupported' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*reads the first result once and assesses and wipes that same result' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes salts if the extension getter throws' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*wipes only the original PRF range when a resizable result grows' /tmp/prf-main-original.log
+          grep -Eq 'FAIL.*fails closed and wipes salts when a resizable result shrinks' /tmp/prf-main-original.log
+          if pnpm --filter @opensesame/pages exec vitest run src/sections/identity/LocalPasskeysPrf.test.tsx > /tmp/prf-ui-original.log 2>&1; then cat /tmp/prf-ui-original.log; exit 1; fi
+          cat /tmp/prf-ui-original.log
+          grep -Eq 'FAIL.*wipes each borrowed PRF copy while preserving the offer for retry' /tmp/prf-ui-original.log
+      - name: Lint and typecheck
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/local-passkey-prf.ts packages/app-core/src/lib/local-passkey-prf.test.ts packages/app-core/src/lib/local-passkey-prf-wipe.test.ts packages/app-core/src/lib/local-passkey-prf-early.test.ts apps/pages/src/sections/identity/LocalPasskeys.tsx apps/pages/src/sections/identity/LocalPasskeysPrf.test.tsx
+          pnpm --filter @opensesame/pages typecheck
+      - name: Verify real vault, cleanup and user retry
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf-early.test.ts src/lib/local-passkey-prf-wipe.test.ts src/lib/local-passkey-prf.test.ts src/lib/local-passkeys.test.ts src/lib/vault/protection/adapters/webauthn-prf.test.ts
+          pnpm --filter @opensesame/pages exec vitest run src/sections/identity/LocalPasskeysPrf.test.tsx
+          pnpm quality:app-core
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 9636806d6daaaa5bc23c9c295a3eacc27b221fab
+          git diff --exit-code
