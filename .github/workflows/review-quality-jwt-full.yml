@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
-      EXPECTED_HEAD: 4397ab1c44f5d33011d2b4120173de2377c5e126
+      EXPECTED_HEAD: a3cc5ae43de8fcb6b1151606e71cf438c7cd52dc
       CARGO_BUILD_JOBS: '2'
       CARGO_INCREMENTAL: '0'
       CARGO_PROFILE_DEV_DEBUG: '0'
@@ -21,14 +21,14 @@ jobs:
     steps:
       - name: Validate immutable source input
         env:
-          SOURCE_SHA: 4397ab1c44f5d33011d2b4120173de2377c5e126
+          SOURCE_SHA: a3cc5ae43de8fcb6b1151606e71cf438c7cd52dc
         shell: bash
         run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: 4397ab1c44f5d33011d2b4120173de2377c5e126
+          ref: a3cc5ae43de8fcb6b1151606e71cf438c7cd52dc
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -56,8 +56,8 @@ jobs:
           set -euo pipefail
           [[ "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^{tree})" = 4f701750c8f4d5731579ec2c4747331cfb1093ad
-          test "$(git rev-parse HEAD^)" = a9afe605173bc0e9dee9df9513399e9188b95b79
+          test "$(git rev-parse HEAD^{tree})" = 837bd4ca756ec324502ffee776a350efd23a03b8
+          test "$(git rev-parse HEAD^)" = 7626420f53ed7e42113abe96dc5542c76bb3caae
           git diff --exit-code
           git diff --cached --exit-code
           test -x "$PLAYWRIGHT_CHROMIUM"
