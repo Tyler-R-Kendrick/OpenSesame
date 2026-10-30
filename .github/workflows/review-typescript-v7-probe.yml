@@ -1,0 +1,48 @@
+name: Probe TypeScript 7 compatibility
+on:
+  push:
+    branches: [review/typescript-v7-probe-20261030]
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-probe-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: a488d3d19548b040c68380232d0c11d8e30a9ff3
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Check exact source and install frozen graph
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = a488d3d19548b040c68380232d0c11d8e30a9ff3
+          pnpm install --frozen-lockfile --ignore-scripts
+          mkdir -p /tmp/opensesame-ts7-probe
+      - name: Characterize compiler and API consumers
+        run: |
+          set +e
+          node -e 'const ts=require("typescript"); for(const n of ["version","createProgram","createCompilerHost","findConfigFile","isTypeNode","sys"]) console.log(n,typeof ts[n],n==="version"?ts[n]:"")' 2>&1 | tee /tmp/opensesame-ts7-probe/api.log
+          pnpm exec tsc --version 2>&1 | tee /tmp/opensesame-ts7-probe/compiler.log
+          pnpm quality:app-core > /tmp/opensesame-ts7-probe/app-core.log 2>&1
+          app_core=$?
+          pnpm --filter @opensesame/cli build > /tmp/opensesame-ts7-probe/cli-build.log 2>&1
+          cli_build=$?
+          pnpm --filter @opensesame/pages typecheck > /tmp/opensesame-ts7-probe/pages-typecheck.log 2>&1
+          pages=$?
+          printf 'quality:app-core=%s cli-build=%s pages-typecheck=%s\n' "$app_core" "$cli_build" "$pages"
+          for name in app-core cli-build pages-typecheck; do printf '\n%s\n' "$name"; tail -25 "/tmp/opensesame-ts7-probe/$name.log"; done
+          test "$app_core" = 0 -a "$cli_build" = 0 -a "$pages" = 0
+      - name: Preserve probe evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: typescript-v7-compatibility-probe
+          path: /tmp/opensesame-ts7-probe/
+          retention-days: 2
+          if-no-files-found: warn
