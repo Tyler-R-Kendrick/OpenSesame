@@ -21,11 +21,13 @@ const nodeNames = [
   "native-ssh-keys.go",
   "native-ssh-keys_test.go",
   "nodessh_js.go",
+  "derp-custom-roots_test.go",
 ];
 const patchTargets = [
   "cmd/tsconnect/wasm/wasm_js.go",
   "net/tsdial/tsdial.go",
   "ipn/ipnlocal/node_backend.go",
+  "derp/derphttp/derphttp_client.go",
 ];
 
 function requirePaths(files, expected) {
@@ -40,9 +42,11 @@ export function stagedNativeNodePath(source, name) {
   if (!nodeNames.includes(name) || !name.endsWith(".go"))
     throw new Error("Native Go staging path is outside the fixed scope.");
   const directory =
-    name === "native-extra-dns.go" || name === "native-extra-dns_test.go"
-      ? "ipn/ipnlocal"
-      : "cmd/tsconnect/wasm";
+    name === "derp-custom-roots_test.go"
+      ? "derp/derphttp"
+      : name === "native-extra-dns.go" || name === "native-extra-dns_test.go"
+        ? "ipn/ipnlocal"
+        : "cmd/tsconnect/wasm";
   return join(source, directory, name);
 }
 
