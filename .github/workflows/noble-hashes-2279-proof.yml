@@ -1,0 +1,53 @@
+name: Review noble hashes v2 compatibility
+on:
+  push:
+    branches: [review/noble-hashes-v2-2279-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.ref == 'refs/heads/review/noble-hashes-v2-2279-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 2a3ae5fec2212c06035a05c581e359b4cd931c0f
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact source
+        run: |
+          test "$(git rev-parse HEAD)" = 2a3ae5fec2212c06035a05c581e359b4cd931c0f
+          test "$(git rev-parse HEAD^{tree})" = 545c12df085a051833df02520756106bb3b2033e
+      - name: Install frozen graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Lint changed crypto tests
+        run: |
+          pnpm exec biome check packages/app-core/src/sandbox/pbkdf2-no-timers.ts packages/app-core/src/sandbox/pbkdf2-no-timers.test.ts packages/app-core/src/sandbox/subtle.ts packages/app-core/src/sandbox/bare-isolate.test.ts
+          pnpm lint:anti-slop:files packages/app-core/src/sandbox/pbkdf2-no-timers.ts packages/app-core/src/sandbox/pbkdf2-no-timers.test.ts
+      - name: Test crypto and timerless isolate
+        run: |
+          pnpm --filter @opensesame/app-core exec vitest run src/sandbox src/lib/quorum src/lib/at-rest src/lib/encrypted-db src/lib/secret-backends/bitwarden-native-kdf.test.ts src/lib/sops
+          pnpm --filter @opensesame/vault-core test
+          pnpm --filter @opensesame/capability-composition test
+      - name: Typecheck packages
+        run: |
+          pnpm --filter @opensesame/app-core typecheck
+          pnpm --filter @opensesame/vault-core typecheck
+          pnpm --filter @opensesame/capability-composition typecheck
+          pnpm --filter @opensesame/pages typecheck
+      - name: Test chunk and shared worker behavior
+        run: pnpm --filter @opensesame/pages exec vitest run scripts/bundle-chunk.test.mjs scripts/shared-worker-crypto.test.mjs
+      - name: Test browser vault integration
+        run: pnpm verify:customer-vault-browser
+      - name: Build pages and check bundle budgets
+        run: pnpm quality:bundle
+      - name: Verify source unchanged
+        run: git diff --exit-code
