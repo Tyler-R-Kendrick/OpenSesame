@@ -11,6 +11,7 @@
  */
 
 import type { BrowserDriver } from "@opensesame/cua-password-reset";
+import { closeOnce } from "./close-once.js";
 import { LocalSandboxProvider } from "./local-provider.js";
 import { type RunningRelayServer, startRelayServer } from "./relay-server.js";
 
@@ -54,23 +55,14 @@ export async function startBoatRelayAgent(
     origin,
     extraAllowedDomains: extras,
   });
-  let browserClose: Promise<void> | undefined;
-  const closeBrowser = async () => {
-    browserClose ??= sandbox.close();
-    try {
-      await browserClose;
-    } catch (error) {
-      browserClose = undefined;
-      throw error;
-    }
-  };
+  const close = closeOnce(sandbox.close);
   const driver: BrowserDriver = {
-    open: (url) => sandbox.browser.open(url),
-    snapshot: () => sandbox.browser.snapshot(),
-    click: (ref) => sandbox.browser.click(ref),
-    fill: (ref, value) => sandbox.browser.fill(ref, value),
-    fillSecret: (ref, value) => sandbox.browser.fillSecret(ref, value),
-    close: closeBrowser,
+    open: sandbox.browser.open.bind(sandbox.browser),
+    snapshot: sandbox.browser.snapshot.bind(sandbox.browser),
+    click: sandbox.browser.click.bind(sandbox.browser),
+    fill: sandbox.browser.fill.bind(sandbox.browser),
+    fillSecret: sandbox.browser.fillSecret.bind(sandbox.browser),
+    close,
   };
   const pageUrl = sandbox.browser.pageUrl?.bind(sandbox.browser);
   if (pageUrl) driver.pageUrl = pageUrl;
@@ -83,14 +75,14 @@ export async function startBoatRelayAgent(
       driver,
     });
   } catch (error) {
-    await closeBrowser();
+    await close();
     throw error;
   }
   return {
     port: server.port,
     close: async () => {
       await server.close();
-      await closeBrowser();
+      await close();
     },
   };
 }

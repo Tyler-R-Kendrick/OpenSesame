@@ -1,10 +1,17 @@
 import { type Server, createServer } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   type RunningVirtualNetworkRelay,
   startVirtualNetworkRelay,
 } from "./vnet-server.js";
 import { virtualFetchOverHttp } from "./vnet.js";
+
+function boundPort(server: Server, error: string): number {
+  const address = z.object({ port: z.number() }).safeParse(server.address());
+  if (!address.success) throw new Error(error);
+  return address.data.port;
+}
 
 describe("virtual network relay", () => {
   let target: Server;
@@ -91,6 +98,43 @@ describe("virtual network relay", () => {
 });
 
 describe("virtual network boundaries", () => {
+  it("validates close request session IDs before ending a session", async () => {
+    const relay = await startVirtualNetworkRelay({ token: "token" });
+    try {
+      for (const body of [
+        null,
+        [],
+        {},
+        { sessionId: 3 },
+        { sessionId: "" },
+        { sessionId: "x".repeat(129) },
+      ]) {
+        const response = await fetch(`${relay.url}/close`, {
+          method: "POST",
+          headers: {
+            authorization: "Bearer token",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+        });
+        expect(response.status).toBe(502);
+        expect(await response.json()).toEqual({
+          error: "virtual network: invalid session id",
+        });
+      }
+      const valid = await fetch(`${relay.url}/close`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ sessionId: "x".repeat(128) }),
+      });
+      expect(valid.status).toBe(204);
+    } finally {
+      await relay.close();
+    }
+  });
   it("refuses plaintext non-loopback relay transport", () => {
     expect(() =>
       virtualFetchOverHttp("http://relay.example.test", "token"),
@@ -122,20 +166,16 @@ describe("virtual network boundaries", () => {
       response.end();
     });
     await new Promise<void>((resolve) => sink.listen(0, "127.0.0.1", resolve));
-    const sinkAddress = sink.address();
-    if (!sinkAddress || typeof sinkAddress === "string")
-      throw new Error("sink failed");
-    const sinkOrigin = `http://127.0.0.1:${sinkAddress.port}`;
+    const sinkPort = boundPort(sink, "sink failed");
+    const sinkOrigin = `http://127.0.0.1:${sinkPort}`;
     const source = createServer((_request, response) =>
       response.writeHead(307, { location: `${sinkOrigin}/capture` }).end(),
     );
     await new Promise<void>((resolve) =>
       source.listen(0, "127.0.0.1", resolve),
     );
-    const sourceAddress = source.address();
-    if (!sourceAddress || typeof sourceAddress === "string")
-      throw new Error("source failed");
-    const sourceOrigin = `http://127.0.0.1:${sourceAddress.port}`;
+    const sourcePort = boundPort(source, "source failed");
+    const sourceOrigin = `http://127.0.0.1:${sourcePort}`;
     const relay = await startVirtualNetworkRelay({
       token: "token",
       allowLoopbackTargets: true,
@@ -326,25 +366,21 @@ describe("session lifecycle and redirects", () => {
       response.end();
     });
     await new Promise<void>((resolve) => sink.listen(0, "127.0.0.1", resolve));
-    const sinkAddress = sink.address();
-    if (!sinkAddress || typeof sinkAddress === "string")
-      throw new Error("sink failed");
+    const sinkPort = boundPort(sink, "sink failed");
     const redirector = createServer((_request, response) =>
       response
         .writeHead(307, {
-          location: `http://127.0.0.1:${sinkAddress.port}/capture`,
+          location: `http://127.0.0.1:${sinkPort}/capture`,
         })
         .end(),
     );
     await new Promise<void>((resolve) =>
       redirector.listen(0, "127.0.0.1", resolve),
     );
-    const address = redirector.address();
-    if (!address || typeof address === "string")
-      throw new Error("redirector failed");
+    const redirectorPort = boundPort(redirector, "redirector failed");
     try {
       const fetch = virtualFetchOverHttp(
-        `http://127.0.0.1:${address.port}`,
+        `http://127.0.0.1:${redirectorPort}`,
         "secret-token",
       );
       await expect(
