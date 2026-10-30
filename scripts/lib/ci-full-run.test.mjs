@@ -220,7 +220,7 @@ describe("affected Pages build preparation", () => {
     );
     expect(cache).toContain(`if: ${pagesAffected}`);
     expect(cache).toContain(
-      "actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25",
+      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
     );
     expect(cache).toContain(
       "path: .cache/pwa-tailscale-native-http/distributions\n",
