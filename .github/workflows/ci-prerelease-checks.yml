@@ -252,7 +252,7 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           AGENT_BROWSER_CHROME: /usr/bin/google-chrome
         run: >-
-          AGENT_BROWSER="$(pnpm --filter @opensesame/cua-password-reset exec which agent-browser)"
+          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(pnpm exec which agent-browser)")"
           pnpm --filter @opensesame/cua-password-reset test:e2e
       - name: Agent sandbox providers browser e2e
         # Exercise the local, relay, virtual-network and CDP lanes.
@@ -261,7 +261,7 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           AGENT_BROWSER_CHROME: /usr/bin/google-chrome
         run: >-
-          AGENT_BROWSER="$(pnpm --filter @opensesame/cua-password-reset exec which agent-browser)"
+          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(pnpm exec which agent-browser)")"
           pnpm --fail-if-no-match --filter @opensesame/agent-sandboxes test:e2e
       - name: Repository contract on a real Postgres
         # The same suites as the PGlite run, through the production driver.
