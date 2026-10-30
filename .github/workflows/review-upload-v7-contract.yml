@@ -1,0 +1,44 @@
+name: Review upload artifact v7 contract
+on:
+  push:
+    branches: [review/upload-v7-contract-hosted-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/upload-v7-contract-hosted-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: c2d87c5b71ab69df97072d6f29bba795bc098192
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact reviewed candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = c2d87c5b71ab69df97072d6f29bba795bc098192
+          test "$(git rev-parse HEAD^{tree})" = 644e730699b42395dca53cdf6a0a4653073a9d4c
+          printf 'Synthetic artifact smoke test\n' > /tmp/opensesame-v7-smoke.txt
+      - name: Smoke test upload-artifact v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: synthetic-upload-v7-smoke
+          path: /tmp/opensesame-v7-smoke.txt
+          retention-days: 1
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run pinned action and workflow contracts
+        run: |
+          set -euo pipefail
+          pnpm exec biome check scripts/lib/ci-bundle-shards.test.mjs
+          pnpm exec vitest run scripts/lib/ci-bundle-shards.test.mjs
+      - name: Verify source stayed unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 644e730699b42395dca53cdf6a0a4653073a9d4c
+          git diff --exit-code
