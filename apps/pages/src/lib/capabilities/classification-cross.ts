@@ -135,6 +135,10 @@ const CONNECTOR_RECORDS = [
 
 export const CROSS_RULES = [
   shared(
+    `${L}noble-v1-compat.test.ts`,
+    "cross-feature historical cipher compatibility regression fixtures",
+  ),
+  shared(
     "src/lib/integration-ai-labs.ts",
     "pure provider names/order shared by core Settings and the optional Connections catalog; no runtime or credential code",
   ),
