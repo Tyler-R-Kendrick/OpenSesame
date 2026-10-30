@@ -251,3 +251,54 @@ fn verifies_existing_rfc6979_high_s_der_signature() {
         Err(PkiError::SignatureInvalid)
     );
 }
+
+#[test]
+fn ed25519_pkcs8_round_trip_and_invalid_inputs_fail_closed() {
+    let original = keys::generate(KeyAlgorithm::Ed25519).unwrap();
+    let pem = original.private_key_pkcs8_pem();
+    let reloaded = keys::from_pkcs8_pem(&pem, KeyAlgorithm::Ed25519).unwrap();
+    assert_eq!(reloaded.public_key_der(), original.public_key_der());
+    let signer = SealedKeySigner::new(&reloaded).unwrap();
+    let public = signer.public_key_der();
+    let signature = signer.sign(b"authorize this").unwrap();
+    verify(
+        SignatureAlgorithm::Ed25519,
+        &public,
+        b"authorize this",
+        &signature,
+    )
+    .unwrap();
+    assert_eq!(
+        verify(
+            SignatureAlgorithm::Ed25519,
+            &public,
+            b"tampered",
+            &signature
+        ),
+        Err(PkiError::SignatureInvalid)
+    );
+    let mut corrupted = signature.clone();
+    corrupted[0] ^= 1;
+    assert_eq!(
+        verify(
+            SignatureAlgorithm::Ed25519,
+            &public,
+            b"authorize this",
+            &corrupted
+        ),
+        Err(PkiError::SignatureInvalid)
+    );
+    assert_eq!(
+        verify(
+            SignatureAlgorithm::Ed25519,
+            b"not SPKI",
+            b"authorize this",
+            &signature
+        ),
+        Err(PkiError::InvalidDer)
+    );
+    assert!(matches!(
+        keys::from_pkcs8_pem("not PKCS8", KeyAlgorithm::Ed25519),
+        Err(PkiError::InvalidPem)
+    ));
+}
