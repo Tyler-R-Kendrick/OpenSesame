@@ -11,7 +11,7 @@ it("the default run sends nothing before exact preview consent", async () => {
     online: () => true,
     transport: async function* () {
       sent++;
-      yield { type: "TEXT_MESSAGE_CONTENT", delta: "answer" };
+      yield { type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "answer" };
     },
   });
   const pending = agent

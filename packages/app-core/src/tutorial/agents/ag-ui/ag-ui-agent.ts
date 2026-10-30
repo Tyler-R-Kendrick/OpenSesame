@@ -103,6 +103,24 @@ const MAX_COMPUTER_DETAIL_CHARS = 500;
  */
 type MessageRoles = Map<string, boolean>;
 
+/** Preserve the text identity checks previously applied by the AG-UI decoder. */
+function validateTextIdentity(event: JsonObject, idRequired: boolean): void {
+  const id = readString(event.messageId);
+  const role = readString(event.role);
+  if (
+    (idRequired && id === undefined) ||
+    (event.messageId !== undefined && id === undefined) ||
+    (event.role !== undefined &&
+      (role === undefined ||
+        !["assistant", "developer", "system", "user"].includes(role)))
+  ) {
+    throw new SupportError(
+      "AGENT_PROTOCOL_ERROR",
+      "the support endpoint sent an invalid text identity",
+    );
+  }
+}
+
 function acceptsDelta(roles: MessageRoles, event: JsonObject): boolean {
   const role = readString(event.role);
   if (role !== undefined && role !== "assistant") return false;
@@ -183,13 +201,16 @@ function consumeEvent(
 ): boolean {
   switch (readString(event.type)) {
     case "TEXT_MESSAGE_START":
+      validateTextIdentity(event, true);
       rememberRole(roles, event);
       return false;
     case "TEXT_MESSAGE_CHUNK":
+      validateTextIdentity(event, false);
       rememberRole(roles, event);
       if (acceptsDelta(roles, event)) appendDelta(text, event);
       return false;
     case "TEXT_MESSAGE_CONTENT":
+      validateTextIdentity(event, true);
       if (acceptsDelta(roles, event)) appendDelta(text, event);
       return false;
     case "REASONING_MESSAGE_START":

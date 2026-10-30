@@ -516,6 +516,47 @@ describe("hostile server events", () => {
     ).rejects.toMatchObject({ code: "AGENT_PROTOCOL_ERROR" });
   });
 
+  it.each([
+    { type: "TEXT_MESSAGE_START", messageId: "m", role: 7 },
+    { type: "TEXT_MESSAGE_START", messageId: "m", role: null },
+    { type: "TEXT_MESSAGE_START", messageId: 7, role: "system" },
+    { type: "TEXT_MESSAGE_START", role: "assistant" },
+    { type: "TEXT_MESSAGE_CONTENT", messageId: 7, delta: "bad" },
+    { type: "TEXT_MESSAGE_CONTENT", delta: "bad" },
+    { type: "TEXT_MESSAGE_CHUNK", messageId: null, delta: "bad" },
+  ])("rejects malformed text identity and role: %o", async (event) => {
+    const agent = createAgUiSupportAgent({
+      approve: async () => true,
+      endpoint: endpoint(),
+      online: () => true,
+      transport: recording([event, ...answering("valid")]).transport,
+    });
+    await expect(
+      agent.run(REQUEST, { signal: signal() }),
+    ).rejects.toMatchObject({
+      code: "AGENT_PROTOCOL_ERROR",
+    });
+  });
+
+  it("preserves valid assistant, non-assistant and ID-less chunk behavior", async () => {
+    const agent = createAgUiSupportAgent({
+      approve: async () => true,
+      endpoint: endpoint(),
+      online: () => true,
+      transport: recording([
+        textStart("sys", "system"),
+        textContent("sys", "hidden"),
+        textStart("a", "assistant"),
+        textContent("a", "visible"),
+        { type: "TEXT_MESSAGE_CHUNK", delta: " chunk" },
+        RUN_FINISHED,
+      ]).transport,
+    });
+    expect((await agent.run(REQUEST, { signal: signal() })).answer).toBe(
+      "visible chunk",
+    );
+  });
+
   it("survives malformed events that are not objects at all", async () => {
     const agent = createAgUiSupportAgent({
       approve: async () => true,
