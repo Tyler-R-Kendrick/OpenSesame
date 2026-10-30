@@ -58,7 +58,7 @@ function valueAt(b64: string, i: number): number {
  * else is refused with the same `InvalidCharacterError` `atob` raises, which
  * is what this replaced; the fast path covers what every seal writes.
  */
-export function b64ToBytes(b64: string): Uint8Array {
+export function b64ToBytes(b64: string) {
   if (b64.length % 4 !== 0) return fromAtob(b64);
   const pad = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
   const out = new Uint8Array((b64.length / 4) * 3 - pad);
@@ -79,7 +79,7 @@ export function b64ToBytes(b64: string): Uint8Array {
 }
 
 /** Whatever the fast path does not take: `atob`'s own rules, and its errors. */
-function fromAtob(b64: string): Uint8Array {
+function fromAtob(b64: string) {
   const binary = atob(b64);
   const out = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
@@ -95,6 +95,6 @@ export function bytesToB64url(bytes: Uint8Array): string {
 }
 
 /** Base64url, padded or not; throws on anything else. */
-export function b64urlToBytes(value: string): Uint8Array {
+export function b64urlToBytes(value: string) {
   return b64ToBytes(value.replaceAll("-", "+").replaceAll("_", "/"));
 }

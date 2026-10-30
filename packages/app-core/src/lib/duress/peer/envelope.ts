@@ -34,14 +34,14 @@ function b64(bytes: Uint8Array): string {
   for (const b of bytes) s += String.fromCharCode(b);
   return btoa(s);
 }
-function fromB64(s: string): Uint8Array {
+function fromB64(s: string) {
   const bin = atob(s);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
 
-function signingInput(env: Omit<PeerEnvelope, "signatureB64">): Uint8Array {
+function signingInput(env: Omit<PeerEnvelope, "signatureB64">) {
   return new TextEncoder().encode(
     JSON.stringify({
       schemaVersion: env.schemaVersion,

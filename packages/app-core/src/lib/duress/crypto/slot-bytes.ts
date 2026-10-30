@@ -19,7 +19,7 @@ export function b64(bytes: Uint8Array): string {
   return btoa(s);
 }
 
-export function fromB64(s: string): Uint8Array {
+export function fromB64(s: string) {
   const bin = atob(s);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -37,7 +37,7 @@ export async function pbkdf2(
   code: string,
   salt: Uint8Array,
   iterations: number,
-): Promise<Uint8Array> {
+) {
   assertDuressKdfParams({ iterations, saltB64: b64(salt) });
   const base = await crypto.subtle.importKey(
     "raw",

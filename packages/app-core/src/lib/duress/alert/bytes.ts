@@ -2,6 +2,6 @@
 
 export { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
 
-export function utf8(s: string): Uint8Array {
+export function utf8(s: string) {
   return new TextEncoder().encode(s);
 }
