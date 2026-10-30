@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { CloudflareBrowserRunClient } from "./cloudflare-client.js";
 
-function jsonResponse(body: unknown, status = 200): Response {
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+function jsonResponse(body: JsonValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -15,8 +23,8 @@ const socket =
 
 describe("CloudflareBrowserRunClient", () => {
   it("sends the documented guardrails and keep_alive query, and accepts the direct response", async () => {
-    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(url).toBe(`${endpoint}?keep_alive=120000`);
+    const fetchImpl: typeof fetch = async (url, init) => {
+      expect(String(url)).toBe(`${endpoint}?keep_alive=120000`);
       expect(init?.method).toBe("POST");
       expect(init?.redirect).toBe("error");
       expect(new Headers(init?.headers).get("authorization")).toBe(
@@ -31,12 +39,12 @@ describe("CloudflareBrowserRunClient", () => {
         sessionId: "sess-9",
         webSocketDebuggerUrl: socket,
       });
-    });
+    };
     const client = new CloudflareBrowserRunClient({
       accountId: "acct-1",
       apiToken: "token-1",
       keepAliveMs: 120_000,
-      fetchImpl: fetchImpl as typeof fetch,
+      fetchImpl,
     });
     await expect(
       client.createSession(["accounts.example.test", "idp.example.test"]),
@@ -124,6 +132,8 @@ describe("CloudflareBrowserRunClient", () => {
     });
   });
 
+  const sparseDomains: string[] = [];
+  sparseDomains.length = 1;
   it.each([
     { allowedDomains: [] },
     { allowedDomains: ["*.example.test"] },
@@ -131,6 +141,7 @@ describe("CloudflareBrowserRunClient", () => {
     { allowedDomains: ["bad..example"] },
     { allowedDomains: ["K.example.test"] },
     { allowedDomains: Array(51).fill("example.test") },
+    { allowedDomains: sparseDomains },
   ])(
     "fails before allocation for invalid guardrail hostnames",
     async ({ allowedDomains }) => {
@@ -170,14 +181,14 @@ describe("CloudflareBrowserRunClient", () => {
           keepAliveMs: 1,
         }),
     ).toThrow("invalid keep_alive");
-    expect(
-      () =>
-        new CloudflareBrowserRunClient({
-          accountId: "acct-1",
-          apiToken: "secret",
-          sessionTimeoutMs: 120_000,
-        } as CloudflareBrowserRunClientOptionsWithOldTimeout),
-    ).toThrow("unsupported");
+    const legacyOptions = {
+      accountId: "acct-1",
+      apiToken: "secret",
+      sessionTimeoutMs: 120_000,
+    };
+    expect(() => new CloudflareBrowserRunClient(legacyOptions)).toThrow(
+      "unsupported",
+    );
     const fetchImpl = vi.fn();
     const client = new CloudflareBrowserRunClient({
       accountId: "acct-1",
@@ -237,8 +248,8 @@ describe("CloudflareBrowserRunClient", () => {
   });
 
   it("snapshots the validated token and idle timeout", async () => {
-    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(url).toBe(`${endpoint}?keep_alive=120000`);
+    const fetchImpl: typeof fetch = async (url, init) => {
+      expect(String(url)).toBe(`${endpoint}?keep_alive=120000`);
       expect(new Headers(init?.headers).get("authorization")).toBe(
         "Bearer token-1",
       );
@@ -246,12 +257,12 @@ describe("CloudflareBrowserRunClient", () => {
         sessionId: "sess-9",
         webSocketDebuggerUrl: socket,
       });
-    });
+    };
     const options = {
       accountId: "acct-1",
       apiToken: "token-1",
       keepAliveMs: 120_000,
-      fetchImpl: fetchImpl as typeof fetch,
+      fetchImpl,
     };
     const client = new CloudflareBrowserRunClient(options);
     options.apiToken = "other";
@@ -259,7 +270,3 @@ describe("CloudflareBrowserRunClient", () => {
     await client.createSession(["accounts.example.test"]);
   });
 });
-
-type CloudflareBrowserRunClientOptionsWithOldTimeout = ConstructorParameters<
-  typeof CloudflareBrowserRunClient
->[0] & { sessionTimeoutMs: number };
