@@ -94,6 +94,8 @@ describe("what the key opens", () => {
     renderGate([support], { route });
     await user.click(screen.getByRole("button", { name: "Support" }));
     const sheet = await screen.findByRole("dialog", { name: "Support" });
+    expect(within(sheet).queryByText("About this project")).toBeNull();
+    expect(sheet.querySelector(".support__project-links")).toBeNull();
     return { user, sheet };
   }
 
