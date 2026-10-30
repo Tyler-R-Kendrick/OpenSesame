@@ -10,6 +10,8 @@
  * secrets arrive later, per fill, over the relay itself.
  */
 
+import type { BrowserDriver } from "@opensesame/cua-password-reset";
+import { closeOnce } from "./close-once.js";
 import { LocalSandboxProvider } from "./local-provider.js";
 import { type RunningRelayServer, startRelayServer } from "./relay-server.js";
 
@@ -53,23 +55,34 @@ export async function startBoatRelayAgent(
     origin,
     extraAllowedDomains: extras,
   });
+  const close = closeOnce(sandbox.close);
+  const driver: BrowserDriver = {
+    open: sandbox.browser.open.bind(sandbox.browser),
+    snapshot: sandbox.browser.snapshot.bind(sandbox.browser),
+    click: sandbox.browser.click.bind(sandbox.browser),
+    fill: sandbox.browser.fill.bind(sandbox.browser),
+    fillSecret: sandbox.browser.fillSecret.bind(sandbox.browser),
+    close,
+  };
+  const pageUrl = sandbox.browser.pageUrl?.bind(sandbox.browser);
+  if (pageUrl) driver.pageUrl = pageUrl;
   let server: RunningRelayServer;
   try {
     server = await startRelayServer({
       host: "127.0.0.1",
       port,
       token,
-      driver: sandbox.browser,
+      driver,
     });
   } catch (error) {
-    await sandbox.close();
+    await close();
     throw error;
   }
   return {
     port: server.port,
     close: async () => {
       await server.close();
-      await sandbox.close();
+      await close();
     },
   };
 }
