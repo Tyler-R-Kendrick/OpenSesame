@@ -139,10 +139,10 @@ describe("full-suite native preparation", () => {
     expect(preparation).not.toContain("cache-hit");
   });
 
-  it("reuses only exact-pin static distributions and still verifies cache hits", () => {
+  it("only looks up the exact native distribution pin before cold verification", () => {
     const cache = stepFor("name: Cache the pinned native PWA distribution");
     expect(cache).toContain(
-      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+      "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
     );
     expect(cache).toContain(
       "path: .cache/pwa-tailscale-native-http/distributions\n",
@@ -220,7 +220,7 @@ describe("affected Pages build preparation", () => {
     );
     expect(cache).toContain(`if: ${pagesAffected}`);
     expect(cache).toContain(
-      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+      "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
     );
     expect(cache).toContain(
       "path: .cache/pwa-tailscale-native-http/distributions\n",
@@ -274,12 +274,12 @@ describe("complete verify native preparation", () => {
     );
   });
 
-  it("caches only exact-pin static distributions and still verifies cache hits", () => {
+  it("only looks up the exact native distribution pin before the complete gate", () => {
     const cache = completeStepFor(
       "name: Cache the pinned native PWA distribution",
     );
     expect(cache).toContain(
-      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+      "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
     );
     expect(cache).toContain(
       "path: .cache/pwa-tailscale-native-http/distributions\n",
@@ -293,5 +293,37 @@ describe("complete verify native preparation", () => {
     expect(completeSteps.indexOf(cache)).toBeLessThan(
       completeSteps.indexOf(completeStepFor("await loadTailscaleAssets();")),
     );
+  });
+});
+
+describe("lookup-only qualification caches", () => {
+  it("never schedules a cache save while retaining the lookup", () => {
+    const workflows = [
+      ["ci-coverage.yml", 0, 1],
+      ["ci-prerelease-checks.yml", 3, 3],
+      ["ci-release-checks.yml", 0, 2],
+      ["complete-verify.yml", 1, 0],
+      ["full-suite.yml", 1, 0],
+      ["password-parity.yml", 0, 1],
+    ];
+    for (const [filename, directCount, rustCount] of workflows) {
+      const source = readFileSync(
+        join(root, ".github/workflows", filename),
+        "utf8",
+      );
+      const steps = source.split(/\n {6}- (?=name:|uses:)/);
+      const lookup = steps.filter((step) => step.includes("lookup-only: true"));
+      const direct = lookup.filter((step) =>
+        step.includes("actions/cache/restore@"),
+      );
+      const rust = lookup.filter((step) =>
+        step.includes("Swatinem/rust-cache@"),
+      );
+      expect(direct, filename).toHaveLength(directCount);
+      expect(rust, filename).toHaveLength(rustCount);
+      expect(lookup, filename).toHaveLength(directCount + rustCount);
+      for (const step of rust)
+        expect(step, filename).toContain("save-if: false");
+    }
   });
 });
