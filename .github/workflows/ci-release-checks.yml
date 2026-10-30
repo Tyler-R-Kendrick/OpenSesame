@@ -101,6 +101,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
+          save-if: false
           shared-key: release-${{ matrix.check }}
       - name: Install native dependencies and pin source
         run: |
@@ -169,6 +170,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
+          save-if: false
           shared-key: release-${{ matrix.check }}
       - name: Install native dependencies and pin source
         run: |

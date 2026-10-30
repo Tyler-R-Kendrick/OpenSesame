@@ -219,7 +219,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Cache the pinned native PWA distribution
         if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           lookup-only: true
           path: .cache/pwa-tailscale-native-http/distributions
@@ -570,6 +570,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
+          save-if: false
         if: matrix.shard == 'journeys-1'
       - name: Prepare DBus headers without root
         if: matrix.shard == 'journeys-1'
@@ -958,7 +959,7 @@ jobs:
               }
             '
       - name: Cache the live servers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           lookup-only: true
           path: |
@@ -1042,6 +1043,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
+          save-if: false
         if: steps.affected.outputs.scope != 'none'
       # `bridge_roundtrip_fixture` reads a real schema through @env-spec/parser
       # and fails on CI without it. The same pinned pnpm and Node as the
@@ -1180,8 +1182,9 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
+          save-if: false
       - name: Cache pinned native fixtures
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           lookup-only: true
           path: .cache/mtls-fixtures
