@@ -289,7 +289,9 @@ mod tests {
     use rand::rngs::OsRng;
 
     fn fixture() -> (SigningKey, LocalHttpMessageSignatureValidator) {
-        let signing_key = SigningKey::generate(&mut OsRng);
+        let mut seed = [0u8; 32];
+        rand::RngCore::fill_bytes(&mut OsRng, &mut seed);
+        let signing_key = SigningKey::from_bytes(&seed);
         let mut validator = LocalHttpMessageSignatureValidator::new(300);
         validator.register_signing_key("test-key", &signing_key);
         (signing_key, validator)
