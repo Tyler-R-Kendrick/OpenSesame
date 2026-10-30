@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: 28f1f1560f34ae1f7a9bf629b8156d88f8689733
+          ref: 0cb958a52d312b33e4c586b7ff21f412389f278f
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
@@ -27,5 +27,5 @@ jobs:
           set -euo pipefail
           bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
           source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          cargo check -p opensesame-transport-security --all-targets --locked
+          cargo check -p opensesame-transport-security --all-targets --features testkit --locked
           cargo test -p opensesame-rotation-web --test agent_hooks_ctk --locked
