@@ -35,6 +35,8 @@ function fakeCdp() {
   const resultFor = (message: SentMessage): CdpJsonValue => {
     if (message.method === "Page.getFrameTree")
       return { frameTree: { frame: { url: state.href } } };
+    if (message.method === "Target.createBrowserContext")
+      return { browserContextId: "ctx-1" };
     if (message.method === "Target.createTarget") return { targetId: "t-1" };
     if (message.method === "Target.attachToTarget") return { sessionId: "s-1" };
     if (message.method === "Runtime.evaluate")
@@ -170,6 +172,21 @@ describe("CDP browser isolation", () => {
     );
     expect(boundFill.length).toBe(1);
     expect(sent.some((m) => m.method === "Input.insertText")).toBe(false);
+  });
+
+  it("runs in a disposable isolated browser context", async () => {
+    const { socket, sent } = fakeCdp();
+    const connection = new CdpConnection(socket);
+    const driver = await CdpBrowserDriver.connect(connection, {
+      allowedDomains: ["accounts.example.test"],
+    });
+    const created = sent.find((m) => m.method === "Target.createTarget");
+    expect(created?.params?.browserContextId).toBe("ctx-1");
+    await driver.close();
+    const disposed = sent.find(
+      (m) => m.method === "Target.disposeBrowserContext",
+    );
+    expect(disposed?.params?.browserContextId).toBe("ctx-1");
   });
 
   it("rejects navigation to unapproved domains before sending it", async () => {

@@ -104,6 +104,7 @@ export interface CdpDriverOptions {
 export class CdpBrowserDriver implements BrowserDriver {
   private sessionId = "";
   private targetId = "";
+  private browserContextId = "";
 
   private approvedOrigin: string | undefined;
 
@@ -132,9 +133,14 @@ export class CdpBrowserDriver implements BrowserDriver {
     const attached = new Promise<string>((resolve) => {
       driver.boundaryReady = resolve;
     });
+    const context = await connection.call<{ browserContextId: string }>(
+      "Target.createBrowserContext",
+      { disposeOnDetach: true },
+    );
+    driver.browserContextId = context.browserContextId;
     const created = await connection.call<{ targetId: string }>(
       "Target.createTarget",
-      { url: "about:blank" },
+      { url: "about:blank", browserContextId: driver.browserContextId },
     );
     driver.targetId = created.targetId;
     driver.sessionId = await Promise.race([
@@ -338,7 +344,16 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async close(): Promise<void> {
-    if (this.targetId) {
+    // Disposing the run's context destroys its pages, cookies, and
+    // storage with it; nothing carries into the next run on a shared
+    // or long-lived endpoint.
+    if (this.browserContextId) {
+      await this.connection
+        .call("Target.disposeBrowserContext", {
+          browserContextId: this.browserContextId,
+        })
+        .catch(() => {});
+    } else if (this.targetId) {
       await this.connection
         .call("Target.closeTarget", { targetId: this.targetId })
         .catch(() => {});
