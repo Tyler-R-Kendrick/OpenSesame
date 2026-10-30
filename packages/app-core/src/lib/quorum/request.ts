@@ -9,7 +9,7 @@
  * to notice and cancel.
  */
 
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { fromB64url, randomBytes, toB64url, toHex } from "./bytes.js";
 import { canonicalize, frame, framedDigest } from "./canonical.js";

@@ -1,6 +1,6 @@
 /** The saved state every key-driven connection shares: what verified it, and what forgetting it means. */
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { assertNativeApiEditable } from "./native-api-authority.js";
 import type { NativeProviderCleanup } from "./native-connector-lifecycle.js";
 import {

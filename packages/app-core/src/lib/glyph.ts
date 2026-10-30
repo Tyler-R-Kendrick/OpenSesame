@@ -21,7 +21,7 @@
  * any step below re-draws every glyph a person has learned.
  */
 
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 
 /** Dots across and down. Even, so the mirror has no centre column. */
 export const GLYPH_COLS = 8;

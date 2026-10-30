@@ -27,11 +27,14 @@ test("named lazy chunks stay addressable by file name", () => {
     bundleChunk("/x/node_modules/@noble/curves/ed25519.js"),
     "noble-crypto",
   );
-  // The /esm/ entries stay with the bootstrap chunk.
-  assert.equal(
-    bundleChunk("/x/node_modules/@noble/hashes/esm/sha256.js"),
-    undefined,
-  );
+  // Hashes used by bootstrap stay outside the optional curves chunk, for
+  // both the legacy /esm/ layout and v2 package-root exports.
+  for (const module of ["esm/sha256.js", "sha2.js", "sha3.js", "utils.js"]) {
+    assert.equal(
+      bundleChunk(`/x/node_modules/@noble/hashes/${module}`),
+      undefined,
+    );
+  }
 });
 
 test("peer-trust modules shared by live and sharing graphs share one chunk", () => {

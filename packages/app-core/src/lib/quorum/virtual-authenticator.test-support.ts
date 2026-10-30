@@ -10,8 +10,8 @@
  */
 
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha2";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { overlapCast } from "@opensesame/os-domain";
 import { concat, randomBytes, toB64url, utf8Bytes } from "./bytes.js";
 import type { Container } from "./ceremony.js";
