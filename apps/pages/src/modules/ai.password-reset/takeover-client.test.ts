@@ -98,9 +98,10 @@ describe("takeover client", () => {
       "/api/v1/agent/runs/run-9/steps/4/outcome",
       { outcome: { outcome: "done" } },
     );
-    await expect(
-      api.settleStep("run-9", 4, { outcome: "dom", text: "x" } as never),
-    ).rejects.toThrow(/cannot report/u);
+    const unsupported = { outcome: "dom", text: "x" };
+    await expect(api.settleStep("run-9", 4, unsupported)).rejects.toThrow(
+      /cannot report/u,
+    );
   });
 
   it("claim returns null on 204", async () => {
@@ -132,7 +133,16 @@ describe("takeover client", () => {
       .mockResolvedValueOnce({
         status: 200,
         json: async () => ({
-          records: [{ sequence: 1 }],
+          run_id: "run-9",
+          records: [
+            {
+              sequence: 1,
+              interception_point: "pre_tool_call",
+              decision: "allow",
+              reason: null,
+              recorded_at: "2026-10-28T00:00:00Z",
+            },
+          ],
           next_after: 1,
           has_more: true,
         }),
@@ -140,7 +150,16 @@ describe("takeover client", () => {
       .mockResolvedValueOnce({
         status: 200,
         json: async () => ({
-          records: [{ sequence: 2 }],
+          run_id: "run-9",
+          records: [
+            {
+              sequence: 2,
+              interception_point: "post_tool_call",
+              decision: "deny",
+              reason: "policy",
+              recorded_at: "2026-10-28T00:00:01Z",
+            },
+          ],
           next_after: 2,
           has_more: false,
         }),
@@ -152,5 +171,104 @@ describe("takeover client", () => {
     expect(get).toHaveBeenLastCalledWith(
       "/api/v1/agent/runs/run-9/hook-records?limit=20&after=1",
     );
+  });
+
+  it("rejects malformed run and claimed-step responses", async () => {
+    const { api } = client({
+      get: vi.fn(async () => ({
+        status: 200,
+        json: async () => ({ id: 14, control_state: "human_driving" }),
+      })),
+      post: vi.fn(async () => ({
+        status: 200,
+        json: async () => ({ run_id: "run-9", seq: "4", request: {} }),
+      })),
+    });
+    await expect(api.getRun("run-9")).rejects.toThrow();
+    await expect(api.claimStep("run-9")).rejects.toThrow();
+  });
+
+  it("keeps valid Host hook records while ignoring malformed entries", async () => {
+    const get = vi.fn(async () => ({
+      status: 200,
+      json: async () => ({
+        run_id: "run-9",
+        records: [
+          { sequence: "1", interception_point: "pre_tool_call" },
+          {
+            sequence: 2,
+            interception_point: "post_tool_call",
+            decision: "deny",
+            reason: null,
+            recorded_at: "2026-10-28T00:00:01Z",
+          },
+        ],
+        next_after: 2,
+        has_more: false,
+      }),
+    }));
+    const { api } = client({ get });
+    expect(
+      (await api.listHookRecords("run-9")).map((row) => row.sequence),
+    ).toEqual([2]);
+  });
+
+  it("refuses a different run or a step belonging to another run", async () => {
+    const { api } = client({
+      get: vi.fn(async () => ({
+        status: 200,
+        json: async () => ({ ...RUN, id: "run-other" }),
+      })),
+      post: vi.fn(async () => ({
+        status: 200,
+        json: async () => ({
+          run_id: "run-other",
+          seq: 4,
+          request: { step: "submit", selector: "#save" },
+        }),
+      })),
+    });
+    await expect(api.getRun("run-9")).rejects.toThrow(/different run/u);
+    await expect(api.claimStep("run-9")).rejects.toThrow(/different run/u);
+  });
+
+  it.each(["accepted", "queued"])(
+    "accepts a real 202 %s handoff receipt",
+    async (status) => {
+      const post = vi.fn(async () => ({
+        status: 202,
+        json: async () => ({ status, hint: "The agent will park." }),
+      }));
+      const { api, authorize } = client({ post });
+      await expect(api.requestHandoff("run-9")).resolves.toEqual({
+        status,
+        hint: "The agent will park.",
+      });
+      expect(authorize).toHaveBeenCalledWith("handoff", "run-9");
+      expect(post).toHaveBeenCalledWith("/api/v1/agent/runs/run-9/handoff", {
+        elevation: "e".repeat(64),
+      });
+    },
+  );
+
+  it("refuses hook records belonging to another run", async () => {
+    const get = vi.fn(async () => ({
+      status: 200,
+      json: async () => ({
+        run_id: "run-other",
+        records: [
+          {
+            sequence: 1,
+            interception_point: "pre_tool_call",
+            decision: "allow",
+            recorded_at: "2026-10-28T00:00:00Z",
+          },
+        ],
+        next_after: 1,
+        has_more: false,
+      }),
+    }));
+    const { api } = client({ get });
+    expect(await api.listHookRecords("run-9")).toEqual([]);
   });
 });
