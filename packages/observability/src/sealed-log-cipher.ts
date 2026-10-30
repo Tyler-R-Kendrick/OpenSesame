@@ -1,7 +1,7 @@
 import { hkdfSync, randomBytes } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { xchacha20poly1305 } from "@noble/ciphers/chacha";
+import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
 
 export const SEALED_LINE_PREFIX = "osl2.";
 export const LEGACY_LINE_PREFIX = "osl1.";
