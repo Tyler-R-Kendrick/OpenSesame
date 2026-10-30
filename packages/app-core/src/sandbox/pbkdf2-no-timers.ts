@@ -32,6 +32,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 
 const HASH_BYTES = 32;
 const MAX_BLOCKS = 0xffffffff;
+type HmacState = ReturnType<ReturnType<typeof hmac.create>["clone"]>;
 
 export async function pbkdf2WithoutTimers(
   password: Uint8Array,
@@ -52,9 +53,9 @@ export async function pbkdf2WithoutTimers(
   const counter = new Uint8Array(4);
   const view = new DataView(counter.buffer);
   const u = new Uint8Array(HASH_BYTES);
-  let prf: ReturnType<typeof hmac.create> | undefined;
-  let salted: ReturnType<typeof hmac.create> | undefined;
-  let working: ReturnType<typeof hmac.create> | undefined;
+  let prf: HmacState | undefined;
+  let salted: HmacState | undefined;
+  let working: HmacState | undefined;
   let complete = false;
   try {
     prf = hmac.create(sha256, password);
