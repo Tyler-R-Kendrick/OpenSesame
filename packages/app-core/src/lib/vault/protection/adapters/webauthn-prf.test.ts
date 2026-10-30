@@ -370,6 +370,48 @@ it("enrolls the exact cross-realm credential view despite spoofed metadata", asy
   prf.fill(0);
 });
 
+it("copies actual cross-realm ArrayBuffer bytes despite a spoofed slice", async () => {
+  const root = crypto.getRandomValues(new Uint8Array(32));
+  const prf = crypto.getRandomValues(new Uint8Array(32));
+  const credential = runInNewContext("new Uint8Array([1, 2]).buffer");
+  Object.defineProperty(credential, "slice", {
+    value: () => new Uint8Array([8, 8]).buffer,
+  });
+  const record = await protectorFromPrfMaterial({
+    rootKey: root,
+    prfOutput: prf.buffer,
+    prfSalt: crypto.getRandomValues(new Uint8Array(32)),
+    credentialId: credential,
+    userId: new ArrayBuffer(2),
+    protectorId: "cross-realm-buffer",
+  });
+  expect(record.credentialIdB64).toBe(btoa(String.fromCharCode(1, 2)));
+  root.fill(0);
+  prf.fill(0);
+});
+
+it("refuses shared and detached direct ArrayBuffers for held credentials", async () => {
+  const root = crypto.getRandomValues(new Uint8Array(32));
+  const prf = crypto.getRandomValues(new Uint8Array(32));
+  const salt = crypto.getRandomValues(new Uint8Array(32));
+  const detached = new ArrayBuffer(2);
+  structuredClone(detached, { transfer: [detached] });
+  for (const credentialId of [new SharedArrayBuffer(2), detached]) {
+    await expect(
+      protectorFromPrfMaterial({
+        rootKey: root,
+        prfOutput: prf.buffer,
+        prfSalt: salt,
+        credentialId: overlapCast(credentialId),
+        userId: new ArrayBuffer(2),
+        protectorId: "invalid-buffer",
+      }),
+    ).rejects.toThrow(TypeError);
+  }
+  root.fill(0);
+  prf.fill(0);
+});
+
 describe("held PRF material", () => {
   it("wraps a root key without starting another ceremony", async () => {
     const root = crypto.getRandomValues(new Uint8Array(32));
