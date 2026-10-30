@@ -3345,12 +3345,12 @@ dependencies = [
  "p12-keystore",
  "p256",
  "p384",
- "pkcs8 0.10.2",
+ "pkcs8 0.11.0",
  "rand 0.8.7",
  "rcgen 0.13.2",
  "serde",
  "sha2 0.10.9",
- "signature 2.2.0",
+ "signature 3.0.0",
  "spki 0.7.3",
  "thiserror 2.0.21",
  "time",
@@ -3706,9 +3706,9 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "p12-keystore"
-version = "0.3.1"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02686a966a6d270eb3e87178c70323a30a62741e59b37e542ff029fb774afa47"
+checksum = "5c2ed4fa0ec7ec58b657d4184680c57da9e203e97771d29a566028869a5193e0"
 dependencies = [
  "cbc 0.2.1",
  "cms",
