@@ -4,7 +4,8 @@
  * Official logomarks come from the simple-icons catalog (CC0; each icon is a
  * single 24×24 path in the brand's official color). AWS and Azure publish
  * wordmarks that simple-icons no longer carries, so those render as their
- * official wordmarks; any other missing mark falls back to a neutral monogram.
+ * official wordmarks. Slack, OpenAI and SendGrid use plain text labels after
+ * their catalog marks were removed; other missing marks use a neutral monogram.
  *
  * Marks whose official color would vanish on one of the two themes (GitHub's
  * near-black, Vercel's black) render in the app ink color instead, which is
@@ -45,7 +46,6 @@ import {
   siNetlify,
   siNgrok,
   siObsidian,
-  siOpenai,
   siPagerduty,
   siPerplexity,
   siProton,
@@ -53,9 +53,7 @@ import {
   siRender,
   siReplicate,
   siResend,
-  siSendgrid,
   siSentry,
-  siSlack,
   siVault,
   siVaultwarden,
   siVercel,
@@ -69,6 +67,8 @@ export type ConnectorMarkDef = {
   hex: string | null;
   /** A brand wordmark used when the vendor's mark is a word rather than a glyph. */
   wordmark?: string;
+  /** Relative text size for labels that need to fit within the tile. */
+  wordmarkScale?: number;
 };
 
 /** Below this relative luminance the brand color is unreadable on the dark
@@ -104,7 +104,7 @@ const MARKS = {
   "google-wallet": markOf(siGoogle),
   "google-vertex": markOf(siGooglecloud),
   "google-cloud": markOf(siGooglecloud),
-  slack: markOf(siSlack),
+  slack: { path: "", hex: null, wordmark: "Slack", wordmarkScale: 0.34 },
   linear: markOf(siLinear),
   hubspot: markOf(siHubspot),
   zoom: markOf(siZoom),
@@ -113,7 +113,7 @@ const MARKS = {
   asana: markOf(siAsana),
   discord: markOf(siDiscord),
   sentry: markOf(siSentry),
-  openai: markOf(siOpenai),
+  openai: { path: "", hex: null, wordmark: "OpenAI", wordmarkScale: 0.3 },
   anthropic: markOf(siAnthropic),
   mistral: markOf(siMistralai),
   perplexity: markOf(siPerplexity),
@@ -126,7 +126,7 @@ const MARKS = {
   vercel: markOf(siVercel),
   render: markOf(siRender),
   netlify: markOf(siNetlify),
-  sendgrid: markOf(siSendgrid),
+  sendgrid: { path: "", hex: null, wordmark: "SendGrid", wordmarkScale: 0.22 },
   resend: markOf(siResend),
   pagerduty: markOf(siPagerduty),
   ngrok: markOf(siNgrok),
