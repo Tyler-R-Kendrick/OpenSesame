@@ -15,14 +15,16 @@ import type { Context, Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { incrementSecurityCounter } from "../repos/durable-map.js";
 import { spendTotpCode } from "./mfa-totp.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 /**
  * A six-digit code is brute-forceable when the fence is per-activation: mint a
  * new activation and the old counter no longer applies. Count attempts per
- * principal and across the deployment, in a bounded process-local window so an
- * attacker-chosen activation id cannot grow durable state either.
+ * principal and across this process as a bounded load backstop. The actual
+ * account lock is the durable `mfaFailures` counter shared with every other
+ * TOTP verifier; changing activation, replica, or route buys no new guesses.
  */
 const TOTP_WINDOW_MS = 10 * 60_000;
 const TOTP_PER_PRINCIPAL = 10;
@@ -162,6 +164,13 @@ async function completeTotp(
   const priorTimes = totpAttempts.get(fenceKey) ?? [];
   priorTimes.push(nowMs);
   totpAttempts.set(fenceKey, priorTimes);
+  const accountFenceKey = `totp:${principalId}`;
+  if (
+    (await incrementSecurityCounter(ctx.stores.mfaFailures, accountFenceKey)) >
+    MAX_INTERACTION_TOTP_FAILURES
+  ) {
+    return c.json({ error: "too_many_attempts" }, 429);
+  }
   // The step ledger `/v1/mfa/totp/verify` and factor removal share: a code
   // accepted anywhere is accepted once.
   const spent = await spendTotpCode(
@@ -185,6 +194,7 @@ async function completeTotp(
     });
     return c.json({ error: "activation_verification_failed" }, 401);
   }
+  await ctx.stores.mfaFailures.delete(accountFenceKey);
   totpAttempts.delete(fenceKey);
   const updated: ApprovalActivation =
     await ctx.repos.approvalActivations.updateWithVersion(

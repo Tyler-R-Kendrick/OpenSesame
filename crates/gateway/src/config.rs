@@ -259,7 +259,14 @@ impl StartupSecurity {
             }
         }
         let endpoint_refs = endpoints.iter().map(String::as_str).collect::<Vec<_>>();
-        let exposure = classify(&[&args.listen.to_string()], &endpoint_refs)?;
+        let transport = crate::transport::config::TransportConfig::from_env()
+            .map_err(|error| error.to_string())?;
+        let mut listeners = vec![args.listen.to_string()];
+        if let Some(listener) = &transport.listener {
+            listeners.push(listener.listen.to_string());
+        }
+        let listener_refs = listeners.iter().map(String::as_str).collect::<Vec<_>>();
+        let exposure = classify(&listener_refs, &endpoint_refs)?;
         let deployment = from_env(exposure)?;
         if deployment.production_safeguards()
             && endpoint_refs.iter().any(|endpoint| {
@@ -294,8 +301,6 @@ impl StartupSecurity {
         // configured callout still requires *some* mapping client, and a
         // configured mode whose material is missing is a startup error, never
         // a downgrade to the other mode.
-        let transport = crate::transport::config::TransportConfig::from_env()
-            .map_err(|error| error.to_string())?;
         let identity_mapping = crate::identity_mapping::IdentityMappingClient::from_startup(
             deployment,
             transport.mapping_auth,
@@ -343,3 +348,7 @@ mod security_tests {
         assert!(error.contains("TEST_SECRET"));
     }
 }
+
+#[cfg(test)]
+#[path = "config_listener_tests.rs"]
+mod listener_tests;

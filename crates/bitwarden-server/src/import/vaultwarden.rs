@@ -11,7 +11,8 @@
 //! and every emergency contact (`orgs`). What stays behind is counted.
 
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::Context as _;
 use chrono::Utc;
@@ -28,7 +29,8 @@ mod sign_in;
 use rows::{blob, int, json_column, text, timestamp, Schema};
 
 use super::{
-    cipher, folder, keep_known_folders, leave, Arrival, CipherDates, LeftBehind, Skipped, Source,
+    cipher, folder, keep_known_folders, leave, Arrival, CipherDates, FileSource, LeftBehind,
+    Skipped, Source,
 };
 use crate::hashing::pbkdf2_sha256_record;
 use crate::wire::cipher::type_member;
@@ -163,7 +165,7 @@ struct Reader {
     pool: SqlitePool,
     schema: Schema,
     /// vaultwarden's data folder, which holds `attachments/` and `sends/`.
-    data: PathBuf,
+    data: Option<Arc<std::fs::File>>,
 }
 
 impl Reader {
@@ -271,13 +273,14 @@ impl Reader {
         let attachments = files::attachments(
             &self.pool,
             &self.schema,
-            &self.data,
+            self.data.as_ref(),
             files::Owner::Account(&id),
             &known,
             &mut left,
         )
         .await?;
-        let sends = files::sends(&self.pool, &self.schema, &self.data, &id, &mut left).await?;
+        let sends =
+            files::sends(&self.pool, &self.schema, self.data.as_ref(), &id, &mut left).await?;
         let mut account = BitwardenArrival {
             user,
             folders,
@@ -330,7 +333,11 @@ pub async fn read_with(path: &Path, data: Option<&Path>) -> anyhow::Result<Sourc
         schema.select("users", USER_COLUMNS)
     );
     let rows = sqlx::query(&sql).fetch_all(&pool).await?;
-    let reader = Reader { pool, schema, data };
+    let reader = Reader {
+        pool,
+        schema,
+        data: FileSource::confined_root(&data),
+    };
     let mut source = Source::default();
     for row in &rows {
         match user_from(row) {

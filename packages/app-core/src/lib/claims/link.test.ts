@@ -107,9 +107,49 @@ describe("readClaimArrival", () => {
     ).toEqual({ arrival: { kind: "leaked" }, scrubbed: "/claim#b=2" });
   });
 
-  it("does not take an unrelated query token for a leaked claim", () => {
+  it("does not take an unrelated query parameter for a leaked claim", () => {
     expect(
-      readClaimArrival({ pathname: "/", search: "?token=abc", hash: "" }),
+      readClaimArrival({ pathname: "/", search: "?page=abc", hash: "" }),
     ).toEqual({ arrival: { kind: "none" }, scrubbed: null });
   });
+
+  it.each([
+    `token=osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`,
+    "token=malformed",
+    "token=",
+    "key=secret",
+    "key=",
+    "pkt=sealed-packet",
+    "pkt=",
+    "token=unrelated&token=osc_clm_a.b",
+    "key=first&key=second&pkt=first&pkt=second",
+    "%74oken=osc_clm_a.b&%6bey=secret&%70kt=sealed-packet",
+  ])("refuses and scrubs every reserved query form: %s", (reserved) => {
+    expect(
+      readClaimArrival({
+        pathname: "/claim",
+        search: `?keep=1&${reserved}&other=2`,
+        hash: "#unrelated=3",
+      }),
+    ).toEqual({
+      arrival: { kind: "leaked" },
+      scrubbed: "/claim?keep=1&other=2#unrelated=3",
+    });
+  });
+
+  it.each(["token=unrelated&token=osc_clm_a.b", "key=secret", "pkt=packet"])(
+    "a valid fragment cannot rescue a leaked query: %s",
+    (reserved) => {
+      expect(
+        readClaimArrival({
+          pathname: "/claim",
+          search: `?${reserved}&keep=1`,
+          hash: "#token=osc_clm_a.b&key=fragment-key&pkt=fragment-packet",
+        }),
+      ).toEqual({
+        arrival: { kind: "leaked" },
+        scrubbed: "/claim?keep=1",
+      });
+    },
+  );
 });

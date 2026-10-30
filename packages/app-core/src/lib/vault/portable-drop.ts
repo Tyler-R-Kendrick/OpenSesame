@@ -1,12 +1,15 @@
 /**
  * Portable secret drops for Pages with no backend, Host or daemon. The sealed
- * manifest, its expiry and the user-code verifier travel in the URL fragment;
- * the bearer secret derives the transport key and the separate drop key still
- * decrypts the manifest. The fragment is never sent to a server.
+ * manifest and its expiry travel in the URL fragment. Both the bearer and
+ * separate user code are required to decrypt the manifest; the separate drop
+ * key then opens its payload. The fragment is never sent to a server.
  *
  * Without a server, one-time use and revocation cannot be enforced after a
  * link is shared. Wrong-code lockout is only for this recipient's tab. Expiry
- * is checked from the authenticated timestamp inside the sealed packet.
+ * is checked from the timestamp bound to the code-encrypted manifest. The
+ * generated code has 80 bits of entropy; 600k PBKDF2 rounds slow offline
+ * guesses but local lockout cannot prevent them. Legacy `ospd1` links must be
+ * recreated: that format exposed the manifest to anyone holding the link.
  */
 
 import { dropRefusal } from "@opensesame/ceremony-kit";
@@ -23,7 +26,7 @@ import {
   PortableDropFailure,
   decodePortableDropPacket,
   isPortableDropToken,
-  portableDropCodeMatches,
+  openPortableDropManifest,
   sealPortableDropPacket,
 } from "./portable-drop-crypto.js";
 
@@ -65,9 +68,9 @@ function randomIndex(max: number): number {
 function mintUserCode(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
-  for (let i = 0; i < 8; i += 1) {
+  for (let i = 0; i < 16; i += 1) {
     out += alphabet[randomIndex(alphabet.length)] ?? "A";
-    if (i === 3) out += "-";
+    if (i % 4 === 3 && i < 15) out += "-";
   }
   return out;
 }
@@ -128,7 +131,8 @@ export async function openPortableDropBundle(
   if (portableDropWrongAttempts(decoded.claimId) >= MAX_PORTABLE_ATTEMPTS) {
     throw lockedOut();
   }
-  if (!(await portableDropCodeMatches(decoded, userCode))) {
+  const manifest = await openPortableDropManifest(decoded, userCode);
+  if (manifest === null) {
     const attempts = recordPortableDropWrongAttempt(decoded.claimId);
     const attemptsLeft = MAX_PORTABLE_ATTEMPTS - attempts;
     if (attemptsLeft <= 0) throw lockedOut();
@@ -139,7 +143,7 @@ export async function openPortableDropBundle(
     );
   }
   clearPortableDropWrongAttempts(decoded.claimId);
-  return decoded.manifest;
+  return manifest;
 }
 
 export async function createPortableDropSession(

@@ -226,28 +226,50 @@ async fn a_denied_or_unknown_request_opens_nothing() {
             200
         );
     }
+    let (status, dummy) = ask(&harness, "me@example.com", &asker.public_b64).await;
+    assert_eq!(status, 200);
     assert_eq!(
-        ask(&harness, "me@example.com", &asker.public_b64).await.0,
-        429
+        fetch(&harness, dummy["id"].as_str().unwrap(), CODE).await.0,
+        404
     );
 }
 
 #[tokio::test]
-async fn every_address_is_limited_alike_whether_or_not_it_has_an_account() {
+async fn only_existing_accounts_allocate_bounded_sign_in_request_state() {
     let harness = Harness::start().await;
     account(&harness, "me@example.com").await;
     let asker = asker();
-    // The cap is charged to the address as typed, case and padding aside, so
-    // neither a made-up address nor a new spelling gets a fresh allowance —
-    // and the refusal is the same for an address that has an account.
-    for email in ["me@example.com", "ghost@example.com"] {
-        for _ in 0..5 {
-            assert_eq!(ask(&harness, email, &asker.public_b64).await.0, 200);
-        }
-        let spelled = format!("  {}  ", email.to_uppercase());
-        let (status, body) = ask(&harness, &spelled, &asker.public_b64).await;
-        assert_eq!(status, 429, "{email}: {body}");
+    for _ in 0..5 {
+        assert_eq!(
+            ask(&harness, "me@example.com", &asker.public_b64).await.0,
+            200
+        );
     }
+    let (status, dummy) = ask(&harness, "  ME@EXAMPLE.COM  ", &asker.public_b64).await;
+    assert_eq!(status, 200);
+    assert_eq!(
+        fetch(&harness, dummy["id"].as_str().unwrap(), CODE).await.0,
+        404
+    );
+    for index in 0..32 {
+        assert_eq!(
+            ask(
+                &harness,
+                &format!("ghost-{index}@example.com"),
+                &asker.public_b64
+            )
+            .await
+            .0,
+            200
+        );
+    }
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM bitwarden_attempt_budgets WHERE namespace='sign-in-request'",
+    )
+    .fetch_one(harness.db.pool())
+    .await
+    .unwrap();
+    assert_eq!(count, 1);
     // A different address is untouched.
     assert_eq!(
         ask(&harness, "other@example.com", &asker.public_b64)

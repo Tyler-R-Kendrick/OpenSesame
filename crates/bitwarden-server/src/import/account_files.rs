@@ -6,6 +6,7 @@
 //! only be fetched by spending one of its accesses, and a Send's password is
 //! held by the old server in a form of its own.
 
+use std::io::Write as _;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
@@ -13,11 +14,9 @@ use opensesame_provider_bitwarden::Client;
 use opensesame_storage::bitwarden::{BitwardenAttachment, BitwardenSend, BitwardenUser};
 use serde_json::{json, Value};
 
+use super::file_paths::MAX_FILE_BYTES;
 use super::{leave, ArrivingAttachment, ArrivingSend, FileSource, LeftBehind};
 use crate::wire::cipher::is_enc_string;
-
-/// The largest file the importer will fetch.
-const MAX_DOWNLOAD: usize = 500 * 1024 * 1024;
 
 fn member<'v>(value: &'v Value, key: &str) -> Option<&'v Value> {
     let mut chars = key.chars();
@@ -88,6 +87,9 @@ async fn fetch(
     scratch: &Path,
 ) -> Option<ArrivingAttachment> {
     let id = text(attachment, "id")?;
+    if !super::file_paths::safe_component(&id) || !super::file_paths::safe_component(cipher_id) {
+        return None;
+    }
     let file_name = text(attachment, "fileName").filter(|n| is_enc_string(n))?;
     // The link in a sync may have lapsed; ask for a fresh one.
     let fresh = api
@@ -95,9 +97,12 @@ async fn fetch(
         .await
         .ok()?;
     let url = text(&fresh, "url").or_else(|| text(attachment, "url"))?;
-    let bytes = api.download(&url, MAX_DOWNLOAD).await.ok()?;
-    let path = scratch.join(&id);
-    std::fs::write(&path, &bytes).ok()?;
+    let bytes = api.download(&url, MAX_FILE_BYTES).await.ok()?;
+    // The source chooses an ID, never a local filename. Exclusive random
+    // creation also prevents repeated IDs from overwriting an earlier file.
+    let mut file = tempfile::NamedTempFile::new_in(scratch).ok()?;
+    file.write_all(&bytes).ok()?;
+    let (_, path) = file.keep().ok()?;
     Some(ArrivingAttachment {
         attachment: BitwardenAttachment {
             id,
@@ -187,3 +192,7 @@ pub(super) fn sends(
     }
     arriving
 }
+
+#[cfg(test)]
+#[path = "account_files_tests.rs"]
+mod tests;

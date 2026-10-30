@@ -13,6 +13,7 @@ use serde_json::{json, Map, Value};
 
 use super::credentials::text;
 use super::file_links::download_url;
+use crate::budget_subject::BudgetSubject;
 use crate::error::{ApiError, ApiResult};
 use crate::wire::account::date;
 use crate::wire::cipher::normalize;
@@ -44,15 +45,18 @@ async fn password_matches(
     let Some(stored) = &send.password_hash else {
         return Ok(true);
     };
-    let key = format!("send:{}", send.id);
-    if server.sign_in_failures.blocked(&key) {
+    let admission = server.hash_slot().await?;
+    let key = BudgetSubject::Send(send);
+    if !server.sign_in_failures.reserve(&key).await? {
         return Err(ApiError::too_many_requests());
     }
-    if server.check_secret_only(stored, offered).await? {
-        server.sign_in_failures.clear(&key);
+    if server
+        .check_secret_only_admitted(&admission, stored, offered)
+        .await?
+    {
+        server.sign_in_failures.clear(&key).await?;
         Ok(true)
     } else {
-        server.sign_in_failures.record_failure(&key);
         Ok(false)
     }
 }

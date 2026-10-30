@@ -65,7 +65,7 @@ export function portableSessionFor(claimId = "pdrop_test") {
   return {
     ...sessionFor(claimId),
     bearerToken: `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`,
-    pkt: "ospd1.packet",
+    pkt: "ospd2.packet",
   };
 }
 
@@ -189,5 +189,8 @@ export function Ceremony({
 }
 
 export function expiryRow(): string {
-  return screen.getByText("Expires").closest(".frow")?.textContent ?? "";
+  return (
+    screen.getByText(/^(Expires|Suggested expiry)$/).closest(".frow")
+      ?.textContent ?? ""
+  );
 }

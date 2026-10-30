@@ -39,11 +39,13 @@ import { incrementSecurityCounter } from "../repos/durable-map.js";
 import { claimLegacyAgent } from "../repos/legacy-agent-store.js";
 import { serializeKeyed } from "../serialize.js";
 import { getUsage } from "../state.js";
+import {
+  MAX_CLAIM_APPROVAL_ATTEMPTS,
+  admitClaimPresentation,
+  validClaimCompletionBearer,
+} from "./claim-presentation.js";
 import { countLiveClaims } from "./claim-quota.js";
 import { authenticatedPrincipalId } from "./organizations.js";
-
-/** Wrong user codes tolerated per claim before approval is refused outright. */
-const MAX_CLAIM_APPROVAL_ATTEMPTS = 5;
 
 interface ClaimDenial {
   claimId: string;
@@ -283,56 +285,19 @@ claimRoutes.post("/present", async (c) => {
     return c.json({ error: "invalid_token" }, 401);
   }
   try {
-    // Optional second factor (ADR 0062): a supplied user code is verified
-    // before the single-use CAS, behind the same per-claim attempt fence as
-    // completion — a wrong code must neither burn the claim nor release it.
-    if (parsed.data.userCode !== undefined) {
-      const gated = await ctx.claims.get(parts.publicId);
-      if (!gated) return c.json({ error: "not_found" }, 404);
-      const attempts = await incrementSecurityCounter(
-        ctx.stores.claimApprovalAttempts,
-        gated.id,
-      );
-      if (attempts > MAX_CLAIM_APPROVAL_ATTEMPTS) {
-        await appendAuditEvent(ctx.repos.auditEvents, {
-          eventType: "claim.presented",
-          outcome: "denied",
-          claimId: gated.id,
-          ...(c.get("principalId") !== undefined
-            ? { principalId: c.get("principalId") }
-            : undefined),
-          correlationId: c.get("correlationId"),
-          metadata: { action: "claim.present", reason: "too_many_attempts" },
-        });
-        return c.json({ error: "too_many_attempts" }, 429);
-      }
-      if (
-        !gated.userCodeDigest ||
-        !verifyUserCode(
-          ctx.config.claimPepper,
-          gated.id,
-          parsed.data.userCode,
-          gated.userCodeDigest,
-        )
-      ) {
-        await appendAuditEvent(ctx.repos.auditEvents, {
-          eventType: "claim.presented",
-          outcome: "denied",
-          claimId: gated.id,
-          ...(c.get("principalId") !== undefined
-            ? { principalId: c.get("principalId") }
-            : undefined),
-          correlationId: c.get("correlationId"),
-          metadata: { action: "claim.present", reason: "invalid_user_code" },
-        });
-        return c.json({ error: "invalid_user_code" }, 401);
-      }
-      await ctx.stores.claimApprovalAttempts.delete(gated.id);
-    }
+    const gated = await admitClaimPresentation(
+      c,
+      parts.publicId,
+      parsed.data.token,
+      parsed.data.userCode,
+    );
+    if (gated instanceof Response) return gated;
     const session = await ctx.claims.presentClaim(
       parts.publicId,
       parsed.data.token,
     );
+    // Only the successful single-use transition may clear this fence.
+    await ctx.stores.claimApprovalAttempts.delete(gated.id);
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "claim.presented",
       outcome: "succeeded",
@@ -380,6 +345,20 @@ claimRoutes.post(
       let session = await ctx.claims.get(id);
       if (!session) return c.json({ error: "not_found" }, 404);
 
+      const claimToken =
+        parsed.data.claimToken ?? extractClaimToken(c) ?? undefined;
+      if (
+        !validClaimCompletionBearer(ctx.config.claimPepper, session, claimToken)
+      ) {
+        await auditClaimDenial(ctx, {
+          claimId: id,
+          principalId,
+          reason: "invalid_claim_token",
+          correlationId: c.get("correlationId"),
+        });
+        return c.json({ error: "invalid_claim_token" }, 401);
+      }
+
       // Approval is the human consent step. Being *some* authenticated principal
       // proves nothing about the device being claimed, so require the user code
       // it displayed, with a per-claim attempt fence behind it.
@@ -412,29 +391,6 @@ claimRoutes.post(
           correlationId: c.get("correlationId"),
         });
         return c.json({ error: "invalid_user_code" }, 401);
-      }
-      await ctx.stores.claimApprovalAttempts.delete(id);
-      const claimToken =
-        parsed.data.claimToken ?? extractClaimToken(c) ?? undefined;
-      if (claimToken) {
-        const parts = parseClaimToken(claimToken);
-        if (
-          !parts ||
-          parts.publicId !== id ||
-          !verifyClaimToken(
-            ctx.config.claimPepper,
-            claimToken,
-            session.tokenDigest,
-          )
-        ) {
-          await auditClaimDenial(ctx, {
-            claimId: id,
-            principalId,
-            reason: "invalid_claim_token",
-            correlationId: c.get("correlationId"),
-          });
-          return c.json({ error: "invalid_claim_token" }, 401);
-        }
       }
       await ctx.stores.claimApprovalAttempts.delete(id);
 

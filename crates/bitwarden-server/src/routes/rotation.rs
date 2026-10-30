@@ -192,12 +192,7 @@ pub async fn rotate(
 ) -> ApiResult<StatusCode> {
     let body = normalize(body);
     let old = text(&body, "oldMasterKeyAuthenticationHash").unwrap_or_default();
-    if !server
-        .check_secret(&user.id, &user.master_password_hash, &old)
-        .await?
-    {
-        return Err(ApiError::invalid_password());
-    }
+    super::accounts::prove_password_value(&server, &user, &old).await?;
     let unlock = object(&body, "accountUnlockData");
     let master = object(&unlock, "masterPasswordUnlockData");
     let salt = text(&master, "email").or_else(|| text(&master, "salt"));

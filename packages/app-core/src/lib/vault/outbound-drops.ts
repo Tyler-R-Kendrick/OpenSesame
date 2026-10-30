@@ -4,6 +4,7 @@
  * the only way to kill a live link.
  */
 
+import { isPortableDropToken } from "@opensesame/ceremony-kit";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -43,6 +44,8 @@ export type OutboundDrop = {
   expiresAt: string;
   createdAt: string;
   state: OutboundDropState;
+  /** Self-contained copies have no authoritative revocation or consumption record. */
+  portable?: boolean;
   /** Vault drop record, when the send created one. */
   vaultItemId: string | null;
   /** Source item for a share-once ceremony; not written to the vault. */
@@ -51,6 +54,8 @@ export type OutboundDrop = {
 
 type StoredSend = OutboundDrop & {
   bearerToken: string;
+  /** Only written after the claim authority acknowledges revocation. */
+  revocationConfirmed?: boolean;
   /** Sealing vault; absent on rows written before tomb scoping. */
   tomb?: string;
 };
@@ -109,6 +114,7 @@ function readSend(value: BoundaryValue | undefined): StoredSend | null {
     vaultItemId,
     sourceItemId,
   };
+  if (row.revocationConfirmed === true) send.revocationConfirmed = true;
   if (row.tomb !== undefined) {
     if (!isString(row.tomb)) return null;
     send.tomb = row.tomb;
@@ -185,14 +191,22 @@ function syncOutboundDropLedger(now = Date.now()): void {
 }
 
 function rowForList(row: StoredSend, now: number): OutboundDrop {
-  const expired = row.state === "pending" && Date.parse(row.expiresAt) <= now;
-  const state: OutboundDropState = expired ? "expired" : row.state;
+  const portable = isPortableDropToken(row.bearerToken);
+  // Older clients labelled a missing local record as revoked. A portable
+  // link never had an authority capable of revoking a shared copy.
+  const recorded =
+    row.state === "revoked" && (portable || !row.revocationConfirmed)
+      ? "pending"
+      : row.state;
+  const expired = recorded === "pending" && Date.parse(row.expiresAt) <= now;
+  const state: OutboundDropState = expired ? "expired" : recorded;
   return {
     claimId: row.claimId,
     name: row.name,
     expiresAt: row.expiresAt,
     createdAt: row.createdAt,
     state,
+    portable,
     vaultItemId: row.vaultItemId,
     sourceItemId: row.sourceItemId,
   };
@@ -230,15 +244,25 @@ function patchOpenState(
 ): void {
   const store = readStore();
   const row = store.sends[claimId];
-  if (!row || row.state === state) return;
   if (
-    row.state === "revoked" ||
+    !row ||
+    (row.state === state && (state !== "revoked" || row.revocationConfirmed))
+  )
+    return;
+  if (
+    (row.state === "revoked" && row.revocationConfirmed) ||
     row.state === "consumed" ||
     row.state === "locked_out"
   ) {
     return;
   }
-  store.sends[claimId] = { ...row, state };
+  store.sends[claimId] = {
+    ...row,
+    state,
+    ...(state === "revoked" && note === "revoked"
+      ? { revocationConfirmed: true }
+      : undefined),
+  };
   writeStore(store);
   if (note === "expired") noteDropExpired(claimId);
   if (note === "revoked") noteDropRevoked(claimId);
@@ -254,8 +278,8 @@ function expireOutboundDrops(now = Date.now()): void {
 
 /**
  * Revoke the claim and mark the sender record. Local claim plane only.
- * `missing` with no ledger row means this device never held the claim.
- * `missing` with a row means the ciphertext is already gone here.
+ * A ledger entry is not evidence a remote or portable claim was revoked.
+ * Report `missing` unless the claim plane confirms the operation.
  */
 /** Revoke from the sender list without handling the bearer in UI. */
 export async function revokeOutboundDropById(
@@ -278,9 +302,8 @@ export async function revokeOutboundDrop(
     patchOpenState(claimId, "consumed");
     return "already_consumed";
   }
-  const tracked = readStore().sends[claimId] !== undefined;
-  if (tracked) patchOpenState(claimId, "revoked", "revoked");
-  if (outcome === "missing") return tracked ? "revoked" : "missing";
+  if (outcome === "missing") return "missing";
+  patchOpenState(claimId, "revoked", "revoked");
   return "revoked";
 }
 

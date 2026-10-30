@@ -25,7 +25,7 @@
 use axum::http::Extensions;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
-use opensesame_domain::transport::{TransportError, VerifiedPeer};
+use opensesame_domain::transport::{TransportError, TransportPolicy, VerifiedPeer};
 use opensesame_ingress_evidence::OriginatingPeerExtension;
 use opensesame_transport_security::{PeerDenyHook, PeerExtension};
 use serde::{Deserialize, Serialize};
@@ -84,9 +84,13 @@ fn bound_peer(extensions: &Extensions) -> Option<&VerifiedPeer> {
     {
         return Some(originating.as_ref());
     }
-    extensions
+    let peer = extensions
         .get::<PeerExtension>()
-        .map(|PeerExtension(peer)| peer.as_ref())
+        .map(|PeerExtension(peer)| peer.as_ref())?;
+    // A trusted ingress proves its own key, not the key of whoever called it.
+    // Missing originating-client evidence must never turn that shared proxy
+    // certificate into a substitute proof for a downstream client.
+    (peer.policy() != TransportPolicy::TrustedIngress).then_some(peer)
 }
 
 /// `base64url(sha256(der))` → the 64-character lowercase hex spelling

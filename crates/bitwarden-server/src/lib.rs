@@ -30,8 +30,10 @@
 //! feature off.
 
 pub mod auth;
+mod budget_subject;
 pub mod error;
 pub mod hashing;
+mod hashing_work;
 pub mod import;
 pub mod kdf;
 mod limiter;
@@ -45,15 +47,12 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::hashing::HashRegistry;
+use crate::kdf::KdfPolicy;
+use crate::tokens::TokenKeys;
 use axum::Router;
 use opensesame_storage::Db;
 use tokio::sync::{OnceCell, Semaphore};
-use zeroize::Zeroizing;
-
-use crate::error::{ApiError, ApiResult};
-use crate::hashing::{HashRegistry, Verdict};
-use crate::kdf::KdfPolicy;
-use crate::tokens::TokenKeys;
 
 /// Who may create an account.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -114,8 +113,9 @@ pub struct ServerConfig {
     /// Requests allowed to wait for a hash slot. Beyond it a request is
     /// refused at once (429) rather than queued without limit.
     pub hash_queue: usize,
-    /// Failed sign-ins an address may make per `failure_window` before it
-    /// is refused without a hash being computed.
+    /// Checks an existing account may reserve per `failure_window` before
+    /// actual verification is refused. Exhausted public requests do decoy work;
+    /// a completed successful proof clears the account's budget.
     pub max_failed_sign_ins: u32,
     pub failure_window: Duration,
     /// A refresh token lapses after this long unused; each use slides it.
@@ -159,8 +159,8 @@ pub struct Inner {
     pub(crate) sign_in_failures: limiter::FailureLimiter,
     /// Sign-in requests made per address (ADR 0148 §8), apart from failures.
     pub(crate) sign_in_requests: limiter::FailureLimiter,
-    hash_admission: Semaphore,
-    hash_permits: Semaphore,
+    hash_admission: Arc<Semaphore>,
+    hash_permits: Arc<Semaphore>,
     decoy_hash: OnceCell<String>,
 }
 
@@ -189,19 +189,23 @@ impl BitwardenServer {
         let issuer = format!("{}/identity", config.public_url);
         let permits = config.hash_concurrency.max(1);
         Self(Arc::new(Inner {
-            db,
+            db: db.clone(),
             tokens: TokenKeys::new(token_secret, &issuer, ttl),
             hub: notifications::Hub::default(),
             sign_in_failures: limiter::FailureLimiter::new(
+                db.clone(),
+                "verification",
                 config.max_failed_sign_ins.max(1),
                 config.failure_window,
             ),
             sign_in_requests: limiter::FailureLimiter::new(
+                db,
+                "sign-in-request",
                 u32::try_from(routes::SIGN_IN_REQUESTS_PER_WINDOW).unwrap_or(5),
                 routes::sign_in_request_window(),
             ),
-            hash_admission: Semaphore::new(permits + config.hash_queue),
-            hash_permits: Semaphore::new(permits),
+            hash_admission: Arc::new(Semaphore::new(permits + config.hash_queue)),
+            hash_permits: Arc::new(Semaphore::new(permits)),
             decoy_hash: OnceCell::new(),
             config,
             hashes,
@@ -227,90 +231,5 @@ impl BitwardenServer {
                 axum::routing::any_service(router.clone()),
             )
             .nest(prefix, router)
-    }
-
-    /// A place in the hashing queue, then a hashing slot. A full queue is
-    /// refused at once: a flood of sign-ins must not queue without bound.
-    async fn hash_slot(
-        &self,
-    ) -> ApiResult<(
-        tokio::sync::SemaphorePermit<'_>,
-        tokio::sync::SemaphorePermit<'_>,
-    )> {
-        let admitted = self
-            .hash_admission
-            .try_acquire()
-            .map_err(|_| ApiError::too_many_requests())?;
-        let slot = self
-            .hash_permits
-            .acquire()
-            .await
-            .map_err(|e| ApiError::internal(&e.into()))?;
-        Ok((admitted, slot))
-    }
-
-    /// Hash a client's master-password hash under the current scheme.
-    pub(crate) async fn hash_secret(&self, secret: &str) -> ApiResult<String> {
-        let _permits = self.hash_slot().await?;
-        let hashes = self.hashes.clone();
-        let secret = Zeroizing::new(secret.to_owned());
-        tokio::task::spawn_blocking(move || hashes.hash(secret.as_bytes()))
-            .await
-            .map_err(|e| ApiError::internal(&e.into()))?
-            .map_err(|e| ApiError::internal(&e.into()))
-    }
-
-    async fn verify_secret(&self, stored: String, secret: &str) -> ApiResult<Verdict> {
-        let _permits = self.hash_slot().await?;
-        let hashes = self.hashes.clone();
-        let secret = Zeroizing::new(secret.to_owned());
-        tokio::task::spawn_blocking(move || hashes.verify(&stored, secret.as_bytes()))
-            .await
-            .map_err(|e| ApiError::internal(&e.into()))
-    }
-
-    /// Check a client's master-password hash for `user_id`'s stored hash,
-    /// upgrading the stored hash when the registry asks for it. Returns
-    /// whether it matched.
-    pub(crate) async fn check_secret(
-        &self,
-        user_id: &str,
-        stored: &str,
-        secret: &str,
-    ) -> ApiResult<bool> {
-        match self.verify_secret(stored.to_owned(), secret).await? {
-            Verdict::Mismatch => Ok(false),
-            Verdict::Match { rehash } => {
-                if let Some(rehash) = rehash {
-                    // Only over the hash just verified: a password change
-                    // that landed meanwhile must not be undone.
-                    self.db
-                        .bitwarden_set_password_hash(user_id, stored, &rehash)
-                        .await?;
-                }
-                Ok(true)
-            }
-        }
-    }
-
-    /// Check a secret against a stored hash that belongs to no account (a
-    /// Send's password), without re-hashing it.
-    pub(crate) async fn check_secret_only(&self, stored: &str, secret: &str) -> ApiResult<bool> {
-        Ok(matches!(
-            self.verify_secret(stored.to_owned(), secret).await?,
-            Verdict::Match { .. }
-        ))
-    }
-
-    /// Spend the same work on an unknown email as on a known one, so the
-    /// answer's timing does not say which it was.
-    pub(crate) async fn decoy_check(&self, secret: &str) -> ApiResult<()> {
-        let decoy = self
-            .decoy_hash
-            .get_or_try_init(|| self.hash_secret("opensesame-decoy"))
-            .await?
-            .clone();
-        let _ = self.verify_secret(decoy, secret).await?;
-        Ok(())
     }
 }

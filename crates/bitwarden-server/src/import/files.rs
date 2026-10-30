@@ -2,7 +2,8 @@
 //! written in its own transaction once the account itself has landed, so one
 //! unreadable file costs that file and nothing else.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use opensesame_storage::bitwarden::{BitwardenAttachment, BitwardenSend};
 use opensesame_storage::Db;
@@ -15,12 +16,51 @@ pub enum FileSource {
     /// A file on disk: vaultwarden's data folder, or a download waiting in
     /// the import's scratch folder.
     Disk(PathBuf),
+    /// A source archive file, resolved beneath a retained operator-selected
+    /// directory without following source-controlled symlinks. Unsupported
+    /// platforms refuse the file rather than weakening this boundary.
+    Confined {
+        directory: Arc<std::fs::File>,
+        components: Vec<String>,
+    },
 }
 
 impl FileSource {
+    /// Pin the selected data directory once for an entire archive. Keeping one
+    /// descriptor per source file would exhaust process handles on large imports.
+    pub(super) fn confined_root(root: &Path) -> Option<Arc<std::fs::File>> {
+        let directory = std::fs::File::open(root).ok()?;
+        directory
+            .metadata()
+            .ok()?
+            .is_dir()
+            .then(|| Arc::new(directory))
+    }
+
+    pub(super) fn confined(directory: &Arc<std::fs::File>, components: &[&str]) -> Option<Self> {
+        if components.is_empty()
+            || !components
+                .iter()
+                .all(|part| super::file_paths::safe_component(part))
+        {
+            return None;
+        }
+        Some(Self::Confined {
+            directory: Arc::clone(directory),
+            components: components.iter().map(|part| (*part).to_owned()).collect(),
+        })
+    }
+
     fn read(&self) -> Option<Vec<u8>> {
         match self {
-            Self::Disk(path) => std::fs::read(path).ok(),
+            Self::Disk(path) => {
+                let file = std::fs::File::open(path).ok()?;
+                super::file_paths::read_file(file, super::file_paths::MAX_FILE_BYTES)
+            }
+            Self::Confined {
+                directory,
+                components,
+            } => super::file_paths::read_confined(directory, components),
         }
     }
 }

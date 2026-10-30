@@ -123,5 +123,17 @@ fn parse_base(raw: &str) -> Result<Url> {
 
 fn join(base: &Url, path: &str) -> Result<Url> {
     let joined = format!("{}{}", base.as_str().trim_end_matches('/'), path);
-    Url::parse(&joined).map_err(|e| Error::InvalidServerUrl(e.to_string()))
+    let joined = Url::parse(&joined).map_err(|e| Error::InvalidServerUrl(e.to_string()))?;
+    // A malformed raw path such as `@another-host/path` can turn a root
+    // authority into URL userinfo. Validate the parsed destination before a
+    // request carrying an account bearer can ever be constructed.
+    if joined.origin() != base.origin()
+        || !joined.username().is_empty()
+        || joined.password().is_some()
+    {
+        return Err(Error::InvalidServerUrl(
+            "API path must preserve the configured origin without URL credentials".into(),
+        ));
+    }
+    Ok(joined)
 }
