@@ -321,7 +321,7 @@ fn rfc8032_empty_message_signature_matches() {
     );
     let signature = signer.signing_key.sign(b"");
     assert_eq!(
-        hex::encode(&signature.to_bytes()),
+        hex::encode(signature.to_bytes()),
         concat!(
             "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e06522490155",
             "5fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
