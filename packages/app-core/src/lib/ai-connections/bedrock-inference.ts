@@ -1,6 +1,6 @@
 /** Finite AWS Converse over the original captured AI authority and signer. */
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { Redacted } from "effect";
 import { z } from "zod";
 import { aiCompletionSeams } from "../ai-completion-observation.js";

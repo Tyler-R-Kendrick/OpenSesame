@@ -70,6 +70,20 @@ describe("ConnectorMark", () => {
     expect(container.querySelectorAll("svg rect").length).toBe(4);
   });
 
+  it.each([
+    ["slack", "Slack"],
+    ["openai", "OpenAI"],
+    ["sendgrid", "SendGrid"],
+  ])("identifies %s after its catalog mark is removed", (id, name) => {
+    const { container } = render(
+      <ConnectorMark providerId={id} displayName={name} />,
+    );
+    const label = container.querySelector(".conn-mark--wordmark");
+    expect(label?.textContent).toBe(name);
+    expect(label?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
   it("renders the Azure wordmark in its official blue", () => {
     const { container } = render(
       <ConnectorMark providerId="azure" displayName="Azure" />,

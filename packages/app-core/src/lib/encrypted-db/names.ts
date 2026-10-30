@@ -11,10 +11,10 @@
  * and nothing else, and this file imports only the hash primitives.
  */
 
-import { hkdf } from "@noble/hashes/hkdf";
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha256";
-import { bytesToHex } from "@noble/hashes/utils";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { EDB_DATABASE_PREFIX } from "../storage-ownership.js";
 
 const encoder = new TextEncoder();

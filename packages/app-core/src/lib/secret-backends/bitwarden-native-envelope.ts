@@ -1,7 +1,7 @@
 import { cbc } from "@noble/ciphers/aes";
 import { equalBytes } from "@noble/ciphers/utils";
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha2";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
 import { z } from "zod";
 import { stretchBitwardenMasterKey } from "./bitwarden-native-kdf.js";

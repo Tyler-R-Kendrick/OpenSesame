@@ -4,8 +4,8 @@
  * own address, compiled from its name and never typed. Verification lists key
  * names, which proves the key may read the store and nothing about its values.
  */
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha2";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { canonicalize } from "@opensesame/os-domain";
 import {
   type BoundaryValue,
