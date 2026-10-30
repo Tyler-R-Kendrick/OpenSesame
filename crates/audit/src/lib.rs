@@ -125,7 +125,9 @@ impl ReceiptSigner {
     /// Ephemeral key. Receipts signed with it can only be verified by this
     /// process: use it for tests and dev, never against a persistent receipt store.
     pub fn generate() -> Self {
-        Self::from_signing_key(SigningKey::generate(&mut OsRng))
+        let mut seed = [0u8; 32];
+        rand::RngCore::fill_bytes(&mut OsRng, &mut seed);
+        Self::from_signing_key(SigningKey::from_bytes(&seed))
     }
 
     /// Load a stable signing key so receipts stay verifiable across restarts.
