@@ -306,3 +306,50 @@ fn refuses_to_sign_secret_bearing_summary() {
     };
     assert!(signer.sign_receipt(receipt).is_err());
 }
+
+#[test]
+fn rfc8032_empty_message_signature_matches() {
+    let seed: [u8; 32] = [
+        0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c,
+        0xc4, 0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19, 0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae,
+        0x7f, 0x60,
+    ];
+    let signer = ReceiptSigner::from_seed(&seed);
+    assert_eq!(
+        hex::encode(signer.verifying_key().as_bytes()),
+        "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
+    );
+    let signature = signer.signing_key.sign(b"");
+    assert_eq!(
+        hex::encode(&signature.to_bytes()),
+        concat!(
+            "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e06522490155",
+            "5fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
+        )
+    );
+    signer.verifying_key().verify(b"", &signature).unwrap();
+}
+
+#[test]
+fn failed_or_partial_entropy_never_yields_a_signer() {
+    struct FailingRng;
+    impl rand::CryptoRng for FailingRng {}
+    impl rand::RngCore for FailingRng {
+        fn next_u32(&mut self) -> u32 {
+            panic!("unexpected next_u32")
+        }
+        fn next_u64(&mut self) -> u64 {
+            panic!("unexpected next_u64")
+        }
+        fn fill_bytes(&mut self, _: &mut [u8]) {
+            panic!("unexpected fill_bytes")
+        }
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+            dest[0] = 0x42;
+            Err(rand::Error::new("simulated OS entropy failure"))
+        }
+    }
+    assert!(
+        std::panic::catch_unwind(|| ReceiptSigner::generate_with_rng(&mut FailingRng)).is_err()
+    );
+}
