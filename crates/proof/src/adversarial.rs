@@ -396,7 +396,7 @@ fn unrecognized_and_malformed_jwk_types_are_refused() {
             b64(&serde_json::to_vec(&header).unwrap()),
             b64(&serde_json::to_vec(&claims).unwrap())
         );
-        assert!(decode_dpop_proof(
+        let error = decode_dpop_proof(
             &jwt,
             "POST",
             "https://api.example/resource",
@@ -404,6 +404,10 @@ fn unrecognized_and_malformed_jwk_types_are_refused() {
             300,
             1_700_000_000,
         )
-        .is_err());
+        .unwrap_err();
+        assert!(
+            matches!(error, ProofError::UnsupportedAlgorithm(_)),
+            "{error:?}"
+        );
     }
 }
