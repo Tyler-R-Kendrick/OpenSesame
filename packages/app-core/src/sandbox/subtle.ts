@@ -7,7 +7,7 @@
  * guessing, and key bytes never appear on the key object: they live in a
  * private map, and `exportKey` hands them back only for an extractable key.
  */
-import { gcm } from "@noble/ciphers/aes";
+import { gcm } from "@noble/ciphers/aes.js";
 import { hkdf } from "@noble/hashes/hkdf.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";

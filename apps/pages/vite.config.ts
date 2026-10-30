@@ -181,7 +181,7 @@ export default defineConfig({
     include: [
       "@opensesame/app-core > kdbxweb",
       "@opensesame/app-core > hash-wasm",
-      "@opensesame/app-core > @noble/ciphers/aes",
+      "@opensesame/app-core > @noble/ciphers/aes.js",
     ],
     esbuildOptions: { target: "es2022" },
   },
