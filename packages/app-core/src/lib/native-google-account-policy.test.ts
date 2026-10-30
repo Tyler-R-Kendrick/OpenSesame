@@ -1,6 +1,10 @@
 import type { JsonValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { googleAccountPolicy } from "../../scripts/emit-google-account-policy.mjs";
+import {
+  browserOAuthScopes,
+  requiredBrowserOAuthProfile,
+} from "./native-browser-oauth-profile.js";
 import { GOOGLE_ACCOUNT_POLICY } from "./native-google-account-policy.generated.js";
 import {
   isGoogleDriveAccountScopeSet,
@@ -31,6 +35,34 @@ describe("generated Google account policy", () => {
     for (const value of Object.values(GOOGLE_ACCOUNT_POLICY))
       expect(Object.isFrozen(value)).toBe(true);
     expect(Object.isFrozen(GOOGLE_ACCOUNT_POLICY)).toBe(true);
+  });
+
+  it("keeps the public Google profile in sync and accepts existing saved scopes", () => {
+    const profile = requiredBrowserOAuthProfile("google");
+    expect(
+      normalizeGoogleDriveAccountScopes("google-drive", profile.requiredScopes),
+    ).toEqual(GOOGLE_ACCOUNT_POLICY.scopes);
+    const savedScopes = [
+      "openid",
+      "https://www.googleapis.com/auth/userinfo.email",
+    ];
+    expect(
+      browserOAuthScopes(
+        profile,
+        {
+          version: 1,
+          providerId: "google",
+          method: "oauth",
+          displayName: "Google",
+          icon: "",
+          parameters: {},
+          requestedScopes: { user: savedScopes },
+          targetIds: {},
+          fingerprint: "test",
+        },
+        "user",
+      ),
+    ).toEqual(savedScopes);
   });
 
   it("retains the reviewed account-only boundaries", () => {
