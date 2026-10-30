@@ -15,7 +15,7 @@ test.skipIf(process.arch !== "x64")(
   { timeout: 1_500_000 },
   async () => {
     const assets = await loadTailscaleAssets();
-    assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6770196);
+    assert.equal(assets.get(TAILSCALE_ASSETS.wasm).length, 6774176);
     assert.equal(assets.get(TAILSCALE_ASSETS.runtime).length, 8078);
     assert.match(
       assets.get(TAILSCALE_ASSETS.runtime).toString(),

@@ -174,7 +174,7 @@
       },
       {
         "path": "native-node.patch",
-        "sha256": "cefc688e60359533459c0675ce3e1a1ae49f1eea9baf0440f61c1f26e5ff1749"
+        "sha256": "4db0a5d0c7c174569983c4c80d509348e22010e217b5f74c00bde14547c68ecb"
       },
       {
         "path": "nodepeer.go",
@@ -203,11 +203,15 @@
       {
         "path": "nodessh_js.go",
         "sha256": "34a6fdfefa18013e10225115c963c361e710483c7f82059bd380a1752574a71d"
+      },
+      {
+        "path": "derp-custom-roots_test.go",
+        "sha256": "18d301dceb50a449422b99438095f8681a5ac7d97079dff89129f2511233ea2d"
       }
     ],
     "stagingHelper": {
       "path": "stage-native-node.mjs",
-      "sha256": "36a8dae55be16fc535d06565673755837d971d0dbd3134aa0b15c0647d51bafd"
+      "sha256": "e64b29eb046dc3f771608bbe9cf483a4ba30077b4c06b74796df6a8b06e18884"
     },
     "patchTargets": [
       {
@@ -224,6 +228,11 @@
         "path": "ipn/ipnlocal/node_backend.go",
         "beforeSha256": "6e5bd3f1091437cbbbdc3256d2c4e22b95e4373595ed140d38c9d589a542881b",
         "afterSha256": "a0832d65b115e3c3cb763a5b2833f80efd7e13d3d4db81f7219461202c7a8cf2"
+      },
+      {
+        "path": "derp/derphttp/derphttp_client.go",
+        "beforeSha256": "32e6e38145afc4f382bf2b76b9e9d8e9c593be71f22e82a4a90220ec39834506",
+        "afterSha256": "c9fb0f090d175d0fa0e3a80d4597cdb24b3f2669d1786e2295c17574948f4903"
       }
     ],
     "configuration": {
@@ -286,11 +295,11 @@
       },
       {
         "before": "golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=",
-        "after": "golang.org/x/crypto v0.57.0 h1:3ZVCjf8Ggz7zneR/EHRVx68Ctf+2pmIMP2UFhh9cC6M="
+        "after": "golang.org/x/crypto v0.58.0 h1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54="
       },
       {
         "before": "golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=",
-        "after": "golang.org/x/crypto v0.57.0/go.mod h1:Fdz0i5U6CoizGwLda9DttjSk6qlZo25zYNtR+ycvuZA="
+        "after": "golang.org/x/crypto v0.58.0/go.mod h1:Xh+kl5A+M0gMiWDytH2Hhr5Z7WbNCpv/eB/EFgfSk+w="
       },
       {
         "before": "golang.org/x/mod v0.37.0 h1:vF1DjpVEshcIqoEaauuHebaLk1O1forxjxBaVn884JQ=",
@@ -302,62 +311,62 @@
       },
       {
         "before": "golang.org/x/net v0.56.0 h1:Rw8j/hFzGvJUZwNBXnAtf5sVDVt+65SK2C7IxCxZt5o=",
-        "after": "golang.org/x/net v0.60.0 h1:79p50tfZlm0J9YfoDsSi639qSXNGVwEzOPLCxM2FsYU="
+        "after": "golang.org/x/net v0.62.0 h1:18ELalfM5+XNRwzM2nYqXsZQ9ByS1uhj2O/U7+5jqRY="
       },
       {
         "before": "golang.org/x/net v0.56.0/go.mod h1:D3Ku6r+V6JROoZK144D2XfMHFcMq/0zSfLelVTCFKec=",
-        "after": "golang.org/x/net v0.60.0/go.mod h1:2DA/G1UfVbCpQPeWTmMPGY7Cs2PkBkwu743bVX5PIVg="
+        "after": "golang.org/x/net v0.62.0/go.mod h1:WgDCOTH8iwtB66T4/GfI94AHo/hhdb7Hah9NDseQfiI="
       },
       {
         "before": "golang.org/x/sync v0.22.0 h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=",
-        "after": "golang.org/x/sync v0.23.0 h1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk="
+        "after": "golang.org/x/sync v0.24.0 h1:iqiDrGoDgyuvAKrhLQthUEzU/R378N78gXbBjxed7oA="
       },
       {
         "before": "golang.org/x/sync v0.22.0/go.mod h1:9xrNwdLfx4jkKbNva9FpL6vEN7evnE43NNNJQ2LF3+0=",
-        "after": "golang.org/x/sync v0.23.0/go.mod h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0="
+        "after": "golang.org/x/sync v0.24.0/go.mod h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0="
       },
       {
         "before": "golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=",
-        "after": "golang.org/x/sys v0.48.0 h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo="
+        "after": "golang.org/x/sys v0.49.0 h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA="
       },
       {
         "before": "golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=",
-        "after": "golang.org/x/sys v0.48.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og="
+        "after": "golang.org/x/sys v0.49.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og="
       },
       {
         "before": "golang.org/x/term v0.45.0 h1:NwWyBmoJCbfTHpxrWoZ9C6/VxOf7ic219I8xZZFdrf0=",
-        "after": "golang.org/x/term v0.46.0 h1:3+OXuTbaKDgwk8jTi3aSLHRlmWqHEUDUtxnbFigO4YE="
+        "after": "golang.org/x/term v0.47.0 h1:cpyOwQkr2Nzxe2p6KnrTG7Ei2wtzjsuSjhpXXepZ/BM="
       },
       {
         "before": "golang.org/x/term v0.45.0/go.mod h1:9aqxs0blBcrm/n0L9QW0aRVD+ktan8ssZromtqJC43w=",
-        "after": "golang.org/x/term v0.46.0/go.mod h1:+K02xbkittuwc0Am4abfA3Fc+XRGXkvBXNO88NCXPoc="
+        "after": "golang.org/x/term v0.47.0/go.mod h1:efAfAuG6RKABvg1ArGebRkvX6LXul14SM67o2e4mUCY="
       },
       {
         "before": "golang.org/x/tools v0.47.0 h1:7Kn5x/d1svx/PzryTsqeoZN4TZwqeH5pGWjefhLi/1Q=",
-        "after": "golang.org/x/tools v0.49.0 h1:3NI7VXzL9+1WZD52Dx2ttoPwD5DWrFGpl9mFZDlmisI="
+        "after": "golang.org/x/tools v0.51.0 h1:k4Xc/1Om9jwkBJBo4NVLMSARBoWtK10mx+W5BnXCeAI="
       },
       {
         "before": "golang.org/x/tools v0.47.0/go.mod h1:dFHnyTvFWY212G+h7ZY4Vsp/K3U4/7W9TyVaAul8uCA=",
-        "after": "golang.org/x/tools v0.49.0/go.mod h1:SJNXV9DBKT0UbdttsQjbfJlAE/q+y36++zo3uL3N0Oo="
+        "after": "golang.org/x/tools v0.51.0/go.mod h1:9eEncMayCV6zRMGhR5eZEC2iBx98qWcF1HZ9Z7wJOoA="
       },
       {
         "before": "golang.org/x/telemetry v0.0.0-20260625142307-59b4966ccb57 h1:nwGZBCt+FnXUrGsj5vjzAsEmkcaFvd82BbOjECiFYZc=",
-        "after": "golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5 h1:ZUSxONxc981v7AW7QUg+I9WwZzSTTJ019ENBYr5pV/Q="
+        "after": "golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157 h1:DftxASHKl6JolFPqoN+2WrFO53JvkHwRXvFqf8gsivA="
       },
       {
         "before": "golang.org/x/telemetry v0.0.0-20260625142307-59b4966ccb57/go.mod h1:3AWMyWHS+caVoiEXpiq6+tzKA40J4vQT3MYr80ZtQpc=",
-        "after": "golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5/go.mod h1:LVehoXe41cL5SCVQilsV7Gg6BNG+Js6P9PhSbYTIUkQ="
+        "after": "golang.org/x/telemetry v0.0.0-20260924152758-ed294f943157/go.mod h1:i+ivNqjDnTF3WTElsdk5g9V5DTSBYgdNo7xTU9SDwYA="
       },
       {
         "before": "golang.org/x/text v0.40.0 h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=",
-        "after": "golang.org/x/text v0.42.0 h1:JbOZXgfeCPU9gacVtYliJqOhD+zhrEqK4LfdpmlUZqI="
+        "after": "golang.org/x/text v0.43.0 h1:1QivrlhwAsnMOcqgOdl9my7s9OyZl8O5/UGUTJVXoWc="
       },
       {
         "before": "golang.org/x/text v0.40.0/go.mod h1:hpnzDAfGV753zIKo+wk3u1bVKCGPbrnF7+7LBF/UHVY=",
-        "after": "golang.org/x/text v0.42.0/go.mod h1:ojzP1Z+2QtioaF8DTtO8K5q7JWVVYwZKenzujK0Zd0E="
+        "after": "golang.org/x/text v0.43.0/go.mod h1:hbSIYA/amXcRXTFSZqh8tWHEoqRvvbKPJ2uz/KU+a+s="
       }
     ],
-    "qualification": "Keep original upstream go.mod/go.sum/assertion bytes. Derive an owned alternate module by exact version and checksum-line replacements for the fallback bundle and the nine minimum Go MVS dependency updates selected by x/net v0.60.0. No requirement or checksum reordering. Explicit go.toolchain.rev patch preserves the mismatch assertion.",
+    "qualification": "Keep original upstream go.mod/go.sum/assertion bytes. Derive an owned alternate module by exact version and checksum-line replacements for the fallback bundle and the nine minimum Go MVS dependency updates selected by x/net v0.62.0. No requirement or checksum reordering. Explicit go.toolchain.rev patch preserves the mismatch assertion.",
     "files": [
       {
         "path": "select-toolchain.mjs",
@@ -377,7 +386,7 @@
       {
         "module": "golang.org/x/crypto",
         "beforeVersion": "v0.54.0",
-        "version": "v0.57.0"
+        "version": "v0.58.0"
       },
       {
         "module": "golang.org/x/mod",
@@ -387,37 +396,37 @@
       {
         "module": "golang.org/x/net",
         "beforeVersion": "v0.56.0",
-        "version": "v0.60.0"
+        "version": "v0.62.0"
       },
       {
         "module": "golang.org/x/sync",
         "beforeVersion": "v0.22.0",
-        "version": "v0.23.0"
+        "version": "v0.24.0"
       },
       {
         "module": "golang.org/x/sys",
         "beforeVersion": "v0.47.0",
-        "version": "v0.48.0"
+        "version": "v0.49.0"
       },
       {
         "module": "golang.org/x/term",
         "beforeVersion": "v0.45.0",
-        "version": "v0.46.0"
+        "version": "v0.47.0"
       },
       {
         "module": "golang.org/x/tools",
         "beforeVersion": "v0.47.0",
-        "version": "v0.49.0"
+        "version": "v0.51.0"
       },
       {
         "module": "golang.org/x/telemetry",
         "beforeVersion": "v0.0.0-20260625142307-59b4966ccb57",
-        "version": "v0.0.0-20260811182544-a038080d80e5"
+        "version": "v0.0.0-20260924152758-ed294f943157"
       },
       {
         "module": "golang.org/x/text",
         "beforeVersion": "v0.40.0",
-        "version": "v0.42.0"
+        "version": "v0.43.0"
       }
     ]
   },
@@ -497,8 +506,8 @@
   },
   "composition": {
     "status": "Unactivated assets; no normal PWA provider-runtime completion claim.",
-    "modSha256": "ac5b0764988a7e2209db001d5bcf7b933d0c5cc81b67a4f3b106373e2d64ae04",
-    "sumSha256": "4021e442f42f3be6a5873c1b75055f5bd582fa5ee86f1d872c3bb1cd2d79aba5",
+    "modSha256": "c3a279c50fca06d75500d70a1a11bcf3dc7f43d5a14ecdb78a9e67f19b93d569",
+    "sumSha256": "e104eb1b5b2f2e26a073d9a0747a13a32e6e33ddcdae77fc9e0f068128b5ebff",
     "runtimeSha256": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14",
     "thirdPartySha256": "9467842c7b63c53ca102a9485075ee375f3ac3a03b51764ed2d247d530df5fa2",
     "zod": {
@@ -515,7 +524,7 @@
     "files": [
       {
         "path": "build.mjs",
-        "sha256": "78ca3e97f4c3cc8db9959208ebfdee439f1afdc3b900ca5967541393e5e324b6"
+        "sha256": "9ec92c5db8dd07f9f3b2ebb397cfa95be6568f0e3452325898982b4b3d9d5cec"
       },
       {
         "path": "compose-native.mjs",
@@ -527,7 +536,7 @@
       },
       {
         "path": "compose-native.test.mjs",
-        "sha256": "85697f3abd5b96c2cc7938144f70ced45f4d1648ae0e46af92d978f193214bcd"
+        "sha256": "f5711e4a14a6c5905de2095309906748b847e9726db300f757487bc284c04582"
       },
       {
         "path": "compress-wasm.mjs",
@@ -547,7 +556,7 @@
       },
       {
         "path": "preparation-diagnostics.mjs",
-        "sha256": "67961b1a457961b8583e8cdddb76b7d3ea09ac28fe2428130522d55c03292852"
+        "sha256": "458c2aae4ef30730a3dbe6f659a870d1140077d8baa4bb254321ca658c127b2f"
       },
       {
         "path": "build-failure-context.test.mjs",
@@ -559,11 +568,11 @@
       },
       {
         "path": "apply-native-patch.mjs",
-        "sha256": "49ce7ced4f20222b5cd4184128b8740be88a17b0071d0bf1d3a49f989a6013e6"
+        "sha256": "509adc30f47f3b10152de63c94f59574b2b1955be455c662d629cb85d4f579cc"
       },
       {
         "path": "apply-native-patch.test.mjs",
-        "sha256": "13baf3fafd415548fd7dfa856025315093b95feb480330a178b9c048c145fe68"
+        "sha256": "029916fb098baaf411a49b8f3b2565201c73f3595d4b21a555c91c8d674ce192"
       },
       {
         "path": "compressor-archive.mjs",
