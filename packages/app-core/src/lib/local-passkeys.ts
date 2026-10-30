@@ -1,5 +1,9 @@
 import type { VerifiedRegistration } from "@opensesame/auth-upstream/browser";
-import { isString, overlapCast } from "@opensesame/os-domain";
+import {
+  copyArrayBufferBytes,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   authenticationResponseJson,
   b64urlToBytes,
@@ -46,10 +50,7 @@ import { tombUnlocked } from "./vfs.js";
 const CEREMONY_MS = PASSKEY_CEREMONY_MS;
 
 export function viewBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  );
+  return copyArrayBufferBytes(bytes);
 }
 
 export type LocalAuthentication = Readonly<{

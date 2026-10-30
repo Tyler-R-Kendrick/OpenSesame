@@ -1,3 +1,4 @@
+import { copyArrayBufferBytes } from "@opensesame/os-domain";
 /**
  * WebAuthn PRF root protector adapter (KP-22/KP-23).
  *
@@ -156,13 +157,14 @@ async function webauthnPrfOpen(
 
 /** Copy a view so wrap does not read bytes outside the view. */
 function copiedBuffer(value: ArrayBuffer | Uint8Array): ArrayBuffer {
-  if (value instanceof Uint8Array) {
-    return value.buffer.slice(
-      value.byteOffset,
-      value.byteOffset + value.byteLength,
-    );
-  }
-  return value.slice(0);
+  if (ArrayBuffer.isView(value)) return copyArrayBufferBytes(value);
+  const getter = Object.getOwnPropertyDescriptor(
+    ArrayBuffer.prototype,
+    "byteLength",
+  )?.get;
+  if (!getter) throw new TypeError("Expected ArrayBuffer");
+  getter.call(value);
+  return new Uint8Array(value).slice().buffer;
 }
 
 /** Wrap a VRK with a PRF output this caller already holds. Does not start a ceremony. */

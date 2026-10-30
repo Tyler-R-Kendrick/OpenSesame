@@ -1,6 +1,9 @@
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
-import { isArrayBufferBackedBytes } from "../buffer-source.js";
+import {
+  copyArrayBufferBytes,
+  isArrayBufferBackedBytes,
+} from "../buffer-source.js";
 
 describe("isArrayBufferBackedBytes", () => {
   it("accepts ordinary, offset, and cross-realm byte views", () => {
@@ -49,4 +52,29 @@ describe("isArrayBufferBackedBytes", () => {
     });
     expect(isArrayBufferBackedBytes(normal)).toBe(true);
   });
+});
+
+it("copies only real view bytes despite spoofed metadata and preserves the caller on wipe", () => {
+  const source = new Uint8Array([9, 1, 2, 9]).subarray(1, 3);
+  Object.defineProperties(source, {
+    buffer: { value: new Uint8Array([8, 8, 8, 8]).buffer },
+    byteOffset: { value: 0 },
+    byteLength: { value: 4 },
+  });
+  const copied = new Uint8Array(copyArrayBufferBytes(source));
+  expect(copied).toEqual(new Uint8Array([1, 2]));
+  copied.fill(0);
+  expect(Array.from(source)).toEqual([1, 2]);
+});
+
+it("refuses shared, detached, and non-Uint8 inputs to the copy helper", () => {
+  const shared = new Uint8Array(new SharedArrayBuffer(2));
+  Object.defineProperty(shared, "buffer", { value: new ArrayBuffer(2) });
+  expect(() => copyArrayBufferBytes(shared)).toThrow(TypeError);
+  const detached = new Uint8Array([1, 2]);
+  structuredClone(detached.buffer, { transfer: [detached.buffer] });
+  expect(() => copyArrayBufferBytes(detached)).toThrow(TypeError);
+  expect(() =>
+    Reflect.apply(copyArrayBufferBytes, undefined, [new Uint16Array([1, 2])]),
+  ).toThrow(TypeError);
 });

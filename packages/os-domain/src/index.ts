@@ -47,4 +47,7 @@ export * from "./authority-membership-lineage.js";
 export * from "./duress/index.js";
 export * from "./transport-security/index.js";
 
-export { isArrayBufferBackedBytes } from "./buffer-source.js";
+export {
+  copyArrayBufferBytes,
+  isArrayBufferBackedBytes,
+} from "./buffer-source.js";

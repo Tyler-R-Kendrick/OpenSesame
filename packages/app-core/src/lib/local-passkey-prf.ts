@@ -1,3 +1,4 @@
+import { copyArrayBufferBytes } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { b64ToBytes } from "@opensesame/vault-core";
 import type { LocalPasskey } from "./local-credentials.js";
@@ -33,10 +34,7 @@ function currentSignInPrfVault(): Promise<SignInPrfVault | null> {
 }
 
 function viewBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  );
+  return copyArrayBufferBytes(bytes);
 }
 
 type SignInPrfRow = { salt: Uint8Array; existing: boolean };

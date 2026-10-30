@@ -16,6 +16,7 @@ import {
   authenticateLocalPasskey,
   consumeLocalAuthentication,
   enrollLocalPasskey,
+  viewBuffer,
 } from "./local-passkeys.js";
 import { vaultStore } from "./vault/store.js";
 import { lockAllTombs, unlockTomb, vfsSeams } from "./vfs.js";
@@ -365,4 +366,12 @@ describe("browser local identity passkeys using real cryptographic verification"
       code: "locked",
     });
   });
+});
+
+it("copies local passkey views from their real backing bytes", () => {
+  const source = new Uint8Array([9, 1, 2, 9]).subarray(1, 3);
+  Object.defineProperty(source, "buffer", {
+    value: new Uint8Array([8, 8, 8, 8]).buffer,
+  });
+  expect(new Uint8Array(viewBuffer(source))).toEqual(new Uint8Array([1, 2]));
 });

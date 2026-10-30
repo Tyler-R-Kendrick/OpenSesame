@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { randomBytes } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -345,6 +346,28 @@ describe("webauthnPrfCapabilities honesty", () => {
     expect(report.details.usablePrfOutput).toBe(true);
     expect(report.availability.reasonCode).toBe("prf_output_ready");
   });
+});
+
+it("enrolls the exact cross-realm credential view despite spoofed metadata", async () => {
+  const root = crypto.getRandomValues(new Uint8Array(32));
+  const prf = crypto.getRandomValues(new Uint8Array(32));
+  const credential = runInNewContext(
+    "new Uint8Array([9, 1, 2, 9]).subarray(1, 3)",
+  );
+  Object.defineProperty(credential, "buffer", {
+    value: new Uint8Array([8, 8, 8, 8]).buffer,
+  });
+  const record = await protectorFromPrfMaterial({
+    rootKey: root,
+    prfOutput: prf.buffer,
+    prfSalt: crypto.getRandomValues(new Uint8Array(32)),
+    credentialId: credential,
+    userId: new Uint8Array([3, 4]),
+    protectorId: "cross-realm",
+  });
+  expect(record.credentialIdB64).toBe(btoa(String.fromCharCode(1, 2)));
+  root.fill(0);
+  prf.fill(0);
 });
 
 describe("held PRF material", () => {

@@ -36,3 +36,10 @@ export function isArrayBufferBackedBytes(
     return false;
   }
 }
+
+/** Copy exactly the validated view; callers own the returned buffer. */
+export function copyArrayBufferBytes(bytes: Uint8Array): ArrayBuffer {
+  if (!isArrayBufferBackedBytes(bytes))
+    throw new TypeError("Expected attached ArrayBuffer-backed bytes");
+  return new Uint8Array(bytes).buffer;
+}

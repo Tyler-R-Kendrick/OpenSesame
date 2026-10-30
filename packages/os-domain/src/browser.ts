@@ -56,4 +56,7 @@ export {
   validateAuthorityGrantAttenuation,
 } from "./authority-grant.js";
 
-export { isArrayBufferBackedBytes } from "./buffer-source.js";
+export {
+  copyArrayBufferBytes,
+  isArrayBufferBackedBytes,
+} from "./buffer-source.js";
