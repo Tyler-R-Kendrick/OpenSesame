@@ -8,11 +8,12 @@
  * private map, and `exportKey` hands them back only for an extractable key.
  */
 import { gcm } from "@noble/ciphers/aes";
-import { hkdf } from "@noble/hashes/hkdf";
-import { hmac } from "@noble/hashes/hmac";
-import { pbkdf2Async } from "@noble/hashes/pbkdf2";
-import { sha256 } from "@noble/hashes/sha2";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { hmac } from "@noble/hashes/hmac.js";
+import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { isString } from "@opensesame/os-domain";
+import { pbkdf2WithoutTimers } from "./pbkdf2-no-timers.js";
 
 type Named = string | { name: string };
 type Params = {
@@ -116,6 +117,21 @@ async function deriveBitsNow(
   if (name === "PBKDF2") {
     if (!Number.isInteger(params.iterations) || (params.iterations ?? 0) < 1)
       throw failure("OperationError", "PBKDF2 needs an iteration count");
+    const host: {
+      setTimeout?: typeof setTimeout;
+      scheduler?: { yield?: unknown };
+    } = globalThis;
+    if (
+      typeof host.setTimeout !== "function" &&
+      typeof host.scheduler?.yield !== "function"
+    ) {
+      return pbkdf2WithoutTimers(
+        secret,
+        bytes(params.salt),
+        params.iterations ?? 0,
+        length / 8,
+      );
+    }
     return pbkdf2Async(hash, secret, bytes(params.salt), {
       c: params.iterations ?? 0,
       dkLen: length / 8,

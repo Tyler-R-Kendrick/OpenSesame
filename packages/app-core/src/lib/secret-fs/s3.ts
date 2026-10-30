@@ -16,8 +16,8 @@
  * The secret key is held `Redacted`, and a request is never followed across
  * a redirect, so a signature is not sent somewhere it was not made for.
  */
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { Effect } from "effect";
 import {
   SecretFsConflict,

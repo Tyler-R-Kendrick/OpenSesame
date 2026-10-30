@@ -6,8 +6,8 @@
  * Threshold 1 is not shared at all: every share is the secret.
  */
 
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha2";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { Slip39Error } from "./errors.js";
 import { type Point, interpolate } from "./gf256.js";
 
