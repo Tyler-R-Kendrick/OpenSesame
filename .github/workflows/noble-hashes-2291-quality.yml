@@ -1,0 +1,27 @@
+name: Review noble hashes quality
+on:
+  push:
+    branches: [review/noble-hashes-2291-quality-20261030]
+permissions:
+  contents: read
+jobs:
+  quality:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.ref == 'refs/heads/review/noble-hashes-2291-quality-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 346eca9c81295a5eff6e43563af09890c0cc3dd3
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact source
+        run: |
+          test "$(git rev-parse HEAD)" = 346eca9c81295a5eff6e43563af09890c0cc3dd3
+          test "$(git rev-parse HEAD^{tree})" = 36f7b72a8d22f86a135e74ef7c573a8523712d7d
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm quality:gate
+      - run: pnpm lint:anti-slop
