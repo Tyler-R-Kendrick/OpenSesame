@@ -107,9 +107,7 @@ async function deriveMacRaw(seed: Uint8Array): Promise<Uint8Array> {
   );
 }
 
-function evidenceInput(
-  pkg: Omit<SealedAlertPackage, "evidenceMacB64">,
-) {
+function evidenceInput(pkg: Omit<SealedAlertPackage, "evidenceMacB64">) {
   return utf8(
     JSON.stringify({
       purpose: EVIDENCE_PURPOSE,
