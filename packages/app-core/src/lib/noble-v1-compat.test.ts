@@ -49,7 +49,7 @@ describe("cipher upgrade compatibility", () => {
     expect(() =>
       openBitwardenEncString(bitwarden.replace("xb+03", "yb+03"), key64),
     ).toThrow();
-    key64[0] ^= 1;
+    key64[32] ^= 1;
     expect(() => openBitwardenEncString(bitwarden, key64)).toThrow();
   });
 
