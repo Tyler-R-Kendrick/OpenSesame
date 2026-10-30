@@ -11,7 +11,7 @@
  * count: `credential: PublicKeyCredential` is fine, `instanceof
  * PublicKeyCredential` is not.
  */
-import ts from "typescript";
+import ts from "typescript-api";
 import { TEST_FILE } from "./app-core-boundary.mjs";
 
 /** Globals every host provides (browsers and Node natively; an isolate by polyfill). */

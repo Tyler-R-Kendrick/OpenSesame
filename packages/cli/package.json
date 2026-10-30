@@ -53,6 +53,7 @@
     "esbuild": "0.25.12",
     "tsx": "4.19.4",
     "typescript": "7.0.2",
+    "typescript-api": "npm:typescript@5.8.3",
     "vitest": "4.1.12",
     "ws": "8.21.3"
   },
