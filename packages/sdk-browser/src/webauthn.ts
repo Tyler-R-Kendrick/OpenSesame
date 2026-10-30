@@ -10,7 +10,7 @@ import {
 } from "@opensesame/os-domain";
 /** Shared browser WebAuthn JSON ↔ ArrayBuffer helpers (no extra deps). */
 
-export function b64urlToBytes(value: string): Uint8Array {
+export function b64urlToBytes(value: string) {
   const pad = "=".repeat((4 - (value.length % 4)) % 4);
   const b64 = (value + pad).replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(b64);
