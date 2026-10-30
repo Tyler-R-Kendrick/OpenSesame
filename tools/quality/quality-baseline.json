@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 446,
-    "violations": 712,
-    "oversizedLines": 219959
+    "files": 445,
+    "violations": 711,
+    "oversizedLines": 219521
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -498,9 +498,6 @@
     },
     "crates/pm-bridges/tests/keepassxc_handshake.rs": {
       "max-lines": 656
-    },
-    "crates/proof/src/http_message_signature.rs": {
-      "max-lines": 438
     },
     "crates/provider-bitwarden/src/crypto.rs": {
       "max-lines": 795
