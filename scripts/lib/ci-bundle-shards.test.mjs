@@ -334,7 +334,7 @@ it("preserves only reviewed GitHub evidence after success or failure, excluding 
     "always() && matrix.shard == 'native-secret-backends'",
   );
   expect(upload.text).toContain(
-    "uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0",
+    "uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2",
   );
   expect(upload.text).toContain(
     "name: github-app-browser-${{ inputs.source_sha }}",
