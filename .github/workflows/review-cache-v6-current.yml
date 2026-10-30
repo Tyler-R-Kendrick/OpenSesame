@@ -1,0 +1,43 @@
+name: Review cache v6 contract
+on:
+  push:
+    branches: [review/cache-v6-current-hosted-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/cache-v6-current-hosted-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 2f4ba69062a17ed74abd3727b9e7a3a540645c49
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact reviewed candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 2f4ba69062a17ed74abd3727b9e7a3a540645c49
+          test "$(git rev-parse HEAD^{tree})" = 3bbfe19dc07cf88487c4ebb0156ef3566dd798d1
+      - name: Smoke test v6 restore-only action
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: /tmp/opensesame-cache-proof
+          key: opensesame-v6-proof-${{ github.run_id }}
+          lookup-only: true
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run pinned action and workflow contracts
+        run: |
+          set -euo pipefail
+          pnpm exec biome check scripts/lib/ci-full-run.test.mjs
+          pnpm exec vitest run scripts/lib/ci-full-run.test.mjs
+      - name: Verify source stayed unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 3bbfe19dc07cf88487c4ebb0156ef3566dd798d1
+          git diff --exit-code
