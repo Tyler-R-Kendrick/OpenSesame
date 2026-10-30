@@ -31,9 +31,10 @@ external runtime adapters own their browser.
   providers throw `SandboxClaimRequiredError` with only a verification
   URL and short code, so callers surface it through the existing
   human-intervention channel (notifications queue + toast).
-- Drivers check top-level navigation against the ceremony origin host plus
-  explicit extras. Those hostname checks do not by themselves restrict every
-  subrequest or provide isolation from scripts on an approved site.
+- Hostname filters on navigation are not a network firewall. A page's
+  scripts, redirects and subrequests may reach other destinations; use an
+  independently enforced outbound policy when the site or network is not
+  trusted.
 
 ## Honest limits
 
@@ -54,6 +55,11 @@ external runtime adapters own their browser.
 - The Boat lane needs an operator-configured agent start command
   (`BOAT_RELAY_AGENT_COMMAND`), typically run from a saved snapshot
   with this package installed. Sandboxes are created with none of the
-  account's secrets, monitoring off, and snapshots off. On close, the
-  default requests deletion; `keepSandbox` requests a stop instead.
-  The current client does not confirm asynchronous deletion or cookie erasure.
+  account's secrets, monitoring off and snapshots off. Close waits for
+  Boat to confirm deletion. If it raises `BoatDeletionPendingError`, retain
+  its operation and sandbox IDs and resume with the provider's
+  `waitForDeletion`; erasure is not confirmed until that call succeeds.
+  Failed allocation can report a pending cleanup inside an `AggregateError`;
+  retain and resume that operation in the same way. If no valid deletion
+  receipt is available, `BoatDeletionUnconfirmedError` retains the sandbox ID
+  for checking cleanup with Boat.

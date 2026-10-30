@@ -776,3 +776,13 @@ shell network/authentication recovered and GraphQL became available. The change
 was rebased onto `ae450dbce`, preserving newer connector/dependency work, and
 review identified and repaired Cargo's renamed-workspace dependency selection.
 The implementation PR records final validation and hosted publication results.
+
+## OpenSSF Best Practices rebase, 2026-10-26
+
+Kimi Code K3.1 (`kimi-code/k3.1`, upstream `k3.1-pro`) rebased
+`docs/openssf-best-practices` onto current `main` and resolved one
+`SECURITY.md` wording conflict by keeping the base's direct advisory link and
+the branch's fallback contact and response commitment. The focused
+`ReleaseNotes.test.tsx` suite passed all three tests. Kimi also restored the
+intended seven-file diff after an unrelated draft stack displaced the branch;
+the displaced commit remains recoverable in the originating repository.
