@@ -71,7 +71,10 @@ export function virtualFetchOverHttp(
       "virtual network relay requires HTTPS or loopback HTTP and a token",
     );
   const endpoint = base.href.replace(/\/$/u, "");
-  const send = async (path: string, body: unknown) => {
+  const send = async (
+    path: "/fetch" | "/close",
+    body: VirtualFetchRequest | { sessionId: string },
+  ) => {
     const response = await fetch(`${endpoint}${path}`, {
       method: "POST",
       headers: {
