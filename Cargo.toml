@@ -89,7 +89,7 @@ anyhow = "1.0.98"
 async-nats = "0.50.0"
 async-trait = "0.1.88"
 axum = { version = "0.8.4", features = ["macros"] }
-base64 = "0.22.1"
+base64 = "0.23.1"
 bytes = "1.10.1"
 futures = "0.3.31"
 insta = { version = "1.43.2", features = ["json"] }
@@ -129,7 +129,7 @@ sqlx = { package = "opensesame-sql", path = "crates/sql" }
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
 tower = "0.5.2"
-tower-http = { version = "0.6.6", features = ["trace", "cors", "limit"] }
+tower-http = { version = "0.7.1", features = ["trace", "cors", "limit"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
 url = { version = "2.5.4", features = ["serde"] }

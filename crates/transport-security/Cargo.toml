@@ -73,5 +73,5 @@ tempfile = { workspace = true, optional = true }
 [dev-dependencies]
 http-body-util = { workspace = true }
 tempfile = { workspace = true }
-toml = "0.5.11"
+toml = "1.1.8"
 tracing-subscriber = { workspace = true }

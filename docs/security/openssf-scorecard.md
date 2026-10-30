@@ -89,9 +89,10 @@ with truthful answers and evidence. Useful starting evidence is:
 | Security design and analysis | [Security index](README.md), threat models, audit history and scanner gates |
 | Build, testing and release integrity | [Contributor verification](../../AGENTS.md#8-verification-expectations), pinned workflows and [release guide](../operators/release-kit.md) |
 
-Verify each criterion, resolve gaps, and add the project's real badge URL
-only after enrollment. Enrollment is currently deferred; no badge ID or
-certification is asserted here.
+On 2026-10-26, the authenticated Scorecard reported a Best-Practices check
+score of 2 and an in-progress assessment. Check the current Best Practices
+assessment and complete its criteria before claiming a passing badge. No
+passing certification or unverified badge ID is asserted here.
 
 ## Other low checks
 

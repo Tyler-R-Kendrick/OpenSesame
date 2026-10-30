@@ -178,7 +178,7 @@ jobs:
           node -e 'const s=require(process.argv[1]); if (!Number.isSafeInteger(s.unmappedPrimaryFindings) || s.unmappedPrimaryFindings !== 0 || !Number.isSafeInteger(s.unmappedResultLocations) || s.unmappedResultLocations !== 0 || !Number.isSafeInteger(s.invalidInvocations) || s.invalidInvocations !== 0 || !Number.isSafeInteger(s.errorNotifications) || s.errorNotifications !== 0) throw new Error(`Go SARIF needs review of the retained raw report: ${s.unmappedPrimaryFindings} primaries outside verified copied-file mappings, ${s.unmappedResultLocations} result locations outside those mappings, ${s.invalidInvocations} invalid invocations, ${s.errorNotifications} error notifications`);' "$RUNNER_TEMP/codeql-live-mapped/summary.json"
       - name: Keep SARIF for review
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codeql-sarif-${{ matrix.language }}-${{ inputs.source_sha || github.sha }}
           path: ${{ runner.temp }}/codeql-results
@@ -302,7 +302,7 @@ jobs:
           node -e 'const s=require(process.argv[1]); if (!Number.isSafeInteger(s.unmappedPrimaryFindings) || s.unmappedPrimaryFindings !== 0 || !Number.isSafeInteger(s.unmappedResultLocations) || s.unmappedResultLocations !== 0 || !Number.isSafeInteger(s.invalidInvocations) || s.invalidInvocations !== 0 || !Number.isSafeInteger(s.errorNotifications) || s.errorNotifications !== 0) throw new Error(`Native Go SARIF needs review of the retained raw report: ${s.unmappedPrimaryFindings} primaries outside verified copied-file mappings, ${s.unmappedResultLocations} result locations outside those mappings, ${s.invalidInvocations} invalid invocations, ${s.errorNotifications} error notifications`);' "$RUNNER_TEMP/codeql-native-mapped/summary.json"
       - name: Keep unmodified native Go SARIF for review
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codeql-sarif-go-native-${{ matrix.target }}-${{ inputs.source_sha || github.sha }}
           path: ${{ runner.temp }}/codeql-native-sarif

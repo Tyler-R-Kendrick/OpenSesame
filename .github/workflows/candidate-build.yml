@@ -138,7 +138,7 @@ jobs:
     - run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
     - run: pnpm --filter @opensesame/env-spec-bridge test
     - run: node packages/env-spec-bridge/scripts/bundle.mjs dist/opensesame-env-parse.mjs
-    - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ needs.resolve.outputs.candidate_id }}-bridge
         path: src/dist/opensesame-env-parse.mjs
@@ -194,7 +194,7 @@ jobs:
         mkdir -p packed
         tar -C apps/pages/dist --format=ustar --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
           --owner=0 --group=0 --numeric-owner -cf - . | gzip -n -9 > "packed/opensesame-pages_${TAG}.tar.gz"
-    - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ needs.resolve.outputs.candidate_id }}-pages
         path: src/packed/*.tar.gz
@@ -272,13 +272,13 @@ jobs:
         OPENSESAME_RELEASE_LICENSE="$PWD/LICENSE" ../.ci-control/scripts/release/kit-archive.sh pack "$TAG" "$TARGET" bins bridge/opensesame-env-parse.mjs dist
     - name: Smoke the actual archived kit and reject a writable bridge
       run: bash ../.ci-control/scripts/release/smoke-kit.sh "dist/opensesame-kit_${TAG}_${TARGET}.tar.gz"
-    - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ needs.resolve.outputs.candidate_id }}-kit-${{ matrix.target }}
         path: src/dist/opensesame-kit_*.tar.gz
         if-no-files-found: error
         retention-days: 7
-    - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: ${{ needs.resolve.outputs.candidate_id }}-test-proxy-${{ matrix.target }}
         path: src/dist/opensesame-surrogate-proxy-TEST-upstream-override_*.tar.gz
@@ -327,7 +327,7 @@ jobs:
         subject-checksums: build-subjects.sha256
         predicate-type: https://opensesame.dev/attestations/candidate-build/v1
         predicate-path: build-predicate.json
-    - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       id: upload
       with:
         name: ${{ needs.resolve.outputs.candidate_id }}-complete
