@@ -71,18 +71,12 @@ export async function pbkdf2WithoutTimers(
           working = salted._cloneInto(working);
           working.update(counter).digestInto(u);
           target.set(u.subarray(0, target.length));
-          let lastYield = Date.now();
-          for (let round = 1; round < iterations; round += 1) {
+          await mixRounds(iterations, () => {
             working = prf._cloneInto(working);
             working.update(u).digestInto(u);
             for (let index = 0; index < target.length; index += 1)
               target[index] ^= u[index];
-            const elapsed = Date.now() - lastYield;
-            if (elapsed >= 10 || elapsed < 0) {
-              await Promise.resolve();
-              lastYield = Date.now();
-            }
-          }
+          });
         }
       } finally {
         working.destroy();
@@ -97,5 +91,17 @@ export async function pbkdf2WithoutTimers(
     u.fill(0);
     counter.fill(0);
     if (!complete) output.fill(0);
+  }
+}
+
+async function mixRounds(iterations: number, mix: () => void): Promise<void> {
+  let lastYield = Date.now();
+  for (let round = 1; round < iterations; round += 1) {
+    mix();
+    const elapsed = Date.now() - lastYield;
+    if (elapsed >= 10 || elapsed < 0) {
+      await Promise.resolve();
+      lastYield = Date.now();
+    }
   }
 }
