@@ -69,12 +69,15 @@ export type ApprovalOutcome =
     }
   | { kind: "approval_rejected"; reason: string };
 
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
+async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   const dig = await crypto.subtle.digest("SHA-256", bytes);
   return hex(new Uint8Array(dig));
 }
 
-async function hmacB64(key: Uint8Array, msg: Uint8Array): Promise<string> {
+async function hmacB64(
+  key: Uint8Array,
+  msg: Uint8Array<ArrayBuffer>,
+): Promise<string> {
   const ck = await crypto.subtle.importKey(
     "raw",
     key,

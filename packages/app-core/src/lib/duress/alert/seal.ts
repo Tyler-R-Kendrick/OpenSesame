@@ -109,7 +109,7 @@ async function deriveMacRaw(seed: Uint8Array): Promise<Uint8Array> {
 
 function evidenceInput(
   pkg: Omit<SealedAlertPackage, "evidenceMacB64">,
-): Uint8Array {
+) {
   return utf8(
     JSON.stringify({
       purpose: EVIDENCE_PURPOSE,
@@ -174,7 +174,7 @@ function assertValueBlindPayload(payload: AlertPayload): void {
 
 async function encryptAlertBody(
   encryptKey: CryptoKey,
-  body: Uint8Array,
+  body: Uint8Array<ArrayBuffer>,
 ): Promise<Uint8Array> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
