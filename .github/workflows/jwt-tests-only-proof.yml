@@ -18,6 +18,7 @@ jobs:
         with:
           ref: 5d4e568ecc11e92159f2668545af73458c33f8c3
           persist-credentials: false
+          fetch-depth: 2
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.88.0
