@@ -231,6 +231,17 @@ Turning it on means prompts leave the device. That is a real change to the
 product's privacy posture, it is the operator's decision to make, and it is
 recorded in the consequences below rather than smoothed over.
 
+(Amendment, 2026-10-30: the client library is now `@ag-ui/client@1.0.3`.
+What the adapter uses did not change across that major bump — only
+`runHttpRequest` and `transformHttpEventStream`, with identical
+signatures and the same pass-through behaviour: an SSE frame must be a
+JSON object carrying a string `type`, and nothing else is checked, so a
+deployment's endpoint can keep speaking the pre-1.0 event contract. The
+1.0 agent classes and protocol-version negotiation are not used. The
+dependency closure is the same shape, the lazy dynamic import and the
+`SupportAgentPort` containment are unchanged, and the wire contract an
+endpoint implements stays the one the normalizer's guards accept.)
+
 ### 8. WebMCP opens support; it never drives it
 
 `packages/webmcp` tracks the current `document.modelContext` placement and
