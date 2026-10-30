@@ -114,7 +114,7 @@ describe("readClaimArrival", () => {
   });
 
   it.each([
-    "token=osc_pdrop_portable.secret",
+    `token=osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`,
     "token=malformed",
     "token=",
     "key=secret",
