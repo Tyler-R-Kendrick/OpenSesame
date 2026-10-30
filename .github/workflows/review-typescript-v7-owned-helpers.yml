@@ -1,0 +1,56 @@
+name: Review TypeScript 7 owned decoding helpers
+on:
+  push:
+    branches: [review/typescript-v7-owned-hosted-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-owned-hosted-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 6cd917d282de010f2c47d37560b1e34fa14914ea
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = c2cff3e9204c51f0dba7fe7bdd97834bec9e416b
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Confirm baseline compiler errors
+        run: |
+          set -euo pipefail
+          trap 'git restore -- packages/app-core/src/lib/native-base64.ts packages/app-core/src/lib/cli-app-integration/approval-challenge.ts' EXIT
+          for file in packages/app-core/src/lib/native-base64.ts packages/app-core/src/lib/cli-app-integration/approval-challenge.ts; do git show "HEAD^:$file" > "$file"; done
+          if pnpm --filter @opensesame/pages typecheck > /tmp/owned-original.log 2>&1; then exit 1; fi
+          for name in native-google-wallet-configuration native-gcp-auth native-gitlab-backup approval-challenge; do grep -E "$name.ts.*error TS[0-9]+" /tmp/owned-original.log; done
+      - name: Confirm owned helpers remove the targeted errors
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/native-base64.ts packages/app-core/src/lib/cli-app-integration/approval-challenge.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/owned-fixed.log 2>&1; then
+            echo 'Pages typecheck passed; all remaining diagnostics also resolved.'
+          else
+            count=$(grep -cE 'error TS[0-9]+' /tmp/owned-fixed.log || true)
+            echo "Remaining Pages diagnostics: $count"
+            test "$count" -gt 0
+            for name in native-google-wallet-configuration native-gcp-auth native-gitlab-backup approval-challenge; do
+              if grep -E "$name.ts.*error TS[0-9]+" /tmp/owned-fixed.log; then exit 1; fi
+            done
+          fi
+      - name: Verify provider and approval regressions
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-gcp.test.ts src/lib/native-gcp-iam.test.ts src/lib/native-gitlab-backup.test.ts src/lib/native-gitlab-backup-authorization.test.ts src/lib/native-google-wallet-policy.test.ts src/lib/cli-app-integration/pairing.test.ts src/lib/cli-app-integration/session.test.ts src/lib/cli-app-integration/human-proof.test.ts
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = c2cff3e9204c51f0dba7fe7bdd97834bec9e416b
+          git diff --exit-code
