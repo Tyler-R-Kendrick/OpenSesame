@@ -140,7 +140,18 @@ describe("CLI WebAuthn credential", () => {
         const offered = options.publicKey?.challenge;
         if (!offered) throw new Error("missing challenge");
         expect(bytesOf(offered)).toEqual(expectedChallenge);
-        bytesOf(offered).fill(7);
+        if (offered instanceof ArrayBuffer) {
+          new Uint8Array(offered).fill(7);
+        } else {
+          new Uint8Array(
+            offered.buffer,
+            offered.byteOffset,
+            offered.byteLength,
+          ).fill(7);
+        }
+        expect(bytesOf(offered)).toEqual(
+          new Uint8Array(expectedChallenge.length).fill(7),
+        );
         challenge.fill(9);
         return overlapCast(created);
       },
