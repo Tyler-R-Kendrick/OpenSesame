@@ -50,6 +50,27 @@ it("rejects shared, spoofed and detached key views before invoking the verifier"
   expect(verify).not.toHaveBeenCalled();
 });
 
+it("validates and snapshots the same enrolled key when its getter changes", async () => {
+  const first = new Uint8Array([1, 2]);
+  const second = new Uint8Array(new SharedArrayBuffer(2));
+  second.set([9, 9]);
+  const request = input(first);
+  let reads = 0;
+  Object.defineProperty(request.credential, "publicKey", {
+    get() {
+      reads += 1;
+      return reads === 1 ? first : second;
+    },
+  });
+  const verify = vi.fn(async (options: Parameters<typeof original>[0]) => {
+    expect(options.credential.publicKey).toEqual(new Uint8Array([1, 2]));
+    return { verified: true, authenticationInfo: { newCounter: 4 } };
+  });
+  simpleWebAuthnSeams.verifyAuthenticationResponse = overlapCast(verify);
+  expect(await verifyPasskeyAuthentication(request)).toBe(4);
+  expect(reads).toBe(1);
+});
+
 it("accepts a valid cross-realm key view", async () => {
   const verify = vi.fn(async (_options: Parameters<typeof original>[0]) => ({
     verified: true,
@@ -61,5 +82,5 @@ it("accepts a valid cross-realm key view", async () => {
   );
   expect(await verifyPasskeyAuthentication(input(foreign))).toBe(4);
   const actual = verify.mock.calls[0]?.[0];
-  expect(actual?.credential.publicKey).toEqual(new Uint8Array([1, 2]));
+  expect(Array.from(actual?.credential.publicKey ?? [])).toEqual([1, 2]);
 });

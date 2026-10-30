@@ -59,17 +59,19 @@ export async function verifyPasskeyAuthentication(
   input: VerifyPasskeyAuthenticationInput,
 ): Promise<number | null | undefined> {
   try {
-    if (!isArrayBufferBackedBytes(input.credential.publicKey)) return null;
-    const publicKey = new Uint8Array(input.credential.publicKey);
+    const credential = input.credential;
+    const enrolledKey = credential.publicKey;
+    if (!isArrayBufferBackedBytes(enrolledKey)) return null;
+    const publicKey = new Uint8Array(enrolledKey);
     const result = await simpleWebAuthnSeams.verifyAuthenticationResponse({
       response: input.response,
       expectedChallenge: input.challenge,
       expectedOrigin: input.rp.origin,
       expectedRPID: input.rp.rpID,
       credential: {
-        id: input.credential.credentialId,
+        id: credential.credentialId,
         publicKey,
-        counter: input.credential.counter,
+        counter: credential.counter,
       },
       requireUserVerification: input.requireUserVerification ?? true,
     });
