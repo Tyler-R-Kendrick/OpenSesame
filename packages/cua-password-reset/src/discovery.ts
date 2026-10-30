@@ -36,10 +36,7 @@ export interface DiscoveryOptions {
   maxSteps?: number;
 }
 
-function discoveryEntry(options: DiscoveryOptions): {
-  entry: URL;
-  maxSteps: number;
-} {
+function discoveryEntry(options: DiscoveryOptions) {
   const entry = new URL(options.entryUrl);
   if (
     !["https:", "http:"].includes(entry.protocol) ||
