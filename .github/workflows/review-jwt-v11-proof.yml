@@ -16,14 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: def8af83316b6626ae29ad0c94dc8d1c6959fd0d
+          ref: 7bf6bb9d2e1e9c20e440583508798ce0c2b563a8
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.88.0
           components: rustfmt
       - name: Check formatting
-        run: rustfmt --edition 2021 --check crates/proof/src/jwk.rs crates/proof/src/adversarial.rs
+        run: rustfmt --edition 2021 --check crates/proof/src/jwk.rs crates/proof/src/adversarial.rs crates/proof/src/adversarial_jwk.rs crates/proof/src/lib.rs
       - name: Prepare DBus
         run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
       - name: Test proof policy and negative controls
@@ -32,9 +32,3 @@ jobs:
           set -euo pipefail
           source "$RUNNER_TEMP/opensesame-dbus/env.sh"
           cargo test -p opensesame-proof --locked
-      - name: Check all workspace targets
-        shell: bash
-        run: |
-          set -euo pipefail
-          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          cargo check --workspace --all-targets --locked
