@@ -56,7 +56,8 @@ export async function pbkdf2WithoutTimers(
   let complete = false;
   try {
     prf = hmac.create(sha256, password);
-    const salted = prf.clone();
+    const keyed = prf;
+    const salted = keyed.clone();
     try {
       salted.update(salt);
       let working = salted.clone();
@@ -72,7 +73,7 @@ export async function pbkdf2WithoutTimers(
           working.update(counter).digestInto(u);
           target.set(u.subarray(0, target.length));
           await mixRounds(iterations, () => {
-            working = prf._cloneInto(working);
+            working = keyed._cloneInto(working);
             working.update(u).digestInto(u);
             for (let index = 0; index < target.length; index += 1)
               target[index] ^= u[index];
