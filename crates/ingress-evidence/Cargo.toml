@@ -28,7 +28,7 @@ path = "src/lib.rs"
 [dependencies]
 opensesame-domain = { path = "../domain" }
 opensesame-transport-security = { path = "../transport-security" }
-sfv = "0.15.0"
+sfv = "0.16.0"
 x509-parser = "0.18.1"
 rustls-pki-types = { version = "1.15.1", features = ["std"] }
 rustls-webpki = { version = "0.103.13", default-features = false, features = ["aws-lc-rs", "std"] }
