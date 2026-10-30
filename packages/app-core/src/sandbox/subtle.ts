@@ -121,10 +121,7 @@ async function deriveBitsNow(
       setTimeout?: typeof setTimeout;
       scheduler?: { yield?: () => Promise<void> };
     } = globalThis;
-    if (
-      !isFunction(host.setTimeout) &&
-      !isFunction(host.scheduler?.yield)
-    ) {
+    if (!isFunction(host.setTimeout) && !isFunction(host.scheduler?.yield)) {
       return pbkdf2WithoutTimers(
         secret,
         bytes(params.salt),
