@@ -1,8 +1,8 @@
 import { runInNewContext } from "node:vm";
 import { overlapCast } from "@opensesame/os-domain";
 import { expect, it } from "vitest";
+import { resizableArrayBuffer } from "./__tests__/resizable-array-buffer.js";
 import { copyPrfBytes } from "./local-passkey-prf-bytes.js";
-import { resizableArrayBuffer } from "./resizable-array-buffer.test-support.js";
 
 it("copies exactly the real view without consulting spoofed metadata, slice or species", () => {
   const buffer = new ArrayBuffer(10);
