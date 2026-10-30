@@ -4,9 +4,10 @@ use base64::{
 };
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use opensesame_domain::{digest_json, DomainError, InvocationReceipt};
-use rand::rngs::OsRng;
+use rand::{rngs::OsRng, CryptoRng, RngCore};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use zeroize::Zeroizing;
 
 /// Decode a base64 (standard or URL-safe, padded or not) 32-byte value.
 fn decode_key_bytes(encoded: &str, what: &str) -> Result<[u8; 32], DomainError> {
@@ -125,8 +126,13 @@ impl ReceiptSigner {
     /// Ephemeral key. Receipts signed with it can only be verified by this
     /// process: use it for tests and dev, never against a persistent receipt store.
     pub fn generate() -> Self {
-        let mut seed = [0u8; 32];
-        rand::RngCore::fill_bytes(&mut OsRng, &mut seed);
+        Self::generate_with_rng(&mut OsRng)
+    }
+
+    fn generate_with_rng(rng: &mut (impl CryptoRng + RngCore)) -> Self {
+        let mut seed = Zeroizing::new([0u8; 32]);
+        rng.try_fill_bytes(&mut *seed)
+            .expect("system RNG unavailable");
         Self::from_signing_key(SigningKey::from_bytes(&seed))
     }
 
