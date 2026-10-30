@@ -66,7 +66,7 @@ jobs:
           grep -Eq 'test result: ok\. [1-9][0-9]* passed;' artifacts/sync-target-security/secret-config.log
       - name: Preserve test output
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: sync-target-security-results-${{ inputs.source_sha || github.sha }}-${{ github.run_attempt }}
           path: artifacts/sync-target-security/
