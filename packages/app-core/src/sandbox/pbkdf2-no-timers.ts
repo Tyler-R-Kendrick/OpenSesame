@@ -32,7 +32,6 @@ import { sha256 } from "@noble/hashes/sha2.js";
 
 const HASH_BYTES = 32;
 const MAX_BLOCKS = 0xffffffff;
-type HmacState = ReturnType<ReturnType<typeof hmac.create>["clone"]>;
 
 export async function pbkdf2WithoutTimers(
   password: Uint8Array,
@@ -53,43 +52,48 @@ export async function pbkdf2WithoutTimers(
   const counter = new Uint8Array(4);
   const view = new DataView(counter.buffer);
   const u = new Uint8Array(HASH_BYTES);
-  let prf: HmacState | undefined;
-  let salted: HmacState | undefined;
-  let working: HmacState | undefined;
+  let prf: ReturnType<typeof hmac.create> | undefined;
   let complete = false;
   try {
     prf = hmac.create(sha256, password);
-    salted = prf.clone();
-    salted.update(salt);
-    for (
-      let block = 1, offset = 0;
-      offset < length;
-      block += 1, offset += HASH_BYTES
-    ) {
-      const target = output.subarray(offset, offset + HASH_BYTES);
-      view.setUint32(0, block, false);
-      working = salted._cloneInto(working);
-      working.update(counter).digestInto(u);
-      target.set(u.subarray(0, target.length));
-      let lastYield = Date.now();
-      for (let round = 1; round < iterations; round += 1) {
-        working = prf._cloneInto(working);
-        working.update(u).digestInto(u);
-        for (let index = 0; index < target.length; index += 1)
-          target[index] ^= u[index];
-        const elapsed = Date.now() - lastYield;
-        if (elapsed >= 10 || elapsed < 0) {
-          await Promise.resolve();
-          lastYield = Date.now();
+    const salted = prf.clone();
+    try {
+      salted.update(salt);
+      let working = salted.clone();
+      try {
+        for (
+          let block = 1, offset = 0;
+          offset < length;
+          block += 1, offset += HASH_BYTES
+        ) {
+          const target = output.subarray(offset, offset + HASH_BYTES);
+          view.setUint32(0, block, false);
+          working = salted._cloneInto(working);
+          working.update(counter).digestInto(u);
+          target.set(u.subarray(0, target.length));
+          let lastYield = Date.now();
+          for (let round = 1; round < iterations; round += 1) {
+            working = prf._cloneInto(working);
+            working.update(u).digestInto(u);
+            for (let index = 0; index < target.length; index += 1)
+              target[index] ^= u[index];
+            const elapsed = Date.now() - lastYield;
+            if (elapsed >= 10 || elapsed < 0) {
+              await Promise.resolve();
+              lastYield = Date.now();
+            }
+          }
         }
+      } finally {
+        working.destroy();
       }
+    } finally {
+      salted.destroy();
     }
     complete = true;
     return output;
   } finally {
     prf?.destroy();
-    salted?.destroy();
-    working?.destroy();
     u.fill(0);
     counter.fill(0);
     if (!complete) output.fill(0);
