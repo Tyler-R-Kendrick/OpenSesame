@@ -1,5 +1,5 @@
-import { expand } from "@noble/hashes/hkdf";
-import { sha256 } from "@noble/hashes/sha2";
+import { expand } from "@noble/hashes/hkdf.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { argon2id } from "hash-wasm";
 import { z } from "zod";
 

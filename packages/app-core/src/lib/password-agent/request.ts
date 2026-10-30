@@ -1,5 +1,5 @@
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { z } from "zod";
 import { type Address, isPublicAddress } from "./request-address.js";
 export { isPublicAddress, type Address } from "./request-address.js";

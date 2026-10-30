@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { build } from "vite";
 import { afterAll, it as test } from "vitest";
 import { workerRealmSource } from "./lib/capability-graph.mjs";
@@ -20,7 +20,9 @@ const hash = await realpath(
 const cbor = await realpath(
   join(dirname(require.resolve("@levischuck/tiny-cbor")), "../esm/index.js"),
 );
-const { argon2dAsync } = require("@noble/hashes/argon2");
+const { argon2dAsync } = await import(
+  pathToFileURL(require.resolve("@noble/hashes/argon2.js")).href
+);
 const dir = await mkdtemp(join(tmpdir(), "opensesame-shared-crypto-"));
 afterAll(() => rm(dir, { recursive: true, force: true }));
 let sequence = 0;

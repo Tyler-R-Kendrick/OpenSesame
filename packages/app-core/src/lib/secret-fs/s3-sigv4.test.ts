@@ -1,5 +1,5 @@
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 import { EMPTY_PAYLOAD, signAws, signS3 } from "./s3-sigv4.js";
