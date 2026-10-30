@@ -1,0 +1,53 @@
+name: Review TypeScript 7 intrinsic byte view brand
+on:
+  push:
+    branches: [review/typescript-v7-byte-brand-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-byte-brand-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: accfbef1286446d3d6f878114ad02687433ff9ea
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 25f3312a0af7761822d8392d229f2c829b0e6aec
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Prove prior guard accepts a spoofed non-Uint8 view
+        run: |
+          set -euo pipefail
+          file=packages/os-domain/src/buffer-source.ts
+          trap 'git restore -- "$file"' EXIT
+          git show "HEAD^:$file" > "$file"
+          if pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/buffer-source.test.ts -t 'intrinsic Uint8Array brand' > /tmp/brand-original.log 2>&1; then cat /tmp/brand-original.log; exit 1; fi
+          grep -E 'checks the intrinsic Uint8Array brand' /tmp/brand-original.log
+          if pnpm --filter @opensesame/app-core exec vitest run src/lib/capabilities/trust/digest.test.ts -t 'non-Uint8 view' > /tmp/brand-trust-original.log 2>&1; then cat /tmp/brand-trust-original.log; exit 1; fi
+          grep -E 'refuses a non-Uint8 view' /tmp/brand-trust-original.log
+      - name: Check exact sources and report remaining diagnostics
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/os-domain/src/buffer-source.ts packages/os-domain/src/__tests__/buffer-source.test.ts packages/app-core/src/lib/capabilities/trust/digest.test.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/brand-pages.log 2>&1; then echo 'Pages typecheck passed'; else count=$(grep -cE 'error TS[0-9]+' /tmp/brand-pages.log || true); echo "Pages diagnostics remaining=$count; migration remains blocked."; fi
+      - name: Verify guard, wallet, peer and trust behavior
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/buffer-source.test.ts
+          pnpm --filter @opensesame/wallet-consent exec vitest run src/verify.test.ts
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/peer-trust/webcrypto.test.ts src/lib/peer-trust/peer-trust.test.ts src/lib/peer-trust/handshake.test.ts src/lib/capabilities/trust
+          pnpm quality:app-core
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 25f3312a0af7761822d8392d229f2c829b0e6aec
+          git diff --exit-code
