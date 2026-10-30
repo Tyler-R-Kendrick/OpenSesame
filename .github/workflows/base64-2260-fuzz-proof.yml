@@ -1,0 +1,51 @@
+name: Base64 fuzz uuid compatibility
+on:
+  push:
+    branches: [review/base64-2260-fuzz-uuid-2d37-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/base64-2260-fuzz-uuid-2d37-20261030' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 4cd1644b89bdfa683183e986c1c7726bb9f0c462
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+      - name: Verify immutable candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 4cd1644b89bdfa683183e986c1c7726bb9f0c462
+          test "$(git rev-parse HEAD^{tree})" = 9112fff58ce51b454ce3bf0c3a38d28402530bd4
+          test "$(git rev-parse HEAD^)" = 2d37a054c1f060d2e6d05084df8ecea17ddc82cb
+      - name: Install Linux native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config clang
+      - name: Reconcile fuzz uuid for Rust 1.88
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 update --manifest-path tests/fuzz/cargo/Cargo.toml -p uuid --precise 1.26.0
+          test "$(git diff --name-only)" = tests/fuzz/cargo/Cargo.lock
+          git diff --stat -- tests/fuzz/cargo/Cargo.lock
+          mkdir -p "$RUNNER_TEMP/base64-fuzz-lock"
+          cp tests/fuzz/cargo/Cargo.lock "$RUNNER_TEMP/base64-fuzz-lock/Cargo.lock"
+          (cd "$RUNNER_TEMP/base64-fuzz-lock" && sha256sum Cargo.lock > SHA256SUMS)
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: base64-2260-fuzz-lock
+          path: ${{ runner.temp }}/base64-fuzz-lock
+          if-no-files-found: error
+          retention-days: 7
+      - name: Check all fuzz targets with locked graph
+        run: cargo +1.88.0 check --locked --manifest-path tests/fuzz/cargo/Cargo.toml --bins
