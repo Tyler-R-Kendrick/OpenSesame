@@ -37,6 +37,8 @@ jobs:
           pages=$?
           printf 'quality:app-core=%s cli-build=%s pages-typecheck=%s\n' "$app_core" "$cli_build" "$pages"
           for name in app-core cli-build pages-typecheck; do printf '\n%s\n' "$name"; tail -25 "/tmp/opensesame-ts7-probe/$name.log"; done
+          printf "\nPages diagnostics by location:\n"
+          grep -E "error TS[0-9]+" /tmp/opensesame-ts7-probe/pages-typecheck.log || true
           test "$app_core" = 0 -a "$cli_build" = 0 -a "$pages" = 0
       - name: Preserve probe evidence
         if: always()
