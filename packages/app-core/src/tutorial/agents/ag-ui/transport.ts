@@ -227,10 +227,21 @@ async function* runAgUiTransport(
   loadClient: AgUiClientLoader,
   fetchImpl: AgUiFetch,
 ): AsyncGenerator<JsonValue> {
-  const client = await loadClient();
   if (request.signal.aborted) return;
-  const source = client.open(() => sendSupportRequest(request, fetchImpl));
-  yield* pump(source, request.signal);
+  const lifecycle = new AbortController();
+  const abort = (): void => lifecycle.abort(request.signal.reason);
+  request.signal.addEventListener("abort", abort, { once: true });
+  try {
+    const client = await loadClient();
+    if (lifecycle.signal.aborted) return;
+    const source = client.open(() =>
+      sendSupportRequest({ ...request, signal: lifecycle.signal }, fetchImpl),
+    );
+    yield* pump(source, lifecycle.signal);
+  } finally {
+    request.signal.removeEventListener("abort", abort);
+    lifecycle.abort();
+  }
 }
 
 /** The default transport: lazy `@ag-ui/client`, real `fetch`, no credentials. */
