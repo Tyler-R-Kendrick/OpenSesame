@@ -21,6 +21,21 @@ it("copies exactly the real view without consulting spoofed metadata, slice or s
     buffer: { value: unrelated },
     byteLength: { value: 0 },
     byteOffset: { value: 0 },
+    values: {
+      value: () => {
+        throw new Error("caller values used");
+      },
+    },
+    slice: {
+      value: () => {
+        throw new Error("caller slice used");
+      },
+    },
+    [Symbol.iterator]: {
+      value: () => {
+        throw new Error("caller iterator used");
+      },
+    },
   });
   const copied = copyPrfBytes(original);
   expect([...new Uint8Array(copied)]).toEqual([1, 2, 3, 4]);
