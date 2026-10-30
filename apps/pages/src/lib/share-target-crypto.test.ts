@@ -1,4 +1,5 @@
 /** @vitest-environment node */
+import { runInNewContext } from "node:vm";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   newShareTargetKey,
@@ -142,3 +143,68 @@ it("checks invalid encoded keys before input data", async () => {
     "invalid share entry",
   );
 });
+
+it("opens an exact cross-realm ciphertext offset view", async () => {
+  const key = newShareTargetKey();
+  const sealed = await sealShareTarget(key, new Uint8Array([1, 2]));
+  const foreign = runInNewContext("new Uint8Array(values).subarray(2, -2)", {
+    values: [9, 9, ...sealed, 9, 9],
+  });
+  expect(await openShareTarget(key, foreign)).toEqual(new Uint8Array([1, 2]));
+});
+
+it.each(["detach", "resize"])(
+  "refuses plaintext %s during key import before encryption",
+  async (kind) => {
+    const key = newShareTargetKey();
+    const buffer =
+      kind === "resize"
+        ? Reflect.construct(ArrayBuffer, [4, { maxByteLength: 8 }])
+        : new ArrayBuffer(4);
+    const plain = new Uint8Array(buffer, 0, 4);
+    plain.set([1, 2, 3, 4]);
+    const original = crypto.subtle.importKey.bind(crypto.subtle);
+    const encrypt = vi.spyOn(crypto.subtle, "encrypt");
+    vi.spyOn(crypto.subtle, "importKey").mockImplementationOnce(
+      async (...args) => {
+        const imported = await Reflect.apply(original, crypto.subtle, args);
+        if (kind === "resize")
+          Reflect.apply(Reflect.get(buffer, "resize"), buffer, [0]);
+        else structuredClone(buffer, { transfer: [buffer] });
+        return imported;
+      },
+    );
+    await expect(sealShareTarget(key, plain)).rejects.toThrow(TypeError);
+    expect(encrypt).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["detach", "resize"])(
+  "refuses ciphertext %s during key import before decryption",
+  async (kind) => {
+    const key = newShareTargetKey();
+    const sealed = await sealShareTarget(key, new Uint8Array([1, 2]));
+    const buffer =
+      kind === "resize"
+        ? Reflect.construct(ArrayBuffer, [
+            sealed.length,
+            { maxByteLength: sealed.length + 8 },
+          ])
+        : new ArrayBuffer(sealed.length);
+    const view = new Uint8Array(buffer, 0, sealed.length);
+    view.set(sealed);
+    const original = crypto.subtle.importKey.bind(crypto.subtle);
+    const decrypt = vi.spyOn(crypto.subtle, "decrypt");
+    vi.spyOn(crypto.subtle, "importKey").mockImplementationOnce(
+      async (...args) => {
+        const imported = await Reflect.apply(original, crypto.subtle, args);
+        if (kind === "resize")
+          Reflect.apply(Reflect.get(buffer, "resize"), buffer, [0]);
+        else structuredClone(buffer, { transfer: [buffer] });
+        return imported;
+      },
+    );
+    await expect(openShareTarget(key, view)).rejects.toThrow(TypeError);
+    expect(decrypt).not.toHaveBeenCalled();
+  },
+);
