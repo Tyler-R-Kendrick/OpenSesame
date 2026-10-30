@@ -17,7 +17,7 @@
     "@modelcontextprotocol/sdk": "1.32.0",
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
-    "@types/node": "22.15.29",
+    "@types/node": "26.6.5",
     "promptfoo": "0.125.1",
     "tsx": "4.23.15",
     "typescript": "5.8.3",

@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",
-    "@types/node": "22.15.29",
+    "@types/node": "26.6.5",
     "typescript": "5.8.3",
     "vitest": "4.1.12"
   },

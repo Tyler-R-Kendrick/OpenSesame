@@ -20,7 +20,7 @@
     "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "22.15.29",
+    "@types/node": "26.6.5",
     "fast-check": "4.10.2",
     "typescript": "5.8.3",
     "vitest": "4.1.12"

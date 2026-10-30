@@ -130,7 +130,7 @@
     "@tailscale/connect": "1.102.3-3-tb31d8a75a-g5e651e16f",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.8",
-    "@types/node": "22.15.29",
+    "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/ws": "8.18.2",

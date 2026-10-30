@@ -47,7 +47,7 @@
   "devDependencies": {
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
-    "@types/node": "22.15.29",
+    "@types/node": "26.6.5",
     "@types/ws": "8.18.2",
     "dts-bundle-generator": "9.5.1",
     "esbuild": "0.25.12",
