@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@opensesame/cua-password-reset": "workspace:*",
+    "@opensesame/observability": "workspace:*",
     "linkedom": "0.18.14",
     "tsx": "4.23.15",
     "ws": "8.22.0",
