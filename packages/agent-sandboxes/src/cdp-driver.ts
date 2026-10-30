@@ -113,8 +113,14 @@ export class CdpBrowserDriver implements BrowserDriver {
     private readonly options: CdpDriverOptions,
   ) {}
 
-  private boundaryReady: ((sessionId: string) => void) | undefined;
-  private readonly boundarySessions = new Map<string, boolean>();
+  private readonly attachedTargets = new Map<
+    string,
+    { sessionId: string; installed: boolean }
+  >();
+  private readonly attachWaiters = new Map<
+    string,
+    (sessionId: string) => void
+  >();
 
   /** Attach to a browser-level CDP endpoint and open a fresh page. */
   static async connect(
@@ -130,9 +136,6 @@ export class CdpBrowserDriver implements BrowserDriver {
       waitForDebuggerOnStart: true,
       flatten: true,
     });
-    const attached = new Promise<string>((resolve) => {
-      driver.boundaryReady = resolve;
-    });
     const context = await connection.call<{ browserContextId: string }>(
       "Target.createBrowserContext",
       { disposeOnDetach: true },
@@ -144,7 +147,7 @@ export class CdpBrowserDriver implements BrowserDriver {
     );
     driver.targetId = created.targetId;
     driver.sessionId = await Promise.race([
-      attached,
+      driver.waitForAttachedTarget(created.targetId),
       new Promise<never>((_resolve, reject) => {
         setTimeout(
           () => reject(new Error("cdp driver: page target did not attach")),
@@ -152,7 +155,7 @@ export class CdpBrowserDriver implements BrowserDriver {
         );
       }),
     ]);
-    if (!driver.boundarySessions.get(driver.sessionId))
+    if (!driver.attachedTargets.get(created.targetId)?.installed)
       throw new Error("cdp driver: network boundary could not be installed");
     await connection.call("Page.enable", {}, driver.sessionId);
     await connection.call("Runtime.enable", {}, driver.sessionId);
@@ -169,19 +172,18 @@ export class CdpBrowserDriver implements BrowserDriver {
   ): Promise<void> {
     const parsed = attachedToTargetSchema.safeParse(params);
     if (!parsed.success) return;
-    const { sessionId } = parsed.data;
+    const { sessionId, targetInfo } = parsed.data;
     const installed = await installCdpSessionBoundary(
       this.connection,
       sessionId,
       this.options.allowedDomains,
     );
-    this.boundarySessions.set(sessionId, installed);
+    this.attachedTargets.set(targetInfo.targetId, { sessionId, installed });
     if (installed)
       await this.connection
         .call("Runtime.runIfWaitingForDebugger", {}, sessionId)
         .catch(() => {});
-    if (parsed.data.targetInfo.targetId === this.targetId || !this.sessionId)
-      this.boundaryReady?.(sessionId);
+    this.attachWaiters.get(targetInfo.targetId)?.(sessionId);
   }
 
   private assertAllowed(url: URL): void {
@@ -220,6 +222,15 @@ export class CdpBrowserDriver implements BrowserDriver {
     if (this.approvedOrigin && url.origin !== this.approvedOrigin)
       throw new Error("cdp driver: document changed since the snapshot");
     return href;
+  }
+
+  /** Resolve with the session for exactly this target, whenever it attaches. */
+  private waitForAttachedTarget(targetId: string): Promise<string> {
+    const existing = this.attachedTargets.get(targetId);
+    if (existing) return Promise.resolve(existing.sessionId);
+    return new Promise((resolve) => {
+      this.attachWaiters.set(targetId, resolve);
+    });
   }
 
   private async evaluate<T>(

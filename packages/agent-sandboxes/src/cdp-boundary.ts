@@ -51,37 +51,51 @@ export function isAllowedCdpRequest(
 export function cdpLockdownScript(allowedDomains: readonly string[]): string {
   return `(() => {
     const allowed = new Set(${JSON.stringify([...allowedDomains])});
-    const check = (raw) => {
+    // Validate once and hand the native constructor only the
+    // resulting string, so a stateful toString() cannot return an
+    // approved URL for the check and another for construction.
+    const validated = (raw) => {
       let url;
       try { url = new URL(String(raw), globalThis.location?.href ?? "https://invalid/"); }
       catch { throw new Error("opensesame: destination blocked"); }
       if (!allowed.has(url.hostname)) throw new Error("opensesame: destination blocked");
+      return url.href;
+    };
+    const seal = (name, value) => {
+      try { Object.defineProperty(globalThis, name, { value, writable: false, configurable: false }); }
+      catch { globalThis[name] = value; }
     };
     if (globalThis.WebSocket) {
       const Native = globalThis.WebSocket;
       const Patched = function (url, protocols) {
-        check(url);
-        return protocols === undefined ? new Native(url) : new Native(url, protocols);
+        const target = validated(url);
+        const instance = protocols === undefined ? new Native(target) : new Native(target, protocols);
+        // Instances must not reach the native constructor through
+        // instance.constructor / WebSocket.prototype.constructor.
+        Object.setPrototypeOf(instance, Patched.prototype);
+        return instance;
       };
-      Patched.prototype = Native.prototype;
+      Patched.prototype = Object.create(Native.prototype);
+      Object.defineProperty(Patched.prototype, "constructor", { value: Patched, writable: false, configurable: false });
       Patched.CONNECTING = 0; Patched.OPEN = 1; Patched.CLOSING = 2; Patched.CLOSED = 3;
-      globalThis.WebSocket = Patched;
+      seal("WebSocket", Patched);
     }
     if (globalThis.EventSource) {
       const NativeES = globalThis.EventSource;
-      globalThis.EventSource = function (url, config) { check(url); return new NativeES(url, config); };
+      const PatchedES = function (url, config) {
+        const instance = new NativeES(validated(url), config);
+        Object.setPrototypeOf(instance, PatchedES.prototype);
+        return instance;
+      };
+      PatchedES.prototype = Object.create(NativeES.prototype);
+      Object.defineProperty(PatchedES.prototype, "constructor", { value: PatchedES, writable: false, configurable: false });
+      seal("EventSource", PatchedES);
     }
     if (globalThis.RTCPeerConnection) {
-      globalThis.RTCPeerConnection = function () { throw new Error("opensesame: WebRTC blocked"); };
+      seal("RTCPeerConnection", function () { throw new Error("opensesame: WebRTC blocked"); });
     }
   })();`;
 }
-
-/**
- * Install the request boundary on one target session. Returns
- * false when interception is unavailable there; the caller then
- * leaves that target paused instead of letting it execute.
- */
 export async function installCdpSessionBoundary(
   connection: CdpConnection,
   sessionId: string,
