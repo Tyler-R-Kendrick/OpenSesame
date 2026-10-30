@@ -42,7 +42,7 @@
     "@opensesame/sdk-cli": "workspace:*",
     "@opensesame/vault-core": "workspace:*",
     "agent-browser": "0.39.4",
-    "zod": "4.6.6"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@opensesame/capability-registry": "workspace:*",
