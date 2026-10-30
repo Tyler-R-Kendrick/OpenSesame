@@ -185,11 +185,7 @@ async function transportKey(bearer: PortableBearer): Promise<CryptoKey> {
   );
 }
 
-function associatedData(
-  claimId: string,
-  tokenDigest: string,
-  nonce: string,
-) {
+function associatedData(claimId: string, tokenDigest: string, nonce: string) {
   return encoder.encode(
     JSON.stringify([PACKET_PREFIX, claimId, tokenDigest, nonce]),
   );
