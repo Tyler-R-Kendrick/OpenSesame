@@ -65,12 +65,30 @@ function hexToBytes(hex: string) {
   return out;
 }
 
+/** WebCrypto BufferSource rejects shared backing stores. A brand check works
+ * across realms without copying signature or enrolled-key bytes. */
+function isUnsharedBytes(bytes: Uint8Array): bytes is Uint8Array<ArrayBuffer> {
+  const getter = Object.getOwnPropertyDescriptor(
+    ArrayBuffer.prototype,
+    "byteLength",
+  )?.get;
+  if (!getter) return false;
+  try {
+    getter.call(bytes.buffer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function verifyEs256(
   digestHex: string,
   signature: Uint8Array,
   publicKeySpki: Uint8Array,
 ): Promise<boolean> {
   if (!/^[0-9a-f]{64}$/.test(digestHex)) return false;
+  if (!isUnsharedBytes(signature) || !isUnsharedBytes(publicKeySpki))
+    return false;
   try {
     const key = await crypto.subtle.importKey(
       "spki",

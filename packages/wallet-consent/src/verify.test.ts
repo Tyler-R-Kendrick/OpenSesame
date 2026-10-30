@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { buildPaymentApprovalDigest } from "./digest.js";
 import {
@@ -145,6 +146,64 @@ describe("verifyDigestBoundApproval", () => {
         proof: bare,
       }),
     ).toEqual({ ok: true, verifiedMechanism: "es256" });
+  });
+
+  it("verifies views with nonzero offsets and cross-realm backing buffers", async () => {
+    const proof = signedProof(DIGEST);
+    const signature = new Uint8Array(proof.verifiedBytes.length + 4);
+    signature.set(proof.verifiedBytes, 2);
+    const key = runInNewContext("Uint8Array.from(bytes)", {
+      bytes: [...ENROLLED.publicKeySpki],
+    });
+    expect(
+      await verifyDigestBoundApproval({
+        expectedDigest: DIGEST,
+        trustedKeys: [key],
+        proof: {
+          boundDigest: DIGEST,
+          verifiedBytes: signature.subarray(2, -2),
+        },
+      }),
+    ).toEqual({ ok: true, verifiedMechanism: "es256" });
+  });
+
+  it("refuses shared signature and enrolled-key backing buffers", async () => {
+    const proof = signedProof(DIGEST);
+    const signature = new Uint8Array(
+      new SharedArrayBuffer(proof.verifiedBytes.length),
+    );
+    signature.set(proof.verifiedBytes);
+    expect(
+      await verifyDigestBoundApproval({
+        expectedDigest: DIGEST,
+        trustedKeys: TRUSTED,
+        proof: { ...proof, verifiedBytes: signature },
+      }),
+    ).toEqual({ ok: false, reason: "signature_invalid" });
+    const key = new Uint8Array(
+      new SharedArrayBuffer(ENROLLED.publicKeySpki.length),
+    );
+    key.set(ENROLLED.publicKeySpki);
+    expect(
+      await verifyDigestBoundApproval({
+        expectedDigest: DIGEST,
+        trustedKeys: [key],
+        proof,
+      }),
+    ).toEqual({ ok: false, reason: "signature_invalid" });
+  });
+
+  it("refuses a detached signature without throwing", async () => {
+    const proof = signedProof(DIGEST);
+    const signature = new Uint8Array(proof.verifiedBytes);
+    structuredClone(signature.buffer, { transfer: [signature.buffer] });
+    expect(
+      await verifyDigestBoundApproval({
+        expectedDigest: DIGEST,
+        trustedKeys: TRUSTED,
+        proof: { ...proof, verifiedBytes: signature },
+      }),
+    ).toEqual({ ok: false, reason: "missing_verified_bytes" });
   });
 
   it("rejects a bare digest match with no bytes", async () => {
