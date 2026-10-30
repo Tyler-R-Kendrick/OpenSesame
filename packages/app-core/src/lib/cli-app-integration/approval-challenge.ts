@@ -9,7 +9,9 @@ export const APPROVAL_CHALLENGE_LABEL = "opensesame-cli-app-approval.v1";
 export const APPROVAL_CHALLENGE_V3_LABEL = "opensesame-cli-app-approval.v3";
 
 async function sha256(data: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
+  return new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new Uint8Array(data)),
+  );
 }
 
 export async function approvalChallengeDigest(
