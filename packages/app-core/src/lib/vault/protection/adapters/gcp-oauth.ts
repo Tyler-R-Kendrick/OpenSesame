@@ -31,7 +31,7 @@ function textBase64Url(text: string): string {
   return base64Url(new TextEncoder().encode(text));
 }
 
-function pkcs8FromPem(pem: string): Uint8Array {
+function pkcs8FromPem(pem: string) {
   // One pattern for both armor lines, so no literal armored block is spelled.
   const body = pem
     .replace(/-----(?:BEGIN|END) PRIVATE KEY-----/g, "")

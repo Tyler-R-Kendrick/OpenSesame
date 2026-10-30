@@ -27,7 +27,7 @@ export type RootCapsulePlaintext = {
   rootKeyB64: string;
 };
 
-function contextAad(context: ProtectionContext): Uint8Array {
+function contextAad(context: ProtectionContext) {
   return canonicalizeToBytes({
     domain: DOMAIN_CAPSULE,
     context,

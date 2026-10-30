@@ -49,7 +49,7 @@ function canonicalizeValue(value: JsonValue): JsonValue {
 }
 
 /** UTF-8 bytes of sorted-key JSON without insignificant whitespace. */
-export function canonicalizeToBytes(value: JsonValue): Uint8Array {
+export function canonicalizeToBytes(value: JsonValue) {
   return new TextEncoder().encode(JSON.stringify(canonicalizeValue(value)));
 }
 
@@ -61,7 +61,7 @@ export function canonicalizeToString(value: JsonValue): string {
 export function domainCanonicalBytes(
   domain: typeof DOMAIN_MANIFEST | typeof DOMAIN_CAPSULE,
   value: JsonValue,
-): Uint8Array {
+) {
   const body = canonicalizeToBytes(value);
   const prefix = new TextEncoder().encode(`${domain}\0`);
   const out = new Uint8Array(prefix.byteLength + body.byteLength);
