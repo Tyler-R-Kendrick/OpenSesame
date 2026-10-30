@@ -1,0 +1,59 @@
+name: Ed25519 workspace and fuzz compatibility
+on:
+  push:
+    branches: [review/ed25519-2258-compat-f8e3-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/ed25519-2258-compat-f8e3-20261030' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [workspace, fuzz]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: f8e3b5349849fb70fff92cfa604af35d015eb4cc
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          components: rustfmt
+      - name: Verify immutable candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = f8e3b5349849fb70fff92cfa604af35d015eb4cc
+          test "$(git rev-parse HEAD^{tree})" = cd1a5b6bfd2c9d9330ac329a402c33e85696b9d8
+          test "$(git rev-parse HEAD^)" = 7c0210080db940621aa0ef7cfbaaba9d3fe300dd
+      - name: Install Linux native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config clang
+      - name: Check all workspace targets with locked graph
+        if: matrix.suite == 'workspace'
+        run: cargo +1.88.0 check --locked --workspace --all-targets
+      - name: Test Ed25519 signing and verification consumers
+        if: matrix.suite == 'workspace'
+        run: cargo +1.88.0 test --locked -p opensesame-audit -p opensesame-proof -p opensesame-human-vault -p opensesame-rotation-web -p opensesame-quorum-recovery -p opensesame-pki-core --lib
+      - name: Check fuzz targets with their locked graph
+        if: matrix.suite == 'fuzz'
+        run: cargo +1.88.0 check --locked --manifest-path tests/fuzz/cargo/Cargo.toml --bins
+      - name: Check formatting of changed Rust sources
+        if: matrix.suite == 'workspace'
+        run: rustfmt +1.88.0 --edition 2021 --check crates/audit/src/lib.rs crates/audit/src/tests.rs crates/proof/src/http_message_signature.rs crates/proof/src/http_message_signature/tests.rs crates/pki-core/src/signer.rs crates/pki-core/src/signer/tests.rs
+      - name: Check source remains unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = cd1a5b6bfd2c9d9330ac329a402c33e85696b9d8
+          git diff --exit-code
+          git diff --cached --exit-code
