@@ -27,7 +27,7 @@ use std::str::FromStr;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine as _;
 use cbc::cipher::block_padding::Pkcs7;
-use cbc::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+use cbc::cipher::{BlockModeDecrypt, BlockModeEncrypt, KeyIvInit};
 use hmac::{Hmac, Mac};
 use secrecy::{ExposeSecret, SecretBox};
 use sha2::{Digest, Sha256};
@@ -277,7 +277,7 @@ impl SymmetricKey {
         let cipher = Aes256CbcDec::new_from_slices(self.enc.expose_secret().as_slice(), &value.iv)
             .map_err(|_| Error::InvalidKeyLength(KEY_LEN))?;
         let plaintext = cipher
-            .decrypt_padded_vec_mut::<Pkcs7>(&value.data)
+            .decrypt_padded_vec::<Pkcs7>(&value.data)
             .map_err(|_| Error::Padding)?;
         Ok(Zeroizing::new(plaintext))
     }
@@ -293,7 +293,7 @@ impl SymmetricKey {
     pub fn encrypt_with_iv(&self, plaintext: &[u8], iv: [u8; AES_BLOCK]) -> Result<EncString> {
         let cipher = Aes256CbcEnc::new_from_slices(self.enc.expose_secret().as_slice(), &iv)
             .map_err(|_| Error::InvalidKeyLength(KEY_LEN))?;
-        let data = cipher.encrypt_padded_vec_mut::<Pkcs7>(plaintext);
+        let data = cipher.encrypt_padded_vec::<Pkcs7>(plaintext);
         match self.mac.as_ref() {
             Some(mac_key) => {
                 let mut hmac = <HmacSha256 as Mac>::new_from_slice(mac_key.expose_secret())
