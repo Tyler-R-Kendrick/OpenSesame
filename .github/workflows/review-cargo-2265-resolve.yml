@@ -1,39 +1,30 @@
-name: Resolve Rust 1.88-compatible update
+name: Rust 1.88 workspace update proof
 on:
   push:
     branches: [review/cargo-2265-resolve-proof-20261030]
 permissions:
   contents: read
 jobs:
-  resolve:
+  rust:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 45
+    env:
+      CARGO_INCREMENTAL: '0'
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: deabb42e0d69f408f4c39de663e0da1b59108b0f
+          ref: de95d1a6c2b665512813d552b109adc0f6c142c8
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.88.0
-      - name: Reconcile exact agent contract and Rust compatibility
+      - name: Prepare DBus and check all workspace targets with the locked graph
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          for filename, count in [('crates/agent-hooks/Cargo.toml', 1), ('crates/rotation-web/Cargo.toml', 2)]:
-              p = Path(filename)
-              s = p.read_text()
-              assert s.count('=0.1.0-beta.3') == count
-              p.write_text(s.replace('=0.1.0-beta.3', '=0.1.0-alpha.5'))
-          p = Path('Cargo.toml')
-          s = p.read_text()
-          old = 'uuid = { version = "1.17.0", features = ["serde", "v4", "v7", "js"] }'
-          new = '# uuid 1.27 and later require Rust 1.89; retain the workspace MSRV.\nuuid = { version = ">=1.17.0, <1.27.0", features = ["serde", "v4", "v7", "js"] }'
-          assert s.count(old) == 1
-          p.write_text(s.replace(old, new))
-          PY
-          cargo update -p agent-hooks-sdk --precise 0.1.0-alpha.5
-          cargo update -p uuid --precise 1.26.0
-          git diff --no-ext-diff -- Cargo.toml crates/agent-hooks/Cargo.toml crates/rotation-web/Cargo.toml Cargo.lock
+          bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          cargo check --workspace --all-targets --locked
