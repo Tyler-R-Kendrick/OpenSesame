@@ -46,9 +46,12 @@ jobs:
           set -euo pipefail
           dts_entry="$(cd packages/cli && node -p 'require.resolve("dts-bundle-generator")')"
           dts_modules="$(dirname "$(dirname "$(dirname "$dts_entry")")")"
-          test ! -e "$dts_modules/typescript"
+          test -L "$dts_modules/typescript"
+          original_target="$(readlink "$dts_modules/typescript")"
+          rm "$dts_modules/typescript"
           ln -s "$RUNNER_TEMP/ts6-api/node_modules/typescript" "$dts_modules/typescript"
-          trap 'rm -f "$dts_modules/typescript"' EXIT
+          cleanup() { rm -f "$dts_modules/typescript"; ln -s "$original_target" "$dts_modules/typescript"; }
+          trap cleanup EXIT
           (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; if (typeof bundleDeclarations !== "function") process.exit(1); console.log("declaration generator loads using TypeScript 6 API")')
           pnpm --filter @opensesame/cli build
       - name: Verify source remains unchanged
