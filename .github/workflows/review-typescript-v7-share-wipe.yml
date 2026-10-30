@@ -1,0 +1,66 @@
+name: Review TypeScript 7 share-target crypto snapshots
+on:
+  push:
+    branches: [review/typescript-v7-share-wipe-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-share-wipe-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 994e7753fe720a0a5c82935887079dc1f4464d42
+          fetch-depth: 3
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = dd51dd0d76e6c724d785b007473d7a3d8c9ea93b
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Record original compiler errors
+        run: |
+          set -euo pipefail
+          files=(apps/pages/src/lib/share-target.ts)
+          trap 'git restore -- "${files[@]}"' EXIT
+          for f in "${files[@]}"; do git show "HEAD^^:$f" > "$f"; done
+          if pnpm --filter @opensesame/pages typecheck > /tmp/duress-original.log 2>&1; then exit 1; fi
+          grep -E 'src/lib/share-target.ts.*error TS[0-9]+' /tmp/duress-original.log
+      - name: Prove mutable share bytes fail against the prior implementation
+        run: |
+          set -euo pipefail
+          file=apps/pages/src/lib/share-target.ts
+          trap 'git restore -- "$file"' EXIT
+          git show "HEAD^^:$file" > "$file"
+          if pnpm --filter @opensesame/pages exec vitest run src/lib/share-target-crypto.test.ts > /tmp/share-crypto-original.log 2>&1; then cat /tmp/share-crypto-original.log; exit 1; fi
+          cat /tmp/share-crypto-original.log
+          grep -Eq 'FAIL.*seals an exact snapshot when the caller mutates' /tmp/share-crypto-original.log
+          grep -Eq 'FAIL.*opens an exact snapshot when ciphertext changes' /tmp/share-crypto-original.log
+      - name: Check exact TypeScript results
+        run: |
+          set -euo pipefail
+          pnpm exec biome check apps/pages/src/lib/share-target.ts apps/pages/src/lib/share-target-crypto.test.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/duress-fixed.log 2>&1; then
+            echo 'Pages typecheck passed.'
+          else
+            before=$(grep -cE 'error TS[0-9]+' /tmp/duress-original.log || true)
+            after=$(grep -cE 'error TS[0-9]+' /tmp/duress-fixed.log || true)
+            echo "Pages diagnostics before=$before after=$after; remaining errors block complete migration."
+            grep -E 'error TS[0-9]+' /tmp/duress-fixed.log || true
+            test "$after" -lt "$before"
+          fi
+      - name: Verify security and byte round trips
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/pages exec vitest run src/lib/share-target-crypto.test.ts src/lib/share-target-intake.test.ts src/sw/share-target.test.ts src/sections/vault/DropCeremony.share.test.tsx
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = dd51dd0d76e6c724d785b007473d7a3d8c9ea93b
+          git diff --exit-code
