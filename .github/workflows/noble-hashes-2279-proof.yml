@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: e16f61d7a2f9f0d5f4d4eedd64264b720673fd17
+          ref: 511c9278391f22d811a8e260675a66c22e54ec5e
           persist-credentials: false
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
@@ -24,8 +24,8 @@ jobs:
           node-version: 24
       - name: Verify exact source
         run: |
-          test "$(git rev-parse HEAD)" = e16f61d7a2f9f0d5f4d4eedd64264b720673fd17
-          test "$(git rev-parse HEAD^{tree})" = 5fee20173c45b7bd58be64a99bba45a92271fe6e
+          test "$(git rev-parse HEAD)" = 511c9278391f22d811a8e260675a66c22e54ec5e
+          test "$(git rev-parse HEAD^{tree})" = e6647636aefc326dbfc35cc101a7d24aa10be326
       - name: Install frozen graph
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Lint changed crypto tests
