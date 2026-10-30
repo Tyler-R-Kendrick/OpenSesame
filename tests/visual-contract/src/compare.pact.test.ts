@@ -13,6 +13,17 @@ function solidPng(width: number, height: number, fill: number): Buffer {
   return PNG.sync.write(img);
 }
 
+function solidRgba(red: number, green: number, blue: number): Buffer {
+  const image = new PNG({ width: 8, height: 8 });
+  for (let i = 0; i < image.data.length; i += 4) {
+    image.data[i] = red;
+    image.data[i + 1] = green;
+    image.data[i + 2] = blue;
+    image.data[i + 3] = 255;
+  }
+  return PNG.sync.write(image);
+}
+
 describe("PACT — visual-contract compare", () => {
   it("property: identical buffers match inside the budget", () => {
     const png = solidPng(8, 8, 32);
@@ -20,6 +31,30 @@ describe("PACT — visual-contract compare", () => {
     expect(result.matched).toBe(true);
     expect(result.diffPixelCount).toBe(0);
     expect(result.diffRatio).toBe(0);
+  });
+
+  it("retains v7 detection when v8 considers a color shift below threshold", () => {
+    const result = comparePngBuffers(
+      solidRgba(118, 30, 44),
+      solidRgba(112, 0, 6),
+    );
+    expect(result.matched).toBe(false);
+    expect(result.diffPixelCount).toBe(64);
+  });
+
+  it("detects a dark color shift that v8 treats as significant", () => {
+    const result = comparePngBuffers(solidRgba(0, 0, 0), solidRgba(25, 25, 25));
+    expect(result.matched).toBe(false);
+    expect(result.diffPixelCount).toBe(64);
+  });
+
+  it("allows a small color shift below both thresholds", () => {
+    const result = comparePngBuffers(
+      solidRgba(128, 128, 128),
+      solidRgba(135, 135, 135),
+    );
+    expect(result.matched).toBe(true);
+    expect(result.diffPixelCount).toBe(0);
   });
 
   it("adversarial: dimension mismatch fails closed without claiming a pixel ratio", () => {
