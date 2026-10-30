@@ -53,6 +53,8 @@ jobs:
           cleanup() { rm -f "$dts_modules/typescript"; ln -s "$original_target" "$dts_modules/typescript"; }
           trap cleanup EXIT
           (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; if (typeof bundleDeclarations !== "function") process.exit(1); console.log("declaration generator loads using TypeScript 6 API")')
+          mkdir -p packages/cli/dist
+          (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; await bundleDeclarations(process.cwd()); console.log("actual CLI declaration bundle succeeded with TS6 API")')
           pnpm --filter @opensesame/cli build
       - name: Verify source remains unchanged
         if: always()
