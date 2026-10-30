@@ -169,7 +169,7 @@
       "promptfoo>ai": "6.0.237",
       "promptfoo>@huggingface/transformers": "-",
       "@xmldom/xmldom": "0.8.15",
-      "ws": "8.21.3",
+      "ws": "8.22.0",
       "sharp": "0.35.5",
       "hono": "4.13.14",
       "follow-redirects": "1.16.1",
