@@ -135,7 +135,7 @@ pub fn assert_proof_key_strength(jwk: &Jwk) -> Result<(), ProofError> {
             }
             Ok(())
         }
-        AlgorithmParameters::OctetKey(_) => Err(ProofError::UnsupportedAlgorithm(
+        _ => Err(ProofError::UnsupportedAlgorithm(
             "proof key must be EC (P-256), OKP (Ed25519) or RSA".into(),
         )),
     }
@@ -157,6 +157,11 @@ pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
                 EllipticCurve::P256 => "P-256",
                 EllipticCurve::P384 => "P-384",
                 EllipticCurve::P521 => "P-521",
+                _ => {
+                    return Err(ProofError::UnsupportedAlgorithm(
+                        "unsupported JWK curve for thumbprint".into(),
+                    ));
+                }
             };
             serde_json::json!({
                 "crv": crv,
@@ -171,7 +176,7 @@ pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
                 "n": params.n,
             })
         }
-        AlgorithmParameters::EllipticCurve(_) | AlgorithmParameters::OctetKey(_) => {
+        _ => {
             return Err(ProofError::InvalidProof(
                 "unsupported JWK for thumbprint".into(),
             ));
@@ -371,7 +376,7 @@ pub fn sign_dpop_proof(
         AlgorithmParameters::EllipticCurve(_) => Algorithm::ES256,
         AlgorithmParameters::OctetKeyPair(_) => Algorithm::EdDSA,
         AlgorithmParameters::RSA(_) => Algorithm::RS256,
-        AlgorithmParameters::OctetKey(_) => {
+        _ => {
             return Err(ProofError::UnsupportedAlgorithm(
                 "unsupported signing key".into(),
             ))
