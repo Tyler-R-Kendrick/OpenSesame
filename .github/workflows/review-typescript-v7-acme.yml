@@ -1,0 +1,59 @@
+name: Review TypeScript 7 CSR byte ownership
+on:
+  push:
+    branches: [review/typescript-v7-acme-hosted-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-acme-hosted-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 0b705d17bbdd6163e81ab224210e883073be7c8a
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 91ba3eb97b043be077921162f0adca558255cd80
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Confirm original compiler diagnostic
+        run: |
+          set -euo pipefail
+          trap 'git restore -- packages/app-core/src/lib/native-acme-csr.ts' EXIT
+          git show HEAD^:packages/app-core/src/lib/native-acme-csr.ts > packages/app-core/src/lib/native-acme-csr.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/acme-original.log 2>&1; then
+            echo 'Original Pages typecheck unexpectedly passed' >&2
+            exit 1
+          fi
+          grep -E 'native-acme-csr.ts.*error TS[0-9]+' /tmp/acme-original.log
+      - name: Confirm owned result removes that diagnostic
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/native-acme-csr.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/acme-fixed.log 2>&1; then
+            echo 'Pages typecheck passed; all other diagnostics also resolved.'
+          else
+            echo "Remaining Pages diagnostics: $(grep -cE 'error TS[0-9]+' /tmp/acme-fixed.log || true)"
+            if grep -E 'native-acme-csr.ts.*error TS[0-9]+' /tmp/acme-fixed.log; then
+              echo 'CSR diagnostic remains' >&2
+              exit 1
+            fi
+            grep -qE 'error TS[0-9]+' /tmp/acme-fixed.log
+          fi
+      - name: Verify CSR signatures and ACME behavior
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/native-acme-csr.test.ts src/lib/native-acme-order.test.ts src/lib/native-acme-orders.test.ts src/lib/native-acme-protocol.test.ts src/lib/native-acme.test.ts
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 91ba3eb97b043be077921162f0adca558255cd80
+          git diff --exit-code
