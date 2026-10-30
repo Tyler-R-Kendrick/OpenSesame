@@ -119,14 +119,12 @@ export class CloudflareBrowserRunClient {
   async createSession(
     allowedDomains: readonly string[],
   ): Promise<CloudflareSession> {
-    if (
-      !Array.isArray(allowedDomains) ||
-      allowedDomains.length === 0 ||
-      allowedDomains.length > 50 ||
-      allowedDomains.some(
-        (domain) => typeof domain !== "string" || !hostname.test(domain),
-      )
-    )
+    const parsedDomains = z
+      .array(z.string().regex(hostname))
+      .min(1)
+      .max(50)
+      .safeParse(allowedDomains);
+    if (!parsedDomains.success)
       throw new Error("cloudflare: invalid guardrail hostnames");
     const endpoint = new URL(`${this.baseUrl}/devtools/browser`);
     if (this.keepAliveMs !== undefined)
@@ -137,7 +135,9 @@ export class CloudflareBrowserRunClient {
         method: "POST",
         redirect: "error",
         headers: this.headers(),
-        body: JSON.stringify({ guardrails: { allowedDomains } }),
+        body: JSON.stringify({
+          guardrails: { allowedDomains: parsedDomains.data },
+        }),
         signal: AbortSignal.timeout(30_000),
       });
     } catch {
