@@ -36,7 +36,7 @@ path = "src/lib.rs"
 [dependencies]
 rcgen = { version = "0.13.2", default-features = false, features = ["crypto", "aws_lc_rs", "x509-parser", "pem", "zeroize"] }
 x509-parser = { version = "0.16.0", features = ["verify"] }
-x509-cert = "0.2.5"
+x509-cert = "0.3.0"
 der = { version = "0.7.10", features = ["oid", "derive", "alloc"] }
 spki = "0.7.3"
 pkcs8 = { version = "0.11.0", features = ["alloc", "pem"] }
