@@ -1,4 +1,4 @@
-name: Probe TypeScript 6 API bridge
+name: Probe TypeScript 5.8 API bridge
 on:
   push:
     branches: [review/typescript-v7-api-bridge-20261030]
@@ -23,11 +23,11 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = a488d3d19548b040c68380232d0c11d8e30a9ff3
           pnpm install --frozen-lockfile --ignore-scripts
-          npm install --prefix "$RUNNER_TEMP/ts6-api" --no-audit --no-fund --ignore-scripts typescript@6.0.3
+          npm install --prefix "$RUNNER_TEMP/ts58-api" --no-audit --no-fund --ignore-scripts typescript@5.8.3
       - name: Probe compiler API compatibility and portability gate
         run: |
           set -euo pipefail
-          node -e 'const ts=require(process.env.RUNNER_TEMP+"/ts6-api/node_modules/typescript"); for(const n of ["version","createProgram","createCompilerHost","findConfigFile","isTypeNode","sys"]) console.log(n,typeof ts[n],n==="version"?ts[n]:"")'
+          node -e 'const ts=require(process.env.RUNNER_TEMP+"/ts58-api/node_modules/typescript"); for(const n of ["version","createProgram","createCompilerHost","findConfigFile","isTypeNode","sys"]) console.log(n,typeof ts[n],n==="version"?ts[n]:"")'
           node --input-type=module <<'JS'
           import { readFileSync, writeFileSync } from 'node:fs';
           import { pathToFileURL } from 'node:url';
@@ -35,12 +35,12 @@ jobs:
           const old = 'import ts from "typescript";';
           const text = readFileSync(path, 'utf8');
           if (text.split(old).length !== 2) throw new Error('Unexpected portability source');
-          const location = pathToFileURL(`${process.env.RUNNER_TEMP}/ts6-api/node_modules/typescript/lib/typescript.js`).href;
+          const location = pathToFileURL(`${process.env.RUNNER_TEMP}/ts58-api/node_modules/typescript/lib/typescript.js`).href;
           writeFileSync(path, text.replace(old, `import ts from "${location}";`));
           JS
           trap 'git restore -- scripts/lib/app-core-portability.mjs' EXIT
           pnpm quality:app-core
-      - name: Probe declaration generator with TypeScript 6 API
+      - name: Probe declaration generator with TypeScript 5.8 API
         if: always()
         run: |
           set -euo pipefail
@@ -49,12 +49,12 @@ jobs:
           test -L "$dts_modules/typescript"
           original_target="$(readlink "$dts_modules/typescript")"
           rm "$dts_modules/typescript"
-          ln -s "$RUNNER_TEMP/ts6-api/node_modules/typescript" "$dts_modules/typescript"
+          ln -s "$RUNNER_TEMP/ts58-api/node_modules/typescript" "$dts_modules/typescript"
           cleanup() { rm -f "$dts_modules/typescript"; ln -s "$original_target" "$dts_modules/typescript"; }
           trap cleanup EXIT
-          (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; if (typeof bundleDeclarations !== "function") process.exit(1); console.log("declaration generator loads using TypeScript 6 API")')
+          (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; if (typeof bundleDeclarations !== "function") process.exit(1); console.log("declaration generator loads using TypeScript 5.8 API")')
           mkdir -p packages/cli/dist
-          (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; await bundleDeclarations(process.cwd()); console.log("actual CLI declaration bundle succeeded with TS6 API")')
+          (cd packages/cli && node --input-type=module -e 'import {bundleDeclarations} from "./scripts/declarations.mjs"; await bundleDeclarations(process.cwd()); console.log("actual CLI declaration bundle succeeded with TS5.8 API")')
           pnpm --filter @opensesame/cli build
       - name: Verify source remains unchanged
         if: always()
