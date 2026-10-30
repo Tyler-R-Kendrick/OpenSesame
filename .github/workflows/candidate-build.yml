@@ -322,7 +322,7 @@ jobs:
         python3 .ci-control/scripts/release/build-manifest.py payload
         node .ci-control/scripts/release/provenance.mjs prepare payload build-predicate.json build-subjects.sha256
     - name: Sign original build evidence for the selected snapshot
-      uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
       with:
         subject-checksums: build-subjects.sha256
         predicate-type: https://opensesame.dev/attestations/candidate-build/v1
