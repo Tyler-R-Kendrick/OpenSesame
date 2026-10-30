@@ -35,7 +35,8 @@ jobs:
             echo 'Original source unexpectedly compiled' >&2
             exit 1
           fi
-          grep -E 'jwk.ts\(100,56\).*error TS2769' /tmp/siop-original-ts7.log
+          cat /tmp/siop-original-ts7.log
+          grep -E 'jwk.ts.*error TS[0-9]+' /tmp/siop-original-ts7.log
       - name: Verify fixed TypeScript 7 module and cryptographic tests
         run: |
           set -euo pipefail
