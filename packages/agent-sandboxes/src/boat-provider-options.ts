@@ -41,7 +41,7 @@ export interface BoatProviderOptions {
    * command reads the `BOAT_AGENT_ENV` variables; see `boat-agent.ts`.
    */
   agentCommand?: string;
-  /** Git ref the default bootstrap checks out (default `main`). */
+  /** Full commit SHA the bootstrap checks out (default: pinned reviewed commit). */
   agentRepoRef?: string;
   /** Saved snapshot to create sandboxes from. */
   fromSnapshot?: string;

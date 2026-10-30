@@ -689,6 +689,9 @@ importers:
       linkedom:
         specifier: 0.18.13
         version: 0.18.13
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
       ws:
         specifier: 8.21.3
         version: 8.21.3

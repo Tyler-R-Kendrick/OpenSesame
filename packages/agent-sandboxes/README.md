@@ -66,7 +66,9 @@ Rendering token then drives sessions (free plan: 10 browser-minutes/day).
 - The Boat lane starts its in-sandbox agent with a zero-provision
   bootstrap by default: clone the public repository, install this
   package's workspace graph, run `boat-agent-main.ts`
-  (`OPENSESAME_BOAT_AGENT_REF` pins the ref; first boot takes minutes).
+  (pinned to a reviewed commit, verified before install;
+  `OPENSESAME_BOAT_AGENT_REF` may name another full commit SHA; first
+  boot takes minutes).
   Set `BOAT_RELAY_AGENT_COMMAND` or a saved snapshot for a faster,
   pinned start. Sandboxes are created with none of the account's
   secrets, monitoring off and snapshots off. Close waits for

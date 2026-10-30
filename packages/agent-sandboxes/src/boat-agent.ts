@@ -48,7 +48,9 @@ export function resolveBoatAgentCommand(
   if (configured?.trim()) return { command: configured, bootstrapped: false };
   const ref = options.agentRepoRef ?? env.OPENSESAME_BOAT_AGENT_REF;
   return {
-    command: defaultBoatAgentCommand(ref?.trim() ? ref : "main"),
+    command: defaultBoatAgentCommand(
+      ref?.trim() ? ref : BOAT_AGENT_PINNED_COMMIT,
+    ),
     bootstrapped: true,
   };
 }
@@ -57,27 +59,47 @@ export function resolveBoatAgentCommand(
 export const BOAT_AGENT_REPO_URL =
   "https://github.com/Tyler-R-Kendrick/OpenSesame.git";
 
-const SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
+const COMMIT_SHA = /^[0-9a-f]{40}$/u;
 
 /**
- * The zero-provision start command: clone the public repository into
- * the sandbox, install only this package's workspace graph, and run
- * the relay agent entry. Boat sandboxes ship Node and Chrome; the
- * pinned tsx runner executes the TypeScript entry directly.
+ * The reviewed commit the default bootstrap runs. The in-sandbox agent
+ * receives site secrets per fill, so it must never execute whatever a
+ * mutable branch or tag points to at allocation time: releases bump
+ * this pin to the reviewed commit they ship, and operators may point
+ * `OPENSESAME_BOAT_AGENT_REF` at another full commit SHA.
  */
-export function defaultBoatAgentCommand(ref = "main"): string {
-  if (!SAFE_REF.test(ref) || ref.includes(".."))
-    throw new Error("boat agent: invalid repository ref");
+export const BOAT_AGENT_PINNED_COMMIT =
+  "878908a635a0b558781bcf8e6126c23da7b9b358";
+
+/**
+ * The zero-provision start command: fetch one immutable commit from
+ * the public repository, verify the checkout is exactly that commit
+ * before any install script runs, install only this package's
+ * workspace graph from the frozen lockfile, and run the relay agent
+ * entry with the lockfile-pinned tsx. Boat sandboxes ship Node and
+ * Chrome.
+ */
+export function defaultBoatAgentCommand(
+  ref: string = BOAT_AGENT_PINNED_COMMIT,
+): string {
+  if (!COMMIT_SHA.test(ref))
+    throw new Error(
+      "boat agent: repository ref must be a full commit SHA (immutable reviewed commit)",
+    );
   return [
     "set -e",
     'cd "$HOME"',
-    `if [ ! -d opensesame-agent ]; then git clone --depth 1 --branch '${ref}' ${BOAT_AGENT_REPO_URL} opensesame-agent; fi`,
+    "if [ ! -d opensesame-agent/.git ]; then git init -q opensesame-agent; fi",
     "cd opensesame-agent",
+    `git remote get-url origin >/dev/null 2>&1 || git remote add origin ${BOAT_AGENT_REPO_URL}`,
+    `git fetch --depth 1 origin '${ref}'`,
+    `git checkout -q --detach '${ref}'`,
+    `test "$(git rev-parse HEAD)" = "${ref}"`,
     "corepack enable",
-    "corepack pnpm install --filter @opensesame/agent-sandboxes...",
+    "corepack pnpm install --frozen-lockfile --filter @opensesame/agent-sandboxes...",
     "cd packages/agent-sandboxes",
     'export AGENT_BROWSER="$HOME/opensesame-agent/packages/cua-password-reset/node_modules/.bin/agent-browser"',
-    "exec corepack pnpm dlx tsx@4.20.3 src/boat-agent-main.ts",
+    "exec ./node_modules/.bin/tsx src/boat-agent-main.ts",
   ].join("\n");
 }
 

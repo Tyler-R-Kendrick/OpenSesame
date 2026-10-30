@@ -19,9 +19,7 @@ import type { ResetRuntimeContext } from "./password-reset-runtime.js";
 import {
   createSandboxProvider,
   loadBoatProviderState,
-  loadCloudflareTemporaryAccount,
   saveBoatProviderState,
-  saveCloudflareTemporaryAccount,
 } from "./password-reset-sandbox-provider.js";
 import type { ResetVault } from "./password-reset-vault.js";
 
@@ -200,10 +198,12 @@ function fakeDriver(): BrowserDriver {
   };
 }
 
-function providerContext(): ResetRuntimeContext {
+function providerContext(
+  provider: "boat" | "cloudflare" = "boat",
+): ResetRuntimeContext {
   const config: PasswordResetConfiguration = {
     ...bundledConfig(),
-    runtime: { module: BUNDLED_LOCAL_MODULE, maxSteps: 40, provider: "boat" },
+    runtime: { module: BUNDLED_LOCAL_MODULE, maxSteps: 40, provider },
   };
   const run: ResetRun = {
     id: "run-1",
@@ -244,30 +244,6 @@ function providerContext(): ResetRuntimeContext {
     },
   };
 }
-
-describe("cloudflare temporary account persistence", () => {
-  it("round-trips sealed beside the config and ignores expired accounts", async () => {
-    const directory = await configDir(bundledConfig());
-    expect(loadCloudflareTemporaryAccount(directory)).toBeUndefined();
-    const account = {
-      accountId: "acct-temp",
-      apiToken: "temp-token",
-      claimUrl: "https://dash.cloudflare.com/claim-preview?claimToken=abc",
-      accountExpiresAt: "2999-01-01T00:00:00Z",
-      claimExpiresAt: "2999-01-01T00:00:00Z",
-    };
-    saveCloudflareTemporaryAccount(directory, account);
-    expect(loadCloudflareTemporaryAccount(directory)).toEqual(account);
-    const mode = (await stat(join(directory, ".cloudflare-agent-state.json")))
-      .mode;
-    expect(mode & 0o777).toBe(0o600);
-    saveCloudflareTemporaryAccount(directory, {
-      ...account,
-      accountExpiresAt: "2000-01-01T00:00:00Z",
-    });
-    expect(loadCloudflareTemporaryAccount(directory)).toBeUndefined();
-  });
-});
 
 describe("sandbox provider allocation", () => {
   it("allocates the configured sandbox provider for the run", async () => {
@@ -350,6 +326,30 @@ describe("sandbox provider allocation", () => {
     ).rejects.toEqual(new Error("Sandbox allocation needs a person first"));
     expect(messages).toHaveLength(1);
     expect(messages[0]).toContain("finish billing");
+    expect(readSecretLine).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a Cloudflare account claim link for the person", async () => {
+    const messages: string[] = [];
+    const readSecretLine = vi.fn(async () => "");
+    await expect(
+      createLocalPasswordResetEffects(providerContext("cloudflare"), {
+        createProvider: (id) => ({
+          id,
+          allocate: async () => {
+            throw new SandboxClaimRequiredError({
+              verificationUri:
+                "https://dash.cloudflare.com/claim-preview?claimToken=attempt",
+            });
+          },
+        }),
+        readSecretLine,
+        notify: (message) => messages.push(message),
+      }),
+    ).rejects.toEqual(new Error("Sandbox allocation needs a person first"));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain("claimToken=attempt");
+    expect(messages[0]).toContain("claim the temporary Cloudflare account");
     expect(readSecretLine).not.toHaveBeenCalled();
   });
 

@@ -11,6 +11,7 @@
  * later allocations use it directly.
  */
 
+import type { BrowserDriver } from "@opensesame/cua-password-reset";
 import type { CdpConnection } from "./cdp-connection.js";
 import {
   CdpBrowserDriver,
@@ -21,6 +22,7 @@ import { connectCdp } from "./cdp-node-socket.js";
 import {
   CloudflareBrowserRunClient,
   type CloudflareClientOptions,
+  type CloudflareSession,
   CloudflareSessionAllocationError,
   CloudflareSessionCleanupError,
 } from "./cloudflare-client.js";
@@ -52,12 +54,23 @@ export interface CloudflareProviderOptions
   provisionTemporaryAccount?: () => Promise<CloudflareTemporaryAccount>;
   /** Set false to require configured credentials instead of provisioning. */
   allowTemporaryProvisioning?: boolean;
+  /** CDP socket opener seam (tests); defaults to the real Node socket. */
+  connectCdp?: typeof connectCdp;
+  /** Driver connector seam (tests); defaults to the CDP driver. */
+  connectDriver?: (
+    connection: CdpConnection,
+    options: CdpDriverOptions,
+  ) => Promise<BrowserDriver>;
+  /** CDP safety gate seam (tests); defaults to the suspended gate. */
+  requireSafeBrowser?: () => void;
 }
 
 interface ResolvedClient {
   client: CloudflareBrowserRunClient;
   /** Claim URL to surface when temporary credentials are rejected. */
   claimUrl?: string;
+  /** Temporary account in use, so the provider can retain it. */
+  temporary?: CloudflareTemporaryAccount;
 }
 
 function clientWithCredentials(
@@ -122,19 +135,43 @@ async function resolveClient(
       temporary.apiToken,
     ),
     claimUrl: temporary.claimUrl,
+    temporary,
   };
 }
 
 export class CloudflareSandboxProvider implements SandboxProvider {
   readonly id = "cloudflare" as const;
 
+  /** Provisioned once per instance; retries reuse it until it expires. */
+  private retainedTemporary: CloudflareTemporaryAccount | undefined;
+
   constructor(private readonly options: CloudflareProviderOptions = {}) {}
 
+  private connectSocket(
+    url: string,
+    headers: Record<string, string>,
+  ): Promise<CdpConnection> {
+    return (this.options.connectCdp ?? connectCdp)(url, { headers });
+  }
+
+  private connectBrowser(
+    connection: CdpConnection,
+    options: CdpDriverOptions,
+  ): Promise<BrowserDriver> {
+    return (this.options.connectDriver ??
+      CdpBrowserDriver.connect.bind(CdpBrowserDriver))(connection, options);
+  }
+
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
-    requireSafeCdpBrowser();
+    (this.options.requireSafeBrowser ?? requireSafeCdpBrowser)();
     const { allowedDomains } = allowedDomainsFor(request);
-    const { client, claimUrl } = await resolveClient(this.options);
-    let session;
+    const effectiveOptions: CloudflareProviderOptions = { ...this.options };
+    if (this.retainedTemporary)
+      effectiveOptions.temporaryAccount = this.retainedTemporary;
+    const { client, claimUrl, temporary } =
+      await resolveClient(effectiveOptions);
+    if (temporary) this.retainedTemporary = temporary;
+    let session: CloudflareSession;
     try {
       session = await client.createSession(allowedDomains);
     } catch (error) {
@@ -150,15 +187,16 @@ export class CloudflareSandboxProvider implements SandboxProvider {
     }
     let connection: CdpConnection | undefined;
     try {
-      connection = await connectCdp(session.webSocketUrl, {
-        headers: client.cdpHeaders(),
-      });
+      connection = await this.connectSocket(
+        session.webSocketUrl,
+        client.cdpHeaders(),
+      );
       const driverOptions: CdpDriverOptions = { allowedDomains };
       if (this.options.loadTimeoutMs !== undefined)
         driverOptions.loadTimeoutMs = this.options.loadTimeoutMs;
       let timeout: ReturnType<typeof setTimeout> | undefined;
       const browser = await Promise.race([
-        CdpBrowserDriver.connect(connection, driverOptions),
+        this.connectBrowser(connection, driverOptions),
         new Promise<never>((_resolve, reject) => {
           timeout = setTimeout(
             () =>
@@ -174,7 +212,7 @@ export class CloudflareSandboxProvider implements SandboxProvider {
         allowedDomains,
         close: async () => {
           try {
-            await browser.close();
+            await browser.close?.();
           } finally {
             await client.closeSession(session.sessionId);
           }

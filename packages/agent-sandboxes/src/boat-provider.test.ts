@@ -3,7 +3,7 @@ import type {
   Observation,
 } from "@opensesame/cua-password-reset";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BOAT_AGENT_ENV, defaultBoatAgentCommand } from "./boat-agent.js";
+import { BOAT_AGENT_ENV } from "./boat-agent.js";
 import type { BoatJsonValue } from "./boat-client.js";
 
 async function captureError<T>(run: () => Promise<T>): Promise<Error> {
@@ -235,14 +235,6 @@ describe("BoatSandboxProvider", () => {
     vi.unstubAllEnvs();
   });
 
-  it("builds a zero-provision bootstrap command with a validated ref", () => {
-    const command = defaultBoatAgentCommand();
-    expect(command).toContain("git clone --depth 1 --branch 'main'");
-    expect(command).toContain("src/boat-agent-main.ts");
-    expect(() => defaultBoatAgentCommand("main; rm -rf /")).toThrow("ref");
-    expect(() => defaultBoatAgentCommand("../escape")).toThrow("ref");
-  });
-
   it("allocates with the default bootstrap when no command is configured", async () => {
     vi.stubEnv("BOAT_RELAY_AGENT_COMMAND", "");
     vi.stubEnv("OPENSESAME_BOAT_AGENT_REF", "");
@@ -263,7 +255,9 @@ describe("BoatSandboxProvider", () => {
       const sent = JSON.parse(commands[0]?.body ?? "{}") as {
         command: string;
       };
-      expect(sent.command).toContain("git clone --depth 1 --branch 'main'");
+      expect(sent.command).toMatch(
+        /git fetch --depth 1 origin '[0-9a-f]{40}'/u,
+      );
       expect(sent.command).toContain("src/boat-agent-main.ts");
     } finally {
       await boat.closeRelay();

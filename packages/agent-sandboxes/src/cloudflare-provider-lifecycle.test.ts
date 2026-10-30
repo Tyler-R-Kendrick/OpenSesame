@@ -1,9 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { BrowserDriver } from "@opensesame/cua-password-reset";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { CdpConnection, type CdpSocket } from "./cdp-connection.js";
 import {
   CloudflareBrowserRunClient,
   CloudflareSessionCleanupError,
 } from "./cloudflare-client.js";
-import { CloudflareSandboxProvider } from "./cloudflare-provider.js";
+import {
+  type CloudflareProviderOptions,
+  CloudflareSandboxProvider,
+} from "./cloudflare-provider.js";
 import type { CloudflareTemporaryAccount } from "./cloudflare-provisioning.js";
 import { SandboxClaimRequiredError } from "./types.js";
 
@@ -25,20 +30,6 @@ async function captureError<T>(run: () => Promise<T>): Promise<Error> {
   throw new Error("expected the operation to reject");
 }
 
-const mocks = vi.hoisted(() => ({
-  connect: vi.fn(),
-  driverConnect: vi.fn(),
-}));
-
-vi.mock("./cdp-node-socket.js", () => ({ connectCdp: mocks.connect }));
-// The CDP safety gate is suspended on main (#2249) and covered by
-// cloudflare-provider.test.ts; these lifecycle tests mock it out so the
-// provisioning/cleanup behavior behind the gate stays covered.
-vi.mock("./cdp-driver.js", () => ({
-  CdpBrowserDriver: { connect: mocks.driverConnect },
-  requireSafeCdpBrowser: () => undefined,
-}));
-
 function fakeClient(deleteStatus = 200) {
   const calls: string[] = [];
   const client = new CloudflareBrowserRunClient({
@@ -54,10 +45,37 @@ function fakeClient(deleteStatus = 200) {
   return { client, calls };
 }
 
-beforeEach(() => {
-  mocks.connect.mockReset();
-  mocks.driverConnect.mockReset();
-});
+/** A real CdpConnection over an in-memory socket that records close. */
+function fakeConnection() {
+  const close = vi.fn();
+  const socket: CdpSocket = {
+    send: () => undefined,
+    close,
+    onMessage: () => undefined,
+    onClose: () => undefined,
+  };
+  return { connection: new CdpConnection(socket), close };
+}
+
+function fakeDriver(close: () => Promise<void>): BrowserDriver {
+  return {
+    open: async () => undefined,
+    snapshot: async () => {
+      throw new Error("not used in lifecycle tests");
+    },
+    click: async () => undefined,
+    fill: async () => undefined,
+    fillSecret: async () => undefined,
+    close,
+  };
+}
+
+// The CDP safety gate is suspended on main (#2249) and covered by
+// cloudflare-provider.test.ts; these lifecycle tests lift it through
+// the provider seam so provisioning/cleanup behavior stays covered.
+const unsafeGateLifted: Pick<CloudflareProviderOptions, "requireSafeBrowser"> =
+  { requireSafeBrowser: () => undefined };
+
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
@@ -66,10 +84,15 @@ afterEach(() => {
 describe("Cloudflare provider lifecycle", () => {
   it("closes an open socket and deletes the session when driver initialization fails", async () => {
     const { client, calls } = fakeClient();
-    const close = vi.fn();
-    mocks.connect.mockResolvedValue({ close });
-    mocks.driverConnect.mockRejectedValue(new Error("driver refused"));
-    const provider = new CloudflareSandboxProvider({ client });
+    const { connection, close } = fakeConnection();
+    const provider = new CloudflareSandboxProvider({
+      client,
+      ...unsafeGateLifted,
+      connectCdp: async () => connection,
+      connectDriver: async () => {
+        throw new Error("driver refused");
+      },
+    });
     await expect(
       provider.allocate({ origin: "https://accounts.example.test" }),
     ).rejects.toThrow("driver refused");
@@ -80,10 +103,13 @@ describe("Cloudflare provider lifecycle", () => {
   it("bounds initialization and closes the socket before session deletion", async () => {
     vi.useFakeTimers();
     const { client, calls } = fakeClient();
-    const close = vi.fn();
-    mocks.connect.mockResolvedValue({ close });
-    mocks.driverConnect.mockImplementation(() => new Promise(() => {}));
-    const provider = new CloudflareSandboxProvider({ client });
+    const { connection, close } = fakeConnection();
+    const provider = new CloudflareSandboxProvider({
+      client,
+      ...unsafeGateLifted,
+      connectCdp: async () => connection,
+      connectDriver: () => new Promise<BrowserDriver>(() => undefined),
+    });
     const pending = provider.allocate({
       origin: "https://accounts.example.test",
     });
@@ -98,13 +124,18 @@ describe("Cloudflare provider lifecycle", () => {
 
   it("returns the validated session ID when cleanup fails", async () => {
     const { client } = fakeClient(500);
-    const close = vi.fn();
-    mocks.connect.mockResolvedValue({ close });
-    mocks.driverConnect.mockRejectedValue(new Error("driver refused"));
-    const provider = new CloudflareSandboxProvider({ client });
-    const failure = await provider
-      .allocate({ origin: "https://accounts.example.test" })
-      .catch((error: unknown) => error);
+    const { connection, close } = fakeConnection();
+    const provider = new CloudflareSandboxProvider({
+      client,
+      ...unsafeGateLifted,
+      connectCdp: async () => connection,
+      connectDriver: async () => {
+        throw new Error("driver refused");
+      },
+    });
+    const failure = await captureError(() =>
+      provider.allocate({ origin: "https://accounts.example.test" }),
+    );
     expect(failure).toBeInstanceOf(CloudflareSessionCleanupError);
     expect(failure).toMatchObject({ sessionId: "sess-9" });
     expect(close).toHaveBeenCalledOnce();
@@ -116,6 +147,7 @@ describe("Cloudflare provider lifecycle", () => {
     vi.stubEnv("BROWSER_RUN_API_TOKEN", "");
     const persisted: CloudflareTemporaryAccount[] = [];
     const provider = new CloudflareSandboxProvider({
+      ...unsafeGateLifted,
       fetchImpl: async () =>
         new Response(
           JSON.stringify({
@@ -139,13 +171,47 @@ describe("Cloudflare provider lifecycle", () => {
     expect(persisted).toEqual([TEMPORARY_ACCOUNT]);
   });
 
+  it("retains a freshly provisioned account across allocations", async () => {
+    vi.stubEnv("CLOUDFLARE_ACCOUNT_ID", "");
+    vi.stubEnv("CLOUDFLARE_API_TOKEN", "");
+    vi.stubEnv("BROWSER_RUN_API_TOKEN", "");
+    const provision = vi.fn(async () => TEMPORARY_ACCOUNT);
+    const onTemporaryAccount = vi.fn();
+    const provider = new CloudflareSandboxProvider({
+      ...unsafeGateLifted,
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            success: false,
+            errors: [{ code: 10000, message: "Authentication error" }],
+          }),
+          { status: 401 },
+        ),
+      provisionTemporaryAccount: provision,
+      onTemporaryAccount,
+    });
+    await captureError(() =>
+      provider.allocate({ origin: "https://accounts.example.test" }),
+    );
+    await captureError(() =>
+      provider.allocate({ origin: "https://accounts.example.test" }),
+    );
+    expect(provision).toHaveBeenCalledOnce();
+    expect(onTemporaryAccount).toHaveBeenCalledOnce();
+  });
+
   it("attempts session deletion even if closing the browser throws", async () => {
     const { client, calls } = fakeClient();
-    mocks.connect.mockResolvedValue({ close: vi.fn() });
-    mocks.driverConnect.mockResolvedValue({
-      close: vi.fn().mockRejectedValue(new Error("close failed")),
+    const { connection } = fakeConnection();
+    const provider = new CloudflareSandboxProvider({
+      client,
+      ...unsafeGateLifted,
+      connectCdp: async () => connection,
+      connectDriver: async () =>
+        fakeDriver(async () => {
+          throw new Error("close failed");
+        }),
     });
-    const provider = new CloudflareSandboxProvider({ client });
     const sandbox = await provider.allocate({
       origin: "https://accounts.example.test",
     });
