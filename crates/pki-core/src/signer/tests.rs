@@ -200,10 +200,12 @@ fn rsa_private_pkcs8_rejects_missing_or_non_null_algorithm_parameters() {
     let key = keys::generate(KeyAlgorithm::Rsa2048).unwrap();
     let pem = key.private_key_pkcs8_pem();
     let (_, document) = pkcs8::SecretDocument::from_pem(&pem).unwrap();
-    let mut info: pkcs8::PrivateKeyInfo<'_> = document.decode_msg().unwrap();
+    let mut info: pkcs8::PrivateKeyInfoRef<'_> = document.decode_msg().unwrap();
     for parameters in [
         None,
-        Some(der::asn1::AnyRef::new(der::Tag::OctetString, &[]).unwrap()),
+        Some(
+            pkcs8::der::asn1::AnyRef::new(pkcs8::der::Tag::OctetString, &[]).unwrap(),
+        ),
     ] {
         info.algorithm.parameters = parameters;
         let malformed = pkcs8::SecretDocument::encode_msg(&info).unwrap();
