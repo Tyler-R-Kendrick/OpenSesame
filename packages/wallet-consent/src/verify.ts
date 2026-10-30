@@ -1,3 +1,5 @@
+import { isArrayBufferBackedBytes } from "@opensesame/os-domain";
+
 /**
  * Verify a digest-bound payment approval using WebCrypto ECDSA P-256.
  * Caller-written mechanism/assurance strings are never evidence, and neither
@@ -65,34 +67,16 @@ function hexToBytes(hex: string) {
   return out;
 }
 
-/** WebCrypto BufferSource rejects shared backing stores. A brand check works
- * across realms without copying signature or enrolled-key bytes. */
-function isUnsharedBytes(bytes: Uint8Array): bytes is Uint8Array<ArrayBuffer> {
-  const typedArrayBuffer = Object.getOwnPropertyDescriptor(
-    Object.getPrototypeOf(Uint8Array.prototype),
-    "buffer",
-  )?.get;
-  const arrayBufferLength = Object.getOwnPropertyDescriptor(
-    ArrayBuffer.prototype,
-    "byteLength",
-  )?.get;
-  if (!typedArrayBuffer || !arrayBufferLength) return false;
-  try {
-    const buffer = typedArrayBuffer.call(bytes);
-    arrayBufferLength.call(buffer);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function verifyEs256(
   digestHex: string,
   signature: Uint8Array,
   publicKeySpki: Uint8Array,
 ): Promise<boolean> {
   if (!/^[0-9a-f]{64}$/.test(digestHex)) return false;
-  if (!isUnsharedBytes(signature) || !isUnsharedBytes(publicKeySpki))
+  if (
+    !isArrayBufferBackedBytes(signature) ||
+    !isArrayBufferBackedBytes(publicKeySpki)
+  )
     return false;
   try {
     const key = await crypto.subtle.importKey(

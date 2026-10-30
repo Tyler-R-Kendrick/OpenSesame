@@ -1,9 +1,13 @@
+import { isArrayBufferBackedBytes } from "@opensesame/os-domain";
+
 /** P-256 ECDSA and SHA-256 helpers shared by enrollment and the session SAS. */
 
 const ECDSA = { name: "ECDSA", hash: "SHA-256" } as const;
 const P256 = { name: "ECDSA", namedCurve: "P-256" } as const;
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  if (!isArrayBufferBackedBytes(bytes))
+    throw new TypeError("Expected ArrayBuffer-backed bytes");
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   let hex = "";
   for (const byte of new Uint8Array(digest)) {
@@ -36,6 +40,7 @@ export async function signP256(
   payload: Uint8Array,
 ): Promise<string | null> {
   try {
+    if (!isArrayBufferBackedBytes(payload)) return null;
     const signature = await crypto.subtle.sign(ECDSA, privateKey, payload);
     return bytesToB64(new Uint8Array(signature));
   } catch {
@@ -52,6 +57,7 @@ export async function verifyP256(
   const signature = bytesFromB64(signatureB64);
   if (!der || !signature) return false;
   try {
+    if (!isArrayBufferBackedBytes(payload)) return false;
     const publicKey = await crypto.subtle.importKey("spki", der, P256, false, [
       "verify",
     ]);
