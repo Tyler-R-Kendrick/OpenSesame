@@ -68,13 +68,18 @@ function hexToBytes(hex: string) {
 /** WebCrypto BufferSource rejects shared backing stores. A brand check works
  * across realms without copying signature or enrolled-key bytes. */
 function isUnsharedBytes(bytes: Uint8Array): bytes is Uint8Array<ArrayBuffer> {
-  const getter = Object.getOwnPropertyDescriptor(
+  const typedArrayBuffer = Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(Uint8Array.prototype),
+    "buffer",
+  )?.get;
+  const arrayBufferLength = Object.getOwnPropertyDescriptor(
     ArrayBuffer.prototype,
     "byteLength",
   )?.get;
-  if (!getter) return false;
+  if (!typedArrayBuffer || !arrayBufferLength) return false;
   try {
-    getter.call(bytes.buffer);
+    const buffer = typedArrayBuffer.call(bytes);
+    arrayBufferLength.call(buffer);
     return true;
   } catch {
     return false;
@@ -97,7 +102,7 @@ async function verifyEs256(
       false,
       ["verify"],
     );
-    return crypto.subtle.verify(
+    return await crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
       key,
       signature,

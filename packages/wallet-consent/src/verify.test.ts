@@ -1,5 +1,5 @@
 import { runInNewContext } from "node:vm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildPaymentApprovalDigest } from "./digest.js";
 import {
   generatePaymentApprovalKeyPair,
@@ -191,6 +191,69 @@ describe("verifyDigestBoundApproval", () => {
         proof,
       }),
     ).toEqual({ ok: false, reason: "signature_invalid" });
+  });
+
+  it("checks the intrinsic backing buffer when a shared view spoofs buffer", async () => {
+    const proof = signedProof(DIGEST);
+    const signature = new Uint8Array(
+      new SharedArrayBuffer(proof.verifiedBytes.length),
+    );
+    signature.set(proof.verifiedBytes);
+    Object.defineProperty(signature, "buffer", {
+      value: new ArrayBuffer(signature.length),
+    });
+    const verify = vi.spyOn(crypto.subtle, "verify");
+    try {
+      expect(
+        await verifyDigestBoundApproval({
+          expectedDigest: DIGEST,
+          trustedKeys: TRUSTED,
+          proof: { ...proof, verifiedBytes: signature },
+        }),
+      ).toEqual({ ok: false, reason: "signature_invalid" });
+      expect(verify).not.toHaveBeenCalled();
+    } finally {
+      verify.mockRestore();
+    }
+  });
+
+  it("accepts an ordinary view even if its buffer property is spoofed", async () => {
+    const proof = signedProof(DIGEST);
+    const signature = new Uint8Array(proof.verifiedBytes);
+    Object.defineProperty(signature, "buffer", {
+      value: new SharedArrayBuffer(signature.length),
+    });
+    expect(
+      await verifyDigestBoundApproval({
+        expectedDigest: DIGEST,
+        trustedKeys: TRUSTED,
+        proof: { ...proof, verifiedBytes: signature },
+      }),
+    ).toEqual({ ok: true, verifiedMechanism: "es256" });
+  });
+
+  it("refuses a signature detached while the enrolled key is importing", async () => {
+    const proof = signedProof(DIGEST);
+    const signature = new Uint8Array(proof.verifiedBytes);
+    const original = crypto.subtle.importKey.bind(crypto.subtle);
+    const importing = vi
+      .spyOn(crypto.subtle, "importKey")
+      .mockImplementationOnce(async (...args) => {
+        const key = await Reflect.apply(original, crypto.subtle, args);
+        structuredClone(signature.buffer, { transfer: [signature.buffer] });
+        return key;
+      });
+    try {
+      expect(
+        await verifyDigestBoundApproval({
+          expectedDigest: DIGEST,
+          trustedKeys: TRUSTED,
+          proof: { ...proof, verifiedBytes: signature },
+        }),
+      ).toEqual({ ok: false, reason: "signature_invalid" });
+    } finally {
+      importing.mockRestore();
+    }
   });
 
   it("refuses a detached signature without throwing", async () => {
