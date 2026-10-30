@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -34,9 +35,54 @@ export function candidateTree(checkout, sourceSha) {
   return tree;
 }
 
-export function checkCodeqlArtifacts(directory, sourceSha) {
+// The trusted review record is excluded to avoid requiring it to contain its
+// own digest. Every other Git entry (including mode, type and object id) is
+// bound. The record is controller-owned and included in policy compatibility.
+const REVIEW_RECORD = Buffer.from(
+  "scripts/release/codeql-reviewed-inputs.json",
+);
+
+export function sourceDigestEntries(entries) {
+  const hash = createHash("sha256");
+  let offset = 0;
+  while (offset < entries.length) {
+    const end = entries.indexOf(0, offset);
+    if (end === -1) throw new Error("Malformed candidate tree entries");
+    const tab = entries.indexOf(9, offset);
+    if (tab === -1 || tab > end)
+      throw new Error("Malformed candidate tree entry");
+    if (!entries.subarray(tab + 1, end).equals(REVIEW_RECORD)) {
+      hash.update(entries.subarray(offset, end + 1));
+    }
+    offset = end + 1;
+  }
+  return hash.digest("hex");
+}
+
+export function candidateSourceDigest(checkout, tree) {
+  if (!/^[a-f0-9]{40}$/.test(tree)) throw new Error("Invalid candidate tree");
+  const entries = execFileSync(
+    "git",
+    [
+      "--no-replace-objects",
+      "-C",
+      checkout,
+      "ls-tree",
+      "-r",
+      "-z",
+      "--full-tree",
+      tree,
+    ],
+    { maxBuffer: 64 * 1024 * 1024 },
+  );
+  return sourceDigestEntries(entries);
+}
+
+export function checkCodeqlArtifacts(directory, sourceSha, sourceDigest) {
   if (!/^[a-f0-9]{40}$/.test(sourceSha))
     throw new Error("Expected an exact CodeQL source SHA");
+  if (!/^[a-f0-9]{64}$/.test(sourceDigest))
+    throw new Error("Expected a candidate source digest");
   const expected = new Map(
     Object.entries(SARIF_FILES).map(([language, file]) => [
       `codeql-sarif-${language}-${sourceSha}`,
@@ -60,7 +106,7 @@ export function checkCodeqlArtifacts(directory, sourceSha) {
       entries[0].name !== expected.get(artifact.name).file
     )
       throw new Error(`Unexpected SARIF files in ${artifact.name}`);
-    checkCodeqlDirectory(folder);
+    checkCodeqlDirectory(folder, sourceDigest);
     const report = JSON.parse(
       readFileSync(join(folder, entries[0].name), "utf8"),
     );
@@ -82,7 +128,8 @@ if (
       "Usage: check-codeql-artifacts.mjs DIRECTORY SOURCE_SHA CANDIDATE_CHECKOUT",
     );
   const tree = candidateTree(process.argv[4], process.argv[3]);
+  const digest = candidateSourceDigest(process.argv[4], tree);
   console.log(
-    `CodeQL evidence: ${checkCodeqlArtifacts(process.argv[2], process.argv[3], tree)} complete language artifacts`,
+    `CodeQL evidence: ${checkCodeqlArtifacts(process.argv[2], process.argv[3], digest)} complete language artifacts`,
   );
 }
