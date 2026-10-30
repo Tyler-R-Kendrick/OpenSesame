@@ -22,8 +22,11 @@ const cleanSemgrep = {
 };
 const cleanAudit = { vulnerabilities: { found: false, count: 0, list: [] } };
 
-function runGate(name, { status = 0, report = "{}" } = {}) {
-  const fixture = mkdtempSync(join(tmpdir(), "opensesame-scanner-gate-"));
+function runGate(
+  name,
+  { status = 0, report = "{}", prefix = "opensesame-scanner-gate-" } = {},
+) {
+  const fixture = mkdtempSync(join(tmpdir(), prefix));
   const checkout = join(fixture, "checkout");
   try {
     for (const directory of [
@@ -61,8 +64,8 @@ function runGate(name, { status = 0, report = "{}" } = {}) {
       executable,
       `#!/usr/bin/env bash
 set -eu
-if [[ "$*" == *"-V"* ]]; then echo 'fixture'; exit 0; fi
 for argument in "$@"; do
+  if [[ "$argument" == "-V" ]]; then echo 'fixture'; exit 0; fi
   if [[ "$argument" == --output=* ]]; then
     output=$(printf '%s' "$argument" | cut -c10-)
     printf '%s' "$SCANNER_REPORT" > "$output"
@@ -95,7 +98,8 @@ exit "$SCANNER_STATUS"
 }
 
 test("Semgrep requires successful execution and a complete clean report", () => {
-  assert.equal(runGate("semgrep", { report: cleanSemgrep }).status, 0);
+  const clean = runGate("semgrep", { report: cleanSemgrep });
+  assert.equal(clean.status, 0, clean.stderr);
   for (const status of [1, 2, 3, 7, 127]) {
     assert.notEqual(
       runGate("semgrep", { status, report: cleanSemgrep }).status,
@@ -114,8 +118,17 @@ test("Semgrep requires successful execution and a complete clean report", () => 
   }
 });
 
+test("Semgrep permits -V inside the report path", () => {
+  const clean = runGate("semgrep", {
+    report: cleanSemgrep,
+    prefix: "opensesame-scanner-gate-V",
+  });
+  assert.equal(clean.status, 0, clean.stderr);
+});
+
 test("cargo-audit cannot turn a scanner error or malformed report into zero findings", () => {
-  assert.equal(runGate("cargo-audit", { report: cleanAudit }).status, 0);
+  const clean = runGate("cargo-audit", { report: cleanAudit });
+  assert.equal(clean.status, 0, clean.stderr);
   for (const status of [1, 2, 101]) {
     assert.notEqual(
       runGate("cargo-audit", { status, report: cleanAudit }).status,
@@ -135,7 +148,8 @@ test("cargo-audit cannot turn a scanner error or malformed report into zero find
 });
 
 test("ast-grep findings and errors fail even without recognized output text", () => {
-  assert.equal(runGate("ast-grep-security").status, 0);
+  const clean = runGate("ast-grep-security");
+  assert.equal(clean.status, 0, clean.stderr);
   for (const status of [1, 2, 7, 127])
     assert.notEqual(runGate("ast-grep-security", { status }).status, 0);
 });

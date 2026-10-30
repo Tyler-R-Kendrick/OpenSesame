@@ -83,7 +83,7 @@ jobs:
           timeout --signal=TERM --kill-after=10s 900s node scripts/ci-native-wasm.mjs 2>&1 | tee "$RUNNER_TEMP/pwa-native-wasm-logs/validation.log"
       - name: Retain exact source, raw phases, emitted assets and failure logs
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pwa-native-wasm-${{ inputs.source_sha }}-${{ github.run_attempt }}
           retention-days: 14

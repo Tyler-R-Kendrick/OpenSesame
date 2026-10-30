@@ -4786,7 +4786,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-rustls",
- "toml 0.5.11",
+ "toml 1.1.8+spec-1.1.0",
  "tower",
  "tracing",
  "tracing-subscriber",
