@@ -1,8 +1,17 @@
 /**
  * A `BrowserDriver` over the Chrome DevTools Protocol, for external
  * browser providers (Cloudflare Browser Run and any other CDP endpoint).
- * Construction is disabled until the provider can enforce network and
- * credential-entry isolation throughout the browser session.
+ *
+ * Network boundary: the Fetch domain pauses every request in the
+ * session before it leaves the browser. Only approved domains (and
+ * inert data/blob/about URLs) continue; redirects, subresources,
+ * sockets, and beacons to anywhere else are failed in the browser,
+ * before page scripts or a reset credential can reach them.
+ *
+ * Credential boundary: fills run inside one evaluation that first
+ * proves the element lives in the current approved document, and
+ * secret entry requires the document origin to still match the last
+ * approved snapshot before the driver types anything.
  */
 
 import type {
@@ -10,14 +19,20 @@ import type {
   Observation,
 } from "@opensesame/cua-password-reset";
 import { z } from "zod";
-import type { CdpConnection } from "./cdp-connection.js";
+import { installCdpSessionBoundary } from "./cdp-boundary.js";
+import type { CdpConnection, CdpJsonValue } from "./cdp-connection.js";
 import { staticChallengePhrase } from "./wasm-dom-driver.js";
 
-export function requireSafeCdpBrowser(): void {
-  throw new Error(
-    "CDP browser provider is temporarily unavailable: browser network and credential isolation is not established",
-  );
-}
+export { cdpLockdownScript, isAllowedCdpRequest } from "./cdp-boundary.js";
+
+const attachedToTargetSchema = z.object({
+  sessionId: z.string(),
+  targetInfo: z.object({ targetId: z.string() }),
+});
+
+const frameTreeSchema = z.object({
+  frameTree: z.object({ frame: z.object({ url: z.string() }) }),
+});
 
 const SNAPSHOT_SCRIPT = `(() => {
   const kindOf = (el) => {
@@ -89,13 +104,23 @@ export interface CdpDriverOptions {
 export class CdpBrowserDriver implements BrowserDriver {
   private sessionId = "";
   private targetId = "";
+  private browserContextId = "";
+
+  private approvedOrigin: string | undefined;
 
   private constructor(
     private readonly connection: CdpConnection,
     private readonly options: CdpDriverOptions,
-  ) {
-    requireSafeCdpBrowser();
-  }
+  ) {}
+
+  private readonly attachedTargets = new Map<
+    string,
+    { sessionId: string; installed: boolean }
+  >();
+  private readonly attachWaiters = new Map<
+    string,
+    (sessionId: string) => void
+  >();
 
   /** Attach to a browser-level CDP endpoint and open a fresh page. */
   static async connect(
@@ -103,19 +128,62 @@ export class CdpBrowserDriver implements BrowserDriver {
     options: CdpDriverOptions,
   ): Promise<CdpBrowserDriver> {
     const driver = new CdpBrowserDriver(connection, options);
+    connection.on("Target.attachedToTarget", (params) => {
+      void driver.handleAttachedTarget(params);
+    });
+    await connection.call("Target.setAutoAttach", {
+      autoAttach: true,
+      waitForDebuggerOnStart: true,
+      flatten: true,
+    });
+    const context = await connection.call<{ browserContextId: string }>(
+      "Target.createBrowserContext",
+      { disposeOnDetach: true },
+    );
+    driver.browserContextId = context.browserContextId;
     const created = await connection.call<{ targetId: string }>(
       "Target.createTarget",
-      { url: "about:blank" },
+      { url: "about:blank", browserContextId: driver.browserContextId },
     );
     driver.targetId = created.targetId;
-    const attached = await connection.call<{ sessionId: string }>(
-      "Target.attachToTarget",
-      { targetId: driver.targetId, flatten: true },
-    );
-    driver.sessionId = attached.sessionId;
+    driver.sessionId = await Promise.race([
+      driver.waitForAttachedTarget(created.targetId),
+      new Promise<never>((_resolve, reject) => {
+        setTimeout(
+          () => reject(new Error("cdp driver: page target did not attach")),
+          15_000,
+        );
+      }),
+    ]);
+    if (!driver.attachedTargets.get(created.targetId)?.installed)
+      throw new Error("cdp driver: network boundary could not be installed");
     await connection.call("Page.enable", {}, driver.sessionId);
     await connection.call("Runtime.enable", {}, driver.sessionId);
     return driver;
+  }
+
+  /**
+   * Every related target (the page, workers, child frames) starts
+   * paused; install the boundary on its session before resuming it.
+   * A session whose boundary cannot be installed is never resumed.
+   */
+  private async handleAttachedTarget(
+    params: CdpJsonValue | undefined,
+  ): Promise<void> {
+    const parsed = attachedToTargetSchema.safeParse(params);
+    if (!parsed.success) return;
+    const { sessionId, targetInfo } = parsed.data;
+    const installed = await installCdpSessionBoundary(
+      this.connection,
+      sessionId,
+      this.options.allowedDomains,
+    );
+    this.attachedTargets.set(targetInfo.targetId, { sessionId, installed });
+    if (installed)
+      await this.connection
+        .call("Runtime.runIfWaitingForDebugger", {}, sessionId)
+        .catch(() => {});
+    this.attachWaiters.get(targetInfo.targetId)?.(sessionId);
   }
 
   private assertAllowed(url: URL): void {
@@ -123,11 +191,52 @@ export class CdpBrowserDriver implements BrowserDriver {
       throw new Error("cdp driver: navigation left the approved domains");
   }
 
+  /**
+   * Prove, inside the page, that a snapshot ref still belongs to the
+   * current approved document. Returns the document URL so secret
+   * entry can also bind to the last approved snapshot origin.
+   */
+  private async assertRefDocument(ref: string): Promise<string> {
+    const tree = frameTreeSchema.parse(
+      await this.connection.call<unknown>(
+        "Page.getFrameTree",
+        {},
+        this.sessionId,
+      ),
+    );
+    const frameUrl = new URL(tree.frameTree.frame.url);
+    this.assertAllowed(frameUrl);
+    if (this.approvedOrigin && frameUrl.origin !== this.approvedOrigin)
+      throw new Error("cdp driver: document changed since the snapshot");
+    const href = await this.evaluate(
+      `(() => {
+        const el = window.__opensesameRefs?.get(${JSON.stringify(ref)});
+        if (!el || !el.isConnected || el.ownerDocument !== document)
+          throw new Error("ref left the approved document");
+        return location.href;
+      })()`,
+      z.string(),
+    );
+    const url = new URL(href);
+    this.assertAllowed(url);
+    if (this.approvedOrigin && url.origin !== this.approvedOrigin)
+      throw new Error("cdp driver: document changed since the snapshot");
+    return href;
+  }
+
+  /** Resolve with the session for exactly this target, whenever it attaches. */
+  private waitForAttachedTarget(targetId: string): Promise<string> {
+    const existing = this.attachedTargets.get(targetId);
+    if (existing) return Promise.resolve(existing.sessionId);
+    return new Promise((resolve) => {
+      this.attachWaiters.set(targetId, resolve);
+    });
+  }
+
   private async evaluate<T>(
     expression: string,
     schema: z.ZodType<T>,
   ): Promise<T> {
-    requireSafeCdpBrowser();
     const raw = await this.connection.call<unknown>(
       "Runtime.evaluate",
       { expression, returnByValue: true, awaitPromise: true },
@@ -142,7 +251,6 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   private async waitForLoad(): Promise<void> {
-    requireSafeCdpBrowser();
     const timeout = this.options.loadTimeoutMs ?? 15_000;
     const deadline = Date.now() + timeout;
     for (;;) {
@@ -157,7 +265,6 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async open(url: string): Promise<void> {
-    requireSafeCdpBrowser();
     const target = new URL(url);
     this.assertAllowed(target);
     await this.connection.call(
@@ -170,10 +277,10 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async snapshot(): Promise<Observation> {
-    requireSafeCdpBrowser();
     const value = await this.evaluate(SNAPSHOT_SCRIPT, snapshotValueSchema);
     const url = new URL(value.url);
     this.assertAllowed(url);
+    this.approvedOrigin = url.origin;
     const fields: Observation["fields"] = value.fields.slice(0, 100);
     const challenge = staticChallengePhrase(value.text);
     if (
@@ -191,54 +298,73 @@ export class CdpBrowserDriver implements BrowserDriver {
   }
 
   async click(ref: string): Promise<void> {
-    requireSafeCdpBrowser();
     await this.evaluate(
       `(() => { const el = window.__opensesameRefs?.get(${JSON.stringify(ref)}); if (!el) throw new Error("unknown ref"); el.click(); return true; })()`,
       z.boolean(),
     );
     await this.waitForLoad();
+    this.assertAllowed(new URL(await this.pageUrl()));
   }
 
-  async fill(ref: string, value: string): Promise<void> {
-    requireSafeCdpBrowser();
-    await this.evaluate(
+  /**
+   * Set a field value in one evaluation bound to the snapshot's
+   * element: the script re-proves the approved document and origin
+   * synchronously before writing, so focus tricks or navigation
+   * between CDP calls cannot redirect the value to another control
+   * or document. Used for secrets and plain fills alike.
+   */
+  private async fillBound(ref: string, value: string): Promise<void> {
+    await this.assertRefDocument(ref);
+    const href = await this.evaluate(
       `(() => {
+        const allowed = new Set(${JSON.stringify([...this.options.allowedDomains])});
+        if (!allowed.has(location.hostname))
+          throw new Error("document left the approved domains");
+        const expectedOrigin = ${JSON.stringify(this.approvedOrigin ?? "")};
+        if (expectedOrigin && location.origin !== expectedOrigin)
+          throw new Error("document changed since the snapshot");
         const el = window.__opensesameRefs?.get(${JSON.stringify(ref)});
-        if (!el) throw new Error("unknown ref");
-        el.focus();
+        if (!el || !el.isConnected || el.ownerDocument !== document)
+          throw new Error("ref left the approved document");
         const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value")?.set
           ?? Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set
           ?? Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
         if (setter) setter.call(el, ${JSON.stringify(value)}); else el.value = ${JSON.stringify(value)};
         el.dispatchEvent(new Event("input", { bubbles: true }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
-        return true;
+        return location.href;
       })()`,
-      z.boolean(),
+      z.string(),
     );
+    const url = new URL(href);
+    this.assertAllowed(url);
+    if (this.approvedOrigin && url.origin !== this.approvedOrigin)
+      throw new Error("cdp driver: document changed since the snapshot");
+  }
+
+  async fill(ref: string, value: string): Promise<void> {
+    await this.fillBound(ref, value);
   }
 
   async fillSecret(ref: string, value: string): Promise<void> {
-    requireSafeCdpBrowser();
-    await this.evaluate(
-      `(() => { const el = window.__opensesameRefs?.get(${JSON.stringify(ref)}); if (!el) throw new Error("unknown ref"); el.focus(); el.select?.(); return true; })()`,
-      z.boolean(),
-    );
-    await this.connection.call(
-      "Input.insertText",
-      { text: value },
-      this.sessionId,
-    );
+    await this.fillBound(ref, value);
   }
 
   async pageUrl(): Promise<string> {
-    requireSafeCdpBrowser();
     return this.evaluate("location.href", z.string()).catch(() => "");
   }
 
   async close(): Promise<void> {
-    requireSafeCdpBrowser();
-    if (this.targetId) {
+    // Disposing the run's context destroys its pages, cookies, and
+    // storage with it; nothing carries into the next run on a shared
+    // or long-lived endpoint.
+    if (this.browserContextId) {
+      await this.connection
+        .call("Target.disposeBrowserContext", {
+          browserContextId: this.browserContextId,
+        })
+        .catch(() => {});
+    } else if (this.targetId) {
       await this.connection
         .call("Target.closeTarget", { targetId: this.targetId })
         .catch(() => {});

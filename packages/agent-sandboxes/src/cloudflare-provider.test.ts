@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { CloudflareBrowserRunClient } from "./cloudflare-client.js";
 import { CloudflareSandboxProvider } from "./cloudflare-provider.js";
 
-describe("Cloudflare browser containment", () => {
-  it("rejects before allocating a session or opening a CDP socket", async () => {
+describe("Cloudflare browser allocation", () => {
+  it("reaches the provider API instead of failing at a local suspension gate", async () => {
     const fetchImpl = vi.fn(async () => {
-      throw new Error("unexpected provider request");
+      throw new Error("provider request reached");
     });
     const client = new CloudflareBrowserRunClient({
       accountId: "acct-1",
@@ -17,7 +17,7 @@ describe("Cloudflare browser containment", () => {
       provider.allocate({
         origin: "https://accounts.example.test/reset?token=canary",
       }),
-    ).rejects.toThrow("temporarily unavailable");
-    expect(fetchImpl).not.toHaveBeenCalled();
+    ).rejects.toThrow("session allocation request failed");
+    expect(fetchImpl).toHaveBeenCalledOnce();
   });
 });

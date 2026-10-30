@@ -5,10 +5,7 @@ import {
   CloudflareBrowserRunClient,
   CloudflareSessionCleanupError,
 } from "./cloudflare-client.js";
-import {
-  type CloudflareProviderOptions,
-  CloudflareSandboxProvider,
-} from "./cloudflare-provider.js";
+import { CloudflareSandboxProvider } from "./cloudflare-provider.js";
 import type { CloudflareTemporaryAccount } from "./cloudflare-provisioning.js";
 import { SandboxClaimRequiredError } from "./types.js";
 
@@ -70,12 +67,6 @@ function fakeDriver(close: () => Promise<void>): BrowserDriver {
   };
 }
 
-// The CDP safety gate is suspended on main (#2249) and covered by
-// cloudflare-provider.test.ts; these lifecycle tests lift it through
-// the provider seam so provisioning/cleanup behavior stays covered.
-const unsafeGateLifted: Pick<CloudflareProviderOptions, "requireSafeBrowser"> =
-  { requireSafeBrowser: () => undefined };
-
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
@@ -87,7 +78,6 @@ describe("Cloudflare provider lifecycle", () => {
     const { connection, close } = fakeConnection();
     const provider = new CloudflareSandboxProvider({
       client,
-      ...unsafeGateLifted,
       connectCdp: async () => connection,
       connectDriver: async () => {
         throw new Error("driver refused");
@@ -106,7 +96,6 @@ describe("Cloudflare provider lifecycle", () => {
     const { connection, close } = fakeConnection();
     const provider = new CloudflareSandboxProvider({
       client,
-      ...unsafeGateLifted,
       connectCdp: async () => connection,
       connectDriver: () => new Promise<BrowserDriver>(() => undefined),
     });
@@ -127,7 +116,6 @@ describe("Cloudflare provider lifecycle", () => {
     const { connection, close } = fakeConnection();
     const provider = new CloudflareSandboxProvider({
       client,
-      ...unsafeGateLifted,
       connectCdp: async () => connection,
       connectDriver: async () => {
         throw new Error("driver refused");
@@ -147,7 +135,6 @@ describe("Cloudflare provider lifecycle", () => {
     vi.stubEnv("BROWSER_RUN_API_TOKEN", "");
     const persisted: CloudflareTemporaryAccount[] = [];
     const provider = new CloudflareSandboxProvider({
-      ...unsafeGateLifted,
       fetchImpl: async () =>
         new Response(
           JSON.stringify({
@@ -178,7 +165,6 @@ describe("Cloudflare provider lifecycle", () => {
     const provision = vi.fn(async () => TEMPORARY_ACCOUNT);
     const onTemporaryAccount = vi.fn();
     const provider = new CloudflareSandboxProvider({
-      ...unsafeGateLifted,
       fetchImpl: async () =>
         new Response(
           JSON.stringify({
@@ -205,7 +191,6 @@ describe("Cloudflare provider lifecycle", () => {
     const { connection } = fakeConnection();
     const provider = new CloudflareSandboxProvider({
       client,
-      ...unsafeGateLifted,
       connectCdp: async () => connection,
       connectDriver: async () =>
         fakeDriver(async () => {
