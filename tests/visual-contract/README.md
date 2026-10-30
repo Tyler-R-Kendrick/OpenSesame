@@ -80,8 +80,12 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    `toHaveScreenshot` snapshot mechanism — we need exact, stable output
    filenames to diff against the pre-existing `tests/visual-contract/baselines/*.png`
    baselines ourselves) and pixel-compares it via `src/compare.ts`
-   (`pixelmatch` + `pngjs`, `threshold: 0.1`). A screen fails past a **1.5%**
-   mismatch budget measured against all pixels, or past a **5%** budget
+   (`pixelmatch` + `pngjs`, `threshold: 0.1`). Pixelmatch 8 uses a different
+   color metric, so the comparator also runs the approved v7 metric and uses
+   the larger mismatch count and its diff image. This keeps the existing gate
+   until an intentional review calibrates the new metric against real captures.
+   A screen fails past a **1.5%** mismatch budget measured against all pixels,
+   or past a **5%** budget
    measured against its content pixels (those that are not the baseline's
    dominant background colour in either image), whichever trips first.
 4. Always writes `output/<name>-captured.png`; on failure also writes
