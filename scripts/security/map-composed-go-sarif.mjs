@@ -63,9 +63,11 @@ const groups = [
   [
     "nativeNode",
     (name) =>
-      name.startsWith("native-extra-dns")
-        ? "ipn/ipnlocal"
-        : "cmd/tsconnect/wasm",
+      name === "derp-custom-roots_test.go"
+        ? "derp/derphttp"
+        : name.startsWith("native-extra-dns")
+          ? "ipn/ipnlocal"
+          : "cmd/tsconnect/wasm",
   ],
   ["publicTrust", () => "cmd/tsconnect/nativehttp"],
   [
