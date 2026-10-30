@@ -41,6 +41,25 @@ describe("peer trust WebCrypto byte boundaries", () => {
     expect(await signP256(pair.privateKey, detached)).toBeNull();
     expect(await verifyP256(spki, emptySignature, detached)).toBe(false);
   });
+  it("refuses an out-of-bounds resized view instead of verifying empty bytes", async () => {
+    const pair = await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    );
+    const spki = bytesToB64(
+      new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey)),
+    );
+    const emptySignature = await signP256(pair.privateKey, new Uint8Array());
+    expect(emptySignature).not.toBeNull();
+    if (emptySignature === null) throw new Error("signature missing");
+    const buffer = Reflect.construct(ArrayBuffer, [4, { maxByteLength: 8 }]);
+    const payload = new Uint8Array(buffer, 0, 4);
+    Reflect.apply(Reflect.get(buffer, "resize"), buffer, [0]);
+    await expect(sha256Hex(payload)).rejects.toThrow(TypeError);
+    expect(await signP256(pair.privateKey, payload)).toBeNull();
+    expect(await verifyP256(spki, emptySignature, payload)).toBe(false);
+  });
   it("refuses a payload detached while the verification key imports", async () => {
     const pair = await crypto.subtle.generateKey(
       { name: "ECDSA", namedCurve: "P-256" },

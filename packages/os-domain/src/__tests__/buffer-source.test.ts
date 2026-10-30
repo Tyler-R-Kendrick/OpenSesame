@@ -21,6 +21,12 @@ describe("isArrayBufferBackedBytes", () => {
     structuredClone(detached.buffer, { transfer: [detached.buffer] });
     expect(isArrayBufferBackedBytes(detached)).toBe(false);
   });
+  it("refuses a fixed view made out of bounds by buffer resizing", () => {
+    const buffer = Reflect.construct(ArrayBuffer, [4, { maxByteLength: 8 }]);
+    const view = new Uint8Array(buffer, 0, 4);
+    Reflect.apply(Reflect.get(buffer, "resize"), buffer, [0]);
+    expect(isArrayBufferBackedBytes(view)).toBe(false);
+  });
   it("uses the real backing store when an ordinary view spoofs buffer", () => {
     const normal = new Uint8Array([1, 2]);
     Object.defineProperty(normal, "buffer", {
