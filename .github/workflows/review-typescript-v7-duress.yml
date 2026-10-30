@@ -1,0 +1,57 @@
+name: Review TypeScript 7 duress byte ownership
+on:
+  push:
+    branches: [review/typescript-v7-duress-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-duress-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: dba963079f7d2f8d0aea13638e30554e4c81f2b4
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 7ebeba37114dd751e4d9de8b8bd4ab75542296d3
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Record original compiler errors
+        run: |
+          set -euo pipefail
+          files=(packages/app-core/src/lib/duress/alert/bytes.ts packages/app-core/src/lib/duress/compartment/seal.ts packages/app-core/src/lib/duress/crypto/slot-bytes.ts packages/app-core/src/lib/duress/peer/envelope.ts packages/vault-core/src/bytes.ts)
+          trap 'git restore -- "${files[@]}"' EXIT
+          for f in "${files[@]}"; do git show "HEAD^:$f" > "$f"; done
+          if pnpm --filter @opensesame/pages typecheck > /tmp/duress-original.log 2>&1; then exit 1; fi
+          grep -E 'duress/.*error TS[0-9]+' /tmp/duress-original.log
+      - name: Check exact TypeScript results
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/duress/alert/bytes.ts packages/app-core/src/lib/duress/compartment/seal.ts packages/app-core/src/lib/duress/crypto/slot-bytes.ts packages/app-core/src/lib/duress/peer/envelope.ts packages/vault-core/src/bytes.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/duress-fixed.log 2>&1; then
+            echo 'Pages typecheck passed.'
+          else
+            before=$(grep -cE 'error TS[0-9]+' /tmp/duress-original.log || true)
+            after=$(grep -cE 'error TS[0-9]+' /tmp/duress-fixed.log || true)
+            echo "Pages diagnostics before=$before after=$after; remaining errors block complete migration."
+            grep -E 'error TS[0-9]+' /tmp/duress-fixed.log || true
+            test "$after" -lt "$before"
+          fi
+      - name: Verify security and byte round trips
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/vault-core exec vitest run src/bytes.test.ts src/crypto.test.ts
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/duress/crypto/slot-payload.test.ts src/lib/duress/crypto/slots.test.ts src/lib/duress/duress-duress-slots-prf-and-code.test.ts src/lib/duress/alert/outbox.test.ts src/lib/duress/peer/envelope.test.ts src/lib/duress/peer/peer.adversarial.test.ts src/lib/duress/compartment/compartment-compartment-ux-e-missing-corrupt-decoy.test.ts
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 7ebeba37114dd751e4d9de8b8bd4ab75542296d3
+          git diff --exit-code
