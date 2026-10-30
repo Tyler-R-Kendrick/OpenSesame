@@ -4,7 +4,7 @@ use base64::{
 };
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use opensesame_domain::{digest_json, DomainError, InvocationReceipt};
-use rand::{rngs::OsRng, RngCore};
+use rand::{rngs::OsRng, CryptoRng, RngCore};
 use zeroize::Zeroizing;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -126,8 +126,12 @@ impl ReceiptSigner {
     /// Ephemeral key. Receipts signed with it can only be verified by this
     /// process: use it for tests and dev, never against a persistent receipt store.
     pub fn generate() -> Self {
+        Self::generate_with_rng(&mut OsRng)
+    }
+
+    fn generate_with_rng(rng: &mut (impl CryptoRng + RngCore)) -> Self {
         let mut seed = Zeroizing::new([0u8; 32]);
-        OsRng.try_fill_bytes(&mut *seed).expect("system RNG unavailable");
+        rng.try_fill_bytes(&mut *seed).expect("system RNG unavailable");
         Self::from_signing_key(SigningKey::from_bytes(&seed))
     }
 
