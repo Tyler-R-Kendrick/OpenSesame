@@ -238,6 +238,22 @@ describe("CLI WebAuthn credential", () => {
     expect(get).toHaveBeenCalledOnce();
   });
 
+  it("reports a malformed stored credential before an invalid challenge", async () => {
+    await saveCliAppWebAuthnCredential({
+      credentialIdB64: "!!!",
+      coseKeyB64: "Ag",
+      publicKeySpkiB64: "Aw",
+    });
+    const challenge = new Uint8Array(new SharedArrayBuffer(32));
+    const get = vi.fn();
+    const result = await assertStoredCliAppPasskey(challenge, {
+      create: vi.fn(),
+      get,
+    });
+    expect(result).toMatchObject({ ok: false, code: "passkey_missing" });
+    expect(get).not.toHaveBeenCalled();
+  });
+
   it("refuses approval before asking for a passkey when none is stored", async () => {
     const get = vi.fn();
     const result = await assertStoredCliAppPasskey(new Uint8Array(32), {

@@ -363,10 +363,10 @@ export async function assertStoredCliAppPasskey(
   const stored = readCliAppWebAuthnCredential();
   if (!stored) return MISSING;
   if (!credentials) return UNSUPPORTED;
-  if (!challengeSnapshot)
-    return webauthnDomFailure(new TypeError("Invalid challenge bytes"));
   const credentialId = b64urlDecode(stored.credentialIdB64);
   if (!credentialId) return MISSING;
+  if (!challengeSnapshot)
+    return webauthnDomFailure(new TypeError("Invalid challenge bytes"));
   let asserted: Credential | null;
   try {
     asserted = await credentials.get({
