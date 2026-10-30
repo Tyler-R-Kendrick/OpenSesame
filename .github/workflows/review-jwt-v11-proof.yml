@@ -16,12 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: 7bf6bb9d2e1e9c20e440583508798ce0c2b563a8
+          ref: c7f34965924020e84464b9acd787579903e279a2
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.88.0
-          components: rustfmt
+          components: rustfmt, clippy
       - name: Check formatting
         run: rustfmt --edition 2021 --check crates/proof/src/jwk.rs crates/proof/src/adversarial.rs crates/proof/src/adversarial_jwk.rs crates/proof/src/lib.rs
       - name: Prepare DBus
@@ -32,3 +32,12 @@ jobs:
           set -euo pipefail
           source "$RUNNER_TEMP/opensesame-dbus/env.sh"
           cargo test -p opensesame-proof --locked
+      - name: Apply repository Clippy policy to the proof crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/opensesame-dbus/env.sh"
+          cargo clippy -p opensesame-proof --all-targets --all-features --message-format=short -- \
+            -D warnings -D clippy::pedantic -D clippy::cognitive_complexity \
+            -D clippy::excessive_nesting -D clippy::too_many_lines \
+            -D clippy::too_many_arguments -D clippy::type_complexity
