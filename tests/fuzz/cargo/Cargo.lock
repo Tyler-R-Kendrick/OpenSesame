@@ -2716,7 +2716,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 name = "opensesame-a2h"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "hmac 0.12.1",
  "opensesame-agent-events",
@@ -2760,7 +2760,7 @@ dependencies = [
 name = "opensesame-audit"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "ed25519-dalek",
  "opensesame-domain",
@@ -2787,7 +2787,7 @@ dependencies = [
 name = "opensesame-authn"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "opensesame-domain",
  "rand 0.8.7",
@@ -2873,7 +2873,7 @@ dependencies = [
 name = "opensesame-cli-app-integration"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "ecdsa",
  "hex",
  "hkdf 0.12.4",
@@ -2894,7 +2894,7 @@ name = "opensesame-client-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "chacha20poly1305 0.10.1",
  "getrandom 0.2.17",
@@ -2914,7 +2914,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "chacha20poly1305 0.10.1",
  "chrono",
@@ -2962,7 +2962,7 @@ name = "opensesame-connector-host"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "http",
  "opensesame-cli-app-integration",
@@ -3028,7 +3028,7 @@ dependencies = [
 name = "opensesame-event-seal"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chacha20poly1305 0.10.1",
  "hkdf 0.12.4",
  "sha2 0.10.9",
@@ -3088,7 +3088,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "bytes",
  "chrono",
@@ -3147,7 +3147,7 @@ dependencies = [
  "time",
  "tokio",
  "tower",
- "tower-http",
+ "tower-http 0.7.1",
  "tracing",
  "url",
  "uuid",
@@ -3182,7 +3182,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "tower-http",
+ "tower-http 0.7.1",
  "url",
 ]
 
@@ -3193,7 +3193,7 @@ dependencies = [
  "aes-gcm 0.10.3",
  "anyhow",
  "argon2",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "chacha20poly1305 0.10.1",
  "chrono",
@@ -3219,7 +3219,7 @@ name = "opensesame-ingress-evidence"
 version = "0.1.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "hex",
  "http",
@@ -3241,7 +3241,7 @@ dependencies = [
 name = "opensesame-invoke-through"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "http",
  "http-body-util",
@@ -3286,7 +3286,7 @@ version = "0.1.0"
 dependencies = [
  "async-nats",
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "futures",
  "hex",
@@ -3314,7 +3314,7 @@ name = "opensesame-pki-core"
 version = "0.1.0"
 dependencies = [
  "aws-lc-rs",
- "base64 0.22.1",
+ "base64 0.23.1",
  "der 0.7.10",
  "ed25519-dalek",
  "hex",
@@ -3339,7 +3339,7 @@ dependencies = [
 name = "opensesame-proof"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "ed25519-dalek",
  "jsonwebtoken",
@@ -3380,7 +3380,7 @@ version = "0.1.0"
 dependencies = [
  "aes 0.8.4",
  "argon2",
- "base64 0.22.1",
+ "base64 0.23.1",
  "cbc 0.1.2",
  "hkdf 0.12.4",
  "hmac 0.12.1",
@@ -3478,7 +3478,7 @@ version = "0.1.0"
 dependencies = [
  "age",
  "anyhow",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "directories",
  "hkdf 0.12.4",
@@ -3520,7 +3520,7 @@ dependencies = [
 name = "opensesame-spiffe-source"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "futures",
  "hex",
@@ -3596,7 +3596,7 @@ dependencies = [
  "anyhow",
  "async-nats",
  "async-trait",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "futures",
  "opensesame-domain",
@@ -4382,7 +4382,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower",
- "tower-http",
+ "tower-http 0.6.11",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -5566,13 +5566,29 @@ dependencies = [
  "futures-util",
  "http",
  "http-body",
- "http-body-util",
  "pin-project-lite",
  "tower",
  "tower-layer",
  "tower-service",
- "tracing",
  "url",
+]
+
+[[package]]
+name = "tower-http"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08a05a66a4fdd61cbbe0a1d755ffe0ca6aba159dd4820936a0ff8a8278245b9c"
+dependencies = [
+ "bitflags",
+ "bytes",
+ "http",
+ "http-body",
+ "http-body-util",
+ "percent-encoding",
+ "pin-project-lite",
+ "tower-layer",
+ "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -6007,7 +6023,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
