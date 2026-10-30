@@ -9,6 +9,8 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   if (!isArrayBufferBackedBytes(bytes))
     throw new TypeError("Expected ArrayBuffer-backed bytes");
   const digest = await crypto.subtle.digest("SHA-256", bytes);
+  if (!isArrayBufferBackedBytes(bytes))
+    throw new TypeError("Expected ArrayBuffer-backed bytes");
   let hex = "";
   for (const byte of new Uint8Array(digest)) {
     hex += byte.toString(16).padStart(2, "0");
@@ -42,6 +44,7 @@ export async function signP256(
   try {
     if (!isArrayBufferBackedBytes(payload)) return null;
     const signature = await crypto.subtle.sign(ECDSA, privateKey, payload);
+    if (!isArrayBufferBackedBytes(payload)) return null;
     return bytesToB64(new Uint8Array(signature));
   } catch {
     return null;
@@ -61,7 +64,14 @@ export async function verifyP256(
     const publicKey = await crypto.subtle.importKey("spki", der, P256, false, [
       "verify",
     ]);
-    return await crypto.subtle.verify(ECDSA, publicKey, signature, payload);
+    if (!isArrayBufferBackedBytes(payload)) return false;
+    const verified = await crypto.subtle.verify(
+      ECDSA,
+      publicKey,
+      signature,
+      payload,
+    );
+    return isArrayBufferBackedBytes(payload) && verified;
   } catch {
     return false;
   }

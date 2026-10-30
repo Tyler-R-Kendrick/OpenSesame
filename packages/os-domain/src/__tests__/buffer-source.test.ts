@@ -16,10 +16,10 @@ describe("isArrayBufferBackedBytes", () => {
     Object.defineProperty(shared, "buffer", { value: new ArrayBuffer(2) });
     expect(isArrayBufferBackedBytes(shared)).toBe(false);
   });
-  it("does not mistake a detached ArrayBuffer for a shared buffer", () => {
+  it("refuses a detached ArrayBuffer view", () => {
     const detached = new Uint8Array(2);
     structuredClone(detached.buffer, { transfer: [detached.buffer] });
-    expect(isArrayBufferBackedBytes(detached)).toBe(true);
+    expect(isArrayBufferBackedBytes(detached)).toBe(false);
   });
   it("uses the real backing store when an ordinary view spoofs buffer", () => {
     const normal = new Uint8Array([1, 2]);

@@ -275,6 +275,30 @@ describe("verifyDigestBoundApproval", () => {
     }
   });
 
+  it("refuses a signature detached while WebCrypto verification is in flight", async () => {
+    const proof = signedProof(DIGEST);
+    const signature = new Uint8Array(proof.verifiedBytes);
+    const original = crypto.subtle.verify.bind(crypto.subtle);
+    const verifying = vi
+      .spyOn(crypto.subtle, "verify")
+      .mockImplementationOnce(async (...args) => {
+        const valid = await Reflect.apply(original, crypto.subtle, args);
+        structuredClone(signature.buffer, { transfer: [signature.buffer] });
+        return valid;
+      });
+    try {
+      expect(
+        await verifyDigestBoundApproval({
+          expectedDigest: DIGEST,
+          trustedKeys: TRUSTED,
+          proof: { ...proof, verifiedBytes: signature },
+        }),
+      ).toEqual({ ok: false, reason: "signature_invalid" });
+    } finally {
+      verifying.mockRestore();
+    }
+  });
+
   it("refuses a detached signature without throwing", async () => {
     const proof = signedProof(DIGEST);
     const signature = new Uint8Array(proof.verifiedBytes);

@@ -86,11 +86,21 @@ async function verifyEs256(
       false,
       ["verify"],
     );
-    return await crypto.subtle.verify(
+    if (
+      !isArrayBufferBackedBytes(signature) ||
+      !isArrayBufferBackedBytes(publicKeySpki)
+    )
+      return false;
+    const verified = await crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
       key,
       signature,
       hexToBytes(digestHex),
+    );
+    return (
+      isArrayBufferBackedBytes(signature) &&
+      isArrayBufferBackedBytes(publicKeySpki) &&
+      verified
     );
   } catch {
     return false;
