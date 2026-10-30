@@ -116,3 +116,81 @@ it("cleans up salts and fails closed if the result is detached during vault look
     release();
   }
 });
+
+it.each(["extension", "first"])(
+  "wipes salts if the %s getter throws",
+  async (which) => {
+    const f = fixture(null);
+    if (which === "extension") {
+      f.credential.getClientExtensionResults = overlapCast(() => {
+        throw new Error("bad extension");
+      });
+    } else {
+      f.credential.getClientExtensionResults = overlapCast(() => ({
+        prf: {
+          results: {
+            get first() {
+              throw new Error("bad first");
+            },
+          },
+        },
+      }));
+    }
+    await expect(
+      applySignInPrf("tomb", "person", f.credential, f.plan),
+    ).rejects.toThrow();
+    expect(f.salt.every((byte) => byte === 0)).toBe(true);
+  },
+);
+
+it("wipes only the original PRF range when a resizable result grows during vault lookup", async () => {
+  const first = new ArrayBuffer(32, { maxByteLength: 64 });
+  new Uint8Array(first).fill(7);
+  const f = fixture(first);
+  const release = installSignInPrfVault(
+    overlapCast({
+      isUnlocked: () => {
+        first.resize(64);
+        new Uint8Array(first, 32).fill(9);
+        return false;
+      },
+      activeTomb: () => "tomb",
+      protection: {},
+    }),
+  );
+  try {
+    await expect(
+      applySignInPrf("tomb", "person", f.credential, f.plan),
+    ).resolves.toBe(true);
+    expect(new Uint8Array(first, 0, 32).every((byte) => byte === 0)).toBe(true);
+    expect(new Uint8Array(first, 32).every((byte) => byte === 9)).toBe(true);
+    expect(f.salt.every((byte) => byte === 0)).toBe(true);
+  } finally {
+    release();
+  }
+});
+
+it("fails closed and wipes salts when a resizable result shrinks during vault lookup", async () => {
+  const first = new ArrayBuffer(32, { maxByteLength: 64 });
+  new Uint8Array(first).fill(7);
+  const f = fixture(first);
+  const release = installSignInPrfVault(
+    overlapCast({
+      isUnlocked: () => {
+        first.resize(8);
+        return false;
+      },
+      activeTomb: () => "tomb",
+      protection: {},
+    }),
+  );
+  try {
+    await expect(
+      applySignInPrf("tomb", "person", f.credential, f.plan),
+    ).rejects.toThrow();
+    expect(new Uint8Array(first).every((byte) => byte === 0)).toBe(true);
+    expect(f.salt.every((byte) => byte === 0)).toBe(true);
+  } finally {
+    release();
+  }
+});

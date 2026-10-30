@@ -47,8 +47,8 @@ function ownedPrfView(first: ArrayBuffer | null): Uint8Array | null {
       "byteLength",
     )?.get;
     if (!byteLength) return null;
-    Reflect.apply(byteLength, first, []);
-    return new Uint8Array(first);
+    const length: number = Reflect.apply(byteLength, first, []);
+    return new Uint8Array(first, 0, length);
   } catch {
     return null;
   }
@@ -112,13 +112,20 @@ export async function applySignInPrf(
   credential: PublicKeyCredential,
   plan: Map<string, SignInPrfRow>,
 ): Promise<boolean> {
-  const row =
-    plan.get(credential.id) ??
-    plan.get(bytesToB64url(new Uint8Array(credential.rawId)));
-  const results = credential.getClientExtensionResults();
-  const first = readPrfFirst(results);
-  const prfOutput = ownedPrfView(first);
+  let prfOutput: Uint8Array | null = null;
+  let ownedFirst: ArrayBuffer | null = null;
+  let originalLength = 0;
   try {
+    const row =
+      plan.get(credential.id) ??
+      plan.get(bytesToB64url(new Uint8Array(credential.rawId)));
+    const results = credential.getClientExtensionResults();
+    const first = readPrfFirst(results);
+    prfOutput = ownedPrfView(first);
+    if (prfOutput) {
+      ownedFirst = first;
+      originalLength = prfOutput.byteLength;
+    }
     if (!row || !prfOutput || prfOutput.byteLength < MIN_PRF_OUTPUT_BYTES)
       return false;
     const vaultStore = await currentSignInPrfVault();
@@ -178,7 +185,35 @@ export async function applySignInPrf(
     return true;
   } finally {
     try {
-      prfOutput?.fill(0);
+      try {
+        prfOutput?.fill(0);
+      } catch (error) {
+        // A resized buffer may invalidate the fixed view while retaining a
+        // prefix. Wipe only surviving original bytes, then fail closed.
+        if (ownedFirst) {
+          try {
+            const byteLength = Object.getOwnPropertyDescriptor(
+              ArrayBuffer.prototype,
+              "byteLength",
+            )?.get;
+            if (byteLength) {
+              const currentLength: number = Reflect.apply(
+                byteLength,
+                ownedFirst,
+                [],
+              );
+              new Uint8Array(
+                ownedFirst,
+                0,
+                Math.min(originalLength, currentLength),
+              ).fill(0);
+            }
+          } catch {
+            // A detached buffer no longer has writable bytes.
+          }
+        }
+        throw error;
+      }
     } finally {
       zeroSignInPrfSalts(plan);
     }
