@@ -12,7 +12,10 @@ import {
   nativeMcpRecordBinding,
 } from "./native-mcp-profile.js";
 import { requireNativeMcpRecord } from "./native-mcp-records.js";
-import { nativeMcpRecordSession } from "./native-mcp-session.js";
+import {
+  assertNativeMcpGrantScopes,
+  nativeMcpRecordSession,
+} from "./native-mcp-session.js";
 import { NativeMcpError } from "./native-mcp-target.js";
 import { nativeOAuthGuard } from "./native-oauth-session.js";
 
@@ -22,13 +25,7 @@ function verified(
 ): NativeConnectorRecord {
   const verifiedAt = Math.max(Date.now(), (record.runtime.verifiedAt ?? 0) + 1);
   const binding = nativeMcpRecordBinding(record.configuration);
-  if (
-    grant?.scopes &&
-    (record.configuration.requestedScopes.user ?? []).some(
-      (scope) => !grant.scopes?.includes(scope),
-    )
-  )
-    throw new NativeMcpError("permission");
+  assertNativeMcpGrantScopes(record, grant);
   record.privateState.grants = grant ? { user: grant } : {};
   record.privateState.verification = {
     fingerprint: binding.fingerprint,

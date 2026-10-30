@@ -177,8 +177,7 @@ function nativeRecoveryControls(
       const view = read();
       const entry = view?.recovery.find((item) => item.id === recoveryId);
       if (!view || !entry) return null;
-      if (view.configuration.method === "mcp")
-        return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
+      if (view.configuration.method === "mcp") return null;
       if (
         view.configuration.method === "oidc" &&
         ["vault", "openbao"].includes(view.providerId)
@@ -196,12 +195,30 @@ function nativeRecoveryControls(
           )
         : null;
     },
-    confirmRevocation: async (recoveryId: string) => {
+    loadRevocationInstructions: async (recoveryId: string) => {
+      const view = read();
+      if (
+        view?.configuration.method !== "mcp" ||
+        !view.recovery.some((entry) => entry.id === recoveryId)
+      )
+        return null;
+      return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
+    },
+    confirmRevocation: async (recoveryId: string, guideRevision?: number) => {
       const view = required();
-      if (view.configuration.method === "mcp")
+      if (view.configuration.method === "mcp") {
+        if (guideRevision === undefined)
+          throw new Error(
+            "Review the provider revocation guide before confirming",
+          );
         return retain(
-          await attestNativeMcpRevocation(view.connectionId, recoveryId),
+          await attestNativeMcpRevocation(
+            view.connectionId,
+            recoveryId,
+            guideRevision,
+          ),
         );
+      }
       if (
         view.configuration.method === "oidc" &&
         ["vault", "openbao"].includes(view.providerId)
