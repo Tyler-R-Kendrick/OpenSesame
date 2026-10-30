@@ -52,7 +52,7 @@ jobs:
           if pnpm --filter @opensesame/pages exec vitest run src/sections/identity/LocalPasskeysPrf.test.tsx > /tmp/prf-ui-spoof.log 2>&1; then cat /tmp/prf-ui-spoof.log; exit 1; fi
           cat /tmp/prf-ui-spoof.log
           grep -Eq 'FAIL.*wipes each borrowed PRF copy while preserving the offer for retry' /tmp/prf-ui-spoof.log
-          grep -F 'expect(prfOutput.every((byte) => byte === 7)).toBe(true)' /tmp/prf-ui-spoof.log
+          sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' /tmp/prf-ui-spoof.log | grep -F 'src/sections/identity/LocalPasskeysPrf.test.tsx:126:51'
       - name: Lint and typecheck
         run: |
           set -euo pipefail
