@@ -12,7 +12,7 @@ import { hkdf } from "@noble/hashes/hkdf.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { pbkdf2Async } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { isString } from "@opensesame/os-domain";
+import { isFunction, isString } from "@opensesame/os-domain";
 import { pbkdf2WithoutTimers } from "./pbkdf2-no-timers.js";
 
 type Named = string | { name: string };
@@ -119,12 +119,9 @@ async function deriveBitsNow(
       throw failure("OperationError", "PBKDF2 needs an iteration count");
     const host: {
       setTimeout?: typeof setTimeout;
-      scheduler?: { yield?: unknown };
+      scheduler?: { yield?: () => Promise<void> };
     } = globalThis;
-    if (
-      typeof host.setTimeout !== "function" &&
-      typeof host.scheduler?.yield !== "function"
-    ) {
+    if (!isFunction(host.setTimeout) && !isFunction(host.scheduler?.yield)) {
       return pbkdf2WithoutTimers(
         secret,
         bytes(params.salt),
