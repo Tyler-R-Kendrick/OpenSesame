@@ -1,0 +1,59 @@
+name: Review held PRF copy lifetime
+on:
+  push:
+    branches: [review/typescript-v7-prf-wipe-proof-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/typescript-v7-prf-wipe-proof-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 1f706d9858d93903371b61dce3579b2d1bdd1a98
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 22
+      - name: Install exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = eebc35c20005524c01fc6a4620fdfece598f889d
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Prove prior implementation leaves PRF copies unwiped
+        run: |
+          set -euo pipefail
+          file=packages/app-core/src/lib/local-passkey-prf.ts
+          trap 'git restore -- "$file"' EXIT
+          git show "HEAD^:$file" > "$file"
+          if pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf-wipe.test.ts > /tmp/prf-wipe-original.log 2>&1; then cat /tmp/prf-wipe-original.log; exit 1; fi
+          cat /tmp/prf-wipe-original.log
+          grep -Eq 'FAIL.*wipes the held enrollment PRF copy on success' /tmp/prf-wipe-original.log
+          grep -Eq 'FAIL.*wipes the held enrollment PRF copy on failure' /tmp/prf-wipe-original.log
+          grep -Eq 'FAIL.*wipes the copied PRF after existing protector unwrap success' /tmp/prf-wipe-original.log
+          grep -Eq 'FAIL.*wipes the copied PRF after existing protector unwrap failure' /tmp/prf-wipe-original.log
+          if pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf.test.ts -t 'wraps the open vault with the sign-in PRF output' > /tmp/prf-real-original.log 2>&1; then cat /tmp/prf-real-original.log; exit 1; fi
+          grep -Eq 'FAIL.*wraps the open vault with the sign-in PRF output' /tmp/prf-real-original.log
+      - name: Check exact sources and report remaining compiler diagnostics
+        run: |
+          set -euo pipefail
+          pnpm exec biome check packages/app-core/src/lib/local-passkey-prf.ts packages/app-core/src/lib/local-passkey-prf.test.ts packages/app-core/src/lib/local-passkey-prf-wipe.test.ts
+          if pnpm --filter @opensesame/pages typecheck > /tmp/prf-wipe-pages.log 2>&1; then echo 'Pages typecheck passed'; else
+            count=$(grep -cE 'error TS[0-9]+' /tmp/prf-wipe-pages.log || true)
+            echo "Pages diagnostics remaining=$count; migration remains blocked."
+            if grep -E 'local-passkey-prf(-wipe)?.test.ts.*error TS[0-9]+' /tmp/prf-wipe-pages.log; then exit 1; fi
+          fi
+      - name: Verify real enrollment and PRF lifetime
+        run: |
+          set -euo pipefail
+          pnpm --filter @opensesame/app-core exec vitest run src/lib/local-passkey-prf-wipe.test.ts src/lib/local-passkey-prf.test.ts src/lib/local-passkeys.test.ts src/lib/vault/protection/adapters/webauthn-prf.test.ts
+          pnpm quality:app-core
+      - name: Verify source remains unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = eebc35c20005524c01fc6a4620fdfece598f889d
+          git diff --exit-code
