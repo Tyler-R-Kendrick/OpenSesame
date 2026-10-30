@@ -142,7 +142,7 @@ describe("full-suite native preparation", () => {
   it("reuses only exact-pin static distributions and still verifies cache hits", () => {
     const cache = stepFor("name: Cache the pinned native PWA distribution");
     expect(cache).toContain(
-      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+      "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
     );
     expect(cache).toContain(
       "path: .cache/pwa-tailscale-native-http/distributions\n",
@@ -220,7 +220,7 @@ describe("affected Pages build preparation", () => {
     );
     expect(cache).toContain(`if: ${pagesAffected}`);
     expect(cache).toContain(
-      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+      "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
     );
     expect(cache).toContain(
       "path: .cache/pwa-tailscale-native-http/distributions\n",
@@ -279,7 +279,7 @@ describe("complete verify native preparation", () => {
       "name: Cache the pinned native PWA distribution",
     );
     expect(cache).toContain(
-      "actions/cache@caa296126883cff596d87d8935842f9db880ef25",
+      "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
     );
     expect(cache).toContain(
       "path: .cache/pwa-tailscale-native-http/distributions\n",
