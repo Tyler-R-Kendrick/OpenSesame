@@ -2,6 +2,7 @@ import { runInNewContext } from "node:vm";
 import { overlapCast } from "@opensesame/os-domain";
 import { expect, it } from "vitest";
 import { copyPrfBytes } from "./local-passkey-prf-bytes.js";
+import { resizableArrayBuffer } from "./resizable-array-buffer.test-support.js";
 
 it("copies exactly the real view without consulting spoofed metadata, slice or species", () => {
   const buffer = new ArrayBuffer(10);
@@ -38,8 +39,8 @@ it("copies cross-realm views but rejects shared, detached and invalid brands", (
   structuredClone(detached.buffer, { transfer: [detached.buffer] });
   expect(() => copyPrfBytes(detached)).toThrow();
   expect(() => copyPrfBytes(overlapCast(new Uint16Array([1])))).toThrow();
-  const resized = new ArrayBuffer(8, { maxByteLength: 16 });
-  const outOfBounds = new Uint8Array(resized, 2, 4);
+  const resized = resizableArrayBuffer(8, 16);
+  const outOfBounds = new Uint8Array(resized.buffer, 2, 4);
   resized.resize(0);
   expect(() => copyPrfBytes(outOfBounds)).toThrow();
 });

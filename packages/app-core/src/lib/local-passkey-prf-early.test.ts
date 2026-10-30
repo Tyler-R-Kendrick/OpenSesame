@@ -3,8 +3,15 @@ import { overlapCast } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { expect, it, vi } from "vitest";
 import { applySignInPrf, installSignInPrfVault } from "./local-passkey-prf.js";
+import { resizableArrayBuffer } from "./resizable-array-buffer.test-support.js";
 
-function fixture(first: unknown, matched = true) {
+type PrfResultFixture =
+  | ArrayBuffer
+  | SharedArrayBuffer
+  | { byteLength: number }
+  | null;
+
+function fixture(first: PrfResultFixture, matched = true) {
   const rawId = new Uint8Array([1, 2]).buffer;
   const salt = new Uint8Array(32).fill(3);
   const id = bytesToB64url(rawId);
@@ -144,13 +151,14 @@ it.each(["extension", "first"])(
 );
 
 it("wipes only the original PRF range when a resizable result grows during vault lookup", async () => {
-  const first = new ArrayBuffer(32, { maxByteLength: 64 });
+  const resizable = resizableArrayBuffer(32, 64);
+  const first = resizable.buffer;
   new Uint8Array(first).fill(7);
   const f = fixture(first);
   const release = installSignInPrfVault(
     overlapCast({
       isUnlocked: () => {
-        first.resize(64);
+        resizable.resize(64);
         new Uint8Array(first, 32).fill(9);
         return false;
       },
@@ -171,13 +179,14 @@ it("wipes only the original PRF range when a resizable result grows during vault
 });
 
 it("fails closed and wipes salts when a resizable result shrinks during vault lookup", async () => {
-  const first = new ArrayBuffer(32, { maxByteLength: 64 });
+  const resizable = resizableArrayBuffer(32, 64);
+  const first = resizable.buffer;
   new Uint8Array(first).fill(7);
   const f = fixture(first);
   const release = installSignInPrfVault(
     overlapCast({
       isUnlocked: () => {
-        first.resize(8);
+        resizable.resize(8);
         return false;
       },
       activeTomb: () => "tomb",
