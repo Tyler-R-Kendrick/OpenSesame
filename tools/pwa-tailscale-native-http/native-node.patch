@@ -95,3 +95,12 @@
  	}
  }
  
+--- a/derp/derphttp/derphttp_client.go
++++ b/derp/derphttp/derphttp_client.go
+@@ -672,0 +673,6 @@
++				// Config captures custom roots in its verifier, then clears RootCAs.
++				// SetConfigExpectedCert replaces that verifier for a distinct name;
++				// restore the roots so the replacement verifier can capture them.
++				if c.TLSConfig != nil && tlsConf.ServerName != "" && tlsConf.ServerName != node.CertName {
++					tlsConf.RootCAs = c.TLSConfig.RootCAs
++				}
