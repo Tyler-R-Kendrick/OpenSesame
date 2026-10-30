@@ -86,7 +86,7 @@
     "xml-core": "1.2.6",
     "xmldsigjs": "2.8.8",
     "yaml": "2.9.1",
-    "zod": "4.6.7"
+    "zod": "4.6.6"
   },
   "license": "MIT",
   "repository": {
