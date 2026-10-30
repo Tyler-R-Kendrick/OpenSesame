@@ -24,7 +24,10 @@ describe("timerless PBKDF2", () => {
 
   it("yields to a microtask when the clock passes the work budget", async () => {
     let clock = 0;
-    const spy = vi.spyOn(Date, "now").mockImplementation(() => (clock += 11));
+    const spy = vi.spyOn(Date, "now").mockImplementation(() => {
+      clock += 11;
+      return clock;
+    });
     try {
       let yielded = false;
       const pending = pbkdf2WithoutTimers(
