@@ -20,6 +20,8 @@ function fakeCdp() {
   const state = { href: "https://accounts.example.test/reset" };
   const evaluateValue = (expression: string): CdpJsonValue => {
     if (expression === "document.readyState") return "complete";
+    if (expression.includes("document left the approved domains"))
+      return state.href;
     if (expression === "location.href") return state.href;
     if (expression.includes("__opensesameRefs = new Map"))
       return {
@@ -31,6 +33,8 @@ function fakeCdp() {
     return true;
   };
   const resultFor = (message: SentMessage): CdpJsonValue => {
+    if (message.method === "Page.getFrameTree")
+      return { frameTree: { frame: { url: state.href } } };
     if (message.method === "Target.createTarget") return { targetId: "t-1" };
     if (message.method === "Target.attachToTarget") return { sessionId: "s-1" };
     if (message.method === "Runtime.evaluate")
@@ -46,15 +50,25 @@ function fakeCdp() {
       // SAFETY: checked at the fake-socket boundary: every sender in this file is CdpConnection, which serializes SentMessage objects.
       const message = JSON.parse(data) as SentMessage;
       sent.push(message);
-      queueMicrotask(() =>
+      queueMicrotask(() => {
         onMessage?.(
           JSON.stringify({
             id: message.id,
             sessionId: message.sessionId,
             result: resultFor(message),
           }),
-        ),
-      );
+        );
+        if (message.method === "Target.createTarget")
+          onMessage?.(
+            JSON.stringify({
+              method: "Target.attachedToTarget",
+              params: {
+                sessionId: "s-1",
+                targetInfo: { targetId: "t-1" },
+              },
+            }),
+          );
+      });
     },
     close: () => {},
     onMessage: (listener) => {
@@ -140,7 +154,7 @@ describe("CDP browser isolation", () => {
     );
   });
 
-  it("types secrets only into the approved snapshotted document", async () => {
+  it("sets secrets only into the approved snapshotted document", async () => {
     const { socket, sent } = fakeCdp();
     const connection = new CdpConnection(socket);
     const driver = await CdpBrowserDriver.connect(connection, {
@@ -148,8 +162,14 @@ describe("CDP browser isolation", () => {
     });
     await driver.snapshot();
     await driver.fillSecret("e1", "secret-canary");
-    const insert = sent.find((m) => m.method === "Input.insertText");
-    expect(insert?.params?.text).toBe("secret-canary");
+    const boundFill = sent.filter(
+      (m) =>
+        m.method === "Runtime.evaluate" &&
+        JSON.stringify(m).includes("document left the approved domains") &&
+        JSON.stringify(m).includes("secret-canary"),
+    );
+    expect(boundFill.length).toBe(1);
+    expect(sent.some((m) => m.method === "Input.insertText")).toBe(false);
   });
 
   it("rejects navigation to unapproved domains before sending it", async () => {
