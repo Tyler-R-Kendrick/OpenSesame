@@ -101,8 +101,6 @@ jobs:
       id-token: write
     outputs:
       draft_url: ${{ steps.draft.outputs.draft_url }}
-    env:
-      GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
     steps:
     - name: Require the trusted main controller
       run: '[ "$GITHUB_REF" = refs/heads/main ]'
@@ -133,8 +131,12 @@ jobs:
         predicate-type: https://opensesame.dev/attestations/release-promotion/v1
         predicate-path: release-files/promotion.json
     - name: Require the protected publication credential
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
       run: test -n "$GH_TOKEN"
     - name: Create or resume the owned draft with exactly the allowed assets
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
       id: draft
       run: node .ci-control/scripts/release/publish-release.mjs prepare release-files
   pages:
