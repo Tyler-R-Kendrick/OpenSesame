@@ -21,6 +21,7 @@ use url::Url;
 
 use crate::error::{Error, Result};
 
+mod body;
 mod classify;
 mod endpoints;
 mod wire;
@@ -35,6 +36,8 @@ pub use wire::{
 
 /// Body cap. A personal vault sync is orders of magnitude smaller.
 const MAX_BODY: usize = 16 * 1024 * 1024;
+/// Download URLs are capabilities; their path and query are not diagnostics.
+const DOWNLOAD_CONTEXT: &str = "/download";
 const USER_AGENT: &str = "opensesame-cli";
 /// Bitwarden's OAuth client id for CLI-shaped clients.
 const CLIENT_ID: &str = "cli";
@@ -131,7 +134,7 @@ impl Client {
             .json(&serde_json::json!({ "email": crate::crypto::normalize_email(email) }))
             .send()
             .await
-            .map_err(|e| transport(&url, &e))?;
+            .map_err(|e| transport(&url, e))?;
         self.decode(&url, response).await
     }
 
@@ -207,7 +210,7 @@ impl Client {
             .form(form)
             .send()
             .await
-            .map_err(|e| transport(&url, &e))?;
+            .map_err(|e| transport(&url, e))?;
         self.decode(&url, response).await
     }
 
@@ -225,7 +228,7 @@ impl Client {
             .header("accept", "application/json")
             .send()
             .await
-            .map_err(|e| transport(&url, &e))?;
+            .map_err(|e| transport(&url, e))?;
         self.decode(&url, response).await
     }
 
@@ -244,7 +247,7 @@ impl Client {
             .header("accept", "application/json")
             .send()
             .await
-            .map_err(|e| transport(&url, &e))?;
+            .map_err(|e| transport(&url, e))?;
         self.decode(&url, response).await
     }
 
@@ -269,7 +272,7 @@ impl Client {
             .json(body)
             .send()
             .await
-            .map_err(|e| transport(&url, &e))?;
+            .map_err(|e| transport(&url, e))?;
         self.decode(&url, response).await
     }
 
@@ -289,29 +292,22 @@ impl Client {
             .get(url.clone())
             .send()
             .await
-            .map_err(|e| transport(&url, &e))?;
+            .map_err(|e| transport(&url, e))?;
         let status = response.status();
         if status.is_redirection() {
             return Err(Error::RedirectRefused {
                 status: status.as_u16(),
-                path: url.path().to_owned(),
+                path: DOWNLOAD_CONTEXT.to_owned(),
             });
         }
         if !status.is_success() {
             return Err(Error::Api {
-                path: url.path().to_owned(),
+                path: DOWNLOAD_CONTEXT.to_owned(),
                 status: status.as_u16(),
                 message: "download refused".into(),
             });
         }
-        let bytes = response.bytes().await.map_err(|e| transport(&url, &e))?;
-        if bytes.len() > limit {
-            return Err(Error::MalformedResponse {
-                path: url.path().to_owned(),
-                message: format!("download exceeded {limit} bytes"),
-            });
-        }
-        Ok(bytes.to_vec())
+        body::read(&url, response, limit, "download", DOWNLOAD_CONTEXT).await
     }
 
     /// Fetch nonsecret server version and feature information.
@@ -327,7 +323,7 @@ impl Client {
             .header("accept", "application/json")
             .send()
             .await
-            .map_err(|e| transport(&url, &e))?;
+            .map_err(|e| transport(&url, e))?;
         self.decode(&url, response).await
     }
 
@@ -344,17 +340,7 @@ impl Client {
                 path,
             });
         }
-        let body = response
-            .bytes()
-            .await
-            .map_err(|e| transport(url, &e))?
-            .to_vec();
-        if body.len() > MAX_BODY {
-            return Err(Error::MalformedResponse {
-                path,
-                message: format!("response body exceeded {MAX_BODY} bytes"),
-            });
-        }
+        let body = body::read(url, response, MAX_BODY, "response body", &path).await?;
         if !status.is_success() {
             return Err(classify_error(&path, status.as_u16(), &body));
         }
@@ -365,9 +351,9 @@ impl Client {
     }
 }
 
-fn transport(url: &Url, error: &reqwest::Error) -> Error {
+fn transport(url: &Url, error: reqwest::Error) -> Error {
     Error::Transport {
         host: host_of(url),
-        message: error.to_string(),
+        message: error.without_url().to_string(),
     }
 }

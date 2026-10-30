@@ -35,10 +35,23 @@ pub(crate) async fn prove_password(
     body: &Map<String, Value>,
 ) -> ApiResult<()> {
     let secret = text(body, "masterPasswordHash").ok_or_else(ApiError::invalid_password)?;
+    prove_password_value(server, user, &secret).await
+}
+
+pub(crate) async fn prove_password_value(
+    server: &BitwardenServer,
+    user: &BitwardenUser,
+    secret: &str,
+) -> ApiResult<()> {
+    let budget = format!("account:{}", super::identity::normalize_email(&user.email));
+    if !server.sign_in_failures.reserve(&budget).await? {
+        return Err(ApiError::too_many_requests());
+    }
     if server
-        .check_secret(&user.id, &user.master_password_hash, &secret)
+        .check_secret(&user.id, &user.master_password_hash, secret)
         .await?
     {
+        server.sign_in_failures.clear(&budget).await?;
         Ok(())
     } else {
         Err(ApiError::invalid_password())

@@ -240,6 +240,22 @@
     "reason": "Decoded mock key contains test and secret labels; the test uses a mocked fetch transport. Exact source Git blob 0f85bcd91904565e93320a280d26ee494eca4eb1."
   },
   {
+    "path": "packages/app-core/src/lib/native-google-wallet-policy.test.ts",
+    "rule": "private-key",
+    "line": 82,
+    "fileSha256": "00275c949bfa393a7e8f446470a0521f6726994f163c0ddd0bffd07a8bff2f1c",
+    "matchSha256": "e5b67dc8e9bc63d8d474e5f5af1c207a6cb9d7b4fe8399dcef1e63220a9cb499",
+    "reason": "Invalid-key rejection test constructs PEM markers around a repeated-character expression; no ASN.1 private key or usable credential is embedded."
+  },
+  {
+    "path": "packages/app-core/src/lib/native-google-wallet-spec.integration.test.ts",
+    "rule": "private-key",
+    "line": 39,
+    "fileSha256": "3a2a16c1f67171d2b8cacfd02d9247c1dd097063c83b20a8b86ab60819dd92aa",
+    "matchSha256": "0a9db0f4bc5f00a39dd9a09c3712e863037f4041a5827e3ad41fc091ae6380f2",
+    "reason": "Invalid-key rejection test constructs PEM markers around a repeated-character expression; no ASN.1 private key or usable credential is embedded."
+  },
+  {
     "path": "packages/app-core/src/lib/sops/fixtures/upstream/identities.json",
     "rule": "age-secret-key",
     "line": 5,
@@ -294,6 +310,22 @@
     "fileSha256": "56d2bf3f6e17a739ece960807a36811d242ae75db27a061355aa14ebda7c157e",
     "matchSha256": "f05520914e515f2ca6c3bd5b7b2bc551e40ab4e186138e011fb57ac366854ddb",
     "reason": "exact line matches reviewed historical public-PKCE proxy test argument; no production credential established"
+  },
+  {
+    "path": "packages/wallet/src/google-wallet-policy.generated.ts",
+    "rule": "private-key",
+    "line": 19,
+    "fileSha256": "794a18a3c493b66931f540cce7867820264b8af22f05d4963fbed51cb4038954",
+    "matchSha256": "9ceb794d602ee0c3024d5c673233d4e98012dc93ee1ffce58f2b532d03389171",
+    "reason": "Public validation regular expression containing PEM delimiters and character classes; this is a pattern, not private key material."
+  },
+  {
+    "path": "packages/wallet/src/google-wallet-policy.test.ts",
+    "rule": "private-key",
+    "line": 36,
+    "fileSha256": "80b3c0ee9472b83c3a42d86704f8113149056ec20940f1027559d41a7228351a",
+    "matchSha256": "0a9db0f4bc5f00a39dd9a09c3712e863037f4041a5827e3ad41fc091ae6380f2",
+    "reason": "Invalid-key rejection test constructs PEM markers around a repeated-character expression; no ASN.1 private key or usable credential is embedded."
   },
   {
     "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
@@ -1480,10 +1512,18 @@
     "reason": "Invalid part-name conformance data, checked by the daemon test as rejected path identifiers; excludes the pairing credentials in this file. Exact source Git blob a2e1ea86549f68dcefb77c904a09f0e9626c2554."
   },
   {
+    "path": "spec/connectors/google-wallet-configuration.json",
+    "rule": "private-key",
+    "line": 21,
+    "fileSha256": "f62d65bd5c48b8966d6c63f7607c89883d14e640f3a1d33ce9af04011274da67",
+    "matchSha256": "f5b77eb90fe5ec378f1e3649c42b10b558167115cb3de3dafdb182fd8167974f",
+    "reason": "Public validation regular expression containing PEM delimiters and character classes; this is a pattern, not private key material."
+  },
+  {
     "path": "tests/fuzz/cargo/Cargo.lock",
     "rule": "generic-api-key",
     "line": 992,
-    "fileSha256": "4d0f278ce9170fce7f4d82bce7260789db04caa178cf9b9dc207ec322fe537c8",
+    "fileSha256": "4f7b02f5ad7794905c8116b7562b927afc8c5bb71fa3303e26c1bd729450f602",
     "matchSha256": "93083ab4ae3e6e5c8dbd83a3ca66bb211438e30887c4fda849613d932a2aaa73",
     "reason": "generated Cargo lock dependency-list entry, not secret or checksum"
   }

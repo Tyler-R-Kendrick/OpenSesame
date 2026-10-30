@@ -4,7 +4,7 @@
 //! written; metadata is read here.
 
 use std::collections::HashSet;
-use std::path::Path;
+use std::{fs::File, sync::Arc};
 
 use chrono::Utc;
 use opensesame_storage::bitwarden::{BitwardenAttachment, BitwardenSend};
@@ -27,7 +27,7 @@ pub(super) enum Owner<'a> {
 pub(super) async fn attachments(
     pool: &SqlitePool,
     schema: &Schema,
-    data: &Path,
+    data: Option<&Arc<File>>,
     owner: Owner<'_>,
     ciphers: &HashSet<String>,
     left: &mut LeftBehind,
@@ -62,7 +62,12 @@ pub(super) async fn attachments(
             leave(left, "unreadable attachments", 1);
             continue;
         }
-        let path = data.join("attachments").join(&cipher_id).join(&id);
+        let Some(source) = data.and_then(|directory| {
+            FileSource::confined(directory, &["attachments", &cipher_id, &id])
+        }) else {
+            leave(left, "unreadable attachments", 1);
+            continue;
+        };
         arriving.push(ArrivingAttachment {
             attachment: BitwardenAttachment {
                 id,
@@ -74,7 +79,7 @@ pub(super) async fn attachments(
                 uploaded: true,
                 created_at: Utc::now(),
             },
-            source: FileSource::Disk(path),
+            source,
         });
     }
     Ok(arriving)
@@ -89,7 +94,7 @@ fn password(row: &SqliteRow) -> Option<String> {
     (!hash.is_empty() && !salt.is_empty()).then(|| pbkdf2_sha256_record(iterations, &salt, &hash))
 }
 
-fn send_from(row: &SqliteRow, data: &Path, user_id: &str) -> Option<ArrivingSend> {
+fn send_from(row: &SqliteRow, data: Option<&Arc<File>>, user_id: &str) -> Option<ArrivingSend> {
     let id = text(row, "uuid")?;
     let name = text(row, "name").filter(|n| is_enc_string(n))?;
     let key = text(row, "akey").filter(|k| is_enc_string(k))?;
@@ -110,9 +115,7 @@ fn send_from(row: &SqliteRow, data: &Path, user_id: &str) -> Option<ArrivingSend
             file_size = payload
                 .get("size")
                 .and_then(|s| s.as_i64().or_else(|| s.as_str()?.parse().ok()));
-            file = Some(FileSource::Disk(
-                data.join("sends").join(&id).join(&id_of_file),
-            ));
+            file = Some(FileSource::confined(data?, &["sends", &id, &id_of_file])?);
             file_id = Some(id_of_file);
         }
         _ => return None,
@@ -146,7 +149,7 @@ fn send_from(row: &SqliteRow, data: &Path, user_id: &str) -> Option<ArrivingSend
 pub(super) async fn sends(
     pool: &SqlitePool,
     schema: &Schema,
-    data: &Path,
+    data: Option<&Arc<File>>,
     user_id: &str,
     left: &mut LeftBehind,
 ) -> anyhow::Result<Vec<ArrivingSend>> {

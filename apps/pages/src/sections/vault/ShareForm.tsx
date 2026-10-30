@@ -37,16 +37,24 @@ export function ShareForm({
   onSeal: () => void;
   onCancel: () => void;
 }) {
+  const portable = showPortableDropScope();
   const chosen = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     chosen.current?.focus();
   }, []);
   return (
-    <section className="detail__group" aria-label="Share this item once">
-      <h2 className="detail__grouphead">Share once</h2>
-      {showPortableDropScope() ? (
+    <section
+      className="detail__group"
+      aria-label={portable ? "Share a copy" : "Share this item once"}
+    >
+      <h2 className="detail__grouphead">
+        {portable ? "Share a copy" : "Share once"}
+      </h2>
+      {portable ? (
         <FieldRow label="Opens on">
-          <span className="frow__value">Any browser with the link</span>
+          <span className="frow__value">
+            Any browser with the link and code
+          </span>
         </FieldRow>
       ) : null}
       <TtlChoices
@@ -54,10 +62,17 @@ export function ShareForm({
         onChange={onTtl}
         selectedRef={chosen}
         disabled={busy}
+        label={portable ? "Suggested window" : "Opens for"}
       />
-      <FieldRow label="Expires">
+      <FieldRow label={portable ? "Suggested expiry" : "Expires"}>
         <span className="frow__value">{expiry}</span>
       </FieldRow>
+      {portable ? (
+        <p className="hint">
+          A saved link and code can reopen this copy after that time. It cannot
+          be revoked.
+        </p>
+      ) : null}
       <div className="actions">
         <FormCommit
           label={busy ? "Sealing…" : "Seal and share"}

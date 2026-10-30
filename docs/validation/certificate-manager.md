@@ -109,6 +109,16 @@ policy-violating CSR is refused whole, never narrowed, and issued certificates
 are recorded in the inventory (`routes/est_records.rs`). The operator surface is
 `GET|PUT /api/v1/certmgr/profiles/{id}/est-config`.
 
+Certificate authentication requires current direct-client `MtlsRequired` TLS.
+A trusted-ingress proxy's own certificate and forwarded client assertions do
+not authenticate EST enrollment or renewal. When a bootstrap chain is pinned,
+the listener's complete trust-anchor set must match it; a listener trusting
+additional CAs fails closed because verified peer evidence does not retain the
+accepted certificate path. Use a dedicated listener with matching anchors.
+Profiles that explicitly allow password authentication can use a random
+passphrase of at least 16 bytes, with five shared checks per ten minutes.
+Omitted configuration fields preserve the existing bootstrap requirement.
+
 Not implemented: the ACME server (RFC 8555, mandatory per-profile EAB,
 single-use nonces, HTTP-01 validation or skip-validation) and the SCEP server
 (RFC 8894 `GetCACaps` / `GetCACert` / `PKIOperation`, static and one-time

@@ -67,14 +67,20 @@ describe("claim presentation (ADR 0062)", () => {
     const owner = await provisional(app);
     const claim = await createDropClaim(app, owner.accessToken);
 
-    const first = await present(app, { token: claim.claimToken });
+    const first = await present(app, {
+      token: claim.claimToken,
+      userCode: claim.userCode,
+    });
     expect(first.status).toBe(200);
     const body: BoundaryValue = overlapCast(await first.json());
     expect(body.state).toBe("presented");
     expect(body.targetManifest).toEqual(DROP_MANIFEST);
 
     // Presentation is single-use: a second present is refused.
-    const second = await present(app, { token: claim.claimToken });
+    const second = await present(app, {
+      token: claim.claimToken,
+      userCode: claim.userCode,
+    });
     expect(second.status).toBe(422);
   });
 
@@ -152,7 +158,14 @@ describe("claim presentation (ADR 0062)", () => {
     expect("targetManifest" in pollBody).toBe(false);
     expect("targetManifest" in overlapCast(pollBody.claim)).toBe(false);
 
-    expect((await present(app, { token: claim.claimToken })).status).toBe(200);
+    expect(
+      (
+        await present(app, {
+          token: claim.claimToken,
+          userCode: claim.userCode,
+        })
+      ).status,
+    ).toBe(200);
     const complete = await app.request(`/v1/claims/${claim.claimId}/complete`, {
       method: "POST",
       headers: {

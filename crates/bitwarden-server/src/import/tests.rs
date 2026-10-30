@@ -8,7 +8,7 @@ use super::*;
 
 const ENC: &str = "2.AAAAAAAAAAAAAAAAAAAAAA==|AAAAAAAAAAAAAAAAAAAAAA==|AAAA";
 
-fn user() -> BitwardenUser {
+pub(super) fn user() -> BitwardenUser {
     let now = Utc::now();
     BitwardenUser {
         id: "u".into(),

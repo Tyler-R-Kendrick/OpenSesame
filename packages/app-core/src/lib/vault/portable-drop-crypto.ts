@@ -1,9 +1,9 @@
 /**
  * Authenticated portable-drop packet encoding.
  *
- * The user-code verifier is PBKDF2-SHA256 via Web Crypto. The packet format
- * is this branch's own (`ospd1`). Web Crypto has no scrypt, and a fast hash
- * of the short code would not slow an offline guess.
+ * The code encrypts the manifest with PBKDF2-SHA256 and AES-GCM; the bearer
+ * separately authenticates the outer envelope. A link alone cannot open it.
+ * `ospd1` is refused: its code was only a bypassable client-side check.
  */
 
 import { dropRefusal } from "@opensesame/ceremony-kit";
@@ -17,6 +17,17 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { b64urlToBytes, bytesToB64url } from "@opensesame/vault-core";
+import {
+  CODE_KDF,
+  CODE_KDF_ITERATIONS,
+  type CodeSealedManifest,
+  openCodeManifest,
+  sealCodeManifest,
+} from "./portable-drop-code.js";
+import {
+  MAX_CODE_CIPHERTEXT_CHARS,
+  MAX_PORTABLE_PACKET_CHARS,
+} from "./portable-drop-limits.js";
 
 /**
  * Same bearer shape as ceremony-kit `isPortableDropToken`. Duplicated so this
@@ -67,15 +78,12 @@ function sha256Url(parts: string[]): Promise<string> {
   });
 }
 
-const PACKET_PREFIX = "ospd1";
+const PACKET_PREFIX = "ospd2";
 const NONCE_BYTES = 12;
 const SALT_BYTES = 16;
 const DIGEST_BYTES = 32;
-const HKDF_INFO = "opensesame.portable-drop.transport.v1";
-const TOKEN_DIGEST_INFO = "opensesame.portable-drop.token.v1";
-/** OWASP 2023 floor for PBKDF2-HMAC-SHA256, same as the vault password KDF. */
-const CODE_KDF = "PBKDF2-SHA256";
-const CODE_KDF_ITERATIONS = 600_000;
+const HKDF_INFO = "opensesame.portable-drop.transport.v2";
+const TOKEN_DIGEST_INFO = "opensesame.portable-drop.token.v2";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
@@ -87,10 +95,9 @@ type PortableBearer = {
 
 export type DecodedPortableDrop = {
   claimId: string;
-  manifest: JsonObject;
+  sealedManifest: CodeSealedManifest;
   expiresAtMs: number;
   codeSalt: Uint8Array;
-  userCodeDigest: string;
   codeKdf: {
     algorithm: typeof CODE_KDF;
     iterations: typeof CODE_KDF_ITERATIONS;
@@ -139,30 +146,6 @@ function bearerDigest(secretText: string): Promise<string> {
   return sha256Url([TOKEN_DIGEST_INFO, secretText]);
 }
 
-async function deriveCodeDigest(
-  userCode: string,
-  salt: Uint8Array,
-): Promise<string> {
-  const material = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(userCode.trim()),
-    "PBKDF2",
-    false,
-    ["deriveBits"],
-  );
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-256",
-      salt: overlapCast(salt),
-      iterations: CODE_KDF_ITERATIONS,
-    },
-    material,
-    DIGEST_BYTES * 8,
-  );
-  return bytesToB64url(new Uint8Array(bits));
-}
-
 async function transportKey(bearer: PortableBearer): Promise<CryptoKey> {
   const material = await crypto.subtle.importKey(
     "raw",
@@ -206,14 +189,17 @@ export async function sealPortableDropPacket(input: {
   const codeSalt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   const salt = bytesToB64url(codeSalt);
   const envelope = {
-    v: 1,
-    manifest: input.manifest,
+    v: 2,
+    sealedManifest: await sealCodeManifest(input.manifest, input.userCode, {
+      claimId: bearer.claimId,
+      expiresAtMs: input.expiresAtMs,
+      codeSalt,
+    }),
     expiresAtMs: input.expiresAtMs,
-    userCodeDigest: {
+    codeKdf: {
       algorithm: CODE_KDF,
       iterations: CODE_KDF_ITERATIONS,
       salt,
-      digest: await deriveCodeDigest(input.userCode, codeSalt),
     },
   };
   const nonce = crypto.getRandomValues(new Uint8Array(NONCE_BYTES));
@@ -244,39 +230,47 @@ function readEnvelope(
   if (!isJsonObject(value)) throw tampered();
   // SAFETY: isJsonObject proved a non-array JSON object for field reads.
   const root: BoundaryObject = overlapCast(value);
-  const manifest = root.manifest;
-  const digest = root.userCodeDigest;
+  const manifest = root.sealedManifest;
+  const kdf = root.codeKdf;
   const expiresAtMs = root.expiresAtMs;
   if (
-    root.v !== 1 ||
+    root.v !== 2 ||
     !isNumber(expiresAtMs) ||
     !Number.isSafeInteger(expiresAtMs) ||
     expiresAtMs <= 0 ||
     !isJsonObject(manifest) ||
-    !isJsonObject(digest)
+    !isJsonObject(kdf)
   ) {
     throw tampered();
   }
-  // SAFETY: isJsonObject proved the sealed manifest and the code digest.
-  const sealed: JsonObject = overlapCast(manifest);
-  const code: BoundaryObject = overlapCast(digest);
+  return {
+    claimId,
+    expiresAtMs,
+    ...readCodeMetadata(manifest, kdf),
+  };
+}
+
+function readCodeMetadata(
+  sealed: BoundaryObject,
+  code: BoundaryObject,
+): Pick<DecodedPortableDrop, "sealedManifest" | "codeSalt" | "codeKdf"> {
   const salt = code.salt;
-  const digestText = code.digest;
   if (
     code.algorithm !== CODE_KDF ||
     code.iterations !== CODE_KDF_ITERATIONS ||
     !isString(salt) ||
-    !isString(digestText)
+    !isString(sealed.nonce) ||
+    !isString(sealed.ciphertext) ||
+    sealed.ciphertext.length > MAX_CODE_CIPHERTEXT_CHARS
   ) {
     throw tampered();
   }
   try {
+    decodeBytes(sealed.nonce, NONCE_BYTES);
+    if (decodeBytes(sealed.ciphertext).length < 16) throw tampered();
     return {
-      claimId,
-      manifest: sealed,
-      expiresAtMs,
+      sealedManifest: { nonce: sealed.nonce, ciphertext: sealed.ciphertext },
       codeSalt: decodeBytes(salt, SALT_BYTES),
-      userCodeDigest: bytesToB64url(decodeBytes(digestText, DIGEST_BYTES)),
       codeKdf: {
         algorithm: CODE_KDF,
         iterations: CODE_KDF_ITERATIONS,
@@ -291,6 +285,7 @@ export async function decodePortableDropPacket(
   pkt: string,
   bearerToken: string,
 ): Promise<DecodedPortableDrop> {
+  if (pkt.length > MAX_PORTABLE_PACKET_CHARS) throw tampered();
   const bearer = await bearerFrom(bearerToken);
   const parts = pkt.split(".");
   if (parts.length !== 5 || parts[0] !== PACKET_PREFIX) throw tampered();
@@ -334,10 +329,9 @@ export async function decodePortableDropPacket(
   }
 }
 
-export async function portableDropCodeMatches(
+export async function openPortableDropManifest(
   decoded: DecodedPortableDrop,
   userCode: string,
-): Promise<boolean> {
-  const digest = await deriveCodeDigest(userCode, decoded.codeSalt);
-  return timingSafeEqual(digest, decoded.userCodeDigest);
+): Promise<JsonObject | null> {
+  return openCodeManifest(decoded.sealedManifest, userCode, decoded);
 }

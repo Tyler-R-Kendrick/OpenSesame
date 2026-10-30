@@ -11,6 +11,45 @@ use super::{
 };
 
 impl Db {
+    /// Reserve one of five EST passphrase checks in a ten-minute window.
+    ///
+    /// The conditional update serializes concurrent callers, including separate
+    /// Host processes using this database. Configuration writes do not reset it.
+    /// Returns the reserved attempt number. A missing, cross-organization or
+    /// exhausted configuration returns `None` and admits no checks.
+    ///
+    /// # Errors
+    /// Returns an error on clock overflow or storage failure; callers must fail closed.
+    pub async fn admit_est_passphrase_attempt(
+        &self,
+        organization_id: &str,
+        config_id: &str,
+        now: i64,
+    ) -> anyhow::Result<Option<i64>> {
+        let expiry = now
+            .checked_add(600)
+            .ok_or_else(|| anyhow::anyhow!("clock overflow"))?;
+        let changed = sqlx::query(
+            "UPDATE est_configs SET
+             passphrase_attempts = CASE WHEN passphrase_window_expires <= ? THEN 1 ELSE passphrase_attempts + 1 END,
+             passphrase_window_expires = CASE WHEN passphrase_window_expires <= ? THEN ? ELSE passphrase_window_expires END
+             WHERE organization_id = ? AND id = ?
+             AND (passphrase_window_expires <= ? OR passphrase_attempts < 5)
+             RETURNING passphrase_attempts",
+        )
+        .bind(now)
+        .bind(now)
+        .bind(expiry)
+        .bind(organization_id)
+        .bind(config_id)
+        .bind(now)
+        .fetch_optional(&self.pool)
+        .await?;
+        changed
+            .map(|row| row.try_get("passphrase_attempts").map_err(Into::into))
+            .transpose()
+    }
+
     /// # Errors
     ///
     /// Returns an error when the sealed passphrase group is partially populated

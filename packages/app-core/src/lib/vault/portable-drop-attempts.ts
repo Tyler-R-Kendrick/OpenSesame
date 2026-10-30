@@ -18,15 +18,18 @@ function storage(): WebStorage | undefined {
 }
 
 export function portableDropWrongAttempts(claimId: string): number {
+  const fallback = fallbackAttempts.get(claimId) ?? 0;
   const store = storage();
-  if (!store) return fallbackAttempts.get(claimId) ?? 0;
+  if (!store) return fallback;
   try {
     const raw = store.getItem(key(claimId));
-    if (raw === null) return 0;
+    if (raw === null) return fallback;
     const attempts = Number(raw);
-    return Number.isSafeInteger(attempts) && attempts >= 0 ? attempts : 0;
+    return Number.isSafeInteger(attempts) && attempts >= 0
+      ? Math.max(attempts, fallback)
+      : fallback;
   } catch {
-    return fallbackAttempts.get(claimId) ?? 0;
+    return fallback;
   }
 }
 

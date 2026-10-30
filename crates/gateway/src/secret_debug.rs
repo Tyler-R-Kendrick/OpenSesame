@@ -89,6 +89,6 @@ mod tests {
         let shown = format!("{body:?}");
         assert!(shown.contains("[REDACTED]"), "{shown}");
         assert!(!shown.contains("bootstrap-12345"), "{shown}");
-        assert!(shown.contains("require_bootstrap: true"), "{shown}");
+        assert!(shown.contains("require_bootstrap: Some(true)"), "{shown}");
     }
 }

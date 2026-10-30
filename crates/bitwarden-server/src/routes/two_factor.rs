@@ -227,12 +227,12 @@ pub async fn recover(
     let secret = text(&body, "masterPasswordHash").unwrap_or_default();
     let code = text(&body, "recoveryCode").unwrap_or_default();
     let refused = || ApiError::bad_request("Invalid information. Try again.");
-    if server.sign_in_failures.blocked(&email) {
+    let budget = format!("account:{email}");
+    if !server.sign_in_failures.reserve(&budget).await? {
         return Err(ApiError::too_many_requests());
     }
     let Some(user) = server.db.bitwarden_user_by_email(&email).await? else {
         server.decoy_check(&secret).await?;
-        server.sign_in_failures.record_failure(&email);
         return Err(refused());
     };
     if !server
@@ -240,10 +240,9 @@ pub async fn recover(
         .await?
         || second_step::recover(&server, &user, &code).await.is_err()
     {
-        server.sign_in_failures.record_failure(&email);
         return Err(refused());
     }
-    server.sign_in_failures.clear(&email);
+    server.sign_in_failures.clear(&budget).await?;
     super::touch(&server, &user.id).await?;
     Ok(StatusCode::OK)
 }

@@ -83,6 +83,16 @@ a live account's file Sends and password-protected Sends), so nothing is lost
 quietly. vaultwarden's attachments and Send files are read from its data
 folder, next to `db.sqlite3` unless you name it with `--data`.
 
+Import file IDs must be plain ASCII identifiers (letters, digits, hyphens or
+underscores), and each file is limited to 500 MiB. Live downloads use randomly
+named files in a private temporary directory. On Unix, vaultwarden file reads
+stay beneath the selected data directory through retained directory handles;
+symlinks, hardlinks and nonregular files are refused and reported as unreadable.
+On other platforms, vaultwarden attachment and Send file bytes are currently
+refused because an equivalent confined reader is unavailable; run that import
+on Unix to carry the files across. Account metadata and live downloads remain
+available. Windows file import has not been verified.
+
 ## What people get
 
 - Argon2id by default. An account can move from PBKDF2 to Argon2id from its

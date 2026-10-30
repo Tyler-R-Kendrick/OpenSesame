@@ -45,14 +45,13 @@ async fn password_matches(
         return Ok(true);
     };
     let key = format!("send:{}", send.id);
-    if server.sign_in_failures.blocked(&key) {
+    if !server.sign_in_failures.reserve(&key).await? {
         return Err(ApiError::too_many_requests());
     }
     if server.check_secret_only(stored, offered).await? {
-        server.sign_in_failures.clear(&key);
+        server.sign_in_failures.clear(&key).await?;
         Ok(true)
     } else {
-        server.sign_in_failures.record_failure(&key);
         Ok(false)
     }
 }

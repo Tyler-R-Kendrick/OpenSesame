@@ -131,7 +131,9 @@ describe("sharing an item once, from its toolbar", () => {
     await user.click(
       within(menu).getByRole("menuitem", { name: "Temporary drop" }),
     );
-    expect(screen.getByRole("radiogroup", { name: "Opens for" })).toBeTruthy();
+    expect(
+      screen.getByRole("radiogroup", { name: "Suggested window" }),
+    ).toBeTruthy();
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "1 hour" }),
     );
@@ -158,7 +160,9 @@ describe("sharing an item once, from its toolbar", () => {
         .getByRole("button", { name: "Share" })
         .getAttribute("aria-expanded"),
     ).toBe("true");
-    expect(screen.getByRole("radiogroup", { name: "Opens for" })).toBeTruthy();
+    expect(
+      screen.getByRole("radiogroup", { name: "Suggested window" }),
+    ).toBeTruthy();
   });
 
   it("draws no key where nothing can be shared: no value, the trash, or sharing off", () => {

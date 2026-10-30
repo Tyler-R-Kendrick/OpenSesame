@@ -300,7 +300,7 @@ impl Reader {
         let attachments = files::attachments(
             &self.pool,
             &self.schema,
-            &self.data,
+            self.data.as_ref(),
             Owner::Organization(&id),
             &known,
             &mut left,

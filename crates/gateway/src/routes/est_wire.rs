@@ -15,6 +15,8 @@
 //!
 //! `require_bootstrap` makes a client certificate mandatory *in addition* to
 //! whatever else matched: the passphrase alone must never enroll.
+//! Certificate authentication requires direct end-client mTLS. Trusted-ingress
+//! peers prove the proxy's key; originating assertions are not an EST proof.
 
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -25,12 +27,16 @@ use opensesame_domain::transport::{EvidenceSource, TransportPolicy, VerifiedPeer
 use opensesame_storage::{StoredCertificateProfile, StoredEstConfig};
 use opensesame_transport_security::PeerExtension;
 use serde_json::json;
+use std::collections::BTreeSet;
 
-use super::est_server::{internal, refuse, sealing_key, KEY_ID};
+use super::est_server::{internal, refuse, sealing_key, KEY_ID, MIN_PASSPHRASE_BYTES};
 use crate::app_state::AppState;
 
 /// The sealing scope CA keys live under (mirrors `certmgr_ca`).
 const CA_SCOPE: &str = "certificate_authority";
+
+#[path = "est_passphrase_budget.rs"]
+mod passphrase_budget;
 
 /// Loads the profile by its protocol-path id and its EST configuration.
 /// A missing profile and a missing configuration are the same `404`: the
@@ -70,7 +76,23 @@ pub(super) async fn authenticate(
     profile: &StoredCertificateProfile,
     reenroll: bool,
 ) -> Result<(), Response> {
-    let verified = peer.map(|PeerExtension(verified)| verified.as_ref());
+    // Apply the same end-client requirement before BOTH inventory replacement
+    // and bootstrap authentication. A proxy can itself be in the inventory;
+    // neither that row nor its TLS key proves possession by a downstream client.
+    let verified = peer
+        .map(|PeerExtension(verified)| verified.as_ref())
+        .filter(|verified| {
+            verified.source() == EvidenceSource::DirectTls
+                && verified.policy() == TransportPolicy::MtlsRequired
+                && verified.is_usable_at(chrono::Utc::now())
+                && st.transport.as_ref().is_none_or(|runtime| {
+                    let generation = runtime.generations.current();
+                    generation.withdrawn.is_none()
+                        && verified
+                            .require_generations(generation.number, generation.number)
+                            .is_ok()
+                })
+        });
     let replacing = reenroll
         && match verified {
             Some(verified) => replaces_certificate(st, &profile.organization_id, verified).await?,
@@ -80,17 +102,23 @@ pub(super) async fn authenticate(
         Some(verified) => bootstrap_ok(st, verified, config)?,
         None => false,
     };
-    let passphrase = passphrase_matches(st, headers, config)?;
     if config.require_bootstrap && !(replacing || bootstrap) {
         return Err(www_authenticate(
             "a client certificate is required at this profile",
         ));
     }
-    if replacing || bootstrap || passphrase {
-        Ok(())
-    } else {
-        Err(www_authenticate("valid EST credentials are required"))
+    // Certificate authentication is independent of the password budget: a
+    // password guesser must not lock valid certificate holders out of renewal.
+    if replacing || bootstrap {
+        return Ok(());
     }
+    if config.sealed_passphrase.is_some() {
+        passphrase_budget::reserve(st, config).await?;
+    }
+    if passphrase_matches(st, headers, config)? {
+        return Ok(());
+    }
+    Err(www_authenticate("valid EST credentials are required"))
 }
 
 /// True when the presented certificate is an active certificate of this
@@ -119,14 +147,6 @@ fn bootstrap_ok(
     verified: &VerifiedPeer,
     config: &StoredEstConfig,
 ) -> Result<bool, Response> {
-    if verified.view().source != EvidenceSource::DirectTls
-        || !matches!(
-            verified.policy(),
-            TransportPolicy::MtlsRequired | TransportPolicy::TrustedIngress
-        )
-    {
-        return Ok(false);
-    }
     let Some(chain_pem) = config.bootstrap_chain_pem.as_deref() else {
         return Ok(true);
     };
@@ -136,15 +156,23 @@ fn bootstrap_ok(
         return Ok(false);
     };
     let generation = runtime.generations.current();
-    let Ok(bundle) = generation.trust(&verified.view().trust_profile) else {
+    // Bind the anchor snapshot to the evidence even if rotation raced the
+    // shared admission check above.
+    if generation.withdrawn.is_some() || verified.trust_generation() != generation.number {
+        return Ok(false);
+    }
+    let Ok(bundle) = generation.trust(verified.trust_profile()) else {
         return Ok(false);
     };
-    let anchors: Vec<&[u8]> = bundle
+    let anchors: BTreeSet<&[u8]> = bundle
         .anchors()
         .iter()
         .map(std::convert::AsRef::as_ref)
         .collect();
-    Ok(wanted.iter().all(|der| anchors.contains(&der.as_slice())))
+    // VerifiedPeer retains the trust profile, not the accepted certificate path.
+    // A subset test would attribute a peer chained to any extra listener CA to
+    // this profile's bootstrap CA. Require the complete anchor set to match.
+    Ok(wanted.iter().map(Vec::as_slice).collect::<BTreeSet<_>>() == anchors)
 }
 
 /// HTTP Basic password check against the sealed passphrase, constant time.
@@ -163,19 +191,24 @@ fn passphrase_matches(
         return Ok(false);
     }
     let sealing = sealing_key(st)?;
-    let opened = open_scoped(
-        &sealing,
-        opensesame_storage::seal_scopes::EST_PASSPHRASE,
-        &config.id,
-        &config.organization_id,
-        &SealedBlob {
-            ciphertext: material.ciphertext.clone(),
-            nonce: material.nonce.clone(),
-            aad_digest: material.aad_digest.clone(),
-        },
-    )
-    .map_err(|error| internal(error, "open est passphrase"))?;
-    Ok(constant_time_eq(&opened, password.as_bytes()))
+    let opened = zeroize::Zeroizing::new(
+        open_scoped(
+            &sealing,
+            opensesame_storage::seal_scopes::EST_PASSPHRASE,
+            &config.id,
+            &config.organization_id,
+            &SealedBlob {
+                ciphertext: material.ciphertext.clone(),
+                nonce: material.nonce.clone(),
+                aad_digest: material.aad_digest.clone(),
+            },
+        )
+        .map_err(|error| internal(error, "open est passphrase"))?,
+    );
+    // Existing weak credentials are disabled too: throttling a persistent
+    // four-digit password must not leave it guessable over successive windows.
+    // A valid certificate has already authenticated before reaching this path.
+    Ok(opened.len() >= MIN_PASSPHRASE_BYTES && constant_time_eq(&opened, password.as_bytes()))
 }
 
 /// The password half of an HTTP Basic credential (RFC 7617). The user name is

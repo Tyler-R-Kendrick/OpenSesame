@@ -86,10 +86,13 @@ user-code fence gates `complete` — which requires an authenticated
 principal — not `present`. The drop transport therefore takes the reserved
 fallback shape, as a deliberate server change:
 
-- `POST /v1/claims/present` accepts an optional `userCode`, verified against
-  the claim's peppered digest (same 5-attempt fence as `complete`) *before*
-  the single-use CAS transition — so the code gates payload release and
-  account-free recipients work.
+- `POST /v1/claims/present` requires `userCode` for `secret-drop` manifests,
+  verified against the claim's peppered digest (same 5-attempt fence as
+  `complete`) *before* the single-use CAS transition. Other claim ceremonies
+  retain optional-code presentation. The bearer is verified before a code
+  attempt is charged, and the counter clears only after a successful CAS.
+  The original optional field let a custom client omit the second factor;
+  this enforcement was corrected on 2026-10-30.
 - The present response — and only the present response — includes
   `targetManifest`. Presentation is already the single-use transition, so
   the ciphertext is served exactly once, inside the one presentation
@@ -106,6 +109,13 @@ fallback shape, as a deliberate server change:
 - **No recipient accounts.** Anybody with link + user code consumes the
   drop; that is the point of a drop. Per-recipient encryption needs a
   browser recipient-key model that doesn't exist yet (ADR 0063 notes it).
+- **Portable copies.** A backend-free portable share cannot enforce global
+  expiry, revocation, or single use against saved copies. Its `ospd2` packet
+  encrypts the manifest with a salted, fixed-cost code-derived key as well
+  as authenticating the outer packet with the bearer. The generated code
+  has 80 bits of entropy; offline guessing remains possible. Legacy `ospd1`
+  packets are refused because their separate code was a client-only check;
+  existing links must be recreated. See [secret-drop design](../design/secret-drop.md).
 
 ## Consequences
 

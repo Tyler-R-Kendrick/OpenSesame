@@ -135,6 +135,13 @@ Gate: `cargo +1.88.0 test -p opensesame-gateway`
   operator-uploaded CA chain; re-enrollment additionally supports mTLS with the
   certificate being replaced.
 
+Certificate proof is direct-client `MtlsRequired` TLS, never the ingress proxy's
+leaf or forwarded assertions. Explicit bootstrap pins match the listener's full
+trust-anchor set; broader listener trust is refused. Password-only enrollment
+requires explicit profile policy, a passphrase of at least 16 bytes, and durable
+shared admission of five checks per ten minutes. Omitted policy fields preserve
+the configured bootstrap requirement.
+
 **SCEP** at `/scep/{profileId}/pkiclient.exe` (forthcoming
 `crates/gateway/src/routes/scep_server.rs`, CMS codec in the forthcoming
 `crates/scep`):

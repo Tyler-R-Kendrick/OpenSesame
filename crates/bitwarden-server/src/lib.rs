@@ -114,8 +114,8 @@ pub struct ServerConfig {
     /// Requests allowed to wait for a hash slot. Beyond it a request is
     /// refused at once (429) rather than queued without limit.
     pub hash_queue: usize,
-    /// Failed sign-ins an address may make per `failure_window` before it
-    /// is refused without a hash being computed.
+    /// Credential checks an address may reserve per `failure_window` before
+    /// hashing is refused. A completed successful proof clears its budget.
     pub max_failed_sign_ins: u32,
     pub failure_window: Duration,
     /// A refresh token lapses after this long unused; each use slides it.
@@ -189,14 +189,18 @@ impl BitwardenServer {
         let issuer = format!("{}/identity", config.public_url);
         let permits = config.hash_concurrency.max(1);
         Self(Arc::new(Inner {
-            db,
+            db: db.clone(),
             tokens: TokenKeys::new(token_secret, &issuer, ttl),
             hub: notifications::Hub::default(),
             sign_in_failures: limiter::FailureLimiter::new(
+                db.clone(),
+                "verification",
                 config.max_failed_sign_ins.max(1),
                 config.failure_window,
             ),
             sign_in_requests: limiter::FailureLimiter::new(
+                db,
+                "sign-in-request",
                 u32::try_from(routes::SIGN_IN_REQUESTS_PER_WINDOW).unwrap_or(5),
                 routes::sign_in_request_window(),
             ),

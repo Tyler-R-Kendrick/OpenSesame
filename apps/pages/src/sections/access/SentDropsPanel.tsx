@@ -60,6 +60,26 @@ function receiptsForClaim(events: readonly AuditEvent[], claimId: string) {
   );
 }
 
+function SentDropTrail({ trail }: { trail: readonly AuditEvent[] }) {
+  if (trail.length === 0) return null;
+  return (
+    <ul className="access-trail access-sent-drop__trail">
+      {trail.map((event) => (
+        <li key={event.id}>
+          <span className="access-trail__when">
+            {formatTime(event.occurredAt)}
+          </span>
+          <span className="access-trail__type">{receiptWords(event)}</span>
+          <StatusMark
+            tone={statusTone(outcomeChip(event.outcome))}
+            label={event.outcome}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function SentDropRow({
   drop,
   events,
@@ -82,8 +102,16 @@ function SentDropRow({
     const timer = window.setTimeout(() => setArmed(false), 4000);
     return () => window.clearTimeout(timer);
   }, [armed]);
-  const mark = STATUS[drop.state];
-  const trail = receiptsForClaim(events, drop.claimId);
+  const mark = drop.portable
+    ? { tone: "idle" as const, label: "Copy shared" }
+    : STATUS[drop.state];
+  // An old client could write a revoked receipt after only changing its
+  // local ledger. Such a receipt never revoked a portable copy.
+  const trail = receiptsForClaim(events, drop.claimId).filter(
+    (row) =>
+      row.eventType !== "access.drop.revoked" ||
+      (!drop.portable && drop.state === "revoked"),
+  );
   const revokeLabel = armed ? "Confirm" : "Revoke";
 
   useFailureNotice(`sent-drop-revoke:${drop.claimId}`, "Sent", revokeError);
@@ -120,7 +148,7 @@ function SentDropRow({
       <div className="access-sent-drop__head">
         <span className="access-sent-drop__name">{drop.name}</span>
         <StatusMark tone={mark.tone} label={mark.label} />
-        {drop.state === "pending" ? (
+        {drop.state === "pending" && !drop.portable ? (
           <IconKey
             label={revokeLabel}
             armed={armed}
@@ -136,22 +164,12 @@ function SentDropRow({
         ) : null}
       </div>
       <span className="vault-row__meta">{formatTime(drop.createdAt)}</span>
-      {trail.length > 0 ? (
-        <ul className="access-trail access-sent-drop__trail">
-          {trail.map((event) => (
-            <li key={event.id}>
-              <span className="access-trail__when">
-                {formatTime(event.occurredAt)}
-              </span>
-              <span className="access-trail__type">{receiptWords(event)}</span>
-              <StatusMark
-                tone={statusTone(outcomeChip(event.outcome))}
-                label={event.outcome}
-              />
-            </li>
-          ))}
-        </ul>
+      {drop.portable ? (
+        <p className="hint">
+          Saved copies can reopen after expiry. Revocation is unavailable.
+        </p>
       ) : null}
+      <SentDropTrail trail={trail} />
     </li>
   );
 }

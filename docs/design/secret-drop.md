@@ -4,9 +4,10 @@ Design contract. Decision record: [ADR 0062](../adr/0062-secret-drop.md).
 Sibling contracts: [access-screen.md](access-screen.md) (hard rules apply:
 no prose, a ceremony per fork).
 
-A drop shares a secret (or an encrypted file) exactly once: client-side
-E2EE, key in the URL fragment, single-use presentation, time-boxed,
-disposed on consumption.
+A server-backed drop shares a secret (or an encrypted file) exactly once:
+client-side E2EE, key in the URL fragment, single-use presentation,
+time-boxed, disposed on consumption. A portable drop works without a server
+and has the limits described below.
 
 ## Pieces
 
@@ -70,6 +71,37 @@ Drop branch on the claim acceptance page: detect `kind: "secret-drop"` in
 the presented manifest → user-code field → present (single-use) → decrypt
 with the fragment key → reveal text (with copy) or download the file.
 Consumed state renders `This drop was already opened.`
+
+### 6. Portable drops without an Identity server
+
+Device-only sharing places a portable packet in the link fragment alongside
+the bearer and the drop key. In format `ospd2`, the bearer authenticates the
+outer envelope; the separately delivered user code derives an AES-GCM key
+using a fresh salt and 600,000 PBKDF2-SHA256 rounds and encrypts the manifest
+inside it. The code key and a plaintext manifest are never in the outer
+envelope. The code encryption binds the claim, expiry and KDF metadata.
+Knowing the entire link, including its drop key, cannot reveal the payload
+without the separate code.
+
+The generated code has sixteen uniformly random symbols from a 32-symbol
+alphabet (80 bits), displayed in four groups. A link holder can still try
+codes offline; the
+KDF raises the cost, and the five-attempt UI counter provides no protection
+against a modified client or a copied packet. Portable links cannot enforce
+global single-use consumption, revocation or expiry against a custom client.
+Use the server-backed claim flow when those guarantees are required.
+
+The sender list labels portable sends as copies and offers no revocation.
+A sender ledger row alone cannot prove that a hosted or local claim was
+revoked: a missing claim returns an unavailable outcome, and only a confirmed
+authority response earns a revoked state or receipt. Older unconfirmed
+revocation states are not repeated as security assurances.
+
+Legacy `ospd1` packets are refused and must be recreated by the sender. That
+format encrypted its manifest with the bearer alone and checked the user
+code only in the client, so anyone who already held the link could bypass
+the code. Updating the client cannot recover confidentiality for an old link
+or a payload someone has already copied.
 
 ## Data and state rules
 

@@ -222,4 +222,12 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0056_outbox_customer_binding",
         include_str!("../migrations/0056_outbox_customer_binding.sql"),
     ),
+    (
+        "0057_est_passphrase_budget",
+        include_str!("../migrations/0057_est_passphrase_budget.sql"),
+    ),
+    (
+        "0058_bitwarden_attempt_budgets",
+        include_str!("../migrations/0058_bitwarden_attempt_budgets.sql"),
+    ),
 ];

@@ -84,7 +84,7 @@ async fn an_unknown_profile_and_an_unconfigured_one_look_the_same() {
 async fn enrollment_without_valid_credentials_is_refused_with_basic_auth() {
     let _guard = test_env::lock();
     let state = sealed_state().await;
-    let profile_id = seed_self_signed_profile(&state, "correct horse").await;
+    let profile_id = seed_self_signed_profile(&state, "correct horse battery staple").await;
     let app = router(state);
 
     // No credential at all.
@@ -123,7 +123,7 @@ async fn enrollment_without_valid_credentials_is_refused_with_basic_auth() {
             Request::post(format!("/.well-known/est/{profile_id}/simpleenroll"))
                 .header(
                     axum::http::header::AUTHORIZATION,
-                    basic("est", "correct horse"),
+                    basic("est", "correct horse battery staple"),
                 )
                 .body(Body::from("not a csr"))
                 .unwrap(),
@@ -139,7 +139,7 @@ async fn enrollment_without_valid_credentials_is_refused_with_basic_auth() {
 async fn the_operator_surface_never_returns_the_passphrase() {
     let _guard = test_env::lock();
     let state = sealed_state().await;
-    let profile_id = seed_self_signed_profile(&state, "correct horse").await;
+    let profile_id = seed_self_signed_profile(&state, "correct horse battery staple").await;
     let headers = test_session_headers(
         &state,
         "principal:00000000-0000-4000-8000-000000000001",
@@ -156,7 +156,7 @@ async fn the_operator_surface_never_returns_the_passphrase() {
     let body = to_bytes(response.into_body(), 64 * 1024).await.unwrap();
     let text = String::from_utf8_lossy(&body);
     assert!(text.contains("\"passphrase_set\":true"), "{text}");
-    assert!(!text.contains("correct horse"), "{text}");
+    assert!(!text.contains("correct horse battery staple"), "{text}");
 }
 
 /// Seeds a policy, a self-signed profile (no authority required) and a sealed
@@ -235,3 +235,12 @@ async fn seed_self_signed_profile(state: &crate::app_state::AppState, passphrase
         .expect("est config");
     profile_id
 }
+
+#[path = "est_server_tests_budget.rs"]
+mod budget;
+
+#[path = "est_legacy_passphrase_tests.rs"]
+mod legacy_passphrase;
+
+#[path = "est_certificate_proof_tests.rs"]
+mod certificate_proof;

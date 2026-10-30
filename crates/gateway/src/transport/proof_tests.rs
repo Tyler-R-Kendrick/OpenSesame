@@ -86,6 +86,47 @@ fn behind_an_ingress_the_originating_certificate_binds() {
     );
 }
 
+#[test]
+fn an_ingress_certificate_without_originating_evidence_cannot_bind_a_client_token() {
+    use opensesame_domain::transport::attest::AttestedPeer;
+    use opensesame_domain::transport::{EvidenceSource, TransportPolicy};
+    use std::sync::Arc;
+
+    let peer = peer("edge.test", THUMB_A, 1);
+    let ingress = AttestedPeer {
+        source: EvidenceSource::DirectTls,
+        identities: peer.identities().to_vec(),
+        leaf_thumbprint_sha256: peer.leaf_thumbprint_sha256().to_owned(),
+        not_before: peer.not_before(),
+        not_after: peer.not_after(),
+        trust_profile: peer.trust_profile().clone(),
+        trust_generation: peer.trust_generation(),
+        credential_generation: peer.credential_generation(),
+        listener: peer.listener().to_owned(),
+        policy: TransportPolicy::TrustedIngress,
+        tls_version: peer.tls_version(),
+        authenticated_at: peer.authenticated_at(),
+        usable_until: peer.usable_until(),
+        ingress: None,
+    }
+    .into_verified()
+    .unwrap();
+    let mut extensions = tls_extensions(&ingress, 1);
+    extensions.insert(opensesame_transport_security::ListenerProvenance::Tls {
+        listener_id: super::HOST_TLS_LISTENER.into(),
+        policy: TransportPolicy::TrustedIngress,
+        generation: 1,
+    });
+    assert_eq!(
+        require_certificate_binding(Some(&cnf_for(THUMB_A)), &extensions),
+        Err(TransportError::ProofMismatch)
+    );
+    extensions.insert(opensesame_ingress_evidence::OriginatingPeerExtension(
+        Arc::new(forwarded("client.test", THUMB_B, &ingress)),
+    ));
+    assert!(require_certificate_binding(Some(&cnf_for(THUMB_B)), &extensions).is_ok());
+}
+
 /// A revoked originating client behind a trusted ingress: the token names
 /// exactly its certificate, and the listener's revoked-leaf hook (lifecycle
 /// denylist + binding `denied_thumbprints`) names it too. The binding is
