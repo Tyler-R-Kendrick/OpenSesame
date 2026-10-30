@@ -11,7 +11,7 @@
  * caller and is the caller's to wipe: it is the key a share is wrapped under.
  */
 
-import { overlapCast } from "@opensesame/os-domain";
+import { isArrayBufferBackedBytes, overlapCast } from "@opensesame/os-domain";
 import { requireCredentials } from "../../ports.js";
 import {
   PrfCeremonyError,
@@ -74,6 +74,12 @@ function bytesOf(source: BufferSource) {
         source.byteLength,
       ).slice()
     : new Uint8Array(source).slice();
+}
+
+function ownedCeremonyBytes(bytes: Uint8Array) {
+  if (!isArrayBufferBackedBytes(bytes))
+    throw new TypeError("Expected attached ArrayBuffer-backed bytes");
+  return new Uint8Array(bytes);
 }
 
 function allow(ids: readonly string[]): PublicKeyCredentialDescriptor[] {
@@ -168,15 +174,18 @@ export function webauthnCeremony(
 ): Ceremony {
   return {
     async register(input) {
+      const userId = ownedCeremonyBytes(input.userId);
+      const challenge = ownedCeremonyBytes(input.challenge);
+      const prfInput = ownedCeremonyBytes(input.prfInput);
       const created = await container.create({
         publicKey: {
           rp: { id: input.rpId, name: input.rpName },
           user: {
-            id: input.userId,
+            id: userId,
             name: input.userName,
             displayName: input.userName,
           },
-          challenge: input.challenge,
+          challenge,
           pubKeyCredParams: [
             { type: "public-key", alg: -7 },
             { type: "public-key", alg: -8 },
@@ -189,29 +198,30 @@ export function webauthnCeremony(
             residentKey: "discouraged",
           },
           attestation: "none",
-          extensions: { prf: { eval: { first: input.prfInput } } },
+          extensions: { prf: { eval: { first: prfInput } } },
         },
       });
       return readRegistered(created);
     },
     async assert(input) {
+      const challenge = ownedCeremonyBytes(input.challenge);
+      const prfInput = input.prfInput;
+      const prfOptional = input.prfOptional === true;
       const publicKey: PublicKeyCredentialRequestOptions = {
         rpId: input.rpId,
-        challenge: input.challenge,
+        challenge,
         allowCredentials: allow(input.allowCredentialIds),
         userVerification: input.requireUserVerification
           ? "required"
           : "preferred",
       };
-      if (input.prfInput) {
-        publicKey.extensions = { prf: { eval: { first: input.prfInput } } };
+      if (prfInput) {
+        publicKey.extensions = {
+          prf: { eval: { first: ownedCeremonyBytes(prfInput) } },
+        };
       }
       const got = await container.get({ publicKey });
-      return readAsserted(
-        got,
-        input.prfInput !== undefined,
-        input.prfOptional === true,
-      );
+      return readAsserted(got, prfInput !== undefined, prfOptional);
     },
   };
 }
