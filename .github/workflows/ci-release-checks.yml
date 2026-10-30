@@ -101,6 +101,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
+          save-if: false
           shared-key: release-${{ matrix.check }}
       - name: Install native dependencies and pin source
         run: |
@@ -127,7 +128,7 @@ jobs:
           bash scripts/release/deep-check.sh "$DEEP_CHECK"
       - name: Retain the exact scope, tool versions and results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-check-${{ matrix.check }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -169,6 +170,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
+          save-if: false
           shared-key: release-${{ matrix.check }}
       - name: Install native dependencies and pin source
         run: |
@@ -206,7 +208,7 @@ jobs:
           bash scripts/release/deep-check.sh "$DEEP_CHECK"
       - name: Retain the exact scope, tool versions and results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-check-${{ matrix.check }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -283,7 +285,7 @@ jobs:
           node scripts/release/candidate.mjs verify --directory "$RUNNER_TEMP/candidate" --prerequisite-env PREREQUISITE_RECEIPT
           node scripts/release/candidate.mjs receipt --stage release-qualified --suite "$SUITE" --needs-env NEEDS_JSON --directory "$RUNNER_TEMP/qualification"
       - id: upload
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: qualification-release-qualified-${{ inputs.suite }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/qualification/receipt.json

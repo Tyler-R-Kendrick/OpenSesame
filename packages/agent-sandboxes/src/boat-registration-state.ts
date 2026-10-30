@@ -1,4 +1,5 @@
 import type { BoatClaimMaterials } from "./boat-auth.js";
+import { boatClaimUrl } from "./boat-endpoints.js";
 import type {
   BoatProviderOptions,
   BoatProviderState,
@@ -86,10 +87,11 @@ export function requireBoatClaim(
   claim: BoatClaimMaterials | undefined,
   token: string | undefined,
   issuedAt: number | undefined,
+  origin: string,
 ): never {
   if (claim && isBoatClaimUsable(claim, token, issuedAt))
     throw new SandboxClaimRequiredError({
-      verificationUri: claim.verificationUri,
+      verificationUri: boatClaimUrl(claim.verificationUri, origin),
       userCode: claim.userCode,
     });
   throw new Error(

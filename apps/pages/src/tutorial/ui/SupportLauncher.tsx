@@ -103,7 +103,7 @@ export function SupportLauncher({
             </div>
           }
         >
-          <SupportPanel />
+          <SupportPanel gate={gate} />
         </Suspense>
       ) : null}
     </>
