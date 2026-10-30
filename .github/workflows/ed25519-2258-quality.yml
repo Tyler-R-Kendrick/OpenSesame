@@ -1,0 +1,46 @@
+name: Ed25519 quality ratchet
+on:
+  push:
+    branches: [review/ed25519-2258-quality-7c02-20261030]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/ed25519-2258-quality-7c02-20261030' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 7c0210080db940621aa0ef7cfbaaba9d3fe300dd
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Verify exact source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 7c0210080db940621aa0ef7cfbaaba9d3fe300dd
+          test "$(git rev-parse HEAD^{tree})" = 0b21b8d74f618c1b69712b3f27a1f90517883c5d
+          test "$(git rev-parse HEAD^)" = 98ad6e09f643967091056260ac727f85dcf9accf
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Tighten structural ratchet without new debt
+        run: |
+          set -euo pipefail
+          pnpm quality:gate --update
+          pnpm quality:gate
+          git diff --stat -- tools/quality/quality-baseline.json
+          test "$(git diff --name-only)" = tools/quality/quality-baseline.json
+          mkdir -p "$RUNNER_TEMP/ed25519-ratchet"
+          cp tools/quality/quality-baseline.json "$RUNNER_TEMP/ed25519-ratchet/quality-baseline.json"
+          (cd "$RUNNER_TEMP/ed25519-ratchet" && sha256sum quality-baseline.json > SHA256SUMS)
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: ed25519-2258-ratchet
+          path: ${{ runner.temp }}/ed25519-ratchet
+          if-no-files-found: error
+          retention-days: 7
