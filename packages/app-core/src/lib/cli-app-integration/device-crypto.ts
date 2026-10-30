@@ -18,7 +18,7 @@ async function readCliAppPairingVaultSessionRoot(): Promise<string | null> {
 }
 const DEVICE_SIGNING_STORAGE_KEY = "opensesame-cli-app-device-signing.v1";
 
-async function sha256(data: Uint8Array): Promise<Uint8Array> {
+async function sha256(data: Uint8Array<ArrayBuffer>) {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
 }
 
@@ -35,7 +35,7 @@ export async function webauthnRegisterChallengeDigest(
   token: string,
   origin: string,
   vaultSessionRootDigest: string,
-): Promise<Uint8Array> {
+) {
   const label = new TextEncoder().encode(
     "opensesame-cli-app-webauthn-register.v1",
   );
@@ -77,7 +77,7 @@ export function b64urlEncode(bytes: Uint8Array): string {
     .replace(/=+$/, "");
 }
 
-export function b64urlDecode(value: string): Uint8Array | null {
+export function b64urlDecode(value: string) {
   const padded = value.replaceAll("-", "+").replaceAll("_", "/");
   const pad = (4 - (padded.length % 4)) % 4;
   try {
@@ -159,7 +159,7 @@ async function deriveDeviceWrapKey(
 
 async function wrapDeviceKeyMaterial(
   vaultSessionRoot: string,
-  pkcs8: Uint8Array,
+  pkcs8: Uint8Array<ArrayBuffer>,
 ): Promise<string> {
   const cryptoKey = await deriveDeviceWrapKey(vaultSessionRoot);
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -175,7 +175,7 @@ async function wrapDeviceKeyMaterial(
 async function unwrapDeviceKeyMaterial(
   vaultSessionRoot: string,
   wrappedB64: string,
-): Promise<Uint8Array | null> {
+) {
   const wrapped = b64urlDecode(wrappedB64);
   if (!wrapped || wrapped.byteLength < 13) return null;
   const iv = wrapped.subarray(0, 12);
