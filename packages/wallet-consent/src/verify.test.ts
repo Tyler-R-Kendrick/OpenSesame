@@ -256,6 +256,25 @@ describe("verifyDigestBoundApproval", () => {
     }
   });
 
+  it("converts an asynchronous verification rejection to signature_invalid", async () => {
+    const verify = vi
+      .spyOn(crypto.subtle, "verify")
+      .mockRejectedValueOnce(
+        new DOMException("verification ended", "InvalidStateError"),
+      );
+    try {
+      expect(
+        await verifyDigestBoundApproval({
+          expectedDigest: DIGEST,
+          trustedKeys: TRUSTED,
+          proof: signedProof(DIGEST),
+        }),
+      ).toEqual({ ok: false, reason: "signature_invalid" });
+    } finally {
+      verify.mockRestore();
+    }
+  });
+
   it("refuses a detached signature without throwing", async () => {
     const proof = signedProof(DIGEST);
     const signature = new Uint8Array(proof.verifiedBytes);
