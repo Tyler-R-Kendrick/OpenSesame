@@ -158,9 +158,10 @@ pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
                 EllipticCurve::P384 => "P-384",
                 EllipticCurve::P521 => "P-521",
                 _ => {
-                    return Err(ProofError::UnsupportedAlgorithm(
-                        "unsupported JWK curve for thumbprint".into(),
-                    ));
+                    return Err(ProofError::UnsupportedAlgorithm(format!(
+                        "OKP curve {:?}",
+                        params.curve
+                    )));
                 }
             };
             serde_json::json!({
