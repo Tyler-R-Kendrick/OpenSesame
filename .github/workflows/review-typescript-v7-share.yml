@@ -41,6 +41,7 @@ jobs:
             before=$(grep -cE 'error TS[0-9]+' /tmp/share-original.log || true)
             after=$(grep -cE 'error TS[0-9]+' /tmp/share-fixed.log || true)
             echo "Pages diagnostics before=$before after=$after; remaining errors block complete migration."
+            grep -E 'error TS[0-9]+' /tmp/share-fixed.log || true
             test "$after" -lt "$before"
             if grep -E '(share-target-intake.test.ts|src/sw/share-target.ts).*error TS[0-9]+' /tmp/share-fixed.log; then exit 1; fi
           fi
