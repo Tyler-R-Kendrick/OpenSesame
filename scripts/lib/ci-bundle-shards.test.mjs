@@ -38,6 +38,7 @@ const GATES = [
   "verify:self-hosted-connectors",
   "verify:native-connectors",
   "verify:native-public-protocol",
+  "test:mcp-cross-realm",
   "verify:provider-auth",
   "build:identity-verify",
   "verify:identity-connections",
@@ -269,6 +270,7 @@ it("runs the unchanged whole secret backend profile and driver in an independent
   expect(secret.text).toContain("VITE_BASE: /OpenSesame/");
   for (const command of [
     "verify:native-public-protocol",
+    "test:mcp-cross-realm",
     "verify:provider-auth",
     "build:identity-verify",
     "verify:identity-connections",
@@ -279,6 +281,22 @@ it("runs the unchanged whole secret backend profile and driver in an independent
         legs().map((leg) => leg.shard),
       ),
     ).toEqual(["native-public-protocol"]);
+});
+
+it("runs MCP cross-realm recovery on the pinned browser", () => {
+  const matching = steps().filter((step) =>
+    step.text.includes("test:mcp-cross-realm"),
+  );
+  expect(matching).toHaveLength(1);
+  expect(
+    shardsOf(
+      matching[0].when,
+      legs().map((leg) => leg.shard),
+    ),
+  ).toEqual(["native-public-protocol"]);
+  expect(matching[0].text).toContain(
+    "PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome",
+  );
 });
 
 it("runs trusted-contact unlock in the auth shard and selects it for driver edits", () => {

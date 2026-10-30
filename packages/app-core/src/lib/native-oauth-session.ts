@@ -161,6 +161,7 @@ export type NativeOAuthClaim = {
 export async function claimNativeOAuthPending(
   search: string,
   classification: NativeFieldClassification,
+  prepare?: (obligation: NativeRecovery) => void,
 ): Promise<NativeOAuthClaim> {
   const callback = parseNativeOAuthCallback(search);
   const found = findNativeOAuthPending(callback.state);
@@ -173,6 +174,7 @@ export async function claimNativeOAuthPending(
     pending,
     record.runtime.identity?.id,
   );
+  prepare?.(obligation);
   if (pending.providerId === "databricks")
     obligation.credentials = {
       ...obligation.credentials,
