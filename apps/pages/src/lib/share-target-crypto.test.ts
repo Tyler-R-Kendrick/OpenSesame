@@ -127,6 +127,7 @@ it("wipes the plaintext snapshot after key import fails", async () => {
     fills.mock.contexts.some(
       (view) =>
         view !== plain &&
+        view instanceof Uint8Array &&
         view.length === 2 &&
         [...view].every((byte) => byte === 0),
     ),
