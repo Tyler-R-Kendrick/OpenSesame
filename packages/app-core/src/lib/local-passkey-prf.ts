@@ -145,6 +145,8 @@ export async function applySignInPrf(
       return true;
     }
     const userId = new TextEncoder().encode(principalId);
+    // The enrollment service borrows this owned copy until its promise settles;
+    // it must neither retain nor transfer the buffer beyond that lifetime.
     const heldPrf = viewBuffer(prfOutput);
     let candidate: Awaited<
       ReturnType<SignInPrfVault["protection"]["enrollHeldWebauthnPrf"]>

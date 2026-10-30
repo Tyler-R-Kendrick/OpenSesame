@@ -21,7 +21,7 @@ function fixture(existing: boolean) {
   return { secret, salt, rawId, credential, plan };
 }
 
-it.each(["success", "failure"])(
+it.each(["success", "failure", "commit failure"])(
   "wipes the held enrollment PRF copy on %s",
   async (outcome) => {
     const f = fixture(false);
@@ -31,6 +31,7 @@ it.each(["success", "failure"])(
       expect(copy && new Uint8Array(copy).every((byte) => byte === 0)).toBe(
         true,
       );
+      if (outcome === "commit failure") throw new Error("commit failed");
     });
     const enroll = vi.fn(async (input: { prfOutput: ArrayBuffer }) => {
       copies.push(input.prfOutput);
@@ -55,6 +56,8 @@ it.each(["success", "failure"])(
       const operation = applySignInPrf("tomb", "person", f.credential, f.plan);
       if (outcome === "failure")
         await expect(operation).rejects.toThrow("enrollment failed");
+      else if (outcome === "commit failure")
+        await expect(operation).rejects.toThrow("commit failed");
       else await expect(operation).resolves.toBe(true);
       expect(copies).toHaveLength(1);
       const copiedPrf = copies[0];
@@ -69,6 +72,62 @@ it.each(["success", "failure"])(
     }
   },
 );
+
+it("keeps the borrowed enrollment PRF live until the consumer settles", async () => {
+  const f = fixture(false);
+  let observed: ArrayBuffer | undefined;
+  let announce: (() => void) | undefined;
+  let resume: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => {
+    announce = resolve;
+  });
+  const allowed = new Promise<void>((resolve) => {
+    resume = resolve;
+  });
+  const commit = vi.fn(async () => {
+    expect(
+      observed && new Uint8Array(observed).every((byte) => byte === 0),
+    ).toBe(true);
+  });
+  const release = installSignInPrfVault(
+    overlapCast({
+      isUnlocked: () => true,
+      activeTomb: () => "tomb",
+      protection: {
+        listProtectors: () => [],
+        enrollHeldWebauthnPrf: async (input: { prfOutput: ArrayBuffer }) => {
+          observed = input.prfOutput;
+          announce?.();
+          await allowed;
+          expect(new Uint8Array(input.prfOutput)).toEqual(
+            new Uint8Array(32).fill(7),
+          );
+          return { operationId: "op" };
+        },
+        commitEnrollment: commit,
+      },
+    }),
+  );
+  try {
+    const operation = applySignInPrf("tomb", "person", f.credential, f.plan);
+    await started;
+    expect(observed && new Uint8Array(observed)).toEqual(
+      new Uint8Array(32).fill(7),
+    );
+    expect(commit).not.toHaveBeenCalled();
+    resume?.();
+    await expect(operation).resolves.toBe(true);
+    expect(
+      observed && new Uint8Array(observed).every((byte) => byte === 0),
+    ).toBe(true);
+    expect(f.secret.every((byte) => byte === 0)).toBe(true);
+    expect(f.salt.every((byte) => byte === 0)).toBe(true);
+    expect(commit).toHaveBeenCalledOnce();
+  } finally {
+    resume?.();
+    release();
+  }
+});
 
 it.each(["success", "failure"])(
   "wipes the copied PRF after existing protector unwrap %s",
