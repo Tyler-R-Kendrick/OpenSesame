@@ -30,7 +30,7 @@ export function checkPassphrase(passphrase: string): Uint8Array {
   return ASCII.encode(passphrase);
 }
 
-function concat(...parts: readonly Uint8Array[]): Uint8Array {
+function concat(...parts: readonly Uint8Array[]) {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let offset = 0;
   for (const part of parts) {
@@ -102,8 +102,8 @@ async function feistel(
   const passphrase = checkPassphrase(params.passphrase);
   const salt = saltFor(params.identifier, params.extendable);
   const half = input.length / 2;
-  let left = input.slice(0, half);
-  let right = input.slice(half);
+  let left: Uint8Array = input.slice(0, half);
+  let right: Uint8Array = input.slice(half);
   for (const i of order) {
     const f = await round(i, passphrase, params.iterationExponent, salt, right);
     [left, right] = [right, xor(left, f)];

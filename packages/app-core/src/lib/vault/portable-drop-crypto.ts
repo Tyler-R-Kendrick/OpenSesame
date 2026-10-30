@@ -81,7 +81,7 @@ const decoder = new TextDecoder("utf-8", { fatal: true });
 
 type PortableBearer = {
   claimId: string;
-  secret: Uint8Array;
+  secret: Uint8Array<ArrayBuffer>;
   secretText: string;
 };
 
@@ -111,7 +111,7 @@ function tampered(): PortableDropFailure {
   );
 }
 
-function decodeBytes(value: string, length?: number): Uint8Array {
+function decodeBytes(value: string, length?: number) {
   const bytes = b64urlToBytes(value);
   if (bytesToB64url(bytes) !== value)
     throw new Error("non-canonical base64url");
@@ -189,7 +189,7 @@ function associatedData(
   claimId: string,
   tokenDigest: string,
   nonce: string,
-): Uint8Array {
+) {
   return encoder.encode(
     JSON.stringify([PACKET_PREFIX, claimId, tokenDigest, nonce]),
   );
