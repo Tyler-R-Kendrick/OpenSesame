@@ -29,11 +29,14 @@ export async function pbkdf2WithoutTimers(
   const counter = new Uint8Array(4);
   const view = new DataView(counter.buffer);
   const u = new Uint8Array(HASH_BYTES);
-  const prf = hmac.create(sha256, password);
-  const salted = prf.clone().update(salt);
+  let prf: ReturnType<typeof hmac.create> | undefined;
+  let salted: ReturnType<typeof hmac.create> | undefined;
   let working: ReturnType<typeof hmac.create> | undefined;
   let complete = false;
   try {
+    prf = hmac.create(sha256, password);
+    salted = prf.clone();
+    salted.update(salt);
     for (
       let block = 1, offset = 0;
       offset < length;
@@ -60,8 +63,8 @@ export async function pbkdf2WithoutTimers(
     complete = true;
     return output;
   } finally {
-    prf.destroy();
-    salted.destroy();
+    prf?.destroy();
+    salted?.destroy();
     working?.destroy();
     u.fill(0);
     counter.fill(0);
