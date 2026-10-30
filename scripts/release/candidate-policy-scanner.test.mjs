@@ -33,6 +33,39 @@ test("scanner configuration, ignores and helpers are part of policy compatibilit
     "scripts/test/live-turn/audit-crypto.sh",
     "scripts/test/live-turn/verify-crypto-subset.py",
     "scripts/test/live-turn/new-helper.py",
+    "tools/pwa-tailscale-native-http/source.json",
+    "packages/app-core/scripts/sops-oracle/oracle.mjs",
+    "apps/android/scripts/build-core.sh",
+    "crates/authenticator-core/src/bin/uniffi-bindgen.rs",
+    "crates/authenticator-core/src/lib.rs",
+    "crates/authenticator-core/src/new-boundary.rs",
+    "apps/android/scripts/new-build-helper.py",
+    "apps/android/scripts/required.test.sh",
+    "packages/app-core/scripts/sops-oracle/runtime.test.mjs",
+    "tools/pwa-tailscale-native-http/runtime.test.mjs",
+    "apps/android/android/settings.gradle.kts",
+    "apps/android/android/build.gradle.kts",
+    "apps/android/android/app/build.gradle.kts",
+    "apps/android/android/gradle.properties",
+    "apps/android/android/app/new.gradle.kts",
+    "apps/android/android/buildSrc/src/main/Injected.kt",
+    "apps/android/android/gradle/verification-metadata.xml",
+    "scripts/test/live-turn/go.mod",
+    "scripts/test/live-turn/go.sum",
+    "go.work",
+    "scripts/test/live-turn/go.work",
+    "scripts/test/live-turn/go.work.sum",
+    "scripts/test/live-turn/third_party/x-crypto/go.mod",
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/example/Cargo.toml",
+    "crates/example/build.rs",
+    "rust-toolchain.toml",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "apps/example/package.json",
+    "apps/example/.npmrc",
+    "apps/example/.pnpmfile.cjs",
     "tools/pwa-tailscale-native-http/native-audit.mjs",
     "tools/pwa-tailscale-native-http/compose-native.mjs",
     "tools/pwa-tailscale-native-http/prepare-distribution.mjs",
@@ -71,6 +104,22 @@ test("scanner configuration, ignores and helpers are part of policy compatibilit
 test("missing required controller scanner configuration fails closed", async () => {
   const api = new GitHub({ workflowSha: "a".repeat(40) });
   const required = [
+    "tools/pwa-tailscale-native-http/source.json",
+    "packages/app-core/scripts/sops-oracle/oracle.mjs",
+    "apps/android/scripts/build-core.sh",
+    "crates/authenticator-core/src/bin/uniffi-bindgen.rs",
+    "crates/authenticator-core/src/lib.rs",
+    "apps/android/android/settings.gradle.kts",
+    "apps/android/android/build.gradle.kts",
+    "apps/android/android/app/build.gradle.kts",
+    "apps/android/android/gradle.properties",
+    "scripts/test/live-turn/go.mod",
+    "scripts/test/live-turn/go.sum",
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
     ".github/codeql/codeql-config.yml",
     ".gitleaks.toml",
     ".cargo/audit.toml",
@@ -117,4 +166,15 @@ test("policy compatibility includes Git file modes and rejects policy symlinks",
   assert.equal(await api.compatiblePolicy("b".repeat(40)), false);
   mode = "120000";
   await assert.rejects(api.tree("c".repeat(40)), /Invalid policy file mode/);
+});
+
+test("unrelated skill-package metadata is not executable extraction policy", () => {
+  const path = ".claude/skills/scandinavian-design/scripts/package.json";
+  assert.deepEqual(policyEntriesForTree(new Map([[path, "120000:blob"]])), []);
+  assert.deepEqual(
+    policyEntriesForTree(
+      new Map([["apps/example/package.json", "100644:blob"]]),
+    ),
+    [["apps/example/package.json", "100644:blob"]],
+  );
 });
