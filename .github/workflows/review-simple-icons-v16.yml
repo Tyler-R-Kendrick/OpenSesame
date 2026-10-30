@@ -1,0 +1,70 @@
+name: Review simple-icons v16 compatibility
+on:
+  push:
+    branches: [review/simple-icons-v16-hosted-v2-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/simple-icons-v16-hosted-v2-20261030'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      OPENSESAME_CAPABILITY_PROFILE: capability-profiles/rich-explicit.json
+      VITE_BASE: /OpenSesame/
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 70e7aa61f0bf0c6cf12233ae4fe4017727370d9c
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.sha }}
+          path: work/slack-proof-controller
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Verify exact candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 70e7aa61f0bf0c6cf12233ae4fe4017727370d9c
+          test "$(git rev-parse HEAD^{tree})" = 77e2b09770a3d6a8f89dbacbb597d0e759c922c4
+      - name: Install frozen dependency graph
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Check connector mark behavior and style
+        run: |
+          pnpm exec biome check apps/pages/src/sections/connections/connector-marks.ts apps/pages/src/sections/connections/ConnectorMark.tsx apps/pages/src/sections/connections/ConnectorMark.test.tsx
+          pnpm --filter @opensesame/pages exec vitest run src/sections/connections/ConnectorMark.test.tsx
+      - name: Cache pinned native distribution
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .cache/pwa-tailscale-native-http/distributions
+          key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Build real Pages app
+        run: pnpm --filter @opensesame/pages build
+      - name: Check rendered Slack label in Chrome
+        run: |
+          set -euo pipefail
+          cp work/slack-proof-controller/.github/verify-inputs/slack-fixture.html apps/pages/__slack-fixture.html
+          cp work/slack-proof-controller/.github/verify-inputs/slack-fixture.tsx apps/pages/__slack-fixture.tsx
+          cleanup() { kill "$vite_pid" 2>/dev/null || true; rm -f apps/pages/__slack-fixture.html apps/pages/__slack-fixture.tsx; }
+          VITE_BASE=/ pnpm --filter @opensesame/pages exec vite --host 127.0.0.1 --port 4178 --strictPort > /tmp/slack-vite.log 2>&1 &
+          vite_pid=$!
+          trap cleanup EXIT
+          for i in {1..60}; do if curl -fsS http://127.0.0.1:4178/__slack-fixture.html > /dev/null; then break; fi; sleep 1; done
+          node work/slack-proof-controller/.github/verify-inputs/check-slack.cjs
+      - name: Verify source stayed unchanged
+        if: always()
+        run: |
+          test "$(git rev-parse HEAD^{tree})" = 77e2b09770a3d6a8f89dbacbb597d0e759c922c4
+          git diff --exit-code
+      - name: Retain unapproved visual evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: slack-label-review-only
+          path: /tmp/opensesame-slack-proof.png
+          retention-days: 2
+          if-no-files-found: warn
