@@ -61,6 +61,7 @@ jobs:
         run: pnpm --filter @opensesame/pages build-storybook
       - name: Report remaining TypeScript 7 Pages errors
         run: |
+          set +e
           set -uo pipefail
           pnpm --filter @opensesame/pages typecheck > /tmp/typescript-v7-stage-pages.log 2>&1
           result=$?
