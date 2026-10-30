@@ -4,6 +4,7 @@
  * at registration and verifies the P-256 signature as raw `r || s`.
  */
 
+import { isArrayBufferBackedBytes } from "@opensesame/os-domain";
 import { z } from "zod";
 import {
   type WebStorage,
@@ -81,7 +82,7 @@ function failure(code: string, message: string): CliAppPasskeyFailure {
   return { ok: false, code, message };
 }
 
-function bytesOf(source: BufferSource): Uint8Array {
+function bytesOf(source: BufferSource) {
   if (source instanceof ArrayBuffer) return new Uint8Array(source.slice(0));
   return new Uint8Array(
     source.buffer.slice(
@@ -284,12 +285,15 @@ export async function createCliAppPasskeyCredential(
   if (!credentials) return UNSUPPORTED;
   const rpId = pageRpId();
   if (!rpId) return UNSUPPORTED;
+  if (!isArrayBufferBackedBytes(challenge))
+    return webauthnDomFailure(new TypeError("Invalid challenge bytes"));
+  const challengeSnapshot = new Uint8Array(challenge);
   const userId = crypto.getRandomValues(new Uint8Array(16));
   let created: Credential | null;
   try {
     created = await credentials.create({
       publicKey: {
-        challenge,
+        challenge: new Uint8Array(challengeSnapshot),
         rp: { name: "OpenSesame", id: rpId },
         user: { id: userId, name: "cli-approval", displayName: "CLI approval" },
         pubKeyCredParams: [{ type: "public-key", alg: -7 }],
@@ -321,7 +325,7 @@ export async function createCliAppPasskeyCredential(
   try {
     asserted = await credentials.get({
       publicKey: {
-        challenge,
+        challenge: new Uint8Array(challengeSnapshot),
         timeout: 60_000,
         userVerification: "required",
         allowCredentials: [{ type: "public-key", id: rawId }],
@@ -348,6 +352,9 @@ export async function assertStoredCliAppPasskey(
 ): Promise<
   { ok: true; proof: string; signCount: number } | CliAppPasskeyFailure
 > {
+  const challengeSnapshot = isArrayBufferBackedBytes(challenge)
+    ? new Uint8Array(challenge)
+    : null;
   try {
     await storage();
   } catch {
@@ -356,13 +363,15 @@ export async function assertStoredCliAppPasskey(
   const stored = readCliAppWebAuthnCredential();
   if (!stored) return MISSING;
   if (!credentials) return UNSUPPORTED;
+  if (!challengeSnapshot)
+    return webauthnDomFailure(new TypeError("Invalid challenge bytes"));
   const credentialId = b64urlDecode(stored.credentialIdB64);
   if (!credentialId) return MISSING;
   let asserted: Credential | null;
   try {
     asserted = await credentials.get({
       publicKey: {
-        challenge,
+        challenge: challengeSnapshot,
         timeout: 60_000,
         userVerification: "required",
         allowCredentials: [{ type: "public-key", id: credentialId }],

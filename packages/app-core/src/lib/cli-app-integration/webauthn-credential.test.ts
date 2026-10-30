@@ -130,16 +130,29 @@ describe("CLI WebAuthn credential", () => {
       },
     };
     let allowId: BufferSource | undefined;
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const expectedChallenge = new Uint8Array(challenge);
     const credentials = {
       // The fakes carry only the members a ceremony reads.
-      create: async (): Promise<Credential> => overlapCast(created),
+      create: async (
+        options: CredentialCreationOptions,
+      ): Promise<Credential> => {
+        const offered = options.publicKey?.challenge;
+        if (!offered) throw new Error("missing challenge");
+        expect(bytesOf(offered)).toEqual(expectedChallenge);
+        bytesOf(offered).fill(7);
+        challenge.fill(9);
+        return overlapCast(created);
+      },
       get: async (options: CredentialRequestOptions): Promise<Credential> => {
+        const offered = options.publicKey?.challenge;
+        if (!offered) throw new Error("missing challenge");
+        expect(bytesOf(offered)).toEqual(expectedChallenge);
         allowId = options.publicKey?.allowCredentials?.[0]?.id;
         return overlapCast(asserted);
       },
     };
     vi.stubGlobal("location", { hostname: "localhost" });
-    const challenge = crypto.getRandomValues(new Uint8Array(32));
     const registered = await createCliAppPasskeyCredential(
       challenge,
       credentials,
@@ -184,6 +197,45 @@ describe("CLI WebAuthn credential", () => {
     if (!approval.ok) return;
     expect(approval.proof.startsWith("oschip3:passkey:")).toBe(true);
     expect(same(bytesOf(approvalId ?? new Uint8Array()), rawId)).toBe(true);
+  });
+
+  it("rejects a shared challenge before calling the authenticator", async () => {
+    vi.stubGlobal("location", { hostname: "localhost" });
+    const challenge = new Uint8Array(new SharedArrayBuffer(32));
+    Object.defineProperty(challenge, "buffer", { value: new ArrayBuffer(32) });
+    const create = vi.fn(async () => null);
+    const result = await createCliAppPasskeyCredential(challenge, {
+      create,
+      get: vi.fn(),
+    });
+    expect(result).toMatchObject({ ok: false, code: "webauthn_failed" });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("snapshots an approval challenge before asynchronous storage access", async () => {
+    await saveCliAppWebAuthnCredential({
+      credentialIdB64: "AQ",
+      coseKeyB64: "Ag",
+      publicKeySpkiB64: "Aw",
+    });
+    const backing = new Uint8Array([9, 1, 2, 9]);
+    const challenge = backing.subarray(1, 3);
+    const get = vi.fn(async (options: CredentialRequestOptions) => {
+      const offered = options.publicKey?.challenge;
+      if (!offered) throw new Error("missing challenge");
+      expect(bytesOf(offered)).toEqual(new Uint8Array([1, 2]));
+      return null;
+    });
+    const pending = assertStoredCliAppPasskey(challenge, {
+      create: vi.fn(),
+      get,
+    });
+    backing[1] = 8;
+    expect(await pending).toMatchObject({
+      ok: false,
+      code: "webauthn_cancelled",
+    });
+    expect(get).toHaveBeenCalledOnce();
   });
 
   it("refuses approval before asking for a passkey when none is stored", async () => {
