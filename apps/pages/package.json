@@ -117,7 +117,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router": "8.3.0",
-    "simple-icons": "15.16.1",
+    "simple-icons": "16.36.0",
     "tinykeys": "4.0.0"
   },
   "devDependencies": {
