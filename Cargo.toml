@@ -97,7 +97,7 @@ blake3 = "1.8.2"
 chrono = { version = "0.4.41", features = ["serde"] }
 crossterm = "0.29.0"
 clap = { version = "4.5.40", features = ["derive", "env"] }
-ed25519-dalek = { version = "2.1.1", features = ["rand_core"] }
+ed25519-dalek = { version = "3.0.0", features = ["rand_core"] }
 hex = "0.4.3"
 hkdf = "0.12.4"
 hmac = "0.12.1"
@@ -133,7 +133,8 @@ tower-http = { version = "0.7.1", features = ["trace", "cors", "limit"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "json"] }
 url = { version = "2.5.4", features = ["serde"] }
-uuid = { version = "1.17.0", features = ["serde", "v4", "v7", "js"] }
+# UUID 1.27+ requires a newer Rust toolchain.
+uuid = { version = ">=1.17.0, <1.27.0", features = ["serde", "v4", "v7", "js"] }
 zeroize = { version = "1.8.1", features = ["derive"] }
 argon2 = "0.5.3"
 chacha20poly1305 = "0.10.1"
