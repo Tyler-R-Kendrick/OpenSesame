@@ -1,0 +1,55 @@
+name: UUID MSRV workspace and fuzz verification
+on:
+  push:
+    branches: [review/uuid-msrv-compat-ffe-20261030]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.actor_id == '145080887' && github.ref == 'refs/heads/review/uuid-msrv-compat-ffe-20261030' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [workspace, fuzz]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: 00fd484c6ad40302e32cfca128abd73cf6c7763b
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+      - name: Verify immutable candidate
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 00fd484c6ad40302e32cfca128abd73cf6c7763b
+          test "$(git rev-parse HEAD^{tree})" = 5e27455e791237dcf8771b5d2cc315bd5941cb59
+          test "$(git rev-parse HEAD^)" = ffe76449bb4c81644df59169e095005f5a2916f8
+      - name: Install Linux native build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libdbus-1-dev pkg-config clang
+      - name: Check all workspace targets with locked graph
+        if: matrix.suite == 'workspace'
+        run: cargo +1.88.0 check --locked --workspace --all-targets
+      - name: Test UUID-dependent domain
+        if: matrix.suite == 'workspace'
+        run: cargo +1.88.0 test --locked -p opensesame-domain --lib
+      - name: Check fuzz targets with their locked graph
+        if: matrix.suite == 'fuzz'
+        run: cargo +1.88.0 check --locked --manifest-path tests/fuzz/cargo/Cargo.toml --bins
+      - name: Check source remains unchanged
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{tree})" = 5e27455e791237dcf8771b5d2cc315bd5941cb59
+          git diff --exit-code
+          git diff --cached --exit-code
