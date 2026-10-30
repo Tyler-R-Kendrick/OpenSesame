@@ -66,7 +66,8 @@ export function usePathSegment(source: SegmentSource) {
     setQuery(null);
     setOpen(false);
     onPick(option.key);
-    onPicked?.();
+    // Tab moves focus after keydown; moving it here would skip a field.
+    if (!byTab) onPicked?.();
   }
 
   function onBlur() {
