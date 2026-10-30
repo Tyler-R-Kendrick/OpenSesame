@@ -25,6 +25,43 @@ export function assertNativeCIRequest(env) {
     /^[a-f0-9]{40}$/.test(env.EXPECTED_HEAD ?? ""),
     "Exact source SHA required",
   );
+  // A weekly release qualifies an already-admitted, signed main ancestor;
+  // the selected source can be older than the controller's event commit.
+  // The reusable workflow separately verifies candidate admission and its
+  // exact checkout/signature before running this candidate-owned command.
+  const weeklyRef = `${env.GITHUB_REPOSITORY}/.github/workflows/release-weekly.yml@refs/heads/main`;
+  if (env.GITHUB_WORKFLOW_REF === weeklyRef) {
+    assert.equal(env.GITHUB_ACTIONS, "true", "GitHub Actions is required");
+    assert.equal(
+      env.GITHUB_REF,
+      "refs/heads/main",
+      "Weekly controller must run on main",
+    );
+    assert(
+      ["schedule", "workflow_dispatch"].includes(env.GITHUB_EVENT_NAME),
+      "Weekly controller requires an approved event",
+    );
+    assert(
+      /^[a-f0-9]{40}$/.test(env.GITHUB_WORKFLOW_SHA ?? ""),
+      "Exact controller SHA required",
+    );
+    assert.equal(
+      env.GITHUB_SHA,
+      env.GITHUB_WORKFLOW_SHA,
+      "Controller event SHA differs",
+    );
+    assert.equal(
+      env.GITHUB_ACTOR,
+      env.GITHUB_REPOSITORY_OWNER,
+      "Only the repository owner may run this build",
+    );
+    assert.equal(
+      env.GITHUB_REPOSITORY,
+      `${env.GITHUB_REPOSITORY_OWNER}/OpenSesame`,
+      "Wrong repository",
+    );
+    return env.EXPECTED_HEAD;
+  }
   assert.equal(
     env.EXPECTED_HEAD,
     env.GITHUB_SHA,
