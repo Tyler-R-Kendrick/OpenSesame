@@ -75,7 +75,7 @@ describe("the mark's geometry", () => {
       'link[rel~="apple-touch-icon"]',
     );
     expect(installIcons).toHaveLength(1);
-    expect(installIcons[0].getAttribute("href")).toBe("%BASE_URL%icon-192.png");
+    expect(installIcons[0].getAttribute("href")).toBe("/icon-192.png");
     const installIcon = readFileSync(
       new FileURL("../../../public/icon-192.png", import.meta.url),
     );
