@@ -216,3 +216,102 @@ describe("base64", () => {
     expect(() => base64Bytes("not base64!")).toThrow(BitwardenCryptoError);
   });
 });
+
+/** Fixed outputs independently matched by RustCrypto Argon2 0.5.3 and Noble 2.4.0, version 0x13. */
+const argonKnownAnswers = [
+  {
+    id: "production-unicode-nul",
+    password: "KAT 密碼 café\u0000🔐",
+    email: "  Owner@Example.TEST\t",
+    memoryMiB: 64,
+    iterations: 3,
+    parallelism: 4,
+    expectedMasterKeyHex:
+      "ba0418962313c94bf87128080c2048b8f54d03a9129c3afd3d911497d294ed73",
+  },
+  {
+    id: "minimum",
+    password: "minimum synthetic fixture password",
+    email: "min@example.test",
+    memoryMiB: 16,
+    iterations: 2,
+    parallelism: 1,
+    expectedMasterKeyHex:
+      "fc07750ee40de3bf6d9d19ad284bf63f92d062532e4176e9d0a0e2e7037c65af",
+  },
+  {
+    id: "normalized-unicode-email",
+    password: "email-only normalization: Ωé",
+    email: "  ÉLÈVE@DÖMÄIN.EXAMPLE \t",
+    memoryMiB: 16,
+    iterations: 2,
+    parallelism: 4,
+    expectedMasterKeyHex:
+      "3915446f797c9dfabe1a821286c719dcf5aac7147a29a6e05ab81351f1d7324e",
+  },
+  {
+    id: "parallel-a",
+    password: "independent A\u0000Å",
+    email: "parallel-a@example.test",
+    memoryMiB: 16,
+    iterations: 2,
+    parallelism: 2,
+    expectedMasterKeyHex:
+      "358e703a5839b10630f6ba08ecf68c6304c3c4a8a54ff4bb26e7ac234c18cb62",
+  },
+  {
+    id: "parallel-b",
+    password: "independent B café",
+    email: "parallel-b@example.test",
+    memoryMiB: 16,
+    iterations: 2,
+    parallelism: 2,
+    expectedMasterKeyHex:
+      "8783d6744d4ae74b14ff1c827928d6cb5165bef8898ecc74897b93c32b8aa3cd",
+  },
+] as const;
+
+it.each(argonKnownAnswers)(
+  "matches the independent Argon2id known answer: $id",
+  async ({
+    password,
+    email,
+    memoryMiB,
+    iterations,
+    parallelism,
+    expectedMasterKeyHex,
+  }) => {
+    const result = await masterKey(password, email, {
+      kind: "argon2id",
+      memoryMiB,
+      iterations,
+      parallelism,
+    });
+    expect(Buffer.from(result).toString("hex")).toBe(expectedMasterKeyHex);
+  },
+);
+
+it("keeps concurrent Argon2id results independent and caller-owned", async () => {
+  const pair = argonKnownAnswers.slice(-2);
+  const derive = (row: (typeof argonKnownAnswers)[number]) =>
+    masterKey(row.password, row.email, {
+      kind: "argon2id",
+      memoryMiB: row.memoryMiB,
+      iterations: row.iterations,
+      parallelism: row.parallelism,
+    });
+  const results = await Promise.all(pair.map(derive));
+  expect(results.map((result) => Buffer.from(result).toString("hex"))).toEqual(
+    pair.map((row) => row.expectedMasterKeyHex),
+  );
+  results[0]?.fill(0);
+  expect(Buffer.from(results[1] ?? []).toString("hex")).toBe(
+    pair[1]?.expectedMasterKeyHex,
+  );
+  const reversed = [...pair].reverse();
+  expect(
+    (await Promise.all(reversed.map(derive))).map((result) =>
+      Buffer.from(result).toString("hex"),
+    ),
+  ).toEqual(reversed.map((row) => row.expectedMasterKeyHex));
+});
