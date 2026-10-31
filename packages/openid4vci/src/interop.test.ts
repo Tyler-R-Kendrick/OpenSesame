@@ -16,12 +16,11 @@
  * conforming wallet would post). Issuance is entirely ours: the fixture's own
  * `issueCredential` is *not* used, which is the whole point.
  *
- * That relative import is also why this package's `tsconfig.json` omits the
- * `rootDir: "src"` that the other workspace packages set. `rootDir` is inert
- * under `noEmit` except for one thing — it makes `tsc` refuse any file outside
- * it, including a sibling package's test fixture reached by path. Dropping it
- * costs nothing that is checked elsewhere and is what lets this test be
- * type-checked rather than merely run.
+ * That relative import is also why this package's `tsconfig.json` sets
+ * `rootDir` to the packages directory instead of `src`. TypeScript 7 defaults
+ * `rootDir` to the project directory and refuses files outside it. The wider
+ * root keeps this sibling fixture, which is not a public export, in the
+ * typecheck. `noEmit` means the setting does not change build output.
  *
  * The chain being closed is:
  *
