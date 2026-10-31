@@ -31,6 +31,17 @@ describe("a saved API-key connection's fingerprint", () => {
     }
   });
 
+  it("is computed for a profile with no verify contract", async () => {
+    const plain = nativeApiTarget("openai", {});
+    const unverified = {
+      ...plain,
+      profile: { ...plain.profile, verify: null },
+    };
+    await expect(nativeApiFingerprint(unverified)).resolves.toMatch(
+      /^[0-9a-f]{64}$/,
+    );
+  });
+
   it("changes when a contract names one", async () => {
     const plain = nativeApiTarget("openai", {});
     expect(await nativeApiFingerprint(proving(plain))).not.toBe(

@@ -18,14 +18,21 @@ export type NativeApiTarget = {
   parameters: Record<string, string>;
   classification: NativeFieldClassification;
 };
+/**
+ * The verify contract as it is hashed: without an empty `validStatuses`, so a
+ * contract that names no proof status keeps the fingerprint saved connections
+ * were configured under before the field existed.
+ */
+function fingerprintedVerify(verify: NativeApiProfile["verify"]) {
+  if (!verify || verify.validStatuses.length > 0) return verify;
+  const { validStatuses: _empty, ...rest } = verify;
+  return rest;
+}
+
 export async function nativeApiFingerprint(
   target: NativeApiTarget,
 ): Promise<string> {
-  const verify = target.profile.verify;
-  const verifyForFingerprint =
-    verify.validStatuses.length === 0
-      ? (({ validStatuses: _ignored, ...rest }) => rest)(verify)
-      : verify;
+  const verifyForFingerprint = fingerprintedVerify(target.profile.verify);
   const encoded = new TextEncoder().encode(
     JSON.stringify({
       providerId: target.providerId,
