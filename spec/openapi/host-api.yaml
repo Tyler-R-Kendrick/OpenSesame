@@ -5001,6 +5001,17 @@ components:
         installation_id:
           type: string
           description: Numeric GitHub App installation id; required for github connections.
+        on_behalf_of:
+          type: object
+          additionalProperties: false
+          required: [uid, pid]
+          description: >-
+            The local process the daemon mints for when a credential helper asks
+            on its Unix socket (ADR 0138 §2). It authorizes nothing; the Host
+            records it in the actor of the mint receipt and event.
+          properties:
+            uid: { type: integer, minimum: 0 }
+            pid: { type: integer, minimum: 0 }
     DerivedMaterialization:
       type: object
       additionalProperties: false
@@ -5020,7 +5031,10 @@ components:
           description: RFC 8693 subject — the connection's owning principal acted upon.
         actor:
           type: string
-          description: RFC 8693 actor — the caller that requested the mint.
+          description: >-
+            RFC 8693 actor — the caller that requested the mint, followed by
+            `on_behalf_of=uid:<uid>,pid:<pid>` when the daemon minted for a
+            local process.
         issued_at: { type: string, format: date-time }
 
     Ceremony:

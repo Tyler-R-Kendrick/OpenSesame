@@ -93,9 +93,22 @@ pub fn spawn_stub_daemon(status: u16, body: &str, requests: usize) -> StubDaemon
     }
 }
 
+/// Drop every `OPENSESAME_*` variable `command` would inherit, so what a
+/// child sees is only what the test sets. A shell configured as the operator
+/// guide documents exports `OPENSESAME_GITHUB_INSTALLATION_ID`, a connection
+/// id or a socket path, and any of them would change what a helper asks for.
+pub fn without_inherited_opensesame_env(command: &mut Command) -> &mut Command {
+    for (key, _) in std::env::vars_os() {
+        if key.to_string_lossy().starts_with("OPENSESAME_") {
+            command.env_remove(key);
+        }
+    }
+    command
+}
+
 pub fn run_helper(bin: &str, args: &[&str], stdin: &str, envs: &[(&str, &str)]) -> Output {
     let mut command = Command::new(bin);
-    command
+    without_inherited_opensesame_env(&mut command)
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

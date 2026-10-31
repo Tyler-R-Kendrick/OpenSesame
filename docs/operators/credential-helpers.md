@@ -24,20 +24,63 @@ helper (git/docker/aws/kubectl)
       → gateway mints a derived token (github App installation token in v1)
 ```
 
-The socket fences who may ask: the daemon reads the kernel-attested peer UID
-and allows only the UIDs in `OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the
-daemon's own UID). Its `/v1/mint` route also runs the same `require_operator`
-check as its other operator routes, which demands the operator token
-(`X-OpenSesame-Operator`, from `OPENSESAME_OPERATOR_TOKEN`) on every transport
-(`crates/daemon/src/mint.rs`, `crates/daemon/src/lib.rs`). A helper therefore
-forwards the `OPENSESAME_OPERATOR_TOKEN` it inherits from its environment and
-holds no secret of its own: it never stores, prints or logs the value, and a
-value that is not a plain header token (a line break, a space) is refused before
-the socket is opened. Run a helper from the operator's own shell or deploy job;
-one started in an environment without the token — an agent's — is answered `401
-operator_unauthorized` (or `503 operator_token_unconfigured` when the daemon
-holds none) and is not forwarded. Any non-200 from the daemon is a hard failure:
+The helpers send **no token**, and never read `OPENSESAME_OPERATOR_TOKEN`, so a
+process that replaced the socket would learn nothing from a helper that
+authorizes anything. On the Unix socket the daemon's `/v1/mint` first
+authenticates the caller by its kernel-attested peer credentials (ADR 0138 §2):
+the peer UID must be one of `OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the
+daemon's own UID). A request with an `Origin` header is `401`, a peer outside
+the allowed UIDs is `401 uds_peer_unauthorized` even if it presents a valid
+operator token, and a peer the kernel did not attest is `503
+uds_peer_unattested`.
+
+Peer credentials say who asks, not what it should get, so **the operator
+grants what a helper may mint**: a connection and, for a GitHub App
+connection, the one installation it is for. The list starts empty:
+
+```bash
+export OPENSESAME_OPERATOR_TOKEN=…                          # the daemon's operator token
+opensesame daemon helpers allow conn_… --installation 12345678   # a GitHub App connection
+opensesame daemon helpers allow conn_…                      # a connection that takes no installation
+opensesame daemon helpers list
+opensesame daemon helpers revoke conn_…
+```
+
+A GitHub App's key reaches every installation of the App, and each may be
+another account's repositories, so the installation is part of the grant: a
+helper's `OPENSESAME_GITHUB_INSTALLATION_ID` must match it exactly, and a grant
+that names no installation admits a mint that names none. The installation is
+the only field a helper sends that selects what is minted; the rest of the
+request names the connection or, for an AWS connection, asks for a shorter
+lifetime under the binding's cap. The daemon keeps the grants owner-only in its
+state directory (`helper-mints.json`), so they survive a restart. The file
+carries an HMAC under a key derived from the operator token, so only the token
+can write grants the daemon will read back: a file edited by hand, one written
+under a previous token, one it cannot read and one in another shape all admit
+nothing, and `helpers list` shows `"stored": "unauthenticated"` (or
+`"unreadable"`) instead of an empty list with no reason. **Rotating the
+operator token invalidates every grant**: allow each again under the new token.
+The tag is only as strong as the token's custody. The daemon reads the token
+from its environment, and a process running as the same user can usually read
+that (`/proc/<pid>/environ`) or the file you keep it in, so the tag keeps out
+a process that can write the state directory but does not hold the token.
+That token can write grants anyway. `helpers revoke` takes effect at once in
+the running daemon; to end a grant against a same-user process that may have
+copied the grant file, rotate the operator token or revoke the connection at
+the Host. A token-less mint of any
+other connection or installation is `403 helper_mint_not_allowed`. A socket caller that presents the operator token may
+mint any connection, as before. The daemon then forwards to the Host with its
+own operator token (`operator_forward`, loopback Host only) and names the peer
+in `on_behalf_of`; the Host records `operator on_behalf_of=uid:<uid>,pid:<pid>`
+as the actor of the mint, in its answer and on the connection's event trail.
+Over TCP the route demands the operator token, as every other operator route
+does on both transports. Any non-200 from the daemon is a hard failure:
 non-zero exit, nothing on stdout, only a failure class on stderr.
+
+**Residual risk.** Any process running as an allowed user can mint every
+granted connection and installation on the socket, an agent run included. Give a sandbox or an
+agent run its own narrower path (ADR 0099's launch capability), never the raw
+socket, and allow only the connections the helpers on this machine need.
 
 ## Socket location
 
