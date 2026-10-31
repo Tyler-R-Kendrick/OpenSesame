@@ -111,6 +111,9 @@ export function createSandboxProvider(
       const relayToken = process.env.OPENSESAME_VNET_RELAY_TOKEN;
       if (relayUrl) options.relayUrl = relayUrl;
       if (relayToken) options.relayToken = relayToken;
+      // Zero-config: deploy an anonymous Cloudflare relay per run
+      // (temporary account; no signup and no claim).
+      if (!relayUrl) options.anonymousCloudflare = true;
       return new WasmRelayProvider(options);
     }
   }
