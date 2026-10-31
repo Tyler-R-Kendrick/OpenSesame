@@ -1323,7 +1323,52 @@ paths:
         "403": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
         "422": { $ref: "#/components/responses/ContractError" }
+        "429": { $ref: "#/components/responses/ContractError" }
         "502": { $ref: "#/components/responses/ContractError" }
+        "504": { $ref: "#/components/responses/ContractError" }
+  /connections/{id}/aws-sts-binding:
+    parameters:
+      - $ref: "#/components/parameters/ConnectionId"
+      - $ref: "#/components/parameters/OperatorOrganization"
+    put:
+      summary: Bind the STS role an aws-family connection mints for (ADR 0217)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        Owner or operator with the administrator role. The binding is sealed
+        whole under the connection key; the ExternalId is accepted here and
+        never returned. Replaces any earlier binding.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AwsStsBindingInput" }
+      responses:
+        "200":
+          description: The binding's value-blind view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AwsStsBindingView" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    get:
+      summary: Read an aws-family connection's STS binding, value-blind (ADR 0217)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: The binding's value-blind view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AwsStsBindingView" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    delete:
+      summary: Remove an aws-family connection's STS binding (ADR 0217)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "204": { description: Removed; the connection is unmintable again }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
   /connections/{id}/bindings:
     parameters:
       - $ref: "#/components/parameters/ConnectionId"
@@ -5001,6 +5046,13 @@ components:
         installation_id:
           type: string
           description: Numeric GitHub App installation id; required for github connections.
+        duration_seconds:
+          type: integer
+          minimum: 900
+          maximum: 3600
+          description: >-
+            Credential lifetime asked for. An AWS mint honours it up to its
+            binding's cap and refuses anything outside; GitHub ignores it.
         on_behalf_of:
           type: object
           additionalProperties: false
@@ -5012,6 +5064,40 @@ components:
           properties:
             uid: { type: integer, minimum: 0 }
             pid: { type: integer, minimum: 0 }
+    AwsStsBindingInput:
+      type: object
+      additionalProperties: false
+      required: [role_arn, region]
+      properties:
+        role_arn: { type: string, description: "arn:<partition>:iam::<account>:role/<name>" }
+        region: { type: string, description: An AWS region with a regional STS endpoint. }
+        max_duration_seconds: { type: integer, minimum: 900, maximum: 3600, default: 900 }
+        session_policy:
+          type: object
+          description: An IAM policy document; STS intersects it with the role's own, so it only narrows.
+        external_id: { type: string, description: "Sealed with the binding; never returned." }
+    AwsStsBindingView:
+      type: object
+      additionalProperties: false
+      required: [role_arn, region, max_duration_seconds, session_policy, external_id]
+      properties:
+        role_arn: { type: string }
+        region: { type: string }
+        max_duration_seconds: { type: integer }
+        session_policy: { type: boolean, description: Whether a session policy is set. }
+        external_id: { type: boolean, description: Whether an ExternalId is set. }
+    AwsMintReceipt:
+      type: object
+      additionalProperties: false
+      required: [grant_id, role_arn, role_session_name, source_identity, duration_seconds, expires_at, request_id]
+      properties:
+        grant_id: { type: string }
+        role_arn: { type: string }
+        role_session_name: { type: string }
+        source_identity: { type: string }
+        duration_seconds: { type: integer }
+        expires_at: { type: string, format: date-time }
+        request_id: { type: string, description: STS's request id. }
     DerivedMaterialization:
       type: object
       additionalProperties: false
@@ -5036,6 +5122,10 @@ components:
             `on_behalf_of=uid:<uid>,pid:<pid>` when the daemon minted for a
             local process.
         issued_at: { type: string, format: date-time }
+        access_key_id: { type: string, description: AWS mints only (ADR 0217). }
+        secret_access_key: { type: string, description: AWS mints only. }
+        session_token: { type: string, description: AWS mints only; also derived_token. }
+        receipt: { $ref: "#/components/schemas/AwsMintReceipt" }
 
     Ceremony:
       type: object

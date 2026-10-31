@@ -126,6 +126,42 @@ async fn a_successful_mint_passes_the_gateway_answer_through() {
     assert_eq!(calls[0]["installation_id"], "12345678");
 }
 
+/// An AWS mint (ADR 0217): the requested lifetime is forwarded, and the STS
+/// credential's three parts come back exactly as the gateway sent them.
+#[tokio::test]
+async fn an_aws_mint_forwards_its_duration_and_passes_the_credential_through() {
+    let derived = json!({
+        "connection_id": "conn_stub",
+        "provider_id": "aws",
+        "kind": "aws_sts_assume_role",
+        "derived_token": "MintedDummySessionToken0123456789",
+        "access_key_id": "ASIAMINTEDDUMMY00001",
+        "secret_access_key": "MintedDummySecret0123456789abcdef",
+        "session_token": "MintedDummySessionToken0123456789",
+        "expires_at": "2026-10-17T12:30:00Z",
+        "subject": "operator",
+        "actor": "operator",
+        "issued_at": "2026-10-17T12:00:00Z",
+        "receipt": {"grant_id": "g", "request_id": "r"},
+    });
+    let (gateway, calls) = spawn_gateway(StatusCode::OK, derived.clone()).await;
+    let app = router(test_state(&gateway));
+    let res = app
+        .oneshot(request(
+            r#"{"connection_id":"conn_stub","duration_seconds":1800}"#,
+            true,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = to_bytes(res.into_body(), 8192).await.unwrap();
+    let json: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(json, derived);
+    let calls = calls.lock().unwrap();
+    assert_eq!(calls[0]["duration_seconds"], 1800);
+    assert!(calls[0].get("installation_id").is_none());
+}
+
 #[tokio::test]
 async fn unmintable_is_a_passthrough_not_a_rewrite() {
     let (gateway, _) = spawn_gateway(

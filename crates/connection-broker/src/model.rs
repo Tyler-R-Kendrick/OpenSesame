@@ -322,6 +322,36 @@ pub struct DerivedMaterialization {
     pub subject: String,
     pub actor: String,
     pub issued_at: String,
+    /// AWS mints only (ADR 0217): the STS credential's three parts, at the
+    /// top level where `opensesame-credential-process` reads them.
+    #[serde(flatten)]
+    pub aws: Option<crate::aws_sts::AwsSessionCredentials>,
+    /// AWS mints only: the value-blind receipt.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<crate::aws_sts::MintReceipt>,
+}
+
+/// Who a mint is for. `principal` is the caller the Host authenticated;
+/// `actor` is how the mint is recorded, and may add a note such as
+/// `on_behalf_of=uid:1000,pid:4242` for a local process the daemon forwarded.
+/// Only the principal reaches a provider: an AWS mint's `SourceIdentity`, which
+/// STS carries through role chaining and `CloudTrail` records, names who was
+/// authenticated and nothing else (ADR 0217).
+#[derive(Clone, Copy)]
+pub struct MintCaller<'a> {
+    pub principal: &'a str,
+    pub actor: &'a str,
+}
+
+impl<'a> MintCaller<'a> {
+    /// A caller recorded as itself.
+    #[must_use]
+    pub const fn principal(principal: &'a str) -> Self {
+        Self {
+            principal,
+            actor: principal,
+        }
+    }
 }
 
 /// `POST /connections`.

@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 444,
-    "violations": 710,
-    "oversizedLines": 218775
+    "files": 443,
+    "violations": 709,
+    "oversizedLines": 217739
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -266,7 +266,7 @@
       "max-lines": 763
     },
     "crates/connection-broker/src/config.rs": {
-      "max-lines": 676
+      "max-lines": 456
     },
     "crates/connection-broker/src/delegation.rs": {
       "max-lines": 1493
@@ -281,7 +281,7 @@
       "max-lines": 927
     },
     "crates/connection-broker/src/lib.rs": {
-      "max-lines": 2394
+      "max-lines": 2291
     },
     "crates/connection-broker/src/rotation.rs": {
       "max-lines": 1727
@@ -378,9 +378,6 @@
     },
     "crates/gateway/src/lifecycle/scanner.rs": {
       "max-lines": 638
-    },
-    "crates/gateway/src/lifecycle/subjects.rs": {
-      "max-lines": 713
     },
     "crates/gateway/src/managed_certs.rs": {
       "max-lines": 637

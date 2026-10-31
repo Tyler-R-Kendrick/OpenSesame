@@ -280,3 +280,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0214](0214-trunk-ci-artifact-promotion.md) | Trunk integration and scheduled artifact promotion | Accepted |
 | [0215](0215-trunk-builds-only.md) | Trunk only builds the impacted graph | Accepted |
 | [0216](0216-deterministic-exposure-matrix.md) | Enforce the exposure matrix at reviewed boundaries | Accepted |
+| [0217](0217-aws-sts-mint.md) | The AWS mint: STS AssumeRole for a bound role | Accepted |

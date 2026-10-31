@@ -6783,6 +6783,41 @@
     }
   },
   {
+    "id": "connections.aws_sts_binding",
+    "title": "Bind, read or remove the STS role an AWS connection mints for",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "an operator writes the binding over the Host API once per connection; there is no terminal verb for it",
+        "adr": "0217-aws-sts-mint.md"
+      },
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "a binding decides which IAM role a stored AWS key assumes and how long the credential lasts; an agent that could write one could re-aim the key at a role of its choosing",
+        "adr": "0217-aws-sts-mint.md"
+      },
+      "mcp_client": {
+        "reason": "a binding decides which IAM role a stored AWS key assumes and how long the credential lasts; an agent that could write one could re-aim the key at a role of its choosing",
+        "adr": "0217-aws-sts-mint.md"
+      }
+    }
+  },
+  {
     "id": "identity.project.temporary",
     "title": "Create a temporary project",
     "plane": "identity",
