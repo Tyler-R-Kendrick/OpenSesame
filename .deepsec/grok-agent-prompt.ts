@@ -12,6 +12,7 @@ export type GrokPromptRunResult = {
 export function grokEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   env.XAI_API_KEY = undefined;
+  env.GROK_CODE_XAI_API_KEY = undefined;
   env.GROK_DEPLOYMENT_KEY = undefined;
   return env;
 }
