@@ -45,8 +45,9 @@
   "overrides": [
     {
       "include": [
-        "apps/pages/public/static-auth/1.0.4/opensesame-auth.min.js",
+        "apps/pages/public/static-auth/1.0.5/opensesame-auth.min.js",
         "apps/pages/public/auth.js",
+        "apps/pages/public/static-auth/1.0.4/opensesame-auth.min.js",
         "apps/pages/public/static-auth/1.0.3/opensesame-auth.min.js"
       ],
       "linter": { "enabled": false },
