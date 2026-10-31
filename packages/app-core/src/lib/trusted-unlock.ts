@@ -14,6 +14,11 @@ import {
 import { kvRefresh } from "./kv.js";
 import { readLocalPasskeys, requireLocalPerson } from "./local-credentials.js";
 import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
+import {
+  type LocalIamAccess,
+  assertPrivateIamWriteSupport,
+  readLocalIamFile,
+} from "./local-iam-access.js";
 import { authenticateLocalPasskey } from "./local-passkeys.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -21,8 +26,12 @@ const PATH = "config/trusted-unlock";
 
 /** Replaceable in tests: the passkey proof is a browser ceremony. */
 export const trustedUnlockSeams = {
-  async authenticate(tomb: string, principalId: string): Promise<void> {
-    await authenticateLocalPasskey(tomb, principalId);
+  async authenticate(
+    tomb: string,
+    principalId: string,
+    access?: LocalIamAccess,
+  ): Promise<void> {
+    await authenticateLocalPasskey(tomb, principalId, undefined, access);
   },
 };
 const MAX_BYTES = 64_000;
@@ -93,10 +102,13 @@ function parsePolicy(input: BoundaryValue): TrustedUnlockPolicy {
 
 export async function readTrustedUnlock(
   tomb: string,
+  access?: LocalIamAccess,
 ): Promise<TrustedUnlockPolicy | null> {
-  await kvRefresh(tombFileKey(tomb, PATH), MAX_BYTES * 2);
+  if (!access) await kvRefresh(tombFileKey(tomb, PATH), MAX_BYTES * 2);
   try {
-    const bytes = await readFile(tomb, PATH);
+    const bytes = access
+      ? await readLocalIamFile(access, tomb, PATH)
+      : await readFile(tomb, PATH);
     if (bytes.length > MAX_BYTES) {
       throw new LocalDirectoryError(
         "The trusted-contact policy exceeds its size limit.",
@@ -146,6 +158,7 @@ export async function writeTrustedUnlock(
     memberIds,
     createdAt: new Date().toISOString(),
   });
+  assertPrivateIamWriteSupport();
   await requireMembers(tomb, memberIds);
   const bytes = new TextEncoder().encode(JSON.stringify(policy));
   if (bytes.length > MAX_BYTES) {
@@ -167,8 +180,9 @@ export async function trustedUnlockView(
   tomb: string,
   policy: TrustedUnlockPolicy,
   approved: readonly string[],
+  access?: LocalIamAccess,
 ): Promise<TrustedUnlockView> {
-  const directory = await readLocalDirectory(tomb);
+  const directory = await readLocalDirectory(tomb, access);
   const byId = new Map(
     directory.entries.map((entry) => [entry.id, entry.name]),
   );

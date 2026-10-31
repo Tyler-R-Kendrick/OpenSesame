@@ -135,12 +135,28 @@ const CONNECTOR_RECORDS = [
 
 export const CROSS_RULES = [
   shared(
+    `${L}local-iam-access.ts`,
+    "bounded preapproval records shared by core vault activation and local identity verification",
+  ),
+  shared(
+    `${L}local-passkey-authentication.ts`,
+    "WebAuthn verification shared by local IAM, Access approvals and trusted-contact unlock",
+  ),
+  shared(
     `${L}noble-v1-compat.test.ts`,
     "cross-feature historical cipher compatibility regression fixtures",
   ),
   shared(
     "src/lib/integration-ai-labs.ts",
     "pure provider names/order shared by core Settings and the optional Connections catalog; no runtime or credential code",
+  ),
+  shared(
+    `${L}family-member-rows.test.ts`,
+    "shared connector-plan and core catalog naming regression; no provider runtime",
+  ),
+  shared(
+    `${L}integration-ai-labs.test.ts`,
+    "pure Settings/Connections provider labels and core model-provider ids regression",
   ),
   shared(
     `${L}der.ts`,

@@ -83,8 +83,14 @@ export async function readStoredDeviceIdentityKey(
 export async function writeStoredDeviceIdentityKey(
   tomb: string,
   record: DeviceIdentityKeyRecord,
+  check?: () => void,
 ): Promise<void> {
-  await writeFile(tomb, PATH, new TextEncoder().encode(JSON.stringify(record)));
+  await writeFile(
+    tomb,
+    PATH,
+    new TextEncoder().encode(JSON.stringify(record)),
+    check,
+  );
 }
 
 /**

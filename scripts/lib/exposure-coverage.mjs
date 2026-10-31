@@ -1,10 +1,33 @@
 /** Closed, bounded source discovery for the reviewed authentication/exposure lanes. */
 import { createHash } from "node:crypto";
 import { CORE_CONTRACTS } from "./exposure-contracts.mjs";
+import { LOCAL_VAULT_CONTRACT } from "./exposure-local-vault.mjs";
+import { NATIVE_PROVIDER_CONTRACT } from "./exposure-native-provider.mjs";
 
 const TEST =
   /(?:\.(?:test|spec)\.[cm]?[jt]sx?$|_tests?(?:_[^/]+)?\.rs$|\/tests\.rs$|\/(?:__tests__|tests|fixtures|test_support|test-support)\/)/u;
 const SCOPES = Object.freeze({
+  "local-vault-activation": [
+    /^packages\/app-core\/src\/lib\/(?:vfs|kv|local-iam|local-directory|local-credentials|local-passkey|local-passkeys|local-sessions|trusted-unlock|projects|orgs|idp-registry)(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/app-core\/src\/lib\/device-identity-(?:carry|key|record-data|trust)(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/app-core\/src\/lib\/secret-fs\/install(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/app-core\/src\/lib\/deadman\/(?:state|authentication|fence|keys|crypto|arm)(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/app-core\/src\/lib\/vault\/(?:store-(?:unlock|operation|primary|second-step|scope|state|presentation|view|body|seal|write|header|device|preferences)|vault-shared-locks|passkey-unlock|protector-unlock|primary-unwrap|second-step-guard|recovery-codes|remote-code|unlock-(?:methods|factor|attempts)|tomb-migration|seal-rebind|prefs-io|lock-events)(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/app-core\/src\/lib\/vault\/self-authenticator(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/app-core\/src\/lib\/vault\/authentication-storage(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/app-core\/src\/lib\/vault\/protection\/(?:adapter|session-guard|browser-service|browser-operation-data|browser-operation-check|manifest-auth|unlock-protector-open)(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/auth-upstream\/src\/(?:browser|passkey-verification|simplewebauthn)(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/sdk-browser\/src\/webauthn(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+    /^packages\/vault-core\/src\/factor-configuration(?:-[^/]+)?(?:\.ts|\/.*\.ts)$/u,
+  ],
+  "native-provider-custody": [
+    /^packages\/app-core\/src\/lib\/native-(?:key|bitwarden|tailscale|bridge)(?:-[^/]+)?(?:\.tsx?|\/.*\.tsx?)$/u,
+    /^packages\/app-core\/src\/lib\/native-(?:connector-(?:transport|store|schema|view|binding|drivers|lifecycle|availability)|authorization-transport|bounded-body|api-(?:authority|http|verify|connectors|operations?|requests?|resources?|admission|proof|target|auth)|browser-policy|oauth-(?:session|resource|client-(?:config|contract|scopes|exchange|update)|commit|errors|http))(?:-[^/]+)?(?:\.tsx?|\/.*\.tsx?)$/u,
+    /^packages\/app-core\/src\/lib\/(?:connector-bridge(?:-client)?|device-connector-records|vault-credential-custody)(?:-[^/]+)?(?:\.tsx?|\/.*\.tsx?)$/u,
+    /^packages\/app-core\/src\/lib\/secret-backends\/runtime-owners(?:-[^/]+)?(?:\.tsx?|\/.*\.tsx?)$/u,
+    /^packages\/sdk-browser\/src\/pkce(?:-[^/]+)?(?:\.tsx?|\/.*\.tsx?)$/u,
+    /^apps\/pages\/src\/modules\/connectors\.external\/(?:native-api-runtime|native-runtime|native-oauth-resource-runtime|native-oauth-runtime|bridge-runtime|browser-node-transport)(?:-[^/]+)?(?:\.tsx?|\/.*\.tsx?)$/u,
+  ],
   "hosted-drop": [
     /^packages\/control-plane\/src\/routes\/claim[^/]*\.ts$/u,
     /^packages\/control-plane\/src\/repos\/(?:durable-map|security-maps|durable-claim-store)\.ts$/u,
@@ -38,6 +61,18 @@ const SCOPES = Object.freeze({
 });
 
 const WIRING = Object.freeze({
+  ...Object.fromEntries(
+    NATIVE_PROVIDER_CONTRACT.implementation.map((path) => [
+      path,
+      NATIVE_PROVIDER_CONTRACT.area,
+    ]),
+  ),
+  ...Object.fromEntries(
+    LOCAL_VAULT_CONTRACT.implementation.map((path) => [
+      path,
+      LOCAL_VAULT_CONTRACT.area,
+    ]),
+  ),
   "packages/control-plane/package.json": "hosted-drop",
   "packages/control-plane/src/create-app.ts": "hosted-drop",
   "packages/control-plane/src/state.ts": "account-totp",
@@ -124,6 +159,14 @@ function fingerprintViolations(sources, snapshot) {
 export function coverageViolations(policy, snapshot) {
   const errors = requiredBindings(policy);
   const assigned = new Map();
+  const custodySources = new Map(
+    [LOCAL_VAULT_CONTRACT, NATIVE_PROVIDER_CONTRACT].map((contract) => [
+      contract.area,
+      new Set(
+        policy.surfaces.find((row) => row.id === contract.area)?.implementation,
+      ),
+    ]),
+  );
   for (const row of policy.surfaces) {
     if (!areaNames.includes(row.area))
       errors.push(`EM-COVERAGE: unknown area for ${row.id}`);
@@ -141,7 +184,11 @@ export function coverageViolations(policy, snapshot) {
   for (const path of paths) {
     const area = sourceArea(path);
     if (!area) continue;
-    if (!Object.hasOwn(policy.sources, path) || !assigned.get(path)?.has(area))
+    if (
+      !Object.hasOwn(policy.sources, path) ||
+      !assigned.get(path)?.has(area) ||
+      (custodySources.has(area) && !custodySources.get(area).has(path))
+    )
       errors.push(
         `EM-COVERAGE: unclassified protected source ${path}; review its observer, artifacts and enforcement`,
       );

@@ -10,6 +10,7 @@ import {
   readLocalDirectory,
   withLocalDirectoryLock,
 } from "./local-directory.js";
+import { type LocalIamAccess, readLocalIamFile } from "./local-iam-access.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -71,10 +72,15 @@ function parseCredentials(value: BoundaryValue): LocalPasskey[] {
 }
 
 /** Call within the directory lock when evaluating authentication or changing keys. */
-export async function readLocalPasskeys(tomb: string): Promise<LocalPasskey[]> {
-  await kvRefresh(tombFileKey(tomb, PATH), 8_388_608);
+export async function readLocalPasskeys(
+  tomb: string,
+  access?: LocalIamAccess,
+): Promise<LocalPasskey[]> {
+  if (!access) await kvRefresh(tombFileKey(tomb, PATH), 8_388_608);
   try {
-    const bytes = await readFile(tomb, PATH);
+    const bytes = access
+      ? await readLocalIamFile(access, tomb, PATH)
+      : await readFile(tomb, PATH);
     if (bytes.length > MAX_BYTES)
       throw new LocalDirectoryError(
         "Local credential storage exceeds its limit.",
@@ -105,8 +111,12 @@ export async function writeLocalPasskeys(
   }
 }
 
-export async function requireLocalPerson(tomb: string, principalId: string) {
-  const directory = await readLocalDirectory(tomb);
+export async function requireLocalPerson(
+  tomb: string,
+  principalId: string,
+  access?: LocalIamAccess,
+) {
+  const directory = await readLocalDirectory(tomb, access);
   const person = directory.entries.find(
     (entry) =>
       entry.id === principalId && entry.kind === "person" && entry.enabled,

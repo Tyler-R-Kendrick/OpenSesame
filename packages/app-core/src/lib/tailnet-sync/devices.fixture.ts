@@ -13,7 +13,10 @@ export type Device = {
   name: string;
   store: VaultStore;
   files: Map<string, string>;
-  seams: Pick<VfsSeams, "readRaw" | "writeRaw" | "deleteRaw">;
+  seams: Pick<
+    VfsSeams,
+    "readRaw" | "writeRaw" | "writeRawGuarded" | "deleteRaw"
+  >;
 };
 const contexts = new WeakMap<Device, Host>();
 
@@ -26,6 +29,10 @@ export function device(name: string): Device {
     seams: {
       readRaw: (key) => files.get(key) ?? null,
       writeRaw: async (key, value) => {
+        files.set(key, value);
+      },
+      writeRawGuarded: async (key, value, beforeCommit) => {
+        beforeCommit();
         files.set(key, value);
       },
       deleteRaw: async (key) => {
@@ -41,6 +48,7 @@ export function device(name: string): Device {
 const original = {
   readRaw: vfsSeams.readRaw,
   writeRaw: vfsSeams.writeRaw,
+  writeRawGuarded: vfsSeams.writeRawGuarded,
   deleteRaw: vfsSeams.deleteRaw,
 };
 

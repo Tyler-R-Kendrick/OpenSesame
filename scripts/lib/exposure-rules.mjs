@@ -1,5 +1,7 @@
 /** Forbidden combinations, independent of file layout and source loading. */
 import { contractFor } from "./exposure-contracts.mjs";
+import { LOCAL_VAULT_CONTROLS } from "./exposure-local-vault.mjs";
+import { NATIVE_PROVIDER_CONTROLS } from "./exposure-native-provider.mjs";
 const has = (row, ...controls) =>
   controls.every((control) => row.controls.includes(control));
 const artifact = (row, value) => row.artifacts.includes(value);
@@ -151,10 +153,28 @@ const RULES = [
     (row) => row.kind === "proof" && !has(row, "originating-client-proof"),
   ],
   [
+    "EM-CUSTODY-CONTRACT",
+    "custody requires an explicit reviewed contract for its observer and controls",
+    (row) => row.kind === "custody" && contractFor(row.id)?.kind !== "custody",
+  ],
+  [
+    "EM-LOCAL-VAULT-CUSTODY",
+    "local activation requires original-owner lifetime, synchronous provisional revocation, bounded private IAM and owned single-flight publication",
+    (row) =>
+      row.id === "local-vault-activation" && !has(row, ...LOCAL_VAULT_CONTROLS),
+  ],
+  [
+    "EM-NATIVE-PROVIDER-CUSTODY",
+    "native provider results require the original transport, captured connection revision and current authority before secret reads and after awaited work and revision locks",
+    (row) =>
+      row.id === "native-provider-custody" &&
+      !has(row, ...NATIVE_PROVIDER_CONTROLS),
+  ],
+  [
     "EM-IMPORT-CUSTODY",
     "untrusted imports require confined paths, bounded reads and pinned credential origins",
     (row) =>
-      row.kind === "custody" &&
+      row.id === "bitwarden-import" &&
       !has(
         row,
         "confined-import-paths",

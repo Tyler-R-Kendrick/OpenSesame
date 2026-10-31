@@ -193,7 +193,11 @@ function opfsWrite(
   return track(
     withOriginFile(fileName(key), async (turn) => {
       await opfsWriteNow(key, value, beforeCommit);
-      if (publish) turn.publish(publish);
+      if (publish)
+        turn.publish(() => {
+          beforeCommit?.();
+          publish();
+        });
     }),
   );
 }

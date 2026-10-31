@@ -1,4 +1,4 @@
-import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
+import { PROJECTS_CONFIG_PATH, ProjectSession } from "./projects-session.js";
 /**
  * Local project registry — the top level of the client hierarchy.
  *
@@ -20,26 +20,14 @@ import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
  * are private to this device until they are linked to a server project.
  */
 
+import { kvDeleteDurable, kvGet, kvHydrate } from "./kv.js";
 import {
-  kvDeleteDurable,
-  kvGet,
-  kvHydrate,
-  kvRefresh,
-  kvSetDurable,
-} from "./kv.js";
-import {
-  type BootRecord,
   LEGACY_VAULT_KEYS,
   PERSONAL_PROJECT_ID,
-  PROJECTS_KEY,
   PROJECT_SCOPED_KEYS,
   type PagesProject,
   type ProjectsState,
-  onDeviceView,
   personalProject,
-  readBootActiveId,
-  sanitize,
-  withKnownNames,
 } from "./projects-state.js";
 import {
   BODY_PATH,
@@ -47,20 +35,16 @@ import {
   HEADER_PATH,
   INDEX_PATH,
   MIGRATION_MARKER_PATH,
-  TOMBS_REGISTRY_KEY,
-  VfsError,
   deleteFile,
   deletePlaintextFile,
   listTombs,
-  readFile,
   registerTomb,
   tombUnlocked,
   unregisterTomb,
-  writeFile,
 } from "./vfs.js";
 
 /** Sealed VFS path (within a tomb) holding this tomb's projects view. */
-export const PROJECTS_CONFIG_PATH = "config/projects";
+export { PROJECTS_CONFIG_PATH };
 export {
   PERSONAL_PROJECT_ID,
   PROJECTS_KEY,
@@ -76,28 +60,6 @@ export {
  * record. The personal tomb always exists and comes first; a project
  * registers its tomb when it is created, sealed or not.
  */
-function bootView(extra: readonly string[] = []): ProjectsState {
-  const activeId = readBootActiveId();
-  const ids = new Set<string>([
-    PERSONAL_PROJECT_ID,
-    ...listTombs(),
-    activeId,
-    ...extra,
-  ]);
-  const projects: PagesProject[] = [personalProject()];
-  for (const id of [...ids].sort()) {
-    if (id === PERSONAL_PROJECT_ID || id === GUEST_TOMB) continue;
-    const known = unsealedNames.get(id);
-    projects.push({
-      id,
-      name: known?.name ?? id,
-      kind: "standard",
-      createdAt: known?.createdAt ?? new Date(0).toISOString(),
-    });
-  }
-  return { v: 1, projects, activeId };
-}
-
 /**
  * Which of `ids` still keep their vault under the legacy scoped keys — on
  * this device, but not a registered tomb until phase B moves it on first
@@ -115,110 +77,35 @@ export async function legacyVaultsAmong(
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
-let cached: ProjectsState | null = null;
-/**
- * Names given in this tab that no tomb has sealed yet — a project created
- * from the vault switcher before its tomb had a projects view. They ride
- * over every boot-view rebuild (a lock discards the sealed view) until the
- * first sealed write carries them, and are forgotten the moment it does.
- * Never a name read back from a sealed copy: those stay inside the tomb.
- */
-const unsealedNames = new Map<
-  string,
-  Pick<PagesProject, "name" | "createdAt">
->();
-/** The tomb this session's sealed view belongs to, when hydrated on unlock. */
-let activeTomb: string | null = null;
+const session = new ProjectSession(emit, legacyVaultsAmong);
 
 function projectsStateDefault(): ProjectsState {
-  if (!cached) cached = bootView();
-  return cached;
+  return session.state();
 }
 
-/** Re-read the boot view (pre-unlock, and again on lock). */
+/** Lock discards every decrypted name and invalidates pending hydrations. */
 export function rehydrateProjects(): void {
-  cached = bootView();
-  activeTomb = null;
-  emit();
+  session.reset();
 }
 
-/** Re-read the list after tombs arrived or left underneath it (ADR 0143). */
 export async function refreshProjectsView(): Promise<void> {
-  if (activeTomb && tombUnlocked(activeTomb)) {
-    await hydrateProjectsFromVfs(activeTomb);
-  } else {
-    rehydrateProjects();
-  }
+  const tomb = session.activeTomb;
+  if (tomb && tombUnlocked(tomb)) await hydrateProjectsFromVfs(tomb);
+  else rehydrateProjects();
 }
 
-/**
- * Fill the projects view from the tomb's sealed config on unlock, after the
- * migration has moved any legacy plaintext record. Without a sealed copy the
- * boot view stands — ids in place of names until the first write.
- */
-export async function hydrateProjectsFromVfs(tomb: string): Promise<void> {
-  activeTomb = tomb;
-  let sealed: ProjectsState;
-  try {
-    const bytes = await readFile(tomb, PROJECTS_CONFIG_PATH);
-    sealed = sanitize(JSON.parse(new TextDecoder().decode(bytes)));
-  } catch (error) {
-    if (error instanceof VfsError && error.code === "locked") throw error;
-    // No sealed copy yet — a tomb sealed moments ago from the vault switcher.
-    // The boot view carries any name typed in this tab (`unsealedNames`);
-    // seal it here now rather than leaving it to the next mutation.
-    cached = bootView();
-    if (unsealedNames.has(tomb) && tombUnlocked(tomb))
-      return writeState(cached);
-    return emit();
-  }
-  // A sibling that left while this was locked (deleted, travel ADR 0143) is
-  // scrubbed — against the registry as stored now, since another tab may
-  // have registered a vault this one has not seen. A registry that cannot
-  // be read leaves the sealed view standing: no name is dropped on a guess.
-  const ids = sealed.projects.map((project) => project.id);
-  const legacy = await kvRefresh(TOMBS_REGISTRY_KEY, 1 << 20).then(
-    () => legacyVaultsAmong(ids),
-    () => null,
-  );
-  cached = legacy ? onDeviceView(bootView(legacy), sealed) : sealed;
-  const present = new Set(cached.projects.map((project) => project.id));
-  if (ids.some((id) => !present.has(id))) {
-    const bytes = new TextEncoder().encode(JSON.stringify(cached));
-    // A failed rewrite leaves the scrub to the next write; the view is right.
-    await writeFile(tomb, PROJECTS_CONFIG_PATH, bytes).catch((error) => {
-      if (error instanceof VfsError && error.code === "locked") throw error;
-    });
-  }
-  emit();
+export function hydrateProjectsFromVfs(
+  tomb: string,
+  check: () => void = () => {},
+): Promise<void> {
+  return session.hydrate(tomb, check);
 }
 
-/**
- * Legacy migration (phase C, on unlock): a full plaintext `projects.v1`
- * record seals into this tomb's config and the plaintext key shrinks to the
- * boot pointer. Sealed first, shrunk second — a crash between the two simply
- * re-runs.
- */
-export async function migrateProjectsToVfs(tomb: string): Promise<void> {
-  const raw = kvGet(PROJECTS_KEY);
-  if (!raw) return;
-  let parsed: BoundaryValue;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return;
-  }
-  if (!isJsonObject(parsed) || !Array.isArray(parsed.projects)) return;
-  const state = sanitize(parsed);
-  await writeFile(
-    tomb,
-    PROJECTS_CONFIG_PATH,
-    new TextEncoder().encode(JSON.stringify(state)),
-  );
-  const boot: BootRecord = { v: 1, activeId: state.activeId };
-  await kvSetDurable(PROJECTS_KEY, JSON.stringify(boot));
-  cached = state;
-  activeTomb = tomb;
+export function migrateProjectsToVfs(
+  tomb: string,
+  check: () => void = () => {},
+): Promise<void> {
+  return session.migrate(tomb, check);
 }
 
 function emit(): void {
@@ -230,47 +117,16 @@ function subscribeProjectsDefault(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-async function writeState(next: ProjectsState): Promise<void> {
-  // The boot pointer is the durable, pre-unload-critical part; the sealed
-  // per-tomb copy refreshes on every mutation while a tomb is unlocked.
-  const boot: BootRecord = { v: 1, activeId: next.activeId };
-  await kvSetDurable(PROJECTS_KEY, JSON.stringify(boot));
-  cached = next;
-  const tomb = activeTomb;
-  if (tomb && tombUnlocked(tomb)) {
-    await writeFile(
-      tomb,
-      PROJECTS_CONFIG_PATH,
-      new TextEncoder().encode(JSON.stringify(next)),
-    );
-    // This tomb's own name is sealed in its own view now; a sibling's name
-    // in this view says nothing about the sibling's tomb, so it stays.
-    unsealedNames.delete(tomb);
-  }
-  emit();
+function writeState(next: ProjectsState): Promise<void> {
+  return session.write(next);
 }
 
-/**
- * Give a tomb its own sealed projects view when it has none yet — the
- * moment a shared-key project is opened or forked with the key in hand.
- * Names come from the view that was open a moment ago (`previous`) and from
- * anything typed in this tab; sealed here now, none of it has to ride in
- * memory or fall back to an id after a lock. No-op once a view exists.
- */
-export async function carryProjectsViewInto(
+/** Preserve known display names when an opened/forked tomb has no sealed view. */
+export function carryProjectsViewInto(
   tomb: string,
   previous: ProjectsState,
 ): Promise<void> {
-  if (!tombUnlocked(tomb)) return;
-  try {
-    await readFile(tomb, PROJECTS_CONFIG_PATH);
-    return;
-  } catch (error) {
-    if (error instanceof VfsError && error.code === "locked") throw error;
-  }
-  activeTomb = tomb;
-  const merged = withKnownNames(bootView(), previous);
-  await writeState({ ...merged, activeId: readBootActiveId() });
+  return session.carry(tomb, previous);
 }
 
 export function listProjects(): PagesProject[] {
@@ -333,7 +189,7 @@ async function createProjectDefault(name: string): Promise<PagesProject> {
     kind: "standard",
     createdAt: new Date().toISOString(),
   };
-  unsealedNames.set(project.id, {
+  session.unsealedNames.set(project.id, {
     name: project.name,
     createdAt: project.createdAt,
   });
@@ -400,7 +256,7 @@ async function deleteProjectDefault(id: string): Promise<void> {
     deleteFile(id, "config/org-profile"),
     unregisterTomb(id),
   ]);
-  unsealedNames.delete(id);
+  session.unsealedNames.delete(id);
   await writeState({
     v: 1,
     projects: state.projects.filter((project) => project.id !== id),
@@ -418,7 +274,7 @@ export async function forgetDepartedProjects(
   ids: readonly string[],
 ): Promise<void> {
   const departed = new Set(ids);
-  for (const id of departed) unsealedNames.delete(id);
+  for (const id of departed) session.unsealedNames.delete(id);
   const state = projectsState();
   await writeState({
     v: 1,

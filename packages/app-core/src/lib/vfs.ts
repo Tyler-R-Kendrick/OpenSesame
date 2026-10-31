@@ -1,4 +1,3 @@
-import type { BoundaryValue } from "@opensesame/os-domain";
 import {
   type SealedBlob,
   assertSealed,
@@ -7,17 +6,15 @@ import {
 } from "@opensesame/vault-core";
 import {
   type SealedFileEnvelope,
-  type TombIndex,
   type TombsRegistry,
   assertFilePath,
   assertTombName,
-  isSealedBlob,
   parseEnvelope,
-  parseIndex,
   parseRegistry,
   parseSealedBlob,
 } from "./vfs-metadata-data.js";
 import { originalVfsCheck } from "./vfs-operation-check.js";
+import { INDEX_PATH, readIndex, reviseIndex } from "./vfs-sealed-index.js";
 import { vfsSeams } from "./vfs-seams.js";
 import { type TombWriteTurn, enqueueTombWrite } from "./vfs-write-order.js";
 export { vfsFlush } from "./vfs-write-order.js";
@@ -28,7 +25,6 @@ export { vfsFlush } from "./vfs-write-order.js";
  */
 
 import {
-  VFS_INDEX_LOCK_PREFIX,
   VFS_REGISTRY_LOCK,
   withVfsCrossTabLock,
 } from "./vfs-cross-tab-lock.js";
@@ -44,7 +40,7 @@ export const TOMBS_REGISTRY_KEY = "tombs.v1";
 
 export const HEADER_PATH = "header";
 export const BODY_PATH = "body";
-export const INDEX_PATH = "index";
+export { INDEX_PATH } from "./vfs-sealed-index.js";
 /** Idempotent legacy-migration marker (plaintext; names, not contents). */
 export const MIGRATION_MARKER_PATH = "migrated.v1";
 /** Written after unlock rewrites every seal with a path binding. */
@@ -122,13 +118,17 @@ function readRegistry(): string[] {
 async function writeRegistry(
   names: string[],
   check: () => void = () => {},
+  commit: (storageKey: string, value: string) => Promise<void> = (
+    storageKey,
+    value,
+  ) => vfsSeams.writeRaw(storageKey, value),
 ): Promise<void> {
   check();
   const registry: TombsRegistry = {
     v: 1,
     tombs: [...new Set(names)].sort(),
   };
-  await vfsSeams.writeRaw(TOMBS_REGISTRY_KEY, JSON.stringify(registry));
+  await commit(TOMBS_REGISTRY_KEY, JSON.stringify(registry));
   check();
 }
 
@@ -145,13 +145,15 @@ export function listTombs(): string[] {
 export async function registerTomb(
   tomb: string,
   check: () => void = () => {},
+  commit?: (storageKey: string, value: string) => Promise<void>,
 ): Promise<void> {
   check();
   assertTombName(tomb);
   await withVfsCrossTabLock(VFS_REGISTRY_LOCK, async () => {
+    check();
     const names = readRegistry();
     if (names.includes(tomb)) return;
-    await writeRegistry([...names, tomb], check);
+    await writeRegistry([...names, tomb], check, commit);
   });
 }
 
@@ -164,62 +166,6 @@ export async function unregisterTomb(tomb: string): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ index */
-
-async function readIndex(
-  tomb: string,
-  key: CryptoKey,
-  check: () => void = () => {},
-): Promise<TombIndex> {
-  check();
-  const raw = vfsSeams.readRaw(tombFileKey(tomb, INDEX_PATH));
-  if (!raw) return { v: 1, files: {} };
-  let blob: SealedBlob;
-  try {
-    const parsed: BoundaryValue = JSON.parse(raw);
-    if (!isSealedBlob(parsed)) throw new Error("not sealed");
-    blob = parsed;
-  } catch {
-    throw new VfsError("corrupt", `Tomb "${tomb}" index is not a sealed blob.`);
-  }
-  const opened = await vfsSeams.open<BoundaryValue>(
-    key,
-    blob,
-    vaultSealBinding(tomb, INDEX_PATH),
-  );
-  check();
-  return parseIndex(opened);
-}
-
-/** Record a write (bump) or a delete (drop) in the sealed directory index. */
-async function reviseIndex(
-  tomb: string,
-  key: CryptoKey,
-  path: string,
-  written: boolean,
-  check: () => void = () => {},
-): Promise<void> {
-  await withVfsCrossTabLock(`${VFS_INDEX_LOCK_PREFIX}${tomb}`, async () => {
-    check();
-    const index = await readIndex(tomb, key, check);
-    check();
-    if (written) {
-      index.files[path] = (index.files[path] ?? 0) + 1;
-    } else {
-      delete index.files[path];
-    }
-    const blob = await vfsSeams.seal(
-      key,
-      index,
-      vaultSealBinding(tomb, INDEX_PATH),
-    );
-    check();
-    await vfsSeams.writeRaw(
-      tombFileKey(tomb, INDEX_PATH),
-      JSON.stringify(blob),
-    );
-    check();
-  });
-}
 
 /* ------------------------------------------------------------------ blobs */
 
@@ -265,20 +211,43 @@ export async function writeFile(
   tomb: string,
   path: string,
   bytes: Uint8Array,
+  check?: () => void,
 ): Promise<void> {
   assertSealedPath(path);
+  const operation = originalVfsCheck(check);
+  const originalKey = check ? requireTombKey(tomb) : null;
+  const guarded = vfsSeams.writeRawGuarded;
+  if (check && !guarded)
+    throw new VfsError(
+      "locked",
+      "This storage cannot commit an original-owner write.",
+    );
+  const active = () => {
+    operation();
+    if (originalKey && requireTombKey(tomb) !== originalKey)
+      throw new VfsError("locked", "Original tomb key changed.");
+  };
   await enqueueTombWrite(tomb, async () => {
+    active();
     const key = requireTombKey(tomb);
+    const commit = (storageKey: string, value: string) =>
+      check && guarded
+        ? guarded(storageKey, value, active, key)
+        : vfsSeams.writeRaw(storageKey, value, key);
     const envelope: SealedFileEnvelope = { v: 1, dataB64: bytesToB64(bytes) };
     const blob = await vfsSeams.seal(
       key,
       envelope,
       vaultSealBinding(tomb, path),
     );
+    active();
     assertSealed(blob);
-    await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(blob), key);
-    await reviseIndex(tomb, key, path, true);
-    await registerTomb(tomb);
+    await commit(tombFileKey(tomb, path), JSON.stringify(blob));
+    active();
+    await reviseIndex(tomb, key, path, true, active, commit);
+    active();
+    await registerTomb(tomb, active, commit);
+    active();
   });
 }
 
