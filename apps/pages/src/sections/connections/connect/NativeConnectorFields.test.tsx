@@ -1,11 +1,103 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { afterEach, expect, it } from "vitest";
-import { NativeInputFields } from "./NativeConnectorFields.js";
-import type { NativeField } from "./native-connector-ui.js";
+import { afterEach, expect, it, vi } from "vitest";
+import {
+  NativeConnectorFields,
+  NativeInputFields,
+} from "./NativeConnectorFields.js";
+import type {
+  NativeField,
+  NativeMethodDescriptor,
+} from "./native-connector-ui.js";
 
 afterEach(cleanup);
+
+it.each([
+  [
+    "same labels",
+    "Browser access evidence",
+    "https://docs.example.test/browser/first",
+    "https://docs.example.test/browser/second",
+  ],
+  [
+    "same URLs",
+    "Provider documentation",
+    "https://docs.example.test/browser/same",
+    "https://docs.example.test/browser/same",
+  ],
+  [
+    "normalized URLs",
+    "Provider documentation",
+    "https://docs.example.test:443/browser/same",
+    "https://docs.example.test/browser/same",
+  ],
+])(
+  "keeps focused evidence on its URL through %s, reordering and updates",
+  async (_case, firstLabel, first, second) => {
+    const label = "Browser access evidence";
+    const alias = second.replace(
+      "docs.example.test/",
+      "docs.example.test:443/",
+    );
+    const method: NativeMethodDescriptor = {
+      id: "api-key",
+      label: "API key",
+      available: true,
+      fields: [],
+      scopeGroups: [],
+      links: [
+        { label: firstLabel, url: first },
+        { label, url: second },
+        { label, url: alias },
+      ],
+    };
+    const fields = (links: NativeMethodDescriptor["links"]) => (
+      <NativeConnectorFields
+        method={{ ...method, links }}
+        values={{}}
+        scopes={{}}
+        onValue={() => undefined}
+        onScopes={() => undefined}
+      />
+    );
+    const warnings = vi.spyOn(console, "error");
+    try {
+      const view = render(fields(method.links));
+      expect(screen.getAllByRole("link")).toHaveLength(2);
+      const evidence = screen.getAllByRole("link")[1];
+      await userEvent.tab();
+      await userEvent.tab();
+      expect(document.activeElement).toBe(evidence);
+      expect(evidence).toHaveProperty("href", second);
+      view.rerender(
+        fields([
+          { label, url: second },
+          { label: firstLabel, url: first },
+          { label, url: alias },
+        ]),
+      );
+      expect(document.activeElement).toBe(evidence);
+      expect(evidence).toHaveProperty("href", second);
+      view.rerender(
+        fields([
+          { label, url: "https://docs.example.test/browser/new" },
+          { label, url: second },
+          { label: "Updated provider page", url: first },
+          { label, url: alias },
+        ]),
+      );
+      expect(document.activeElement).toBe(evidence);
+      expect(evidence).toHaveProperty("href", second);
+      expect(evidence.textContent).toContain(label);
+      expect(screen.getAllByRole("link")).toHaveLength(3);
+      expect(warnings).not.toHaveBeenCalled();
+    } finally {
+      warnings.mockRestore();
+    }
+  },
+);
 
 const fields: readonly NativeField[] = [
   {
