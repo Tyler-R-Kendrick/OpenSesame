@@ -2460,9 +2460,7 @@
       "userinfo_endpoint": null,
       "token_endpoint_auth_method": "client_secret_post",
       "pkce": "none",
-      "authorization_params": {
-        "user_scope": "users:read"
-      },
+      "authorization_params": {},
       "scope_separator": ",",
       "scopes": [
         {

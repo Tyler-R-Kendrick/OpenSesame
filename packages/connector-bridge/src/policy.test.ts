@@ -3,7 +3,11 @@ import {
   allAuthorities,
   authoritiesOf,
   checkFetch,
+  isNamedHost,
+  oauthAuthoritiesOf,
+  providerOfHost,
   responseHeaders,
+  underTenantFamily,
 } from "./policy.js";
 import { MAX_HEADERS, MAX_REQUEST_BODY } from "./protocol.js";
 import type { BridgeFetchRequest, HeaderPair } from "./protocol.js";
@@ -177,5 +181,93 @@ describe("responseHeaders", () => {
       ["content-type", "application/json"],
       ["retry-after", "3"],
     ]);
+  });
+});
+
+describe("OAuth hosts and tenant families (ADR 0218)", () => {
+  const oauthTable = [
+    { providerId: "zoom", authorities: [], oauth: ["zoom.us", "api.zoom.us"] },
+    { providerId: "okta", authorities: [], tenants: ["*.okta.com"] },
+  ] as const;
+  const tokenRequest = (change: Partial<BridgeFetchRequest> = {}) =>
+    request({
+      providerId: "zoom",
+      url: "https://zoom.us/oauth/token",
+      method: "POST",
+      headers: [["content-type", "application/x-www-form-urlencoded"]],
+      body: "grant_type=authorization_code&code=x",
+      ...change,
+    });
+
+  it("sends a registered application's token request to an OAuth host a person allowed", () => {
+    expect(
+      checkFetch(tokenRequest(), oauthTable, new Set(["zoom.us"])).ok,
+    ).toBe(true);
+  });
+
+  it("keeps OAuth hosts out of the API-key list and names them separately", () => {
+    expect(authoritiesOf(oauthTable, "zoom")).toEqual([]);
+    expect(oauthAuthoritiesOf(oauthTable, "zoom")).toEqual([
+      "zoom.us",
+      "api.zoom.us",
+    ]);
+    expect(allAuthorities(oauthTable)).toEqual(["api.zoom.us", "zoom.us"]);
+  });
+
+  it("refuses an OAuth host for another provider and one a person did not allow", () => {
+    const verdict = (change: Partial<BridgeFetchRequest>, held: string[]) =>
+      checkFetch(tokenRequest(change), oauthTable, new Set(held));
+    expect(verdict({ providerId: "okta" }, ["zoom.us"])).toEqual({
+      ok: false,
+      code: "host_not_allowed",
+    });
+    expect(verdict({}, ["api.zoom.us"])).toEqual({
+      ok: false,
+      code: "not_granted",
+    });
+  });
+
+  it("lets a tenant under a named family be called once allowed, and nothing else", () => {
+    const tenant = (url: string, held: string[]) =>
+      checkFetch(
+        request({ providerId: "okta", url, method: "GET" }),
+        oauthTable,
+        new Set(held),
+      );
+    expect(
+      tenant("https://acme.okta.com/oauth2/v1/token", ["acme.okta.com"]).ok,
+    ).toBe(true);
+    expect(tenant("https://acme.okta.com/x", [])).toEqual({
+      ok: false,
+      code: "not_granted",
+    });
+    for (const url of [
+      "https://okta.com/x",
+      "https://evilokta.com/x",
+      "https://acme.okta.com.evil.test/x",
+      "https://acme.okta.com./x",
+      "https://-.okta.com/x",
+    ])
+      expect(tenant(url, [new URL(url).hostname])).toEqual({
+        ok: false,
+        code: "host_not_allowed",
+      });
+  });
+
+  it("names a tenant host only under its family, for the one provider that owns the family", () => {
+    expect(isNamedHost(oauthTable, "acme.okta.com")).toBe(true);
+    expect(isNamedHost(oauthTable, "a.b.okta.com")).toBe(true);
+    expect(isNamedHost(oauthTable, "okta.com")).toBe(false);
+    expect(providerOfHost(oauthTable, "acme.okta.com")).toBe("okta");
+    expect(providerOfHost(oauthTable, "zoom.us")).toBe("zoom");
+    expect(providerOfHost(oauthTable, "evil.test")).toBeNull();
+  });
+
+  it("matches a family by labels, not by text", () => {
+    expect(underTenantFamily("acme.okta.com", "*.okta.com")).toBe(true);
+    expect(underTenantFamily("acme.okta.com", "okta.com")).toBe(false);
+    expect(underTenantFamily("xokta.com", "*.okta.com")).toBe(false);
+    expect(underTenantFamily(".okta.com", "*.okta.com")).toBe(false);
+    expect(underTenantFamily("a..okta.com", "*.okta.com")).toBe(false);
   });
 });

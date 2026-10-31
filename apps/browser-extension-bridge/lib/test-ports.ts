@@ -7,6 +7,7 @@ export type FakeFetch = (url: URL, init: FetchInit) => Promise<Response>;
 
 export function fakePorts(fetcher?: FakeFetch) {
   const store = new Map<string, string>();
+  const asks = new Map<string, string>();
   const hosts = new Set<string>();
   const origins = new Set<string>();
   const registered = new Map<string, string>();
@@ -18,6 +19,12 @@ export function fakePorts(fetcher?: FakeFetch) {
       get: async (key) => store.get(key),
       set: async (key, value) => {
         store.set(key, value);
+      },
+    },
+    asks: {
+      get: async (key) => asks.get(key),
+      set: async (key, value) => {
+        asks.set(key, value);
       },
     },
     extensionId: EXTENSION_ID,
@@ -49,5 +56,5 @@ export function fakePorts(fetcher?: FakeFetch) {
       bare.splice(0, bare.length, ...hosts);
     },
   };
-  return { ports, store, hosts, origins, registered, sent, state, bare };
+  return { ports, store, asks, hosts, origins, registered, sent, state, bare };
 }

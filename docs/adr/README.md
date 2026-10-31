@@ -281,3 +281,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0215](0215-trunk-builds-only.md) | Trunk only builds the impacted graph | Accepted |
 | [0216](0216-deterministic-exposure-matrix.md) | Enforce the exposure matrix at reviewed boundaries | Accepted |
 | [0217](0217-aws-sts-mint.md) | The AWS mint: STS AssumeRole for a bound role | Accepted |
+| [0218](0218-registered-oauth-applications-and-the-bridge.md) | A person's own OAuth application connects through the page, and through the bridge where the provider refuses web pages | Accepted |

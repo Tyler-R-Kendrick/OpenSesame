@@ -196,9 +196,7 @@ export function nativeOAuthResourceDescriptor(
         publicEndpoint(
           "resource",
           "API resource URL",
-          preset.verify?.method === "GET"
-            ? preset.verify.url
-            : preset.userinfoEndpoint,
+          preset.verify?.url ?? preset.userinfoEndpoint,
         ),
         {
           id: "token_auth_method",

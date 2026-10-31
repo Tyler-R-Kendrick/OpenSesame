@@ -5,7 +5,11 @@
  * the table does not name. Granting is the browser's own prompt, so what is
  * held is read back from the browser, not from a list this keeps.
  */
-import { type BridgeTable, allAuthorities } from "@opensesame/connector-bridge";
+import {
+  type BridgeTable,
+  isNamedHost,
+  providersOfHost,
+} from "@opensesame/connector-bridge";
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import type { BridgePorts } from "./ports.js";
 
@@ -13,7 +17,7 @@ export const PENDING_KEY = "bridgePending";
 const MAX_PENDING = 64;
 
 export function createHostBook(ports: BridgePorts, table: BridgeTable) {
-  const named = new Set(allAuthorities(table));
+  const named = { has: (host: string) => isNamedHost(table, host) };
 
   /** The hosts the person allowed: held by the browser and named by the table. */
   async function granted(): Promise<string[]> {
@@ -21,7 +25,7 @@ export function createHostBook(ports: BridgePorts, table: BridgeTable) {
   }
 
   async function readPending(): Promise<string[]> {
-    const raw = await ports.store.get(PENDING_KEY);
+    const raw = await ports.asks.get(PENDING_KEY);
     if (raw === undefined) return [];
     try {
       const parsed: BoundaryValue = JSON.parse(raw);
@@ -53,7 +57,7 @@ export function createHostBook(ports: BridgePorts, table: BridgeTable) {
       0,
       MAX_PENDING,
     );
-    await ports.store.set(PENDING_KEY, JSON.stringify(next));
+    await ports.asks.set(PENDING_KEY, JSON.stringify(next));
     await show();
     return pending();
   }
@@ -78,7 +82,7 @@ export function createHostBook(ports: BridgePorts, table: BridgeTable) {
 
   /** The browser's grant changed: retire the asks it answered. */
   async function reconcile(): Promise<void> {
-    await ports.store.set(PENDING_KEY, JSON.stringify(await pending()));
+    await ports.asks.set(PENDING_KEY, JSON.stringify(await pending()));
     await show();
     await readyToSend();
   }
@@ -89,11 +93,9 @@ export function createHostBook(ports: BridgePorts, table: BridgeTable) {
     await reconcile();
   }
 
-  /** Providers whose key check goes to this host, for the popup to name. */
+  /** Providers the table lets be called at this host, for the popup to name. */
   function providersOf(host: string): string[] {
-    return table
-      .filter((row) => row.authorities.includes(host))
-      .map((row) => row.providerId);
+    return providersOfHost(table, host);
   }
 
   return { granted, readyToSend, pending, ask, reconcile, revoke, providersOf };

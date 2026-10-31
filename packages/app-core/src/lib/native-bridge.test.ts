@@ -178,6 +178,73 @@ describe("browser admission", () => {
   });
 });
 
+describe("a registered OAuth application (ADR 0218)", () => {
+  it("is carried at the hosts a page cannot read, and its token host is among them", () => {
+    expect(bridgeHostsFor("zoom")).toEqual(["api.zoom.us", "zoom.us"]);
+    expect(bridgeHostsFor("hubspot")).toContain("api.hubapi.com");
+    // Asana answers a web page: the bridge has nothing to carry for it.
+    expect(bridgeHostsFor("asana")).toEqual([]);
+  });
+
+  it("carries a token exchange to a host the bridge holds, as a form post", async () => {
+    const { fake } = bind({
+      granted: ["zoom.us"],
+      onFetch: () => ({
+        status: 200,
+        headers: [["content-type", "application/json"]],
+        body: '{"access_token":"t","token_type":"bearer","expires_in":3600}',
+      }),
+    });
+    await refreshNativeBridge();
+    const response = await bridgedFetch("https://zoom.us/oauth/token", {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        authorization: "Basic cHJvYmU6cHJvYmU=",
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code: "c",
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ access_token: "t" });
+    expect(fake.heard.at(-1)).toMatchObject({
+      op: "fetch",
+      request: {
+        providerId: "zoom",
+        url: "https://zoom.us/oauth/token",
+        method: "POST",
+        body: "grant_type=authorization_code&code=c",
+      },
+    });
+  });
+
+  it("carries a person's own tenant only once they have allowed that host, and asks for it only for the provider that owns the family", async () => {
+    const present = bind({ granted: [] });
+    await refreshNativeBridge();
+    await askBridgeFor("okta", [
+      "acme.okta.com",
+      "evil.test",
+      "acme.myshopify.com",
+    ]);
+    expect(present.fake.heard.at(-1)).toMatchObject({
+      op: "need",
+      hosts: ["acme.okta.com"],
+    });
+    expect(
+      bridgeCarries(new URL("https://acme.okta.com/oauth2/v1/token")),
+    ).toBeNull();
+    resetNativeBridgeForTest();
+    bind({ granted: ["acme.okta.com"] });
+    await refreshNativeBridge();
+    expect(
+      bridgeCarries(new URL("https://acme.okta.com/oauth2/v1/token")),
+    ).toBe("okta");
+    expect(bridgeCarries(new URL("https://other.okta.com/"))).toBeNull();
+  });
+});
+
 describe("carrying a request", () => {
   it("sends only to a host the bridge holds", async () => {
     bind({ granted: ["api.plivo.com"] });
