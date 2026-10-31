@@ -89,5 +89,31 @@ describe("bounded provider HTTP boundary", () => {
         nativeApiHttp(proving, answering(401)),
       ).rejects.toMatchObject({ code: "authorization" });
     });
+    it("refuses before it reads a proof, even from a request that names a refusal", async () => {
+      // The schema refuses such a contract; this request is built by hand.
+      for (const [status, code] of [
+        [401, "authorization"],
+        [403, "permission"],
+        [407, "response"],
+        [429, "rate-limit"],
+      ] as const)
+        await expect(
+          nativeApiHttp(
+            { ...request, validStatuses: [status] },
+            answering(status),
+          ),
+          String(status),
+        ).rejects.toMatchObject({ code, status });
+    });
+    it("takes no proof from an answer that was redirected", async () => {
+      const moved = Response.json({}, { status: 404 });
+      Object.defineProperty(moved, "redirected", { value: true });
+      await expect(
+        nativeApiHttp(proving, {
+          fetch: vi.fn(async () => moved),
+          assertCurrent: vi.fn(),
+        }),
+      ).rejects.toMatchObject({ code: "response", status: 404 });
+    });
   });
 });
