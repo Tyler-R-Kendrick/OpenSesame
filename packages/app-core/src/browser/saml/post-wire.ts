@@ -1,6 +1,7 @@
 /** Bounded transport messages; none of these messages establishes SAML authentication. */
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { z } from "zod";
+import { z } from "zod/mini";
+import en from "zod/v4/locales/en.js";
 import {
   type SamlPostOwner,
   assertSamlPostOwner,
@@ -11,84 +12,74 @@ export {
 } from "./assertion-conditions.js";
 
 export const SAML_POST_BYTES = 262144;
-export const SamlNonceSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
-const point = z.string().regex(/^[A-Za-z0-9_-]{87}$/);
-const client = z.string().min(1).max(128);
-const request = z.string().regex(/^_[A-Za-z0-9_.-]{1,255}$/);
-export const SamlPostArmSchema = z
-  .object({
-    kind: z.literal("SAML_ARM"),
-    nonce: SamlNonceSchema,
-    requestId: request,
-    expiresAt: z.number().int().positive(),
-    idpOrigin: z.string().url().max(2048),
-    publicKey: point,
-  })
-  .strict();
-export const SamlPostRecordSchema = z
-  .object({
-    nonce: SamlNonceSchema,
-    requestId: request,
-    expiresAt: z.number().int().positive(),
-    acsUrl: z.string().url().max(2048),
-    recordId: client,
-    publicKey: point,
-  })
-  .strict();
+// Match classic Zod's default locale without importing its schema-method
+// runtime into each service worker. An explicitly configured locale wins.
+if (!z.config().localeError) z.config(en());
+export const SamlNonceSchema = z.string().check(z.regex(/^[A-Za-z0-9_-]{43}$/));
+const point = z.string().check(z.regex(/^[A-Za-z0-9_-]{87}$/));
+const client = z.string().check(z.minLength(1), z.maxLength(128));
+const request = z.string().check(z.regex(/^_[A-Za-z0-9_.-]{1,255}$/));
+export const SamlPostArmSchema = z.strictObject({
+  kind: z.literal("SAML_ARM"),
+  nonce: SamlNonceSchema,
+  requestId: request,
+  expiresAt: z.int().check(z.positive()),
+  idpOrigin: z.url().check(z.maxLength(2048)),
+  publicKey: point,
+});
+export const SamlPostRecordSchema = z.strictObject({
+  nonce: SamlNonceSchema,
+  requestId: request,
+  expiresAt: z.int().check(z.positive()),
+  acsUrl: z.url().check(z.maxLength(2048)),
+  recordId: client,
+  publicKey: point,
+});
 export type SamlPostRecord = z.infer<typeof SamlPostRecordSchema>;
 export const SamlPostCommandSchema = z.union([
   SamlPostArmSchema,
-  z.object({ kind: z.literal("SAML_CANCEL"), nonce: SamlNonceSchema }).strict(),
-  z.object({ kind: z.literal("SAML_METADATA") }).strict(),
-  z
-    .object({
-      kind: z.enum(["SAML_CLAIM", "SAML_CONSUME"]),
-      nonce: SamlNonceSchema,
-      recordId: client,
-    })
-    .strict(),
+  z.strictObject({ kind: z.literal("SAML_CANCEL"), nonce: SamlNonceSchema }),
+  z.strictObject({ kind: z.literal("SAML_METADATA") }),
+  z.strictObject({
+    kind: z.enum(["SAML_CLAIM", "SAML_CONSUME"]),
+    nonce: SamlNonceSchema,
+    recordId: client,
+  }),
 ]);
 export const SamlPostReplySchema = z.discriminatedUnion("ok", [
-  z
-    .object({
-      ok: z.literal(false),
-      reason: z.enum(["missing", "denied", "capacity", "malformed"]),
-    })
-    .strict(),
-  z
-    .object({
-      ok: z.literal(true),
-      record: SamlPostRecordSchema.optional(),
-      response: z
-        .string()
-        .max(SAML_POST_BYTES * 2)
-        .optional(),
-    })
-    .strict(),
+  z.strictObject({
+    ok: z.literal(false),
+    reason: z.enum(["missing", "denied", "capacity", "malformed"]),
+  }),
+  z.strictObject({
+    ok: z.literal(true),
+    record: z.optional(SamlPostRecordSchema),
+    response: z.optional(z.string().check(z.maxLength(SAML_POST_BYTES * 2))),
+  }),
 ]);
 export type SamlPostReply = z.infer<typeof SamlPostReplySchema>;
 const binding = { nonce: SamlNonceSchema, recordId: client };
 export const SamlPostChannelSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("hello"), ...binding, publicKey: point }).strict(),
-  z
-    .object({ kind: z.literal("ready"), ...binding, mac: SamlNonceSchema })
-    .strict(),
-  z
-    .object({
-      kind: z.literal("payload"),
-      ...binding,
-      publicKey: point,
-      iv: z.string().regex(/^[A-Za-z0-9_-]{16}$/),
-      ciphertext: z
-        .string()
-        .min(22)
-        .max(524288)
-        .regex(/^[A-Za-z0-9_-]+$/),
-    })
-    .strict(),
-  z
-    .object({ kind: z.literal("received"), ...binding, mac: SamlNonceSchema })
-    .strict(),
+  z.strictObject({ kind: z.literal("hello"), ...binding, publicKey: point }),
+  z.strictObject({
+    kind: z.literal("ready"),
+    ...binding,
+    mac: SamlNonceSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("payload"),
+    ...binding,
+    publicKey: point,
+    iv: z.string().check(z.regex(/^[A-Za-z0-9_-]{16}$/)),
+    ciphertext: z
+      .string()
+      .check(z.minLength(22), z.maxLength(524288), z.regex(/^[A-Za-z0-9_-]+$/)),
+  }),
+  z.strictObject({
+    kind: z.literal("received"),
+    ...binding,
+    mac: SamlNonceSchema,
+  }),
 ]);
 export type SamlPostChannel = z.infer<typeof SamlPostChannelSchema>;
 export function samlPostBytes(value: ArrayBuffer): string {
