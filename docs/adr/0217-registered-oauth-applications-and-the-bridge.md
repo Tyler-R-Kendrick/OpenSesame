@@ -85,8 +85,35 @@ things:
    and links the bridge's README. A provider whose endpoints a page can read
    says nothing.
 
+## The same road for the providers that sign in with a key (Tailscale, Bitwarden)
+
+Four providers the support matrix still called "companion" need nothing a
+browser lacks. Tailscale's cloud API and Bitwarden's servers answer no web page
+(probed, recorded in `browser-policy.json`), so the bridge carries them; the
+cryptography Bitwarden's clients do is Web Crypto:
+
+- **Tailscale** (`native-tailscale.ts`): an API access token, or an OAuth
+  client exchanged for a token used once; proved by listing devices; approve and
+  rename devices, list auth keys, create a one-time auth key shown once.
+- **Bitwarden Secrets Manager** (`bitwarden-sm`, `native-bitwarden-sm.ts`): the
+  access token's 16 bytes derive the key (HMAC-SHA256 then HKDF-Expand) that
+  opens the login's payload; names and values are `EncString`s under the
+  organization key, opened here.
+- **Bitwarden and Vaultwarden vaults** (`native-bitwarden-vault.ts`): a personal
+  API key logs in (no device email, no second step); the master password, which
+  never leaves the device, derives the vault key (PBKDF2-SHA256 or Argon2id,
+  bounded, then HKDF); items, including those with their own key, are opened
+  here. `native-bitwarden-crypto.ts` is checked against Node's independent
+  `crypto`.
+
 ## Not done, and said so
 
+- Bitwarden's wire details (the Secrets Manager login's `Device-Type` header,
+  the vault's device fields, `Key`/`key` spelling) follow its public clients and
+  were not run against a live account. A vault key in a newer format than
+  `EncString` type 2, organization items, and a vault over the bridge's 1 MiB
+  answer are refused rather than guessed. A self-hosted Vaultwarden is reached
+  directly: the bridge's closed table cannot name an address only its owner knows.
 - No real provider account was used. The protocol is proven against a local
   HTTPS provider with real vault custody, a stand-in relay, and the dated
   probes; a provider that changes its CORS policy moves the probe, not the code.

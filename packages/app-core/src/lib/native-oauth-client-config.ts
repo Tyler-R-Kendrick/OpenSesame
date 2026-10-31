@@ -60,13 +60,16 @@ export function normalizeNativeOAuthClientParameters(
   return Object.fromEntries(
     Object.entries(parameters).filter(
       ([key, value]) =>
-        ![
+        // Sending the resource is what no setting at all means, so it is stored as none.
+        !(key === "resource_parameter" && value === "send") &&
+        (![
           "token_relay_url",
           "resource_protocol",
           "mcp_endpoint",
           "mcp_transport",
           "mcp_post_endpoint",
-        ].includes(key) || value !== "",
+        ].includes(key) ||
+          value !== ""),
     ),
   );
 }

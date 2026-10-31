@@ -29,6 +29,24 @@ export const BRIDGE_TABLE = [
     oauth: ["api.beehiiv.com", "app.beehiiv.com"],
   },
   {
+    providerId: "bitwarden",
+    authorities: [
+      "api.bitwarden.com",
+      "api.bitwarden.eu",
+      "identity.bitwarden.com",
+      "identity.bitwarden.eu",
+    ],
+  },
+  {
+    providerId: "bitwarden-sm",
+    authorities: [
+      "api.bitwarden.com",
+      "api.bitwarden.eu",
+      "identity.bitwarden.com",
+      "identity.bitwarden.eu",
+    ],
+  },
+  {
     providerId: "box",
     authorities: [],
     oauth: ["api.box.com"],
@@ -280,6 +298,10 @@ export const BRIDGE_TABLE = [
   {
     providerId: "stepfun",
     authorities: ["api.stepfun.ai"],
+  },
+  {
+    providerId: "tailscale",
+    authorities: ["api.tailscale.com"],
   },
   {
     providerId: "thinking-machines",

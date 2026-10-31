@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeNativeOAuthClientParameters } from "./native-oauth-client-config.js";
 import {
   issuedScopes,
   nativeOAuthProviderContract,
@@ -131,5 +132,19 @@ describe("the request that reads the account behind a token", () => {
     );
     expect(elsewhere.headers.has("x-shopify-access-token")).toBe(false);
     expect(elsewhere.headers.get("authorization")).toBe(`Bearer ${token}`);
+  });
+});
+
+describe("the RFC 8707 resource setting", () => {
+  it("stores `send` as no setting, since sending is what no setting means, and keeps `omit`", () => {
+    expect(
+      normalizeNativeOAuthClientParameters({
+        resource_parameter: "send",
+        resource: "https://a.example/me",
+      }),
+    ).toEqual({ resource: "https://a.example/me" });
+    expect(
+      normalizeNativeOAuthClientParameters({ resource_parameter: "omit" }),
+    ).toEqual({ resource_parameter: "omit" });
   });
 });

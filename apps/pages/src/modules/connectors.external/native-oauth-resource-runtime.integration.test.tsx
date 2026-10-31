@@ -76,8 +76,7 @@ async function setup(id = "box", auth: ClientMethod = "client_secret_post") {
   const activation = createActivation(ctx, "connectors.external");
   bindNativeRuntime(ctx, activation);
   const lifetime = new AbortController();
-  let route = new AbortController();
-  let captures = 0;
+  let [route, captures] = [new AbortController(), 0];
   const carrierSignal = AbortSignal.any([f.controller.signal, lifetime.signal]);
   const fetchOriginal: typeof fetch = (input, init) =>
     ctx.egress.fetch(input, init, {
@@ -247,8 +246,7 @@ it.each([
   "mounted $id $auth form connects only after actual token/resource TLS",
   async ({ id, auth }) => {
     const f = await setup(id, auth);
-    // Box's own OAuth names no RFC 8707 `resource`: the form defaults to omitting it (ADR 0217).
-    if (id === "box") f.state.resourceParameter = "omit";
+    if (id === "box") f.state.resourceParameter = "omit"; // ADR 0217
     const plan = connectPlan(id);
     if (!plan) throw new Error("Missing compiled native OAuth contract");
     const profile = nativeBrowserOAuthProfile(id);
