@@ -100,4 +100,18 @@ describe("a status that proves a credential", () => {
         JSON.stringify(reads),
       ).toBe(false);
   });
+
+  it("is never a status that refuses a credential", () => {
+    // `valid_statuses` in connect-presets.json is copied here unchanged.
+    for (const status of [401, 403, 407, 429]) {
+      const parsed = ProviderVerificationSchema.safeParse({
+        ...base,
+        validStatuses: [404, status],
+      });
+      expect(parsed.success, String(status)).toBe(false);
+      expect(parsed.error?.issues.map((issue) => issue.message)).toContain(
+        "401, 403, 407 and 429 refuse a credential; none of them proves one",
+      );
+    }
+  });
 });

@@ -65,19 +65,33 @@ async function cancelUnreadResponse(
 }
 
 /**
+ * The statuses that refuse a credential, and how each is reported. The
+ * contract schema refuses the same four as proofs
+ * (`connect-provider-auth-schema.ts`).
+ */
+const REFUSALS: ReadonlyMap<number, NativeApiError["code"]> = new Map([
+  [401, "authorization"],
+  [403, "permission"],
+  [407, "response"],
+  [429, "rate-limit"],
+]);
+
+/**
  * True when the status alone is the answer: one the contract documents as
- * proof. A refusal or any other non-2xx throws; a 2xx answer is read.
+ * proof. A refusal, a redirected answer or any other non-2xx throws; a 2xx
+ * answer is read.
  */
 function answeredByStatus(
   request: NativeApiHttpRequest,
   response: Response,
 ): boolean {
-  if (request.validStatuses?.includes(response.status)) return true;
-  if (response.status === 401) throw new NativeApiError("authorization", 401);
-  if (response.status === 403) throw new NativeApiError("permission", 403);
-  if (response.status === 429) throw new NativeApiError("rate-limit", 429);
-  if (!response.ok || response.redirected)
+  // Refusals come first, so no contract can turn one into a proof.
+  const refused = REFUSALS.get(response.status);
+  if (refused) throw new NativeApiError(refused, response.status);
+  if (response.redirected)
     throw new NativeApiError("response", response.status);
+  if (request.validStatuses?.includes(response.status)) return true;
+  if (!response.ok) throw new NativeApiError("response", response.status);
   return false;
 }
 
