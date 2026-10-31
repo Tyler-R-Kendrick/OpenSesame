@@ -116,13 +116,11 @@ describe("the browser's connect plan for a model row", () => {
       ).toBe(true);
       const verify = method.preset.verify;
       // A key is proved by a read. Where a provider offers none a page can use,
-      // the check is its own free key route (NEAR AI's key check, Higgsfield's
-      // model listing, which takes a POST), or one token of chat that the
+      // the check is its own free key route, or one token of chat that the
       // instructions say the provider may bill.
       if (verify?.method === "POST")
         expect(
           verify.url.endsWith("/check_api_key") ||
-            verify.url === "https://api.higgsfield.ai/v1/models" ||
             (verify.url.endsWith("/chat/completions") &&
               method.preset.instructions.includes("may bill")),
           row.id,

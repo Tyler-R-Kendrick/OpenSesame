@@ -96,6 +96,14 @@ function unboundTemplate(template, hostSuffixes) {
   return !hostSuffixes.some((suffix) => host.endsWith(`.${suffix}`));
 }
 
+/** The relay reads a 2xx body; it has no judgement for a status proof. */
+function refuseStatusProof(verify) {
+  if (verify.valid_statuses !== undefined)
+    throw new Error(
+      "A verification proved by a status has no relay target; teach connect-verify.mjs that judgement first",
+    );
+}
+
 function validateProofDisabled(verify) {
   if (
     verify.proof_disabled !== undefined &&
@@ -115,6 +123,7 @@ function target(
   hostSuffixes = [],
 ) {
   validateProofDisabled(verify);
+  refuseStatusProof(verify);
   const built = {
     sources,
     kind,

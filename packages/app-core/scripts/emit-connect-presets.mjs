@@ -84,7 +84,7 @@ function templateParams(row) {
 
 function verification(row) {
   if (!row) return null;
-  return {
+  const verify = {
     method: row.method,
     url: row.url,
     headers: row.headers ?? {},
@@ -102,6 +102,9 @@ function verification(row) {
         }
       : null,
   };
+  // Written only where a row names it, so other plans keep their shape.
+  if (row.valid_statuses) verify.validStatuses = row.valid_statuses;
+  return verify;
 }
 
 /** An explicit credential injection site; never inferred from an arbitrary URL. */

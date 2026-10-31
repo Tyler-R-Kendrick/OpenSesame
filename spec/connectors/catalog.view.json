@@ -1820,10 +1820,10 @@
       },
       "operations": [
         "generation.create",
-        "generation.read",
-        "model.list"
+        "request.status",
+        "request.cancel"
       ],
-      "provenance_url": "https://docs.higgsfield.ai/docs/api-reference/overview",
+      "provenance_url": "https://docs.higgsfield.ai/docs/openapi.json",
       "scopes": [],
       "supports_refresh": false
     },

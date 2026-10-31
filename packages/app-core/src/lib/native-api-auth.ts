@@ -118,6 +118,7 @@ export function nativeApiVerificationRequest(
       : providerTemplate(verify.body, target.parameters, credentials);
   const request: NativeApiHttpRequest = { url, method: verify.method, headers };
   if (body !== undefined) request.body = body;
+  if (verify.validStatuses.length) request.validStatuses = verify.validStatuses;
   return request;
 }
 

@@ -44,7 +44,7 @@ describe("audited browser-only policy", () => {
   });
   it("contains only TLS-verified concrete refusals with reproducible public evidence", () => {
     expect(authored.audited_origin).toBe("https://tyler-r-kendrick.github.io");
-    expect(authored.rules).toHaveLength(94);
+    expect(authored.rules).toHaveLength(95);
     for (const rule of authored.rules) {
       expect(rule.probe.tls_verified).toBe(true);
       expect(rule.probe.status).toBeLessThan(500);

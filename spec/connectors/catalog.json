@@ -1078,7 +1078,7 @@
       "display_name": "Higgsfield",
       "category": "ai_model_provider",
       "docs_url": "https://docs.higgsfield.ai/docs/authentication",
-      "provenance_url": "https://docs.higgsfield.ai/docs/api-reference/overview",
+      "provenance_url": "https://docs.higgsfield.ai/docs/openapi.json",
       "auth": {
         "kind": "api_key",
         "header": "Authorization",
@@ -1090,7 +1090,7 @@
         "authorities": ["api.higgsfield.ai"],
         "path_prefixes": []
       },
-      "operations": ["generation.create", "generation.read", "model.list"],
+      "operations": ["generation.create", "request.status", "request.cancel"],
       "model_api": {
         "protocol": "rest_json",
         "base_url": "https://api.higgsfield.ai"

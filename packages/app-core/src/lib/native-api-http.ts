@@ -39,6 +39,8 @@ export type NativeApiHttpRequest = {
   headers: Headers;
   body?: string;
   signal?: AbortSignal;
+  /** Statuses the provider documents as proof; their body is never read. */
+  validStatuses?: readonly number[];
 };
 
 async function reply(
@@ -60,6 +62,23 @@ async function cancelUnreadResponse(
 ): Promise<void> {
   if (response && !response.bodyUsed)
     await response.body?.cancel().catch(() => undefined);
+}
+
+/**
+ * True when the status alone is the answer: one the contract documents as
+ * proof. A refusal or any other non-2xx throws; a 2xx answer is read.
+ */
+function answeredByStatus(
+  request: NativeApiHttpRequest,
+  response: Response,
+): boolean {
+  if (request.validStatuses?.includes(response.status)) return true;
+  if (response.status === 401) throw new NativeApiError("authorization", 401);
+  if (response.status === 403) throw new NativeApiError("permission", 403);
+  if (response.status === 429) throw new NativeApiError("rate-limit", 429);
+  if (!response.ok || response.redirected)
+    throw new NativeApiError("response", response.status);
+  return false;
 }
 
 export async function nativeApiHttp(
@@ -87,11 +106,7 @@ export async function nativeApiHttp(
     if (request.body !== undefined) init.body = request.body;
     response = await transport.fetch(request.url, init);
     transport.assertCurrent();
-    if (response.status === 401) throw new NativeApiError("authorization", 401);
-    if (response.status === 403) throw new NativeApiError("permission", 403);
-    if (response.status === 429) throw new NativeApiError("rate-limit", 429);
-    if (!response.ok || response.redirected)
-      throw new NativeApiError("response", response.status);
+    if (answeredByStatus(request, response)) return {};
     const body = await reply(response, controller.signal);
     transport.assertCurrent();
     if (controller.signal.aborted) throw new NativeApiError("network");
