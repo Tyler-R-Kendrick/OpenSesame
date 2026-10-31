@@ -27,7 +27,7 @@
     "@playwright/test": "1.64.1",
     "@types/node": "22.15.29",
     "@types/ws": "8.18.2",
-    "typescript": "5.8.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.12",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/vault-core": "workspace:*"
