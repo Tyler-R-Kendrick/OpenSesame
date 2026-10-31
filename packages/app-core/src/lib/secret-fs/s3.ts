@@ -20,7 +20,6 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Effect } from "effect";
 import {
-  SecretFsConflict,
   SecretFsNotFound,
   SecretFsRejected,
   SecretFsUnavailable,
@@ -33,6 +32,7 @@ import { s3Exchange } from "./s3-response.js";
 import type { S3Reply } from "./s3-response.js";
 import { EMPTY_PAYLOAD, signS3 } from "./s3-sigv4.js";
 import type { S3Credentials } from "./s3-sigv4.js";
+import { s3Write } from "./s3-write.js";
 
 export const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_LIST_PAGES = 1000;
@@ -58,8 +58,6 @@ export type S3FilesConfig = Readonly<{
 }>;
 
 const BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
-const unquote = (etag: string | null): string | null =>
-  etag === null ? null : etag.replace(/^W\//, "");
 
 /** Name an unsuccessful response the way every other backend names it. */
 function refusal(path: string, status: number): SecretFsError {
@@ -85,6 +83,7 @@ function refusal(path: string, status: number): SecretFsError {
 }
 
 type Call = Readonly<{
+  beforeCommit?: (() => void) | undefined;
   method: "GET" | "PUT" | "DELETE";
   /** The object's path within the vault, or "" for the bucket. */
   path: string;
@@ -93,7 +92,7 @@ type Call = Readonly<{
   body?: Uint8Array | undefined;
 }>;
 
-type Wire = Readonly<{
+export type Wire = Readonly<{
   max: number;
   rootPrefix: string;
   current: (path: string) => Effect.Effect<void, SecretFsRejected>;
@@ -133,9 +132,13 @@ function exchangeCall(
   target: Target,
   call: Call,
 ): Effect.Effect<S3Reply, SecretFsError> {
+  const current = () => {
+    target.check();
+    call.beforeCommit?.();
+  };
   return Effect.tryPromise({
     try: async (signal) => {
-      target.check();
+      current();
       // The bucket itself (a listing) is addressed with no key.
       const key = call.path === "" ? "" : `${target.rootPrefix}${call.path}`;
       const path = target.literal
@@ -162,7 +165,7 @@ function exchangeCall(
         url: signed.url,
         signal,
         owner: target.owner,
-        check: target.check,
+        check: current,
         max: target.max,
         retain: call.method === "GET",
         init: {
@@ -176,7 +179,7 @@ function exchangeCall(
     },
     catch: () => {
       try {
-        target.check();
+        current();
       } catch {
         return ownerRejected(call.path);
       }
@@ -260,69 +263,6 @@ const readFile =
       return { bytes, revision };
     });
 
-/** What the object is now, for a conflict to name and a conditional put to hold. */
-const currentOf = (wire: Wire, path: string) =>
-  Effect.gen(function* () {
-    const response = yield* wire.call({ method: "GET", path });
-    if (response.status === 404) return null;
-    if (!response.ok) return yield* refusal(path, response.status);
-    const bytes = response.bytes;
-    yield* wire.current(path);
-    return {
-      etag: unquote(response.etag),
-      revision: revisionOf(bytes),
-    };
-  });
-
-const writeFile =
-  (wire: Wire): SecretFiles["write"] =>
-  (path, bytes, options) =>
-    Effect.gen(function* () {
-      yield* checkPath(path);
-      yield* wire.current(path);
-      if (bytes.byteLength > wire.max) {
-        return yield* new SecretFsRejected({
-          path,
-          kind: "invalid-path",
-          reason: "the file is larger than a store holds",
-        });
-      }
-      const expected = options?.ifRevision;
-      const headers = new Headers({
-        "content-type": "application/octet-stream",
-      });
-      const conflict = (actual: string | null) =>
-        new SecretFsConflict({ path, expected: expected ?? null, actual });
-
-      if (expected === null) headers.set("if-none-match", "*");
-      else if (expected !== undefined) {
-        const current = yield* currentOf(wire, path);
-        yield* wire.current(path);
-        if (current === null || current.revision !== expected) {
-          return yield* conflict(current?.revision ?? null);
-        }
-        if (current.etag !== null) headers.set("if-match", current.etag);
-      }
-      const response = yield* wire.call({
-        method: "PUT",
-        path,
-        headers,
-        body: bytes,
-      });
-      // 412 is a failed precondition; 409 is a rival conditional write in flight.
-      if (response.status === 412 || response.status === 409) {
-        const now = yield* currentOf(wire, path).pipe(
-          Effect.orElseSucceed(() => null),
-        );
-        yield* wire.current(path);
-        return yield* conflict(now?.revision ?? null);
-      }
-      if (!response.ok) return yield* refusal(path, response.status);
-      const revision = revisionOf(bytes);
-      yield* wire.current(path);
-      return revision;
-    });
-
 const removeFile =
   (wire: Wire): SecretFiles["remove"] =>
   (path) =>
@@ -378,7 +318,9 @@ export function makeS3SecretFiles(config: S3FilesConfig): SecretFiles {
   const wire = makeWire(config);
   return {
     read: readFile(wire),
-    write: writeFile(wire),
+    write: s3Write(wire, refusal),
+    writeGuarded: (path, bytes, check, options) =>
+      s3Write(wire, refusal, check)(path, bytes, options),
     remove: removeFile(wire),
     list: listFiles(wire),
   };

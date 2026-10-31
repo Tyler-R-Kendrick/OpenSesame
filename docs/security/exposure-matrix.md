@@ -96,6 +96,7 @@ artifacts, changing its enforcement classification, or adding global guarantees.
 | `synchronous-provisional-revocation` | Cancel, expiry and lock clear owned provisional key/body/VFS custody immediately; cleanup releases only the original attempt's resources. Late decrypted project, org and IdP hydration cannot republish retired session state. |
 | `bounded-preapproval-iam` | An opaque, revocable handle reads only trusted policy, identity directory and identity credentials, with fixed size limits. Genuine WebAuthn verification may advance an existing assertion counter through a writer that checks the original owner before durable commit and cache publication. Unsupported transports refuse this write and policy enrollment; they cannot borrow the default KV writer. It opens no ordinary VFS, releases no root/key or ordinary file, and issues no consumable IAM sign-in evidence. |
 | `owned-single-flight-publication` | Activation and acquired leases have one owner. Duplicate/concurrent approvals cannot publish multiple activations or lose a lease; metadata, preferences, credential counters and device-key/body publication retain the original operation checks. Late authentication bookkeeping cannot overwrite newer deadman state, and late self-authenticator registration cannot restore a removed or replaced factor. |
+| `separate-ordinary-file-metadata-writes` | An already unlocked vault may reconcile its device identity through an explicit file-store writer. The original owner is checked at the backend commit and before mirror, index and registry publication. This metadata capability refuses BODY projection and does not provide the private IAM writer or a fresh authentication reader. Unsupported stores refuse guarded writes instead of borrowing another transport. |
 
 The mandatory source and regression inventory lives in
 [`exposure-local-vault.mjs`](../../scripts/lib/exposure-local-vault.mjs).
@@ -114,9 +115,15 @@ fixture is also fingerprinted; naming a test alone cannot establish that proof.
 Discovery includes new modules under these named lanes and their nested helper
 directories. Every discovered local activation helper must bind to the mandatory
 local contract; another row in the same area cannot substitute for its controls.
-A new authentication road outside them requires extending discovery. The legacy
-file transport retains ordinary unlock when no contact quorum is configured;
-the guarded-write requirement applies to private preapproval IAM publication.
+A new authentication road outside them requires extending discovery. File-backed
+stores retain ordinary unlock and identity adoption/replacement without contact
+quorum. Their separate ordinary metadata writer carries the same owner check
+through memory publication, directory rename and signed S3 request dispatch,
+including retry and success-recovery paths. Withdrawal cannot publish a stale
+mirror or start a later index/registry write. An already accepted physical or
+remote write is not rolled back. Private preapproval IAM and policy enrollment
+still require their own supported transport; an ordinary metadata capability
+cannot stand in for it.
 
 An unverified failed primary owns no root. Retiring that attempt preserves an
 already admitted native identity; once a primary root is retained, cancellation

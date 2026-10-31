@@ -216,7 +216,7 @@ export async function writeFile(
   assertSealedPath(path);
   const operation = originalVfsCheck(check);
   const originalKey = check ? requireTombKey(tomb) : null;
-  const guarded = vfsSeams.writeRawGuarded;
+  const guarded = vfsSeams.writeRawGuarded ?? vfsSeams.writeOwnedMetadata;
   if (check && !guarded)
     throw new VfsError(
       "locked",

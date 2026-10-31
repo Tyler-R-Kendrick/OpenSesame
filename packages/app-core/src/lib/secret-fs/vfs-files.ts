@@ -114,7 +114,8 @@ export type FileBackedVfs = Readonly<{
   hydrate: () => Promise<void>;
   seams: Required<
     Pick<VfsSeams, "readRaw" | "writeRaw" | "deleteRaw" | "openBody">
-  >;
+  > &
+    Pick<VfsSeams, "writeOwnedMetadata">;
 }>;
 
 /** What one adapter holds: the store, a mirror of its raw files, and what it knows of each vault's documents. */
@@ -296,6 +297,7 @@ export function createFileBackedVfs(
   },
 ): FileBackedVfs {
   const held: Held = { files, mirror: new Map(), projections: new Map() };
+  const guardedWrite = files.writeGuarded?.bind(files);
   // The seams may be called from anywhere, so the adapter orders its own writes.
   let chain: Promise<unknown> = Promise.resolve();
   const serial = <T>(work: () => Promise<T>): Promise<T> => {
@@ -304,7 +306,7 @@ export function createFileBackedVfs(
     return run;
   };
 
-  return {
+  const adapter: FileBackedVfs = {
     hydrate: () => serial(() => hydrateAll(held)),
     seams: {
       readRaw: (key) => held.mirror.get(key) ?? fallback.readRaw(key),
@@ -334,4 +336,23 @@ export function createFileBackedVfs(
         serial(() => assembleBody(held, tomb, vaultKey)),
     },
   };
+  if (guardedWrite)
+    return {
+      ...adapter,
+      seams: {
+        ...adapter.seams,
+        writeOwnedMetadata: (key, value, check) =>
+          serial(async () => {
+            check();
+            const where = locate(key);
+            if (where.kind === "body")
+              throw rejected(key, "has no guarded body projection");
+            const doc = encodeConfig(where.path, value);
+            await settle(guardedWrite(where.file, doc ?? encode(value), check));
+            check();
+            held.mirror.set(key, value);
+          }),
+      },
+    };
+  return adapter;
 }

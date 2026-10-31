@@ -25,6 +25,13 @@ export type VfsSeams = {
     beforeCommit: () => void,
     vaultKey?: CryptoKey,
   ) => Promise<void>;
+  /** Guarded metadata for an already-open ordinary VFS key; never pre-unlock IAM support. */
+  writeOwnedMetadata?: (
+    key: string,
+    value: string,
+    beforeCommit: () => void,
+    vaultKey?: CryptoKey,
+  ) => Promise<void>;
   deleteRaw: (key: string) => Promise<void>;
   /** A file-per-secret store assembles the body here, before it is first read. */
   openBody?: (tomb: string, vaultKey: CryptoKey) => Promise<void>;
