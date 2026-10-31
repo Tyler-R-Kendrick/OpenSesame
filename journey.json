@@ -1,0 +1,124 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "visit": "connections#catalog-fal-ai"
+        },
+        {
+          "report": "#catalog-fal-ai"
+        },
+        {
+          "measure": "#catalog-fal-ai"
+        },
+        {
+          "shot": "1280-fal-ai"
+        },
+        {
+          "visit": "connections#catalog-higgsfield"
+        },
+        {
+          "report": "#catalog-higgsfield"
+        },
+        {
+          "measure": "#catalog-higgsfield"
+        },
+        {
+          "shot": "1280-higgsfield"
+        },
+        {
+          "visit": "connections#catalog-obsidian"
+        },
+        {
+          "report": "#catalog-obsidian"
+        },
+        {
+          "visit": "connections#catalog-polar"
+        },
+        {
+          "report": "#catalog-polar"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "visit": "connections#catalog-fal-ai"
+        },
+        {
+          "report": "#catalog-fal-ai"
+        },
+        {
+          "measure": "#catalog-fal-ai"
+        },
+        {
+          "shot": "390-fal-ai"
+        },
+        {
+          "visit": "connections#catalog-higgsfield"
+        },
+        {
+          "report": "#catalog-higgsfield"
+        },
+        {
+          "measure": "#catalog-higgsfield"
+        },
+        {
+          "shot": "390-higgsfield"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-fal-ai",
+      "width": 1280,
+      "title": "Add a connection, fal.ai tile \u2014 1280 \u00d7 900",
+      "caption": "Same journey on both builds (guest, External connectors on, Add a connection). Text and boxes read from the browser.",
+      "before": "FAL.ai \u00b7 API key (no kind line) \u00b7 tile 313\u00d783",
+      "after": "fal.ai \u00b7 API key \u00b7 Provider REST \u00b7 tile 313\u00d783"
+    },
+    {
+      "shot": "1280-higgsfield",
+      "width": 1280,
+      "title": "Add a connection, Higgsfield tile \u2014 1280 \u00d7 900",
+      "caption": "Same journey on both builds (guest, External connectors on, Add a connection). Text and boxes read from the browser.",
+      "before": "Higgsfield \u00b7 API key (no kind line) \u00b7 tile 313\u00d783",
+      "after": "Higgsfield \u00b7 API key \u00b7 Provider REST \u00b7 tile 313\u00d783"
+    },
+    {
+      "shot": "390-fal-ai",
+      "width": 390,
+      "title": "Add a connection, fal.ai tile \u2014 390 \u00d7 844",
+      "caption": "Same journey on both builds (guest, External connectors on, Add a connection). Text and boxes read from the browser.",
+      "before": "FAL.ai \u00b7 API key (no kind line) \u00b7 tile 358\u00d764",
+      "after": "fal.ai \u00b7 API key \u00b7 Provider REST \u00b7 tile 358\u00d783"
+    },
+    {
+      "shot": "390-higgsfield",
+      "width": 390,
+      "title": "Add a connection, Higgsfield tile \u2014 390 \u00d7 844",
+      "caption": "Same journey on both builds (guest, External connectors on, Add a connection). Text and boxes read from the browser.",
+      "before": "Higgsfield \u00b7 API key (no kind line) \u00b7 tile 358\u00d764",
+      "after": "Higgsfield \u00b7 API key \u00b7 Provider REST \u00b7 tile 358\u00d783"
+    }
+  ]
+}
