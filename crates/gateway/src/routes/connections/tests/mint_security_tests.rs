@@ -197,3 +197,6 @@ fn assert_mint_redaction(pem: &str, minted: &serde_json::Value, rendered_events:
         );
     }
 }
+
+#[path = "aws_sts_mint_tests.rs"]
+mod aws_sts_mint_tests;
