@@ -61,12 +61,12 @@ export function usePathSegment(source: SegmentSource) {
   }
 
   function take(option: SuggestOption, byTab = false) {
-    // On the way out by Tab the blur that follows must not choose again.
+    // Tab owns focus traversal; the following blur must not pick again.
     leaving.current = byTab;
     setQuery(null);
     setOpen(false);
     onPick(option.key);
-    onPicked?.();
+    if (!byTab) onPicked?.();
   }
 
   function onBlur() {
