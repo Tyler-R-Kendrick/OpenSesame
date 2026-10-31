@@ -1,0 +1,132 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "visit": "connections/google"
+        },
+        {
+          "report": "label[for=connector-api-family]"
+        },
+        {
+          "report": "#connector-api-family option"
+        },
+        {
+          "measure": "#connector-api-family"
+        },
+        {
+          "shot": "1280-google"
+        },
+        {
+          "visit": "connections/microsoft"
+        },
+        {
+          "report": "label[for=connector-api-family]"
+        },
+        {
+          "report": "#connector-api-family option"
+        },
+        {
+          "shot": "1280-microsoft"
+        },
+        {
+          "visit": "connections/vercel-ai-gateway"
+        },
+        {
+          "report": "label"
+        },
+        {
+          "shot": "1280-vercel-ai-gateway"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "External connectors"
+        },
+        {
+          "visit": "connections/google"
+        },
+        {
+          "report": "label[for=connector-api-family]"
+        },
+        {
+          "report": "#connector-api-family option"
+        },
+        {
+          "measure": "#connector-api-family"
+        },
+        {
+          "shot": "390-google"
+        },
+        {
+          "visit": "connections/microsoft"
+        },
+        {
+          "report": "#connector-api-family option"
+        },
+        {
+          "shot": "390-microsoft"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-google",
+      "width": 1280,
+      "title": "Google page, API family select \u2014 1280 \u00d7 900",
+      "caption": "Same journey on main and this branch (guest, External connectors on, the provider's page). Labels and options read from the browser.",
+      "before": "label \"API family\" \u00b7 options Google, google-drive, Google Gemini, Google Vertex AI, Google Wallet \u00b7 select 190\u00d732",
+      "after": "label \"Google API\" \u00b7 options Google, Google Drive, Google Gemini, Google Vertex AI, Google Wallet \u00b7 select 190\u00d732"
+    },
+    {
+      "shot": "1280-microsoft",
+      "width": 1280,
+      "title": "Microsoft page, API family select \u2014 1280 \u00d7 900",
+      "caption": "Same journey on main and this branch (guest, External connectors on, the provider's page). Labels and options read from the browser.",
+      "before": "label \"API family\" \u00b7 options Microsoft, m365, Microsoft Teams",
+      "after": "label \"Microsoft API\" \u00b7 options Microsoft, Microsoft 365, Microsoft Teams"
+    },
+    {
+      "shot": "1280-vercel-ai-gateway",
+      "width": 1280,
+      "title": "Vercel AI Gateway page, two selects \u2014 1280 \u00d7 900",
+      "caption": "Same journey on main and this branch (guest, External connectors on, the provider's page). Labels and options read from the browser.",
+      "before": "labels \"API family\" (provider) and \"API family\" (model protocol)",
+      "after": "labels \"Vercel API\" (provider) and \"API family\" (model protocol)"
+    },
+    {
+      "shot": "390-google",
+      "width": 390,
+      "title": "Google page, API family select \u2014 390 \u00d7 844",
+      "caption": "Same journey on main and this branch (guest, External connectors on, the provider's page). Labels and options read from the browser.",
+      "before": "label \"API family\" \u00b7 google-drive \u00b7 select 352\u00d744",
+      "after": "label \"Google API\" \u00b7 Google Drive \u00b7 select 352\u00d744"
+    },
+    {
+      "shot": "390-microsoft",
+      "width": 390,
+      "title": "Microsoft page, API family select \u2014 390 \u00d7 844",
+      "caption": "Same journey on main and this branch (guest, External connectors on, the provider's page). Labels and options read from the browser.",
+      "before": "options Microsoft, m365, Microsoft Teams",
+      "after": "options Microsoft, Microsoft 365, Microsoft Teams"
+    }
+  ]
+}
