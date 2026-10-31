@@ -19,6 +19,8 @@ export interface FetchInit {
 
 export interface BridgePorts {
   readonly store: KeyValueStore;
+  /** In-memory only (cleared when the browser closes): the hosts a page asked for, which can name a person's own tenant. */
+  readonly asks: KeyValueStore;
   /** This extension's id, which a relayed message must carry. */
   readonly extensionId: string;
   /** Whether the browser holds permission for `https://<host>/*`. */

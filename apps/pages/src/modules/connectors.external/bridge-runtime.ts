@@ -90,7 +90,8 @@ export function bindBridgeRuntime(
     target.removeEventListener("focus", again);
     target.document.removeEventListener("visibilitychange", again);
     release();
-    client.close();
+    // Requests already sent are still read when they land; nothing new starts.
+    client.drain();
   });
   void refreshNativeBridge();
 }
