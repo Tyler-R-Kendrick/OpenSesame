@@ -4,6 +4,8 @@
  * its own `VaultStore`, so nothing one device writes is visible to the other
  * except through the drive — the same isolation two phones have.
  */
+import { onTestFinished } from "vitest";
+import { type Host, configureHost, host } from "../../host.js";
 import { VaultStore } from "../vault/store.js";
 import { type VfsSeams, vfsFlush, vfsSeams } from "../vfs.js";
 
@@ -13,10 +15,11 @@ export type Device = {
   files: Map<string, string>;
   seams: Pick<VfsSeams, "readRaw" | "writeRaw" | "deleteRaw">;
 };
+const contexts = new WeakMap<Device, Host>();
 
 export function device(name: string): Device {
   const files = new Map<string, string>();
-  return {
+  const on: Device = {
     name,
     store: new VaultStore(),
     files,
@@ -30,6 +33,9 @@ export function device(name: string): Device {
       },
     },
   };
+  // Each device remains active through the test, then ends in its own realm.
+  onTestFinished(() => closeDevice(on));
+  return on;
 }
 
 const original = {
@@ -40,14 +46,35 @@ const original = {
 
 /** Run `act` as `on`: its storage is the only storage while it runs. */
 export async function as<T>(on: Device, act: () => Promise<T>): Promise<T> {
+  contexts.set(on, host());
   await vfsFlush();
   Object.assign(vfsSeams, on.seams);
   try {
     return await act();
   } finally {
-    await on.store.flushPendingWrites();
-    await vfsFlush();
-    Object.assign(vfsSeams, original);
+    try {
+      await on.store.flushPendingWrites();
+      await vfsFlush();
+    } finally {
+      Object.assign(vfsSeams, original);
+    }
+  }
+}
+
+async function closeDevice(on: Device): Promise<void> {
+  const previous = host();
+  configureHost(contexts.get(on) ?? previous);
+  try {
+    await as(on, async () => {
+      try {
+        await on.store.flushPendingWrites();
+      } finally {
+        on.store.lock();
+      }
+    });
+  } finally {
+    contexts.delete(on);
+    configureHost(previous);
   }
 }
 
