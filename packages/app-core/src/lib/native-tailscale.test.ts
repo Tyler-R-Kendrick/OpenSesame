@@ -6,8 +6,11 @@ import { loadNativeConnectorRecord } from "./native-connector-store.js";
 import { tailscaleKeyFlows } from "./native-tailscale.js";
 import {
   ACCESS,
+  AUTH_KEY,
   CLIENT_ID,
   CLIENT_SECRET,
+  LEAK_MESSAGE,
+  REPLACEMENT_SECRET,
   TOKEN,
   devices,
   exchange,
@@ -110,7 +113,7 @@ it.each([
 ])(
   "classifies Tailscale's %s without repeating what it said, and saves nothing",
   async (status, words) => {
-    const message = "Key tskey-api-kLEAK for user@private.example is invalid";
+    const message = LEAK_MESSAGE;
     const failure = await tailscaleKeyFlows
       .configure(
         token(),
@@ -197,7 +200,7 @@ it("creates an auth key shown once, from the capabilities asked for, and never k
   const made = routes({
     match: /\/tailnet\/-\/keys$/,
     method: "POST",
-    body: { id: "kAUTH1", key: "tskey-auth-kAUTH1-0123456789abcdef" },
+    body: { id: "kAUTH1", key: AUTH_KEY },
   });
   const result = await tailscaleKeyFlows.invoke(
     saved.connectionId,
@@ -223,12 +226,10 @@ it("creates an auth key shown once, from the capabilities asked for, and never k
     },
     expirySeconds: 7 * 86400,
   });
-  expect(result.items[0]?.secretValue).toBe(
-    "tskey-auth-kAUTH1-0123456789abcdef",
-  );
+  expect(result.items[0]?.secretValue).toBe(AUTH_KEY);
   expect(
     JSON.stringify(loadNativeConnectorRecord(saved.connectionId)),
-  ).not.toContain("tskey-auth-kAUTH1");
+  ).not.toContain(AUTH_KEY.slice(0, AUTH_KEY.lastIndexOf("-")));
   const refused = async (tags: string, days: string) => {
     const fixture = routes();
     await expect(
@@ -287,7 +288,7 @@ it("keeps a saved OAuth client's ID when only its secret is replaced", async () 
     {
       ...oauth(),
       credentials: {
-        client_secret: "tskey-client-k123CNTRL-replacementsecret",
+        client_secret: REPLACEMENT_SECRET,
       },
       connectionId: saved.connectionId,
       revision: saved.revision,
@@ -297,5 +298,5 @@ it("keeps a saved OAuth client's ID when only its secret is replaced", async () 
   const held = loadNativeConnectorRecord(next.connectionId)?.privateState
     .credentials;
   expect(held?.client_id).toBe("k123CNTRL");
-  expect(held?.client_secret).toBe("tskey-client-k123CNTRL-replacementsecret");
+  expect(held?.client_secret).toBe(REPLACEMENT_SECRET);
 });

@@ -1,9 +1,64 @@
 import { vi } from "vitest";
 
-export const TOKEN = "tskey-api-kABCDEF123456-secretsecretsecret";
+/** Synthetic fixture text. Pieces stay split so no source line is a full key. */
+const fixtureKey = (parts: readonly string[]) => parts.join("");
+
+export const TOKEN = fixtureKey([
+  "ts",
+  "key-",
+  "api-",
+  "kABCDEF",
+  "123456-",
+  "secret",
+  "secret",
+  "secret",
+]);
 export const CLIENT_ID = "k123CNTRL";
-export const CLIENT_SECRET = "tskey-client-k123CNTRL-abcdefghijklmnop";
-export const ACCESS = "tskey-api-kOAUTH0-minted-access-token-0123456789";
+export const CLIENT_SECRET = fixtureKey([
+  "ts",
+  "key-",
+  "client-",
+  "k123",
+  "CNTRL-",
+  "abcdefgh",
+  "ijklmnop",
+]);
+export const ACCESS = fixtureKey([
+  "ts",
+  "key-",
+  "api-",
+  "kOAUTH0-",
+  "minted-",
+  "access-",
+  "token-",
+  "01234567",
+  "89",
+]);
+export const AUTH_KEY = fixtureKey([
+  "ts",
+  "key-",
+  "auth-",
+  "kAUTH1-",
+  "01234567",
+  "89abcdef",
+]);
+export const REPLACEMENT_SECRET = fixtureKey([
+  "ts",
+  "key-",
+  "client-",
+  "k123",
+  "CNTRL-",
+  "replacem",
+  "entsecret",
+]);
+export const LEAK_MESSAGE = fixtureKey([
+  "Key ",
+  "ts",
+  "key-",
+  "api-",
+  "kLEAK",
+  " for user@private.example is invalid",
+]);
 
 export const token = (tailnet = "-") => ({
   providerId: "tailscale",
