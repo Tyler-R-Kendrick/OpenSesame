@@ -659,7 +659,7 @@
         "crates/provider-bitwarden/tests/pinned_origin.rs",
         "crates/provider-bitwarden/tests/common/response_limit_stub.rs"
       ],
-      "review": "Privileged operator migration intentionally handles wrapped vault/private/org keys, server verifiers, API keys and TOTP/recovery material. This is local secret custody, not anonymous export. Source IDs never choose local filenames; archive child paths are opened no-follow under retained roots, regular single-link files and actual file/HTTP byte intake are bounded. SQLite archive row counts are not globally capped by this control. Credential-bearing API requests retain their selected origin; signed file downloads may use another HTTPS origin, carry no account bearer and refuse redirects. Live files use random exclusive scratch names. Non-Unix archive file bytes fail closed; see operator compatibility documentation."
+      "review": "Privileged operator migration intentionally handles wrapped vault/private/org keys, server verifiers, API keys and TOTP/recovery material. This is local secret custody, not anonymous export. Source IDs never choose local filenames; archive child paths are opened no-follow under retained roots, regular single-link files and actual file/HTTP byte intake are bounded. SQLite archive row counts are not globally capped by this control. Credential-bearing API requests retain their selected origin; signed file downloads may use another HTTPS origin, carry no account bearer and refuse redirects. Live files use random exclusive scratch names. Non-Unix archive file bytes fail closed; see operator compatibility documentation. 2026-10-31: crates/provider-bitwarden/Cargo.toml now pins aes 0.9.2 and cbc 0.2.1 with features alloc and block-padding unchanged (cipher 0.5.2). Encrypt and decrypt still use PKCS7 via encrypt_padded_vec and decrypt_padded_vec; type-2 HMAC is checked before decryption. reqwest, response caps, and origin pinning in that manifest are unchanged. cargo test -p opensesame-provider-bitwarden passed, including response_limits (13), pinned_origin (5), crypto unit tests, and fast crypto vectors. Ignored production-KDF and regenerator tests were not run. bitwarden-server import path tests were not re-run; this diff does not change those sources."
     },
     {
       "id": "public-signing-keys",
@@ -781,7 +781,7 @@
     "crates/provider-bitwarden/tests/response_limits.rs": "e88e2c894cee9a1c809db602a8d411efa0a9be654d328674afc499051696f64a",
     "crates/provider-bitwarden/tests/pinned_origin.rs": "7ec2f01534b0f4470545a6db50141d18055ca65aa4c9c37bc94e0b9b905f0c9c",
     "crates/provider-bitwarden/tests/common/response_limit_stub.rs": "bd2cef928184764314b64463b1f2e99fe724c3ecf9086e706f2a9fbe142a9c36",
-    "crates/provider-bitwarden/Cargo.toml": "9cbe5a3db4318351d180649ac467f36551762238aaa598b0af462c1455cc10c3",
+    "crates/provider-bitwarden/Cargo.toml": "70b1bfd7af3ec5c2af658095b0976f159f9b1e30932f3cb008105f900ccb1438",
     "crates/provider-bitwarden/src/lib.rs": "d8d3e0e953409b3f3a9928135e2e784801ab63e2157d08194ea7ad29d85a923b",
     "crates/provider-bitwarden/src/api.rs": "af95fee73cddc02ba93dbf2e1083d7bddd8cc72f6e81b1442de71734eaa715a2",
     "crates/provider-bitwarden/src/api/body.rs": "a2934886b4a46e45f2f1f43150f2a9fc8abd762b4a25cb3663da7f108b6f9e29",
