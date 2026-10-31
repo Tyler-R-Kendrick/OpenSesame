@@ -2,7 +2,7 @@
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { connectionRouteProvider } from "@opensesame/app-core/sections/connections/provider-route.js";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConnectorSettingsPage } from "./SettingsPage.js";
@@ -42,7 +42,33 @@ function draw(route: string) {
   );
 }
 
+function optionLabels(name: string) {
+  return within(screen.getByRole("combobox", { name }))
+    .getAllByRole("option")
+    .map((option) => option.textContent);
+}
+
 describe("a provider family's API select", () => {
+  it("names Google Drive as the catalog does, on the Google page", () => {
+    draw("google");
+    expect(optionLabels("Google API")).toEqual([
+      "Google",
+      "Google Drive",
+      "Google Gemini",
+      "Google Vertex AI",
+      "Google Wallet",
+    ]);
+  });
+
+  it("names Microsoft 365 as the catalog does, on the Microsoft page", () => {
+    draw("microsoft");
+    expect(optionLabels("Microsoft API")).toEqual([
+      "Microsoft",
+      "Microsoft 365",
+      "Microsoft Teams",
+    ]);
+  });
+
   it("is one control a screen reader can tell apart from a model form's on the same page", () => {
     // Vercel AI Gateway is a model provider in the Vercel family: its page
     // draws the family's select and the model connection form together.
