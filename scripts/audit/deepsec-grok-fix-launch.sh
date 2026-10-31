@@ -62,7 +62,7 @@ Include:
 - Finding id, severity, file:line
 - Line: \`${N}/${TOTAL} based on #${BASE_PR}\`
 - Stack: base branch \`${PR_BASE_BRANCH}\` → head \`${BRANCH}\`
-- Credit: fix authored by Kimi Code K3 (subscription OAuth, kimi-code/k3)
+- Credit: fix authored by Grok Build (${DEEPSEC_GROK_MODEL:-grok-4.7}, subscription CLI)
 
 ## CI / process
 - Fetch latest \`origin/main\` and rebase your stack base as needed.
@@ -89,9 +89,13 @@ cd "$ROOT"
 START="$(date +%s)"
 set +e
 export PATH="${HOME}/.local/bin:${PATH}"
-env -u XAI_API_KEY -u GROK_DEPLOYMENT_KEY -u MOONSHOT_API_KEY \
-  kimi -m "${DEEPSEC_KIMI_MODEL:-kimi-code/k3}" -p "$(cat "$PROMPT")" \
-  --output-format text >>"$JOB_LOG" 2>&1
+MODEL="${DEEPSEC_GROK_MODEL:-grok-4.7}"
+env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY -u GROK_DEPLOYMENT_KEY -u MOONSHOT_API_KEY \
+  "${ROOT}/scripts/dev/grok-headless.sh" \
+  -p "$(cat "$PROMPT")" \
+  -m "$MODEL" \
+  --always-approve \
+  --output-format json >>"$JOB_LOG" 2>&1
 EXIT=$?
 if grep -qiE '429|insufficient_quota|quota|rate limit|too many requests|usage limit' "$JOB_LOG"; then
   EXIT=42
