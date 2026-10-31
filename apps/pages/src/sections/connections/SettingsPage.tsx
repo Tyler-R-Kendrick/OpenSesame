@@ -206,7 +206,7 @@ export function ConnectorSettingsPage({
       </Link>
       {family && familyOptions.length > 1 ? (
         <div className="field conn-settings__family">
-          <label htmlFor="connector-api-family">API family</label>
+          <label htmlFor="connector-api-family">{family.name} API</label>
           <select
             id="connector-api-family"
             value={canonicalProviderId(provider.id) ?? provider.id}
