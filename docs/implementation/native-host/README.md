@@ -36,7 +36,7 @@ the same tests the original did.
 | Host authorization | The gateway accepts only the control-plane's RS256 `host-authorization+jwt`, so Join's verify and agent-run control need the Identity API. | `crates/gateway/src/host_authorization.rs`, `packages/app-core/src/lib/join/client.ts` |
 | Gateway issuer | Defaults to `https://keycloak.local/realms/opensesame`. | `crates/gateway/src/config.rs` |
 | Daemon | Loopback `:18790` and optional Unix socket, served by `opensesame daemon run`. The `sessions` map is never filled, so `mint_capability` always answers `no_session`. `lib.rs` is 1,500 lines. | `crates/daemon/src/lib.rs` |
-| Helper minting | The daemon requires the operator token even on the socket; the helpers send none, so `/v1/mint` answers 401. | `crates/daemon/src/lib.rs` (`require_operator`), `crates/credential-helpers/src/lib.rs` |
+| Helper minting | Fixed since: on the socket `/v1/mint` admits an attested same-user peer with no token for a connection the operator allowed (`opensesame daemon helpers allow`), and the helpers send none (ADR 0138 §2 as amended). Before, the daemon required the operator token there and answered 401. | `crates/daemon/src/mint.rs`, `crates/daemon/src/helper_mints.rs`, `crates/credential-helpers/src/lib.rs`, `apps/cli/tests/helper_peer_mint.rs` |
 | Dependency budget | The gate checks depth one; the full tree reaches `sqlx` and `chacha20poly1305` through `host-core`. | `scripts/audit/daemon-deps-gate.sh`, `cargo tree -p opensesame-daemon` |
 | Rust identity primitives | DPoP, JWK thumbprints, PKCE, device flow, discovery parsing, X.509. No OIDC provider, no ID-token minting, no SIOP, no WebAuthn relying party. | `crates/proof`, `crates/authn`, `crates/pki-core` |
 | MCP | Two servers (`mcp-host` over stdio and Streamable HTTP, `mcp-client` over stdio) with duplicated sync tools and two audiences (`urn:opensesame:agent:mcp-host`, `urn:opensesame:agent:mcp-client`); 13 of 306 capabilities reach MCP. Pages has 29 WebMCP tools on a transport-neutral spec the servers do not use. | `packages/mcp-{host,client}`, `packages/webmcp/src/registrar.ts`, `packages/app-core/src/webmcp/` |
@@ -73,7 +73,7 @@ Phase 3 depends on 2. Phase 4 depends on 1 and 3. Phases 6 and 7 depend on 4.
 
 - Accept ADR 0138; amend ADRs 0007, 0017, 0033, 0047 §6, 0048 §5, 0049 §4,
   0053, 0065, 0092 and 0124 by reference; update `AGENTS.md` §1 and §4.
-- Fix helper minting: a same-user socket peer is the helper's authority on
+- Done — fix helper minting: a same-user socket peer is the helper's authority on
   `/v1/mint`, as the helper crate's docs (`crates/credential-helpers/src/lib.rs`)
   already claim; the daemon's own `peer_auth.rs` and `mint.rs` document the
   operator token as required on every transport, which is what the code does.

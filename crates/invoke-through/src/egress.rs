@@ -15,8 +15,14 @@
 /// How the acquired credential is presented upstream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthStyle {
-    /// `Authorization: Bearer <token>` — the only style in v1.
+    /// `Authorization: Bearer <token>`.
     Bearer,
+    /// AWS Signature Version 4: the credential never travels; a signature
+    /// over the exact request does ([`crate::RequestSigner`]). A rule of this
+    /// style is reachable only through [`crate::Invoker::execute_signed`], and
+    /// a bearer rule never through it, so neither kind of credential can be
+    /// presented to a host cleared for the other.
+    SigV4,
 }
 
 /// One provider's egress rule: exact hosts, one scheme, one auth style.

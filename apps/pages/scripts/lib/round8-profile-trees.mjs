@@ -11,6 +11,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { dependencyRoot } from "./dependency-root.mjs";
 import { REPO, WT_ROOT, log } from "./round8-profile-plan.mjs";
 import { buildDist, resolveWalks } from "./verification-checklist-profiles.mjs";
 
@@ -31,9 +32,32 @@ export function listNodeModules(root) {
   return out.split("\n").filter(Boolean);
 }
 
+/**
+ * Where Node resolves `name` (through `specifier`) from apps/pages in `root`,
+ * as a real path, or null. A hoisted install puts both at the root, pnpm's in
+ * apps/pages; either way this is what the build in that tree will load.
+ */
+function pagesResolves(root, name, specifier = name) {
+  try {
+    return fs.realpathSync(
+      dependencyRoot(
+        path.join(root, "apps/pages/package.json"),
+        name,
+        specifier,
+      ),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function inside(root, target) {
+  const relative = target ? path.relative(fs.realpathSync(root), target) : "..";
+  return !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
 export function mirrorNodeModules(fromRoot, toRoot) {
-  const marker = path.join(toRoot, "apps/pages/node_modules/vite/package.json");
-  if (fs.existsSync(marker)) {
+  if (inside(toRoot, pagesResolves(toRoot, "vite"))) {
     log(`node_modules present in ${toRoot}`);
     return;
   }
@@ -47,13 +71,15 @@ export function mirrorNodeModules(fromRoot, toRoot) {
     // Symlinks stay symlinks so workspace packages resolve inside this tree.
     execFileSync("cp", ["-a", `${abs}/.`, dest]);
   }
-  const link = path.join(
+  const appCore = pagesResolves(
     toRoot,
-    "apps/pages/node_modules/@opensesame/app-core",
+    "@opensesame/app-core",
+    "@opensesame/app-core/host.js",
   );
-  const target = fs.readlinkSync(link);
-  if (path.isAbsolute(target)) {
-    throw new Error(`workspace link must stay relative: ${link} → ${target}`);
+  if (appCore !== fs.realpathSync(path.join(toRoot, "packages/app-core"))) {
+    throw new Error(
+      `workspace packages must resolve inside ${toRoot}: @opensesame/app-core is ${appCore}`,
+    );
   }
 }
 

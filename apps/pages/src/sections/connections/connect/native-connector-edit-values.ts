@@ -66,6 +66,13 @@ export function nativeInitialValues(
       view.configuration.parameters[field.id] !== undefined
     )
       defaults[field.id] = view.configuration.parameters[field.id];
+    // A connection saved before a provider's own OAuth stopped sending the
+    // RFC 8707 `resource` did send it: reopening it must not silently change it.
+    if (
+      field.id === "resource_parameter" &&
+      view.configuration.parameters.resource_parameter === undefined
+    )
+      defaults[field.id] = "send";
     if (
       !field.secret &&
       field.id === "client_id" &&

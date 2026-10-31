@@ -7,8 +7,19 @@ import {
   PAGES_HAS_NO_HOST,
   PM_PLANE,
 } from "./exclusions.js";
-import type { Capability } from "./index.js";
+import type { Capability, CapabilityExclusion } from "./index.js";
 import { optionalPluginCapabilities } from "./optional-plugins.js";
+
+/**
+ * Allowing a connection for helper minting lets any process running as an
+ * allowed user mint it on the daemon's socket with no token (ADR 0138 §2); an
+ * agent that could write the list could grant itself every connection.
+ */
+const HELPER_MINTS_ARE_THE_OPERATORS: CapabilityExclusion = {
+  reason:
+    "the allowlist decides which connections a same-user process may mint with no token; an agent that could change it could widen its own reach",
+  adr: "0138-self-issued-identity-one-native-host.md",
+};
 
 /**
  * The native host: one `opensesame` binary that runs the Host API, the local
@@ -113,6 +124,26 @@ export const nativeHostCapabilities: readonly Capability[] = [
       webmcp: null,
     },
     excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
+  },
+  {
+    id: "helpers.mint_allowlist",
+    title:
+      "Allow, revoke or list the connections the credential helpers may mint on the daemon's socket",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame daemon helpers allow",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      pwa: PAGES_HAS_NO_HOST,
+      webmcp: PAGES_HAS_NO_HOST,
+      mcp_host: HELPER_MINTS_ARE_THE_OPERATORS,
+      mcp_client: HELPER_MINTS_ARE_THE_OPERATORS,
+    },
   },
 
   {

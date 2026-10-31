@@ -6,7 +6,7 @@
 //! start is an error, never a silent skip.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
@@ -54,6 +54,36 @@ impl NodeResult {
             .and_then(serde_json::Value::as_str)
             .unwrap_or_default()
     }
+}
+
+/// tsx's CLI as the Identity plane resolves it (`harness/tsx-cli.mjs`), to run
+/// as `node <cli> <script>`. Node's resolution finds it under any
+/// `node_modules` layout; a `.bin` shim inside a workspace member exists only
+/// where the install wrote one.
+///
+/// # Errors
+///
+/// Node could not be started, or tsx does not resolve from
+/// `packages/control-plane`.
+pub fn tsx_cli(root: &Path) -> Result<PathBuf> {
+    let mut command = Command::new("node");
+    command
+        .arg(harness_dir().join("tsx-cli.mjs"))
+        .arg(root)
+        .env("NODE_OPTIONS", "--max-old-space-size=8192");
+    let (code, stdout, stderr) =
+        run_bounded(&mut command, Duration::from_secs(30)).context("node tsx-cli.mjs")?;
+    if code != Some(0) {
+        bail!(
+            "tsx does not resolve from packages/control-plane: {}",
+            stderr.trim()
+        );
+    }
+    let cli = PathBuf::from(stdout.trim());
+    if !cli.is_file() {
+        bail!("tsx-cli.mjs named {}, which is not a file", cli.display());
+    }
+    Ok(cli)
 }
 
 /// Run `harness/tls-client.mjs` with `IOP_*` environment variables.

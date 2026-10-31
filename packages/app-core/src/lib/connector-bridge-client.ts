@@ -45,15 +45,18 @@ type Waiting = {
   settle: (reply: ReturnType<typeof parsePageReply>) => void;
 };
 
-export function createBridgeClient(
-  channel: BridgeChannel,
-  options: BridgeClientOptions = {},
-) {
-  const newId = options.newId ?? (() => crypto.randomUUID());
-  const helloMs = options.helloMs ?? 800;
-  const fetchMs = options.fetchMs ?? REQUEST_TIMEOUT_MS + 5_000;
+/** The requests sent and not yet answered, and the one listener that hears their answers. */
+function createExchange(channel: BridgeChannel, newId: () => string) {
   const waiting = new Map<string, Waiting>();
   let stop: (() => void) | null = null;
+  let draining = false;
+
+  /** Stop listening once nothing is left to hear, when asked to wind down. */
+  function settleDrain() {
+    if (!draining || waiting.size > 0) return;
+    stop?.();
+    stop = null;
+  }
 
   function hear(data: BoundaryValue) {
     for (const [id, entry] of waiting) {
@@ -61,6 +64,7 @@ export function createBridgeClient(
       if (reply?.id !== id) continue;
       waiting.delete(id);
       entry.settle(reply);
+      settleDrain();
       return;
     }
   }
@@ -70,12 +74,15 @@ export function createBridgeClient(
     operation: BridgeOperation,
     ms: number,
   ) {
+    // A client winding down starts nothing new: its answer would have no one to read it.
+    if (draining) return Promise.resolve(null);
     stop ??= channel.listen(hear);
     const id = newId();
     return new Promise<ReturnType<typeof parsePageReply>>((resolve) => {
       const timer = setTimeout(() => {
         waiting.delete(id);
         resolve(null);
+        settleDrain();
       }, ms);
       waiting.set(id, {
         operation,
@@ -87,6 +94,31 @@ export function createBridgeClient(
       channel.post(pageRequestMessage(build(id)));
     });
   }
+
+  return {
+    ask,
+    drain() {
+      draining = true;
+      settleDrain();
+    },
+    close() {
+      stop?.();
+      stop = null;
+      for (const entry of waiting.values()) entry.settle(null);
+      waiting.clear();
+    },
+  };
+}
+
+export function createBridgeClient(
+  channel: BridgeChannel,
+  options: BridgeClientOptions = {},
+) {
+  const newId = options.newId ?? (() => crypto.randomUUID());
+  const helloMs = options.helloMs ?? 800;
+  const fetchMs = options.fetchMs ?? REQUEST_TIMEOUT_MS + 5_000;
+  const exchange = createExchange(channel, newId);
+  const ask = exchange.ask;
 
   /** The bridge and the hosts it holds, or `null` when nothing answers. */
   async function hello(): Promise<BridgeHello | null> {
@@ -126,12 +158,14 @@ export function createBridgeClient(
     hello,
     need,
     fetch: send,
-    close() {
-      stop?.();
-      stop = null;
-      for (const entry of waiting.values()) entry.settle(null);
-      waiting.clear();
-    },
+    /**
+     * Wind down without losing a request already sent: a token exchange the
+     * extension is still carrying must be read when it lands, so it can be
+     * sealed and cleaned up (ADR 0185 §8). New requests are refused; the
+     * channel is let go when the last answer, or its timeout, arrives.
+     */
+    drain: exchange.drain,
+    close: exchange.close,
   };
 }
 

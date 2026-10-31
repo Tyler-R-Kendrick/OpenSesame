@@ -15,6 +15,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { tsxCli } from "./tsx-cli.mjs";
 
 const OPENSSL = "/usr/bin/openssl";
 
@@ -178,25 +179,32 @@ export function writeBindings(dir, operation) {
   return path;
 }
 
+/** tsx's CLI as packages/control-plane resolves it, or the reason it cannot start. */
+function identityTsx(repoRoot) {
+  try {
+    return tsxCli(repoRoot);
+  } catch (cause) {
+    throw new Error(
+      "tsx does not resolve from packages/control-plane — the Identity endpoint cannot start (install the workspace)",
+      { cause },
+    );
+  }
+}
+
 /**
  * Start the Identity plane's real TLS listener on an ephemeral loopback port.
  * Resolves to `{ port, stop() }`; rejects with a precise blocker when `tsx`
  * or the harness is missing.
  */
 export async function startIdentityEndpoint({ repoRoot, pki, bindings, dir }) {
-  const tsx = resolve(repoRoot, "packages/control-plane/node_modules/.bin/tsx");
+  const tsx = identityTsx(repoRoot);
   const script = resolve(
     repoRoot,
     "tests/mtls-interop/harness/identity-listener.mts",
   );
-  if (!existsSync(tsx)) {
-    throw new Error(
-      `tsx is not installed at ${tsx} — the Identity endpoint cannot start (run pnpm install)`,
-    );
-  }
   if (!existsSync(script)) throw new Error(`missing harness: ${script}`);
   const log = join(dir, "identity-listener.log");
-  const child = spawn(tsx, [script], {
+  const child = spawn(process.execPath, [tsx, script], {
     cwd: repoRoot,
     env: {
       ...process.env,

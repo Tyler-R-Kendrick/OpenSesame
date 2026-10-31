@@ -28,7 +28,16 @@ The toolbar, mint, introspect, revoke, list, discover, promote, invoke,
 duress-peer and vault-drive slot (open, list, close) routes require
 `X-OpenSesame-Operator` from `OPENSESAME_OPERATOR_TOKEN` (`--operator-token`),
 so the toolbar sends it. Without it the daemon answers 401 and nothing is
-approved. Not operator-gated: the health probes, `/v1/get_access_token`, the
+approved. `/v1/mint` needs the token over TCP only: on the Unix socket it admits
+an attested peer whose UID is in `OPENSESAME_DAEMON_ALLOWED_UIDS` with no token
+for a grant the operator made: the connection and, for a GitHub App connection,
+the one installation named, matched exactly (`GET /v1/helper-mints`, `PUT
+/v1/helper-mints/{connection_id}` with an optional `{"installation_id"}` body,
+`DELETE /v1/helper-mints/{connection_id}`, operator token on every transport;
+`opensesame daemon helpers allow|revoke|list`), which is how the credential
+helpers mint (ADR 0138 §2). The grant file is authenticated by an HMAC under a
+key derived from the operator token; a file whose tag fails admits nothing, and
+`GET /v1/helper-mints` answers `"stored": "unauthenticated"`. Not operator-gated: the health probes, `/v1/get_access_token`, the
 agent-capability launch exchange (an attested Unix-socket peer plus a launch
 handle), the `/host/*` and `/identity/*` proxies (they drop the operator header
 and leave authentication to the upstream), the vault-drive snapshot and part
