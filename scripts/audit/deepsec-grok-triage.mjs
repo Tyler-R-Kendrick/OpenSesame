@@ -16,7 +16,7 @@ const projectId = "opensesame";
 const ws = path.join(repoRoot, ".deepsec");
 const dataDir = path.join(ws, "data", projectId);
 const filesDir = path.join(dataDir, "files");
-const agentKind = process.env.DEEPSEC_AGENT ?? "kimi";
+const agentKind = process.env.DEEPSEC_AGENT ?? "grok";
 const model =
   process.env.DEEPSEC_GROK_MODEL ??
   (agentKind === "kimi" ? "kimi-code/k3" : "grok-4.7");
@@ -34,6 +34,7 @@ const concurrency = Number(
 );
 
 process.env.XAI_API_KEY = undefined;
+process.env.GROK_CODE_XAI_API_KEY = undefined;
 process.env.GROK_DEPLOYMENT_KEY = undefined;
 process.env.MOONSHOT_API_KEY = undefined;
 

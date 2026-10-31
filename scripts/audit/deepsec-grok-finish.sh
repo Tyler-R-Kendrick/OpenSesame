@@ -6,17 +6,22 @@ WS="${ROOT}/.deepsec"
 DEEPSEC="${WS}/node_modules/.bin/deepsec"
 PROJECT_ID=opensesame
 export PATH="${HOME}/.local/bin:${PATH}"
-AGENT="${DEEPSEC_AGENT:-kimi}"
-MODEL="${DEEPSEC_GROK_MODEL:-kimi-code/k3}"
+AGENT="${DEEPSEC_AGENT:-grok}"
+MODEL="${DEEPSEC_GROK_MODEL:-grok-4.7}"
 LOG=/tmp/deepsec-grok-finish.log
 exec > >(tee -a "$LOG") 2>&1
 
 echo "=== deepsec finish start $(date -u +%Y-%m-%dT%H:%M:%SZ) agent=$AGENT model=$MODEL ==="
+bash "${ROOT}/scripts/audit/deepsec-grok-subscription-verify.sh"
+if [[ "$AGENT" != "grok" ]]; then
+  echo "deepsec-grok-finish: DEEPSEC_AGENT must be grok for subscription billing" >&2
+  exit 1
+fi
 if ! node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2; then
   echo "SKIP finish: investigate wave 2 not complete (see deepsec-wave2-progress.mjs)"
   exit 2
 fi
-unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
+unset XAI_API_KEY GROK_CODE_XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
 export DEEPSEC_THINKING="${DEEPSEC_THINKING:-high}"
 export DEEPSEC_CONCURRENCY="${DEEPSEC_CONCURRENCY:-2}"
 

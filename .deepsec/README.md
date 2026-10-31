@@ -34,12 +34,23 @@ pnpm deepsec export      --format md-dir --out ./findings
 
 ### Grok Build (subscription, `grok-4.7`)
 
-deepsec 2.3.6 has no built-in Grok agent. This workspace registers
-`--agent grok` via `grok-agent-plugin.ts` (headless `grok -p`, unset
-`XAI_API_KEY` so billing stays on the Grok Build CLI subscription).
+deepsec 2.3.6 has no built-in Grok agent. Built-in `--agent` values are
+`codex`, `claude`, and `pi` (Vercel AI Gateway or provider API keys).
+This workspace registers **`--agent grok`** via `grok-agent-plugin.ts`
+(headless `grok -p`; child env unsets `XAI_API_KEY` /
+`GROK_CODE_XAI_API_KEY` so billing stays on the Grok Build CLI subscription).
+
+Before any AI stage:
 
 ```bash
-unset XAI_API_KEY && grok login --device-auth   # once per VM
+unset XAI_API_KEY GROK_CODE_XAI_API_KEY GROK_DEPLOYMENT_KEY
+bash ../scripts/audit/deepsec-grok-subscription-verify.sh
+```
+
+Then:
+
+```bash
+export DEEPSEC_AGENT=grok DEEPSEC_GROK_MODEL=grok-4.7
 ../scripts/audit/deepsec-grok-scan.sh scan
 DEEPSEC_LIMIT=50 ../scripts/audit/deepsec-grok-scan.sh process
 ../scripts/audit/deepsec-grok-scan.sh revalidate
