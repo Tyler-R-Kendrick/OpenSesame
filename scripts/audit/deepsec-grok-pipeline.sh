@@ -5,15 +5,20 @@ ROOT=/workspace
 WS=/workspace/.deepsec
 DEEPSEC="$WS/node_modules/.bin/deepsec"
 export PATH="${HOME}/.local/bin:${PATH}"
-AGENT="${DEEPSEC_AGENT:-kimi}"
-MODEL="${DEEPSEC_GROK_MODEL:-kimi-code/k3}"
+AGENT="${DEEPSEC_AGENT:-grok}"
+MODEL="${DEEPSEC_GROK_MODEL:-grok-4.7}"
 export DEEPSEC_THINKING=high
 export DEEPSEC_CONCURRENCY=2
 
 exec > >(tee -a "$LOG") 2>&1
 
 echo "=== deepsec pipeline start $(date -u +%Y-%m-%dT%H:%M:%SZ) agent=$AGENT model=$MODEL ==="
-unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
+unset XAI_API_KEY GROK_CODE_XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
+bash "${ROOT}/scripts/audit/deepsec-grok-subscription-verify.sh"
+if [[ "$AGENT" != "grok" ]]; then
+  echo "deepsec-grok-pipeline: DEEPSEC_AGENT must be grok for subscription billing" >&2
+  exit 1
+fi
 
 run_process() {
   local label="$1"
