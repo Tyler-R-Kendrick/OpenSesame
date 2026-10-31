@@ -1,16 +1,26 @@
-import { type BoundaryValue, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import {
   type ReactNode,
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
 } from "react";
-import { useLocation, useNavigate, useNavigationType } from "react-router";
+import {
+  useHref,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from "react-router";
 import type { VaultPane } from "./vault-list-path.js";
 
-type Entry = { key: string; pane: VaultPane };
+type Entry = { key: string; route: string; pane: VaultPane };
 
 const DEPTH = { tree: 0, list: 1, detail: 2 } as const satisfies Record<
   VaultPane,
@@ -21,6 +31,48 @@ const DEPTH = { tree: 0, list: 1, detail: 2 } as const satisfies Record<
 export type Ascend = (pane: VaultPane, fallback: string) => void;
 
 const AscendContext = createContext<Ascend | null>(null);
+
+type PaneOwner = symbol;
+type PendingTraversal = {
+  owner: PaneOwner | null;
+  targetKey: string;
+  targetRoute: string;
+  arrived: boolean;
+  resume: (() => void) | null;
+  stop: () => void;
+};
+let pendingTraversal: PendingTraversal | null = null;
+
+/** A section jump follows the current native Back, with the latest jump winning. */
+export function afterPaneTraversal(run: () => void): boolean {
+  if (!pendingTraversal) return false;
+  pendingTraversal.resume = run;
+  return true;
+}
+
+function retainTraversal(owner: PaneOwner, target: Entry): PendingTraversal {
+  const onPop = (event: PopStateEvent) => {
+    const state: BoundaryValue = event.state;
+    const key =
+      isJsonObject(state) && isString(state.key) ? state.key : "default";
+    const route = window.location.href;
+    if (key !== pending.targetKey || route !== pending.targetRoute) return;
+    pending.stop();
+    pending.arrived = true;
+    if (pendingTraversal === pending && !pending.owner && !pending.resume)
+      pendingTraversal = null;
+  };
+  const pending: PendingTraversal = {
+    owner,
+    targetKey: target.key,
+    targetRoute: target.route,
+    arrived: false,
+    resume: null,
+    stop: () => window.removeEventListener("popstate", onPop, true),
+  };
+  window.addEventListener("popstate", onPop, true);
+  return pending;
+}
 
 /** The key a phone's panes climb with; null where the panes are all in view. */
 export function useAscend(): Ascend | null {
@@ -63,7 +115,9 @@ export function AscendProvider({
  * entries this session arrived at.
  */
 export function usePaneTrail(pane: VaultPane): Ascend {
-  const { key } = useLocation();
+  const location = useLocation();
+  const { key } = location;
+  const route = new URL(useHref(location), window.location.href).href;
   const type = useNavigationType();
   const navigate = useNavigate();
   const trail = useRef<Entry[]>([]);
@@ -72,26 +126,63 @@ export function usePaneTrail(pane: VaultPane): Ascend {
   showing.current = pane;
   const drawn = useRef(key);
   drawn.current = key;
+  const owner = useRef(Symbol("pane traversal owner"));
+
+  useLayoutEffect(() => {
+    const identity = owner.current;
+    if (pendingTraversal?.owner === null) pendingTraversal.owner = identity;
+    return () => {
+      if (pendingTraversal?.owner === identity) {
+        if (pendingTraversal.arrived) {
+          pendingTraversal.stop();
+          pendingTraversal = null;
+        } else {
+          pendingTraversal.owner = null;
+          pendingTraversal.resume = null;
+        }
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const entries = trail.current;
-    const here = entries.findIndex((entry) => entry.key === key);
+    const here = entries.findIndex(
+      (entry) => entry.key === key && entry.route === route,
+    );
     if (here >= 0) {
-      entries[here] = { key, pane };
+      entries[here] = { key, route, pane };
       at.current = here;
     } else if (type === "PUSH") {
-      trail.current = [...entries.slice(0, at.current + 1), { key, pane }];
+      trail.current = [
+        ...entries.slice(0, at.current + 1),
+        { key, route, pane },
+      ];
       at.current = trail.current.length - 1;
     } else if (type === "REPLACE" && at.current >= 0) {
-      entries[at.current] = { key, pane };
+      entries[at.current] = { key, route, pane };
     } else {
-      trail.current = [{ key, pane }];
+      trail.current = [{ key, route, pane }];
       at.current = 0;
     }
-  }, [key, pane, type]);
+    const pending = pendingTraversal;
+    if (
+      pending?.owner === owner.current &&
+      (pending.arrived ||
+        (pending.targetKey === key &&
+          pending.targetRoute === route &&
+          type === "POP"))
+    ) {
+      pendingTraversal = null;
+      pending.stop();
+      pending.resume?.();
+    }
+  }, [key, route, pane, type]);
 
   return useCallback(
     (to, fallback) => {
+      // Native history traversal is asynchronous: two Escapes can otherwise
+      // enqueue two pops while both still see the same rendered entry.
+      if (pendingTraversal) return;
       if (DEPTH[showing.current] <= DEPTH[to]) return;
       // `history.state.key` is the router's own current entry (a browser
       // router writes it; a memory router has no such state to compare).
@@ -99,7 +190,15 @@ export function usePaneTrail(pane: VaultPane): Ascend {
       if (isString(current) && current !== drawn.current) return;
       for (let i = at.current - 1; i >= 0; i--) {
         if (trail.current[i]?.pane === to) {
-          navigate(i - at.current);
+          const pending = retainTraversal(owner.current, trail.current[i]);
+          pendingTraversal = pending;
+          try {
+            navigate(i - at.current);
+          } catch (error) {
+            pending.stop();
+            if (pendingTraversal === pending) pendingTraversal = null;
+            throw error;
+          }
           return;
         }
       }
