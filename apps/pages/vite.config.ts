@@ -7,6 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import { configDefaults } from "vitest/config";
 import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-policy.ts";
 import { pwaManifest } from "./pwa-manifest.js";
+import { aiBrowserModels } from "./scripts/ai-browser-models.mjs";
 import { bundleChunk } from "./scripts/bundle-chunk.mjs";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
@@ -21,6 +22,7 @@ import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { samlBrowserCrypto } from "./scripts/saml-browser-crypto.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { sharedWorkerGraph } from "./scripts/shared-worker-graph.mjs";
+import { shellBuildMetadata } from "./scripts/shell-build-metadata-plugin.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 import {
   tailscaleWasmAssets,
@@ -224,15 +226,15 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-        // Merge a chunk under 32 KB into one that every path loading it
-        // already loads. The precache gzips each file alone; a 32 KB floor
+        // Merge a chunk under 64 KB into one that every path loading it
+        // already loads. The precache gzips each file alone; a 64 KB floor
         // reduces that repeated compression overhead. A pure chunk still
         // folds into a neighbour at this floor. Pin a chunk that must keep its
         // name (`device-identity-host` below; web-push enrolment in
         // `capability-lazy-leaves.mjs`) so the bootstrap does not
         // static-import an optional module (ADR 0130 §4) and the device
         // walks can still import the host by file name.
-        experimentalMinChunkSize: 32_000,
+        experimentalMinChunkSize: 64_000,
         manualChunks: bundleChunk,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
@@ -273,7 +275,9 @@ export default defineConfig({
     },
   },
   plugins: [
+    shellBuildMetadata(),
     zodCsp(),
+    aiBrowserModels(fileURLToPath(new URL("../..", import.meta.url))),
     vercelOidcNamespace(fileURLToPath(new URL("../..", import.meta.url))),
     process.env.OPENSESAME_AI_COMPLETION_VERIFY === "1" && {
       name: "ai-completion-verifier-entry",

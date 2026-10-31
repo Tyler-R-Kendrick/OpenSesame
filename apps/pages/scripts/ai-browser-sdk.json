@@ -1,0 +1,34 @@
+{
+  "sdk": {
+    "name": "ai",
+    "version": "7.0.155",
+    "sha256": "03bc8e22146cd356f806830c3c9df0d9f9ace7632df58f44ebeedc42cecfe213"
+  },
+  "gateway": {
+    "name": "@ai-sdk/gateway",
+    "version": "4.0.128",
+    "sha256": "fa472b41ce586222f164714b7e15fe23c44f6b528818696dc0bee64b147f95e7"
+  },
+  "facade": "packages/app-core/src/lib/command-bar/interpret-generate-object.ts",
+  "caller": "packages/app-core/src/lib/command-bar/interpret.ts",
+  "sources": {
+    "sdkSource": "3f72aae941529728d28a33a7c5cc6d1893aa7810996e67d87361e36f27f0f750",
+    "gatewaySource": "90f4fa2e97e9d0ab7eb4b04fa35d3aaaa53c13e8374544c972f42bfff021de1d",
+    "facadeSource": "de06516dad69aea60d261d3a763bd9b231b52cdb3e9c9afd8eb56da2c418f3f4",
+    "callerSource": "09ab63db71f532639a1990d9829ffee47339e055d2c61da4db224002114b9194"
+  },
+  "fragments": {
+    "sdkDefault": "function getGlobalProvider() {\n\treturn asProviderV4(globalThis.AI_SDK_DEFAULT_PROVIDER ?? gateway$1);\n}",
+    "gatewayDefault": "const gateway = createGateway();",
+    "facadeGuard": "!z.safeParse(explicitModel, options.model).success",
+    "facadeDelegate": "return sdkGenerateObject(options);",
+    "callerModel": "model: createPromptLanguageModel({ api }),"
+  },
+  "gatewayErrorRenderedBytes": 3128,
+  "forbiddenRuntimeFragments": [
+    "https://ai-gateway.vercel.sh/v4/ai",
+    "ai-gateway-protocol-version",
+    "function getGatewayAuthToken(",
+    "function createGateway("
+  ]
+}
