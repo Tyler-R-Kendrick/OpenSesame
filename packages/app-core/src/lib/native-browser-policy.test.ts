@@ -45,6 +45,13 @@ const BRIDGE_PROBES = [
   "bitwarden-sm POST https://identity.bitwarden.eu/connect/token",
   "bitwarden-sm GET https://api.bitwarden.eu/secrets/sync",
 ];
+/**
+ * Higgsfield's key check: its preflight is answered HTTP 400 with no
+ * Access-Control-Allow-Origin header, and its documentation says not to call
+ * the API from browser code.
+ */
+const HIGGSFIELD_PROBE =
+  "higgsfield GET https://api.higgsfield.ai/requests/00000000-0000-0000-0000-000000000000/status";
 describe("audited browser-only policy", () => {
   it("compiles the single authored source without drift", () => {
     expect(JSON.parse(NATIVE_BROWSER_POLICY_JSON)).toEqual(authored);
@@ -65,9 +72,11 @@ describe("audited browser-only policy", () => {
       (rule: { provider_id: string; probe: { method: string; url: string } }) =>
         `${rule.provider_id} ${rule.probe.method} ${rule.probe.url}`,
     );
-    expect(probes).toEqual(expect.arrayContaining(BRIDGE_PROBES));
-    // 94 rules were audited before the bridge; the rest are its probes.
-    expect(authored.rules).toHaveLength(94 + BRIDGE_PROBES.length);
+    expect(probes).toEqual(
+      expect.arrayContaining([...BRIDGE_PROBES, HIGGSFIELD_PROBE]),
+    );
+    // 94 rules were audited before the bridge; the rest are named above.
+    expect(authored.rules).toHaveLength(94 + BRIDGE_PROBES.length + 1);
     for (const rule of authored.rules) {
       expect(rule.probe.tls_verified).toBe(true);
       expect(rule.probe.status).toBeLessThan(500);

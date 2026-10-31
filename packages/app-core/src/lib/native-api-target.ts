@@ -21,13 +21,18 @@ export type NativeApiTarget = {
 export async function nativeApiFingerprint(
   target: NativeApiTarget,
 ): Promise<string> {
+  const verify = target.profile.verify;
+  const verifyForFingerprint =
+    verify.validStatuses.length === 0
+      ? (({ validStatuses: _ignored, ...rest }) => rest)(verify)
+      : verify;
   const encoded = new TextEncoder().encode(
     JSON.stringify({
       providerId: target.providerId,
       method: "api-key",
       parameters: Object.fromEntries(Object.entries(target.parameters).sort()),
       auth: target.profile.auth,
-      verify: target.profile.verify,
+      verify: verifyForFingerprint,
       classification: target.classification,
     }),
   );

@@ -68,4 +68,26 @@ describe("bounded provider HTTP boundary", () => {
       referrerPolicy: "no-referrer",
     });
   });
+  describe("a status the provider documents as proof", () => {
+    const answering = (status: number) => ({
+      fetch: vi.fn(async () =>
+        Response.json({ detail: "not found" }, { status }),
+      ),
+      assertCurrent: vi.fn(),
+    });
+    const proving = { ...request, validStatuses: [404] };
+    it("proves the credential without reading the body", async () => {
+      await expect(nativeApiHttp(proving, answering(404))).resolves.toEqual({});
+    });
+    it("is still a failure where the contract names none", async () => {
+      await expect(
+        nativeApiHttp(request, answering(404)),
+      ).rejects.toMatchObject({ code: "response", status: 404 });
+    });
+    it("never turns a refused credential into a proof", async () => {
+      await expect(
+        nativeApiHttp(proving, answering(401)),
+      ).rejects.toMatchObject({ code: "authorization" });
+    });
+  });
 });

@@ -151,6 +151,10 @@ export const BRIDGE_TABLE = [
     authorities: ["inference.hetzner.com"],
   },
   {
+    providerId: "higgsfield",
+    authorities: ["api.higgsfield.ai"],
+  },
+  {
     providerId: "hubspot",
     authorities: [],
     oauth: ["api.hubapi.com"],

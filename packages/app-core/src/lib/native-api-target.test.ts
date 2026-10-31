@@ -21,6 +21,7 @@ function target(
         success: [],
         requiredFields: [],
         errorFields: [],
+        validStatuses: [],
       },
       templateParams: [],
       additionalCredentials: [],
