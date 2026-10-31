@@ -17,3 +17,5 @@ export * from "./vnet.js";
 export * from "./vnet-server.js";
 export * from "./wasm-dom-driver.js";
 export * from "./wasm-provider.js";
+export * from "./cloudflare-anon-relay.js";
+export * from "./cloudflare-relay-worker.js";

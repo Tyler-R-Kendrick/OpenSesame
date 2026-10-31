@@ -7,6 +7,10 @@
 
 import { randomUUID } from "node:crypto";
 import {
+  type AnonymousCloudflareRelay,
+  deployAnonymousCloudflareRelay,
+} from "./cloudflare-anon-relay.js";
+import {
   type AllocatedSandbox,
   type SandboxAllocationRequest,
   type SandboxProvider,
@@ -21,6 +25,13 @@ export interface WasmRelayProviderOptions {
   relayToken?: string;
   /** Inject a virtual fetch directly (tests, in-process relay). */
   virtualFetch?: VirtualFetch;
+  /**
+   * With no relay configured, deploy an anonymous Cloudflare relay
+   * per allocation (temporary account, no signup, no claim).
+   */
+  anonymousCloudflare?: boolean;
+  /** Relay deployment seam (tests); defaults to the anonymous deploy. */
+  deployRelay?: () => Promise<AnonymousCloudflareRelay>;
 }
 
 export class WasmRelayProvider implements SandboxProvider {
@@ -31,16 +42,24 @@ export class WasmRelayProvider implements SandboxProvider {
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
     const { url, allowedDomains } = allowedDomainsFor(request);
     const session = request.session ?? `wasm-${randomUUID()}`;
+    let deployed: AnonymousCloudflareRelay | undefined;
     let virtualFetch = this.options.virtualFetch;
     if (!virtualFetch) {
-      if (!this.options.relayUrl || !this.options.relayToken)
+      let relayUrl = this.options.relayUrl;
+      let relayToken = this.options.relayToken;
+      if ((!relayUrl || !relayToken) && this.options.anonymousCloudflare) {
+        deployed = await (this.options.deployRelay?.() ??
+          deployAnonymousCloudflareRelay());
+        relayUrl = deployed.relayUrl;
+        relayToken = deployed.relayToken;
+      }
+      if (!relayUrl || !relayToken) {
+        await deployed?.close().catch(() => {});
         throw new Error(
           "wasm-relay provider needs a relay URL and token (or an injected virtual fetch)",
         );
-      virtualFetch = virtualFetchOverHttp(
-        this.options.relayUrl,
-        this.options.relayToken,
-      );
+      }
+      virtualFetch = virtualFetchOverHttp(relayUrl, relayToken);
     }
     const allowedOrigins = [
       ...new Set([
@@ -65,7 +84,13 @@ export class WasmRelayProvider implements SandboxProvider {
         try {
           await browser.close();
         } finally {
-          await boundFetch.closeSession?.(session);
+          try {
+            // Deleting the per-run deployment supersedes its session.
+            if (deployed) await boundFetch.closeSession?.(session).catch(() => {});
+            else await boundFetch.closeSession?.(session);
+          } finally {
+            await deployed?.close().catch(() => {});
+          }
         }
       },
     };
