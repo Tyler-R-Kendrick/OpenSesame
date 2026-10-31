@@ -24,6 +24,7 @@ import {
   revokeLocalApplicationGrant,
   withLocalApplicationGrant,
 } from "./local-authorization.js";
+import { localPairwiseSubjectInDirectoryFence } from "./local-pairwise-subject.js";
 import {
   createLocalApplicationRequest,
   redeemLocalApplicationRequest,
@@ -294,7 +295,11 @@ export class LocalIssuerChannel {
       async (record) => ({
         type: "identity",
         issuer: pageOrigin(),
-        sub: record.principalId,
+        sub: await localPairwiseSubjectInDirectoryFence(
+          this.tomb,
+          record.principalId,
+          record.applicationId,
+        ),
         audience: record.applicationId,
         nonce: record.nonce,
         scope,

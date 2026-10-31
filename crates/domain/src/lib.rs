@@ -38,6 +38,8 @@ pub mod intent;
 pub mod invocation;
 pub mod mediation;
 pub mod organization;
+pub mod pam_query;
+pub mod password_reset;
 pub mod permission;
 pub mod permission_entry;
 pub mod proof;
@@ -120,6 +122,8 @@ pub use intent::*;
 pub use invocation::*;
 pub use mediation::*;
 pub use organization::*;
+pub use pam_query::*;
+pub use password_reset::*;
 // Named rather than glob: the module's bounds constants belong to the module,
 // and `capability` already exports a differently-shaped `ResourceSelector`, so
 // an explicit root surface is what keeps the two selector vocabularies from

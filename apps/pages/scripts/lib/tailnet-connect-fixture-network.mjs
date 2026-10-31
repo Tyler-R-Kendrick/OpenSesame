@@ -4,7 +4,13 @@ import { createServer, request } from "node:http";
 import { createServer as createTlsServer } from "node:https";
 import { connect, isIP } from "node:net";
 import { join } from "node:path";
+import { z } from "zod";
 import { command } from "./tailnet-connect-fixture-process.mjs";
+
+const TLSErrorCode = z
+  .string()
+  .regex(/^[A-Z0-9_]{1,80}$/)
+  .catch("TLS_ERROR");
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -230,12 +236,23 @@ export async function proofServer(port, tls) {
       JSON.stringify({ source: "real-native-tailscale-peer", nonce, path }),
     );
   };
-  const server = tls ? createTlsServer(tls, handler) : createServer(handler);
-  const stats = tls ? { connections: 0, secure: 0, errors: 0 } : null;
+  // Node's two-minute default outlives the browser's TLS refusal oracle.
+  // A stalled peer handshake must settle while that unchanged oracle is active.
+  const server = tls
+    ? createTlsServer({ ...tls, handshakeTimeout: 10_000 }, handler)
+    : createServer(handler);
+  const stats = tls
+    ? { connections: 0, secure: 0, errors: 0, lastError: "" }
+    : null;
   if (stats) {
     server.on("connection", () => stats.connections++);
     server.on("secureConnection", () => stats.secure++);
-    server.on("tlsClientError", () => stats.errors++);
+    server.on("tlsClientError", (error) => {
+      stats.errors++;
+      // An error code distinguishes rejection from cancellation without logging
+      // certificate contents or unbounded native error messages.
+      stats.lastError = TLSErrorCode.parse(error.code);
+    });
   }
   const close = await listening(server, port);
   return {

@@ -189,7 +189,7 @@ export function registerHostTools(server: McpServer): void {
       operation: z.string(),
       resource: z.string(),
       audience: z.string(),
-      arguments: z.record(z.unknown()).default({}),
+      arguments: z.record(z.string(), z.unknown()).default({}),
       idempotency_key: z.string().optional(),
     },
     async ({

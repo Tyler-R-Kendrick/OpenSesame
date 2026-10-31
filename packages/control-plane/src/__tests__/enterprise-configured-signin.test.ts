@@ -21,6 +21,10 @@ describe("saved enterprise connections", () => {
       const id = "org:saml-saved";
       const slug = "saved-saml";
       const headers = await enterpriseOwner(started, id, slug);
+      started.ctx.config.organizationIssuerAllowlist = [
+        ...(started.ctx.config.organizationIssuerAllowlist ?? []),
+        `${id}|${idp.saml.entityId}`,
+      ];
       const saved = await started.app.request(
         `/v1/organizations/${encodeURIComponent(id)}`,
         {

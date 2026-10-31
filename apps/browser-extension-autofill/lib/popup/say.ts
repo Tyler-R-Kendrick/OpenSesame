@@ -21,6 +21,8 @@ const SAY = new Map<string, string>(
     no_match: "No entry is stored for this exact origin",
     no_page: "This tab has no web page to fill",
     not_paired: "Not paired with this computer yet",
+    approval_required:
+      "On this computer, review the request with opensesame daemon fill requests, then run opensesame daemon fill authorize with its ID. Reopen this popup and retry Fill",
     no_focused_field: "Focus a username or password field first",
     not_a_login_field:
       "The focused field is not a username or current password",

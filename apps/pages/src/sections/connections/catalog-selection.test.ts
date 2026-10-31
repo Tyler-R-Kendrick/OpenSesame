@@ -1,8 +1,14 @@
+import { canonicalProviderId } from "@opensesame/app-core/lib/connector-catalog.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { INTEGRATION_AI_LABS } from "@opensesame/app-core/lib/integration-ai-labs.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { connectionRouteProvider } from "@opensesame/app-core/sections/connections/provider-route.js";
 import { describe, expect, it } from "vitest";
-import { API_FAMILIES, apiFamilyFor } from "./catalog-families.js";
+import {
+  API_FAMILIES,
+  apiFamilyFor,
+  apiFamilyOptions,
+} from "./catalog-families.js";
 import {
   catalogAuthMethods,
   catalogTags,
@@ -93,6 +99,12 @@ describe("the curated Connections list", () => {
     expect(ids).not.toContain("github-app");
   });
 
+  it("does not alias providers whose canonical ID is undefined", () => {
+    const options = apiFamilyOptions(providers, apiFamilyFor("m365"));
+    expect(options.length).toBeGreaterThan(0);
+    expect(options.map((option) => option.label)).not.toContain("Adobe");
+  });
+
   it("shows one family tile and hides its member APIs", () => {
     const grouped = curatedCatalogProviders(
       mergeVercelCatalog(getBundledProviders()),
@@ -104,7 +116,7 @@ describe("the curated Connections list", () => {
       "vercel",
       "cloudflare",
       "google",
-      "azure-kms",
+      "azure-sm",
       "aws",
       "gcp",
     ])
@@ -115,16 +127,28 @@ describe("the curated Connections list", () => {
       "vercel-ai-gateway",
       "cloudflare-workers-ai",
       "google-drive",
-      "azure-sm",
+      "azure-kms",
       "aws-kms",
       "gcp-kms",
     ])
       expect(ids, id).not.toContain(id);
+    expect(
+      grouped.find((provider) => provider.id === "azure-sm")?.category,
+    ).toBe("cloud_secret_storage");
+    const withoutAzure = curatedCatalogProviders(
+      mergeVercelCatalog(getBundledProviders()).filter(
+        (provider) => canonicalProviderId(provider.id) !== "azure-sm",
+      ),
+      { includeFeatured: true, includeFamilies: true },
+    );
+    expect(
+      withoutAzure.find((provider) => provider.id === "azure-sm")?.category,
+    ).toBe("encryption");
     expect(grouped.find((provider) => provider.id === "aws")?.displayName).toBe(
       "AWS",
     );
     expect(
-      grouped.find((provider) => provider.id === "azure-kms")?.displayName,
+      grouped.find((provider) => provider.id === "azure-sm")?.displayName,
     ).toBe("Azure");
   });
 
@@ -199,12 +223,37 @@ describe("the curated Connections list", () => {
     expect(curatedCatalogProviders([fake])).toEqual([]);
   });
 
+  it("keeps canonical family aliases as one catalog row with its category", () => {
+    const catalog = mergeVercelCatalog(getBundledProviders());
+    const grouped = curatedCatalogProviders(catalog, {
+      includeFeatured: true,
+      includeFamilies: true,
+    });
+    for (const family of API_FAMILIES) {
+      const original = catalog.find(
+        (provider) => canonicalProviderId(provider.id) === family.id,
+      );
+      if (!original) continue;
+      const tiles = grouped.filter((provider) => provider.id === family.id);
+      expect(tiles, family.id).toHaveLength(1);
+      expect(tiles[0]?.category, family.id).toBe(original.category);
+      expect(tiles[0]?.egress, family.id).toEqual(original.egress);
+    }
+  });
+
   it("keeps every provider family complete, including Azure", () => {
     for (const family of API_FAMILIES) {
       expect(apiFamilyFor(family.id)?.id, family.id).toBe(family.id);
       expect(family.members.length, family.id).toBeGreaterThan(1);
     }
-    expect(apiFamilyFor("azure-kms")?.members).toContain("azure-kms");
+    const catalog = mergeVercelCatalog(getBundledProviders());
+    const azure = apiFamilyFor("azure-sm");
+    expect(azure?.members).toEqual(["azure-sm", "azure-ac", "azure-openai"]);
+    for (const member of azure?.members ?? []) {
+      const routed = connectionRouteProvider(catalog, member);
+      expect(canonicalProviderId(routed?.id ?? ""), member).toBe(member);
+      expect(apiFamilyFor(routed?.id ?? "")?.id, member).toBe(azure?.id);
+    }
   });
 
   it("labels each card with supported auth methods, not internal tags", () => {

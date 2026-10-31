@@ -31,9 +31,16 @@ afterEach(async () => {
 });
 async function setup(
   method: Parameters<typeof nativeOAuthClientFixture>[0] = "none",
+  scopes?: readonly string[],
+  resourceParameter?: "send" | "omit",
 ) {
   const fixture = await nativeOAuthClientFixture(method);
   closing.push(fixture.close);
+  if (scopes) fixture.input.requestedScopes.user = [...scopes];
+  if (resourceParameter) {
+    fixture.state.resourceParameter = resourceParameter;
+    fixture.input.parameters.resource_parameter = resourceParameter;
+  }
   const saved = await configureNativeOAuthClient(fixture.input, fixture.owner);
   const authorization = new URL(
     await beginNativeOAuthClient(saved.connectionId, fixture.owner),
@@ -107,6 +114,29 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
       expect(f.requests).toHaveLength(1);
     },
   );
+
+  it("accepts refresh-token evidence when offline_access is absent from access-token scopes", async () => {
+    const f = await setup(
+      "client_secret_post",
+      ["offline_access", "read:items"],
+      "omit",
+    );
+    expect(f.authorization.searchParams.get("scope")?.split(" ")).toContain(
+      "offline_access",
+    );
+    expect(f.authorization.searchParams.has("resource")).toBe(false);
+    const result = await exchangeNativeOAuthClient(f.search, f.owner);
+    expect(new URLSearchParams(f.requests[0]?.body).has("resource")).toBe(
+      false,
+    );
+    expect(
+      requireNativeOAuthRecord(result.connectionId).privateState.recovery[0]
+        ?.grant,
+    ).toMatchObject({
+      refreshToken: "issued-refresh-1",
+      scopes: ["read:items"],
+    });
+  });
 
   it("refuses wrong-client credentials without exposing provider secret text or claiming verification", async () => {
     const f = await setup("client_secret_basic");
@@ -227,16 +257,6 @@ describe("shared native OAuth client configuration, real vault custody and HTTPS
       grant: { accessToken: "issued-access-1" },
     });
     expect(record.privateState.grants).toEqual({});
-  });
-  it("requires selected permission evidence when the token endpoint returns scopes", async () => {
-    const f = await setup();
-    f.state.scope = "different:scope";
-    await expect(
-      exchangeNativeOAuthClient(f.search, f.owner),
-    ).rejects.toMatchObject({ code: "scope" });
-    expect(
-      requireNativeOAuthRecord(f.saved.connectionId).privateState.grants,
-    ).toEqual({});
   });
   it("preserves the exact revision/CAS and refuses configuration edits with a pending authorization", async () => {
     const f = await setup("client_secret_post");

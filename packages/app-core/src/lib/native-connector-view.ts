@@ -4,6 +4,7 @@ import type {
   NativePrivateState,
   NativeRuntime,
 } from "./native-connector-schema.js";
+import { admissibleGrantScopes } from "./native-oauth-client-scopes.js";
 
 export type NativeConnectorStatus =
   | "configuration"
@@ -36,8 +37,9 @@ function authorized(
     !verification ||
     verification.fingerprint !== configuration.fingerprint ||
     verification.verifiedAt !== runtime.verifiedAt ||
-    verification.kind !==
-      (configuration.method === "native-local" ? "browser-local" : "provider")
+    (configuration.method === "native-local"
+      ? !["browser-local", "configuration"].includes(verification.kind)
+      : verification.kind !== "provider")
   )
     return false;
   if (
@@ -91,8 +93,10 @@ function requiresReauthorization(
       grant.needsReauth ||
       (grant.expiresAt !== null && grant.expiresAt <= Date.now()) ||
       (grant.permissionState === "known" &&
-        (configuration.requestedScopes[grant.actor] ?? []).some(
-          (scope) => !grant.grantedScopes.includes(scope),
+        !admissibleGrantScopes(
+          configuration.providerId,
+          configuration.requestedScopes[grant.actor] ?? [],
+          grant.grantedScopes,
         )),
   );
 }

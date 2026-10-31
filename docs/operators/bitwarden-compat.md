@@ -83,6 +83,16 @@ a live account's file Sends and password-protected Sends), so nothing is lost
 quietly. vaultwarden's attachments and Send files are read from its data
 folder, next to `db.sqlite3` unless you name it with `--data`.
 
+Import file IDs must be plain ASCII identifiers (letters, digits, hyphens or
+underscores), and each file is limited to 500 MiB. Live downloads use randomly
+named files in a private temporary directory. On Unix, vaultwarden file reads
+stay beneath the selected data directory through retained directory handles;
+symlinks, hardlinks and nonregular files are refused and reported as unreadable.
+On other platforms, vaultwarden attachment and Send file bytes are currently
+refused because an equivalent confined reader is unavailable; run that import
+on Unix to carry the files across. Account metadata and live downloads remain
+available. Windows file import has not been verified.
+
 ## What people get
 
 - Argon2id by default. An account can move from PBKDF2 to Argon2id from its
@@ -202,8 +212,14 @@ A new device can sign in by asking one already signed in, with no master
 password typed: approve the request on the signed-in device after checking
 that both show the same fingerprint phrase. Requests expire after fifteen
 minutes, and the waiting device is let go then, or as soon as the request is
-answered or denied. An address can ask five times in a window, whether or not
-it has an account; an account can have five waiting at once.
+answered or denied. An existing account can ask five times in a window and have
+five waiting at once. Unknown addresses allocate no request or credential-budget
+state. Credential verification budgets are shared durably across the account's
+routes and replicas. Public password and recovery failures remain generic,
+including an exhausted account budget; shared hash-admission saturation returns
+429 before account lookup. Each loaded credential owner has independent budget
+admission, so arbitrary identifiers or another owner's rows cannot consume a
+global counter-capacity quota. Rows expire without evicting live lockouts.
 
 ## What is not served
 
@@ -225,9 +241,11 @@ features as they do against a server that has them turned off.
   are accepted and replaced with Argon2id at the account's next sign-in.
 - A refresh token lapses after 30 days unused, and dies at once on a password
   change, a KDF change or "log out all sessions".
-- An address that fails to sign in ten times in fifteen minutes is refused
-  until its window passes, known and unknown addresses alike; a full hashing
-  queue answers 429 rather than waiting.
+- An existing account admits ten credential checks in fifteen minutes before
+  refusing further verification. A successful proof clears its budget. Unknown
+  and exhausted public accounts receive generic failures after decoy work;
+  unknown identifiers allocate no counters. A full hashing queue answers 429
+  before account lookup rather than waiting.
 - Set `OPENSESAME_BITWARDEN_TOKEN_KEY` (32+ hex-encoded bytes) when more than
   one replica serves the same URL, so an access token minted on one verifies
   on another.

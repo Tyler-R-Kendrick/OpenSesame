@@ -10,8 +10,8 @@
  * root without touching anything else.
  */
 
-import { hkdf } from "@noble/hashes/hkdf";
-import { sha256 } from "@noble/hashes/sha2";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import type { CharacterRules } from "./account.js";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
 import {

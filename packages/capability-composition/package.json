@@ -16,14 +16,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@noble/hashes": "1.8.0",
+    "@noble/hashes": "2.4.0",
     "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "22.15.29",
-    "fast-check": "4.9.0",
+    "fast-check": "4.10.2",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "license": "MIT",
   "repository": {

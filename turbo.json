@@ -1,5 +1,17 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -25,7 +37,11 @@
     "test:integration": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["VITEST_MAX_WORKERS", "PLAYWRIGHT_CHROMIUM"]
+      "env": [
+        "VITEST_MAX_WORKERS",
+        "PLAYWRIGHT_CHROMIUM",
+        "PLAYWRIGHT_BROWSERS_PATH"
+      ]
     },
     "test:e2e": {
       "dependsOn": ["^build"],
@@ -33,6 +49,7 @@
       "env": [
         "PLAYWRIGHT_BASE_URL",
         "PLAYWRIGHT_CHROMIUM",
+        "PLAYWRIGHT_BROWSERS_PATH",
         "OPENSESAME_OPERATOR_TOKEN"
       ]
     }

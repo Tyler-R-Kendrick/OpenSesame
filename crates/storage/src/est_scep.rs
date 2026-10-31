@@ -10,6 +10,9 @@ use super::{
     SealedCertificateMaterial, SqliteRow, StoredEstConfig, StoredScepChallenge, StoredScepConfig,
 };
 
+#[path = "est_source_budgets.rs"]
+mod source_budgets;
+
 impl Db {
     /// # Errors
     ///

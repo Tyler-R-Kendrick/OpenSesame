@@ -22,13 +22,13 @@
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
     "@simplewebauthn/server": "13.3.2",
-    "better-auth": "1.6.26"
+    "better-auth": "1.7.14"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22"

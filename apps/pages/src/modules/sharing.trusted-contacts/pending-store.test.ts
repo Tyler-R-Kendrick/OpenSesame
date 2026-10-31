@@ -26,7 +26,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PENDING_DIR, tombPendingStore } from "./pending-store.js";
 
 const TOMB = "trusted-pending-test";
-const SECRET = "c2VjcmV0LXNpZ25pbmcta2V5LW1hdGVyaWFsLTAwMDAwMQ";
+const SECRET = "Q".repeat(40);
 // Long enough that a random base64 envelope cannot contain it by chance.
 const NAME_MARKER = "Ada Lovelace the guardian of Family";
 

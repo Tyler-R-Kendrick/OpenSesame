@@ -45,6 +45,68 @@ pub(super) fn acquire(file: &File, exclusive: bool) -> Result<(), Option<StoreEr
     Err(Some(StoreError::Io(error)))
 }
 
+#[cfg(unix)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct ProcessIdentity {
+    pub(super) pid: libc::pid_t,
+    #[cfg(target_os = "linux")]
+    pub(super) namespace_dev: libc::dev_t,
+    #[cfg(target_os = "linux")]
+    pub(super) namespace_ino: libc::ino_t,
+}
+
+#[cfg(unix)]
+pub(super) fn process_identity() -> Option<ProcessIdentity> {
+    // SAFETY: getpid takes no arguments and has no preconditions.
+    let pid = unsafe { libc::getpid() };
+    if pid <= 0 {
+        return None;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // PID values can coincide in nested PID namespaces. The namespace
+        // identity is read using syscall-level operations so that a forked
+        // child's guard drop does not acquire allocator or runtime locks.
+        let mut stat = std::mem::MaybeUninit::<libc::stat>::uninit();
+        // SAFETY: this is a NUL-terminated fixed path and stat has writable
+        // storage. It initializes the structure on success.
+        if unsafe { libc::stat(c"/proc/self/ns/pid".as_ptr(), stat.as_mut_ptr()) } != 0 {
+            return None;
+        }
+        // SAFETY: a successful stat initialized the full structure.
+        let stat = unsafe { stat.assume_init() };
+        Some(ProcessIdentity {
+            pid,
+            namespace_dev: stat.st_dev,
+            namespace_ino: stat.st_ino,
+        })
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Some(ProcessIdentity { pid })
+    }
+}
+
+#[cfg(unix)]
+pub(super) fn same_process(
+    owner: Option<ProcessIdentity>,
+    current: Option<ProcessIdentity>,
+) -> bool {
+    owner.is_some() && owner == current
+}
+
+#[cfg(unix)]
+pub(super) fn release(file: &File) -> std::io::Result<()> {
+    use std::os::fd::AsRawFd;
+
+    // SAFETY: file owns a valid descriptor for the duration of the call.
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_UN) } == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
 // Preserve the historical Windows path opener for this OS-lock correction.
 // This is not a pinned ancestor chain or an owner-private DACL check.
 #[cfg(windows)]

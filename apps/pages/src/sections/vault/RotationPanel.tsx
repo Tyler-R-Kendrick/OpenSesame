@@ -1,23 +1,12 @@
-import {
-  accountWebLoginOrigin,
-  enqueueManualRotation,
-  ensureRotationSchedule,
+import type {
   rotationEventFor,
   rotationScheduleFor,
-  setRotationEnabled,
-  subscribeRotationQueue,
 } from "@opensesame/app-core/lib/vault/rotation-queue.js";
-import { processRotationQueue } from "@opensesame/app-core/lib/vault/rotation-relay.js";
-import {
-  type VaultItem,
-  itemRotationMode,
-  itemRotationWarning,
-  itemTypeId,
-} from "@opensesame/vault-core";
-import { useEffect, useState } from "react";
+import type { VaultItem } from "@opensesame/vault-core";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh } from "../../components/Icons.js";
+import { useRotationPanel } from "./use-rotation-panel.js";
 
 function date(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -65,14 +54,17 @@ function Schedule({
 function QueueState({
   warning,
   event,
+  runHint,
 }: {
   warning: string | null;
   event: ReturnType<typeof rotationEventFor>;
+  runHint: string | null;
 }) {
-  if (!warning && !event) return null;
+  if (!warning && !event && !runHint) return null;
   return (
     <>
       {warning ? <output className="hint">{warning}</output> : null}
+      {runHint ? <output className="hint">{runHint}</output> : null}
       {event ? (
         <output className="hint">
           {event.state === "out-of-sync"
@@ -97,64 +89,26 @@ export function RotationPanel({
   /** The unlocked vault the schedule belongs to. */
   scope: string;
 }) {
-  const typeId = itemTypeId(item);
-  const mode = itemRotationMode(typeId);
-  const origin = mode === "automatic" ? accountWebLoginOrigin(item) : null;
-  const warning =
-    mode === "automatic" && !origin
-      ? "Automatic rotation couldn't verify this account: it has no https site to rotate."
-      : itemRotationWarning(typeId);
-  const [revision, setRevision] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(
-    () => subscribeRotationQueue(() => setRevision((value) => value + 1)),
-    [],
-  );
-
-  useEffect(() => {
-    if (mode === "automatic" && origin && scope)
-      ensureRotationSchedule(item, scope);
-  }, [item, mode, origin, scope]);
-
-  // `revision` is the subscription's trigger; the reads below are synchronous.
-  void revision;
+  const {
+    mode,
+    warning,
+    schedule,
+    event,
+    runHint,
+    busy,
+    error,
+    toggle,
+    rotate,
+  } = useRotationPanel(item, scope);
 
   if (mode === "none") return null;
-
-  const schedule =
-    mode === "automatic" ? rotationScheduleFor(scope, item.id) : null;
-  const event = rotationEventFor(scope, item.id);
-
-  const toggle = () => {
-    if (!schedule) return;
-    setError(null);
-    setRotationEnabled(scope, item.id, !schedule.enabled);
-  };
-
-  const rotate = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      if (!scope) throw new Error("The vault is not open.");
-      if (!enqueueManualRotation(item, scope)) {
-        throw new Error("This item type has no generator.");
-      }
-      await processRotationQueue(scope);
-    } catch {
-      setError("The rotation could not be queued.");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <section className="detail__group" aria-label="Rotation">
       <h2 className="detail__grouphead">Rotation</h2>
       {schedule ? <Schedule schedule={schedule} onToggle={toggle} /> : null}
 
-      <QueueState warning={warning} event={event} />
+      <QueueState warning={warning} event={event} runHint={runHint} />
 
       <FailureNotice
         id={`rotation:${item.id}`}
@@ -163,7 +117,7 @@ export function RotationPanel({
       />
 
       <IconKey
-        label="Generate now"
+        label="Generate new password"
         disabled={busy}
         aria-busy={busy}
         onClick={() => void rotate()}

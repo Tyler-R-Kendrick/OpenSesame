@@ -136,20 +136,26 @@ export function DropCardMetaRows({
   return (
     <>
       {opensFor !== "" ? (
-        <FieldRow label="Opens for">
+        <FieldRow label={portable ? "Suggested window" : "Opens for"}>
           <span className="frow__value">{opensFor}</span>
         </FieldRow>
       ) : null}
       {portable || isDeviceIdentityMode() ? (
         <FieldRow label="Opens on">
           <span className="frow__value">
-            {portable ? "Any browser with the link" : "This browser"}
+            {portable ? "Any browser with the link and code" : "This browser"}
           </span>
         </FieldRow>
       ) : null}
-      <FieldRow label="Expires">
+      <FieldRow label={portable ? "Suggested expiry" : "Expires"}>
         <span className="frow__value">{expiresLabel}</span>
       </FieldRow>
+      {portable ? (
+        <p className="hint">
+          A saved link and code can reopen this copy after that time. It cannot
+          be revoked.
+        </p>
+      ) : null}
     </>
   );
 }

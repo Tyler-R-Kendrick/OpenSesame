@@ -7,6 +7,7 @@ import {
   double,
   installDoublePorts,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   flushSharingReceipts,
   noteDropRefused,
@@ -22,6 +23,7 @@ import {
   listOutboundDrops,
   recordOutboundDrop,
   resetOutboundDropsForTests,
+  seedOutboundDropForTests,
 } from "@opensesame/app-core/lib/vault/outbound-drops.js";
 import { unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { createTestHost } from "@opensesame/app-core/test-host.js";
@@ -103,6 +105,7 @@ describe("SentDropsPanel revoke", () => {
     resetSharingReceiptsForTest();
     resetLocalDropClaimsForTests();
     resetOutboundDropsForTests();
+    clearNotices();
   });
 
   it("arms revoke on first press and revokes on the second", async () => {
@@ -148,5 +151,56 @@ describe("SentDropsPanel revoke", () => {
     renderAccess(<SentDropsPanel />, "/access?view=sessions#sent-drops");
     expect(await screen.findByText("Refused · 2 wrong codes")).toBeTruthy();
     expect(screen.getAllByText("Refused · 2 wrong codes")).toHaveLength(1);
+  });
+
+  it("keeps a nonlocal send pending and reports unavailable revocation", async () => {
+    resetOutboundDropsForTests();
+    recordOutboundDrop({
+      claimId: "hosted-claim",
+      bearerToken: "osc_clm_hosted-claim.secret",
+      name: "Hosted fixture",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      tomb,
+    });
+    renderAccess(<SentDropsPanel />, "/access?view=sessions#sent-drops");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Revoke" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Confirm" }),
+    );
+    await waitFor(() =>
+      expect(listNotices()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ body: "Revoke unavailable." }),
+        ]),
+      ),
+    );
+    expect(listOutboundDrops(tomb)[0]?.state).toBe("pending");
+    expect(screen.queryByRole("img", { name: "Revoked" })).toBeNull();
+  });
+
+  it("does not repeat an old revoked claim for a portable copy or offer revocation", async () => {
+    resetOutboundDropsForTests();
+    seedOutboundDropForTests({
+      claimId: "portable-old",
+      bearerToken: `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`,
+      name: "Old portable copy",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      createdAt: new Date().toISOString(),
+      state: "revoked",
+      vaultItemId: null,
+      sourceItemId: null,
+      tomb,
+    });
+    renderAccess(<SentDropsPanel />, "/access?view=sessions#sent-drops");
+    expect(
+      await screen.findByRole("img", { name: "Copy shared" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Saved copies can reopen after expiry/),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Revoke" })).toBeNull();
+    expect(screen.queryByRole("img", { name: "Revoked" })).toBeNull();
   });
 });

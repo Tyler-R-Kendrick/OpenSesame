@@ -24,6 +24,13 @@ import {
   type DeviceRequest,
   isDeviceReply,
 } from "./device-messages.js";
+import {
+  type DeviceResetGrant,
+  type DeviceResetRequest,
+  type ResetHumanStatus,
+  type ResetRequestDetails,
+  resetRequestDigest,
+} from "./device-reset-messages.js";
 import type { LiveGuest } from "./guest.js";
 
 /** Why a device's ask came to nothing. */
@@ -259,6 +266,41 @@ export class DeviceClient {
         throw new DeviceError("expired_token");
       if (answer.state === "slow_down") wait = answer.interval ?? wait + 5;
     }
+  }
+
+  /** Ask for one exact reset capability under the caller's stable request id. */
+  async reset(
+    req: string,
+    details: ResetRequestDetails,
+  ): Promise<DeviceResetGrant> {
+    const digest = await resetRequestDigest(details);
+    const request: DeviceResetRequest = {
+      t: "dev.reset",
+      req,
+      ...details,
+      digest,
+    };
+    return this.#ask(
+      () => request,
+      (message) =>
+        message.t === "dev.reset.grant" &&
+        message.grant === `reset-${req}` &&
+        message.digest === digest
+          ? message
+          : null,
+    );
+  }
+
+  /** Report value-blind human status for a grant this device holds. */
+  resetStatus(
+    req: string,
+    grant: string,
+    status: ResetHumanStatus,
+  ): Promise<void> {
+    return this.#ask(
+      () => ({ t: "dev.reset.status", req, grant, status }),
+      (message) => (message.t === "dev.reset.ack" ? undefined : null),
+    );
   }
 
   /** The connections the grant covers, as the owner's tab lists them now. */

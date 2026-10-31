@@ -32,25 +32,29 @@
     "@nats-io/nats-core": "3.4.0",
     "@opensesame/api-client": "workspace:*",
     "@opensesame/app-core": "workspace:*",
+    "@opensesame/agent-client": "workspace:*",
+    "@opensesame/agent-sandboxes": "workspace:*",
+    "@opensesame/cua-password-reset": "workspace:*",
     "@opensesame/log-scrub": "workspace:*",
     "@opensesame/mcp-client": "workspace:*",
     "@opensesame/mcp-host": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-cli": "workspace:*",
     "@opensesame/vault-core": "workspace:*",
-    "zod": "3.25.67"
+    "agent-browser": "0.39.4",
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
-    "@types/ws": "8.18.1",
+    "@types/ws": "8.18.2",
     "dts-bundle-generator": "9.5.1",
     "esbuild": "0.25.12",
-    "tsx": "4.19.4",
+    "tsx": "4.23.15",
     "typescript": "5.8.3",
-    "vitest": "4.1.11",
-    "ws": "8.21.3"
+    "vitest": "4.1.12",
+    "ws": "8.22.0"
   },
   "license": "MIT",
   "repository": {

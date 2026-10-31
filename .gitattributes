@@ -1,2 +1,12 @@
 # UniFFI generates this declaration-only C header from the Rust library.
 apps/android/ios/Sources/OpenSesameAuthenticatorCore/opensesame_authenticator_coreFFI.h linguist-generated=true
+
+# Reviewed source fingerprints and hook execution use the same bytes on each OS.
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.rs text eol=lf
+*.sql text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+/.githooks/* text eol=lf

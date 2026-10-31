@@ -6,10 +6,10 @@
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
 use p256::elliptic_curve::ff::{Field, PrimeField};
-use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use p256::elliptic_curve::sec1::{FromSec1Point, ToSec1Point};
 use p256::elliptic_curve::subtle::ConstantTimeEq;
 use p256::elliptic_curve::Group;
-use p256::EncodedPoint;
+use p256::Sec1Point;
 use p256::{AffinePoint, ProjectivePoint, Scalar};
 use sha2::{Digest, Sha256};
 use std::sync::OnceLock;
@@ -228,7 +228,7 @@ fn encode_uncompressed(point: &ProjectivePoint) -> Result<[u8; 65], RootEnrollEr
     if bool::from(point.is_identity()) {
         return Err(RootEnrollError::InvalidMessage);
     }
-    let encoded = point.to_affine().to_encoded_point(false);
+    let encoded = point.to_affine().to_sec1_point(false);
     let bytes = encoded.as_bytes();
     if bytes.len() != 65 || bytes[0] != 0x04 {
         return Err(RootEnrollError::InvalidMessage);
@@ -243,8 +243,8 @@ fn decode_uncompressed(bytes: &[u8; 65]) -> Result<ProjectivePoint, RootEnrollEr
         return Err(RootEnrollError::InvalidMessage);
     }
     let encoded =
-        EncodedPoint::from_bytes(bytes.as_slice()).map_err(|_| RootEnrollError::InvalidMessage)?;
-    let affine = AffinePoint::from_encoded_point(&encoded)
+        Sec1Point::from_bytes(bytes.as_slice()).map_err(|_| RootEnrollError::InvalidMessage)?;
+    let affine = AffinePoint::from_sec1_point(&encoded)
         .into_option()
         .ok_or(RootEnrollError::InvalidMessage)?;
     if bool::from(affine.is_identity()) {
@@ -255,8 +255,8 @@ fn decode_uncompressed(bytes: &[u8; 65]) -> Result<ProjectivePoint, RootEnrollEr
 
 fn decode_compressed(hex_bytes: &str) -> AffinePoint {
     let raw = hex::decode(hex_bytes).expect("constant point hex");
-    let encoded = EncodedPoint::from_bytes(raw.as_slice()).expect("constant point bytes");
-    AffinePoint::from_encoded_point(&encoded)
+    let encoded = Sec1Point::from_bytes(raw.as_slice()).expect("constant point bytes");
+    AffinePoint::from_sec1_point(&encoded)
         .into_option()
         .expect("RFC 9382 P-256 base point")
 }

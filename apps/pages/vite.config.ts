@@ -26,6 +26,7 @@ import {
   tailscaleWorkerFileName,
 } from "./scripts/tailscale-wasm-assets.mjs";
 import { vercelOidcNamespace } from "./scripts/vercel-oidc-namespace.mjs";
+import { zodCsp } from "./scripts/zod-csp-plugin.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /**
@@ -144,6 +145,8 @@ export default defineConfig({
     // contracts. Root `vitest run scripts/lib` discovers `**/scripts/lib/**`,
     // so that file cannot stay on `node:test`.
     exclude: [...configDefaults.exclude, "server/**"],
+    // Real PIN/KDF and bundling suites share a bounded CPU budget, including related runs.
+    maxWorkers: 1,
     testTimeout: 20_000,
     hookTimeout: 20_000,
     // Real TLS/native integration fixtures occasionally miss a short deadline
@@ -178,7 +181,7 @@ export default defineConfig({
     include: [
       "@opensesame/app-core > kdbxweb",
       "@opensesame/app-core > hash-wasm",
-      "@opensesame/app-core > @noble/ciphers/aes",
+      "@opensesame/app-core > @noble/ciphers/aes.js",
     ],
     esbuildOptions: { target: "es2022" },
   },
@@ -268,6 +271,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    zodCsp(),
     vercelOidcNamespace(fileURLToPath(new URL("../..", import.meta.url))),
     process.env.OPENSESAME_AI_COMPLETION_VERIFY === "1" && {
       name: "ai-completion-verifier-entry",

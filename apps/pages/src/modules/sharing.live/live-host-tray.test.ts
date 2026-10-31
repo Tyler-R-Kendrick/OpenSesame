@@ -1,3 +1,4 @@
+import { NO_RESET_DEVICES } from "@opensesame/app-core/lib/live/device-reset-types.js";
 import { NO_DEVICES } from "@opensesame/app-core/lib/live/device-types.js";
 /** @vitest-environment jsdom */
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
@@ -33,6 +34,7 @@ describe("live host tray", () => {
       locked: false,
       status: "live" as const,
       endedBecause: null,
+      resets: NO_RESET_DEVICES,
       devices: NO_DEVICES,
     };
     noteGuestAsking(state);
@@ -59,6 +61,7 @@ describe("live host tray", () => {
       locked: false,
       status: "live" as const,
       endedBecause: null,
+      resets: NO_RESET_DEVICES,
       devices: NO_DEVICES,
     };
     noteGuestAsking(asking);
@@ -86,6 +89,7 @@ describe("live host tray", () => {
       locked: false,
       status: "live" as const,
       endedBecause: null,
+      resets: NO_RESET_DEVICES,
     };
     const asking = {
       ...base,
@@ -124,6 +128,7 @@ describe("live host tray", () => {
       locked: false,
       status: "live" as const,
       endedBecause: null,
+      resets: NO_RESET_DEVICES,
       devices: {
         grants: [],
         pending: [

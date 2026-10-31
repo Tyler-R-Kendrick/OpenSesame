@@ -349,7 +349,7 @@ try {
       base,
       width,
     });
-    // Trusted contacts (ADR 0187): the tab, its five sheets, focus in and back.
+    // Trusted contacts: the circle editor, keyboard save, focus in and back.
     await trustedContactsKeyboardContract({
       harness,
       browser,

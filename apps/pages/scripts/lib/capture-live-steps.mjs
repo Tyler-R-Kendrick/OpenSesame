@@ -11,6 +11,7 @@
  * page that serves the build under test.
  */
 
+import { expect } from "@playwright/test";
 import { PIN } from "./pages-journey.mjs";
 
 /** Complete the device seal fields when the joiner needs their own vault. */
@@ -121,7 +122,7 @@ export async function ask(page, { link, code, name }) {
   await page.getByLabel("Your name").fill(name);
   await sealOwnJoinerVault(page);
   await page.getByRole("button", { name: "Ask to join" }).click();
-  const copy = page.getByRole("button", { name: "Copy your request code" });
+  const copy = page.getByRole("button", { name: "Copy your join request" });
   await copy.waitFor({ timeout: 30_000 });
   await copy.click();
   return page.evaluate(() => navigator.clipboard.readText());
@@ -191,9 +192,13 @@ function ownerSteps() {
       const routes = page.locator("#live-routes");
       for (const carrier of carriers) {
         await routes.getByLabel("Code carrier").selectOption(carrier.kind);
-        await routes.getByLabel(/^Server \(/).fill(carrier.url);
-        await routes.getByRole("button", { name: "Add the carrier" }).click();
-        await page.waitForTimeout(500);
+        const field = routes.getByLabel(/^Server \(/);
+        await field.pressSequentially(carrier.url);
+        const add = routes.getByRole("button", { name: "Add the carrier" });
+        await expect(add).toBeEnabled();
+        await add.click();
+        await routes.getByText(carrier.url, { exact: true }).waitFor();
+        await expect(field).toHaveValue("");
       }
       console.log(
         `  routes now name ${await routes.getByText(carriers[0].url, { exact: true }).count()} x ${carriers[0].url}`,
@@ -263,7 +268,7 @@ function guestSteps(harness) {
       const own = panelOf(page);
       if (!own) return console.log("  liveGuess: skipped (no panel)");
       const { link } = owners.get(page);
-      const field = own.getByLabel("A request code", { exact: true });
+      const field = own.getByLabel("Paste a join request", { exact: true });
       for (let miss = 0; miss < attempts; miss += 1) {
         const made = await joiner(page, harness);
         try {

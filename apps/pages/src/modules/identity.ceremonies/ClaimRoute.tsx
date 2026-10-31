@@ -188,7 +188,9 @@ export function ClaimRoute() {
           />
         </Suspense>
       ) : null}
-      <Link to="/vault">Vault</Link>
+      <Link className="unlock__switch" to="/vault">
+        Vault
+      </Link>
     </div>
   );
 }

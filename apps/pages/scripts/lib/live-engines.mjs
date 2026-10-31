@@ -38,6 +38,7 @@
 
 import dgram from "node:dgram";
 import { chromium, firefox, webkit } from "@playwright/test";
+import { persistentLiveBrowser } from "./persistent-live-browser.mjs";
 
 export const ENGINES = ["chromium", "firefox", "webkit"];
 
@@ -127,7 +128,8 @@ export function launchEngine(engine, { mdns = "clear", turnCert } = {}) {
         "dom.events.testing.asyncClipboard": true,
       },
     });
-  if (engine === "webkit") return webkit.launch({ headless: true });
+  if (engine === "webkit")
+    return persistentLiveBrowser(webkit, { headless: true });
   throw new Error(`unknown browser "${engine}"`);
 }
 

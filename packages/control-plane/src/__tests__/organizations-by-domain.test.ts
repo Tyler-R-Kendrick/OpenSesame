@@ -1,3 +1,4 @@
+import { configureApprovedOrganization } from "./approved-organization-fixture.js";
 /**
  * `GET /v1/organizations/by-domain/:domain` — the JSON twin of the login
  * page's realm router (routes/interactions-realm.ts).
@@ -62,11 +63,20 @@ async function seedOrgWithDomain(
     body: JSON.stringify({
       slug: "acme-corp",
       displayName: "Acme Corp",
-      ssoIssuer: "http://127.0.0.1:9090",
     }),
   });
   expect(created.status).toBe(201);
   const org = overlapCast(await created.json());
+  expect(
+    (
+      await configureApprovedOrganization(
+        plane,
+        String(org.id),
+        owner.accessToken,
+        "http://127.0.0.1:9090",
+      )
+    ).status,
+  ).toBe(200);
   await plane.ctx.stores.orgFederation.emailDomains.claim({
     organizationId: String(org.id),
     domain: "acme.com",

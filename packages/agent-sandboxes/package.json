@@ -1,0 +1,40 @@
+{
+  "name": "@opensesame/agent-sandboxes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Configurable browser sandbox providers for agent runs: local ephemeral, Boat, Cloudflare Browser Run, and WASM with virtualized networking over a relay",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude e2e/**/*.spec.ts",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@opensesame/cua-password-reset": "workspace:*",
+    "@opensesame/observability": "workspace:*",
+    "linkedom": "0.18.14",
+    "tsx": "4.23.15",
+    "ws": "8.22.0",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.15.29",
+    "@types/ws": "8.18.2",
+    "typescript": "5.8.3",
+    "vitest": "4.1.12",
+    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/vault-core": "workspace:*"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tyler-R-Kendrick/OpenSesame.git"
+  }
+}

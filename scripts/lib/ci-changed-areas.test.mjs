@@ -197,18 +197,22 @@ describe("Pages graph and required check names", () => {
     expect(dirs).not.toContain("packages/oauth-provider");
   });
 
-  it("keeps the required check names and skips heavy jobs from those outputs", () => {
+  it("retains protected build reporters while the area classifier only gates CD", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
-    expect(ci.indexOf("check-pr-signatures.mjs")).toBeLessThan(
-      ci.indexOf("- name: Install"),
-    );
     for (const name of ["TypeScript", "Bundle budgets", "Rust"]) {
       expect(ci).toContain(`name: ${name}\n`);
     }
     expect(ci).toContain("needs.changes.outputs.typescript == 'true'");
-    expect(ci).toContain("needs.changes.outputs.bundle_matrix != '[]'");
     expect(ci).toContain("needs.changes.outputs.rust == 'true'");
-    expect(ci).toContain("needs.changes.outputs.mtls == 'true'");
-    expect(ci).toContain("always() && !cancelled()");
+    const complete = readFileSync(
+      join(root, ".github/workflows/ci-prerelease-checks.yml"),
+      "utf8",
+    );
+    expect(ci).not.toContain("ci-changed-areas.mjs");
+    expect(complete).toContain("ci-changed-areas.mjs");
+    expect(complete).toContain("needs.changes.outputs.mtls == 'true'");
+    expect(complete).toContain("name: Prerelease gate");
+    expect(ci.match(/ {4}if: always\(\)/g)).toHaveLength(3);
+    expect(ci).toContain("ci-required-result.mjs");
   });
 });

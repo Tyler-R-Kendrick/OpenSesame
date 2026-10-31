@@ -1,7 +1,12 @@
 import { env } from "@opensesame/app-core/host.js";
 import { redirectUri } from "@opensesame/app-core/lib/federation.js";
 import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
-import type { IdentityProtocol } from "@opensesame/app-core/lib/identity-connections-schema.js";
+import type { IdentityConnectionDraft } from "@opensesame/app-core/lib/identity-connections-schema.js";
+import {
+  NATIVE_OIDC_SETUP,
+  isNativeOidcConfiguration,
+  nativeOidcCallbackUri,
+} from "@opensesame/app-core/lib/identity-oidc-config.js";
 import { type FormEvent, useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
@@ -41,7 +46,8 @@ function ProtocolField({ draft, busy, onChange }: IdentityServiceFieldProps) {
     </div>
   );
 }
-function CallbackField({ protocol }: { protocol: IdentityProtocol }) {
+function CallbackField({ draft }: { draft: IdentityConnectionDraft }) {
+  const protocol = draft.protocol;
   const saml = protocol === "saml";
   const oidc = protocol === "oidc";
   const value = saml
@@ -50,7 +56,9 @@ function CallbackField({ protocol }: { protocol: IdentityProtocol }) {
         new URL(env().BASE_URL || "/", window.location.origin),
       ).href
     : oidc
-      ? redirectUri()
+      ? isNativeOidcConfiguration(draft)
+        ? nativeOidcCallbackUri(window.location.origin, env().BASE_URL)
+        : redirectUri()
       : window.location.origin;
   return (
     <FieldShell
@@ -132,14 +140,16 @@ export function IdentityConnectionForm(props: Props) {
         onValueChange={(value) => onChange("name", value)}
       />
       <ProtocolField {...props} />
-      <CallbackField protocol={draft.protocol} />
+      <CallbackField draft={draft} />
       <IdentityConnectionFields {...props} />
       <details className="conn-client-alt">
         <summary>Setup guide</summary>
         <p>
           {draft.protocol === "saml"
             ? "Register this service provider entity ID and ACS URL with your IdP. Use its metadata URL or paste its metadata XML. Enable HTTP-POST responses with RSA-SHA256 signatures. If the IdP requires signed requests, supply your SP signing key and matching certificate under SAML options. Testing checks configuration; complete sign-in to authenticate. Your existing vault still uses its normal unlock method."
-            : preset.setup}
+            : isNativeOidcConfiguration(draft)
+              ? NATIVE_OIDC_SETUP
+              : preset.setup}
         </p>
         <a href={preset.docsUrl} target="_blank" rel="noreferrer noopener">
           {preset.label} documentation

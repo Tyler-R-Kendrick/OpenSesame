@@ -15,7 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@noble/ciphers": "1.3.0",
+    "@noble/ciphers": "2.4.0",
     "@opensesame/log-scrub": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "pino": "9.7.0"
@@ -24,7 +24,7 @@
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "license": "MIT",
   "repository": {

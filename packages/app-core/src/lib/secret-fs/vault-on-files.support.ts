@@ -6,6 +6,7 @@
 import { createItem } from "@opensesame/vault-core";
 import type { VaultItem } from "@opensesame/vault-core";
 import { Effect } from "effect";
+import { configureHost, host } from "../../host.js";
 import { kvForgetAll } from "../kv.js";
 import { VaultStore } from "../vault/store.js";
 import { forgetOpenLeasesForTest } from "../vault/vault-shared-locks.js";
@@ -20,21 +21,51 @@ export const MARKER = "S3CR3T-VALUE-THAT-MUST-NEVER-REST-IN-THE-CLEAR";
 export const text = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 export const bytes = (value: string) => new TextEncoder().encode(value);
 
-/**
- * A fresh process over the same files: nothing remembered but what is stored.
- * The last process's stores are never locked, so their open leases are
- * forgotten here with their keys, as that process's exit would drop them.
- */
-export async function startProcess(files: SecretFiles): Promise<() => void> {
+export type VaultTestProcess = Readonly<{
+  newStore: () => VaultStore;
+  stop: () => void;
+}>;
+
+/** A fresh process whose exit releases every store before its storage ports. */
+export async function startProcess(
+  files: SecretFiles,
+): Promise<VaultTestProcess> {
   lockAllTombs();
   kvForgetAll();
   forgetOpenLeasesForTest();
-  const restore = await installFileBackedVfs(files);
-  return () => {
-    restore();
-    lockAllTombs();
-    kvForgetAll();
-    forgetOpenLeasesForTest();
+  const previousHost = host();
+  // Each restart is another process, whose Web Locks cannot remain held here.
+  configureHost({ ...previousHost, locks: undefined });
+  let restore: () => void;
+  try {
+    restore = await installFileBackedVfs(files);
+  } catch (error) {
+    configureHost(previousHost);
+    throw error;
+  }
+  const stores: VaultStore[] = [];
+  let stopped = false;
+  return {
+    newStore: () => {
+      if (stopped) throw new Error("That test process has ended.");
+      const store = new VaultStore();
+      stores.push(store);
+      return store;
+    },
+    stop: () => {
+      if (stopped) return;
+      stopped = true;
+      try {
+        // A restart models abrupt exit: do not flush or commit queued work.
+        for (const store of stores.splice(0)) store.lock();
+      } finally {
+        restore();
+        configureHost(previousHost);
+        lockAllTombs();
+        kvForgetAll();
+        forgetOpenLeasesForTest();
+      }
+    },
   };
 }
 
@@ -67,6 +98,7 @@ export type InProcess = (
   body: (
     files: SecretFiles,
     restart: () => Promise<VaultStore>,
+    newStore: () => VaultStore,
   ) => Promise<void>,
   wrap?: (files: SecretFiles) => SecretFiles,
 ) => Promise<void>;
@@ -75,18 +107,25 @@ export type InProcess = (
 export function processOver(make: () => Promise<FilesHarness>): InProcess {
   return async (body, wrap = (files) => files) => {
     const harness = await make();
-    let stop = await startProcess(wrap(harness.files));
+    let process = await startProcess(wrap(harness.files));
     try {
-      await body(harness.files, async () => {
-        stop();
-        stop = await startProcess(harness.files);
-        const store = new VaultStore();
-        await store.unlock(PASSWORD);
-        return store;
-      });
+      await body(
+        harness.files,
+        async () => {
+          process.stop();
+          process = await startProcess(harness.files);
+          const store = process.newStore();
+          await store.unlock(PASSWORD);
+          return store;
+        },
+        () => process.newStore(),
+      );
     } finally {
-      stop();
-      await harness.cleanup?.();
+      try {
+        process.stop();
+      } finally {
+        await harness.cleanup?.();
+      }
     }
   };
 }

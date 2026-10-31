@@ -250,6 +250,8 @@ import { accountSeams } from "@opensesame/app-core/lib/account.js";
 import { sessionExitSeams } from "@opensesame/app-core/lib/session-exit.js";
 
 describe("AccountSwitcher — settings", () => {
+  afterEach(cleanup);
+
   it("opens User Settings from the account's context menu", () => {
     function Where() {
       return <output aria-label="where">{useLocation().pathname}</output>;

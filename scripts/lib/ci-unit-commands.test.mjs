@@ -36,7 +36,7 @@ describe("ci unit commands", () => {
       "turbo",
       "run",
       "test",
-      "--concurrency=4",
+      "--concurrency=1",
       "--filter=@t/w",
     ]);
     expect(commands[1].args).toEqual([

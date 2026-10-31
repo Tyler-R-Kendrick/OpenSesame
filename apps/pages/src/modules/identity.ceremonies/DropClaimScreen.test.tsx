@@ -162,13 +162,13 @@ describe("DropClaimScreen", () => {
       <DropClaimScreen
         token={portable}
         fragmentKey={sealed.fragmentKey}
-        pkt="ospd1.packet"
+        pkt="ospd2.packet"
         onSettled={onSettled}
       />,
     );
-    await userEvent.type(screen.getByLabelText("One-time code"), "ABCD{Enter}");
+    await userEvent.type(screen.getByLabelText("Code"), "ABCD{Enter}");
     expect(await screen.findByText("portable secret")).toBeTruthy();
-    expect(present).toHaveBeenCalledWith(portable, "ABCD", "ospd1.packet");
+    expect(present).toHaveBeenCalledWith(portable, "ABCD", "ospd2.packet");
   });
 
   it("refuses a drop link missing its key before presenting anything", async () => {
@@ -179,7 +179,7 @@ describe("DropClaimScreen", () => {
       <DropClaimScreen
         token={portable}
         fragmentKey=""
-        pkt="ospd1.packet"
+        pkt="ospd2.packet"
         onSettled={onSettled}
       />,
     );

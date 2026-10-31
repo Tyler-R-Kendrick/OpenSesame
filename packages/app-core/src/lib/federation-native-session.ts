@@ -4,7 +4,7 @@ export type UpstreamIdentity = {
   upstreamId: string;
   idToken: string;
   /** Existing providers may carry JWT or opaque assertions; native SAML carries no OIDC bearer. */
-  assertionFormat?: "jwt" | "opaque" | "saml";
+  assertionFormat?: "jwt" | "opaque" | "saml" | "native-oidc";
   /** Per-origin and stable; the identity this app knows the human by. */
   pairwiseSub: string;
   audience: string;
@@ -14,9 +14,13 @@ export type UpstreamIdentity = {
   name?: string | undefined;
   picture?: string | undefined;
 };
+/** Native protocol evidence is held by its verified adapter, never serialized as scalar token metadata. */
+export function isNativeFederationFormat(value: string | undefined): boolean {
+  return value === "saml" || value === "native-oidc" || value === "ldap";
+}
 export type NativeFederationIdentity = Readonly<
   UpstreamIdentity & {
-    assertionFormat: "saml";
+    assertionFormat: "saml" | "native-oidc";
     idToken: "";
     jwksUri: "";
   }
@@ -26,6 +30,7 @@ export type NativeFederationSessionPort = Readonly<{
   clear: () => void;
 }>;
 import { currentAuthGeneration } from "./auth-generation.js";
+import { notifyFederationSessionChanged } from "./federation-session-events.js";
 const brand: unique symbol = Symbol("federation-session-generation");
 export type FederationSessionGeneration = Readonly<{ [brand]: true }>;
 let generation: FederationSessionGeneration = Object.freeze({ [brand]: true });
@@ -44,10 +49,19 @@ export function federationSessionGeneration(): FederationSessionGeneration {
   return generation;
 }
 /** An opaque object prevents integer reset/wraparound from reviving an old initiating generation. */
-export function advanceFederationSessionGeneration(): void {
+export function advanceFederationSessionGeneration(): FederationSessionGeneration {
   durableGeneration = currentAuthGeneration();
-  generation = Object.freeze({ [brand]: true });
-  active?.clear();
+  const published: FederationSessionGeneration = Object.freeze({
+    [brand]: true,
+  });
+  generation = published;
+  try {
+    active?.clear();
+  } finally {
+    notifyFederationSessionChanged();
+  }
+  // Return this transition, even if clearing the previous native owner advanced again.
+  return published;
 }
 /** Installation is an adapter lifecycle port, never a scalar-to-verified-identity factory. */
 export function bindNativeFederationSession(
@@ -85,7 +99,7 @@ export function readNativeFederationSession(): NativeFederationIdentity | null {
     if (active !== original) return null;
     if (!identity) return null;
     if (
-      identity.assertionFormat !== "saml" ||
+      !["saml", "native-oidc"].includes(identity.assertionFormat) ||
       identity.idToken !== "" ||
       identity.jwksUri !== "" ||
       !Number.isSafeInteger(identity.expiresAt) ||

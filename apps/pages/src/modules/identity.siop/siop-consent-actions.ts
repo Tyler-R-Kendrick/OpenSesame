@@ -79,7 +79,6 @@ async function verifyPasskey(tomb: string, state: SiopConsentState) {
     finished,
     generation,
     setBusy,
-    setSocialProof,
     setSocialError,
     setError,
     setSession,
@@ -87,7 +86,8 @@ async function verifyPasskey(tomb: string, state: SiopConsentState) {
   if (busy || !person || finished) return;
   const current = generation.current;
   setBusy(true);
-  setSocialProof(null);
+  // Social sign-in proves the upstream account; this ceremony also binds the
+  // selected local person. Keep that social evidence for the final approval.
   setSocialError("");
   setError("");
   try {

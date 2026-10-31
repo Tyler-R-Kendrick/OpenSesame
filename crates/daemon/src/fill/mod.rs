@@ -38,7 +38,14 @@
 //! Every value-bearing route is rate limited per extension origin, refused
 //! without an exact-origin match, and answers `Cache-Control: no-store`.
 //! Values are never logged; entries are zeroized once the answer is built.
+//! Pairing identifies a caller; it no longer authorizes credential release.
+//! A separate local operator approves the exact site, entry and field for
+//! one use within 90 seconds. Listing names needs a separate site-only grant
+//! lasting at most 90 seconds. Neither can be approved by an Origin-bearing
+//! request, including a paired extension. No browser assertion is treated as
+//! independent evidence of focus or a gesture.
 
+mod approval;
 mod caller;
 mod gate;
 mod operator;
@@ -58,7 +65,7 @@ use axum::{
     routing::{get, post, MethodRouter},
     Extension, Json, Router,
 };
-use caller::{extension_caller, refuse, Caller};
+use caller::{extension_caller, paired_caller, refuse};
 use gate::{PluginGate, SettingsGate};
 use origin::{entry_matches, login_of, valid_reference, WebOrigin};
 use pairing::{PairOutcome, Pairings};
@@ -80,7 +87,7 @@ pub(crate) const MAX_REFERENCES: usize = 32;
 pub(crate) const ENV_FILL_STATE_DIR: &str = "OPENSESAME_FILL_STATE_DIR";
 
 /// Which one field a fill returns.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Field {
     Password,
@@ -114,6 +121,7 @@ struct FillReq {
 pub(crate) struct FillState {
     gate: Arc<dyn PluginGate>,
     pairings: Pairings,
+    approvals: approval::Approvals,
     source: Box<dyn EntrySource>,
     /// Value-bearing fills: four in a burst, then one every two seconds.
     fill_limiter: TokenBucket,
@@ -140,6 +148,7 @@ impl FillState {
         Self {
             gate,
             pairings: Pairings::load(pairing_dir),
+            approvals: approval::Approvals::default(),
             source,
             fill_limiter: TokenBucket::new(4.0, 0.5),
             lookup_limiter: TokenBucket::new(10.0, 1.0),
@@ -204,16 +213,6 @@ impl FillState {
         entry.secret.zeroize();
         entry.trailer.zeroize();
         filled
-    }
-}
-
-/// The caller, with its token verified against the pairing it presented.
-fn paired_caller(fill: &FillState, headers: &HeaderMap) -> Result<Caller, Response> {
-    let caller = extension_caller(headers)?;
-    if fill.pairings.verify(&caller.origin, &caller.token) {
-        Ok(caller)
-    } else {
-        Err(refuse(StatusCode::UNAUTHORIZED, "not_paired"))
     }
 }
 
@@ -294,12 +293,21 @@ async fn match_origin(
         Ok(caller) => caller,
         Err(response) => return response,
     };
-    if let Err(retry) = fill.lookup_limiter.check(RateKey::Extension(caller.origin)) {
+    if let Err(retry) = fill
+        .lookup_limiter
+        .check(RateKey::Extension(caller.origin.clone()))
+    {
         return rate_limited(retry);
     }
     let Some(origin) = WebOrigin::parse_request(&req.origin) else {
         return refuse(StatusCode::BAD_REQUEST, "invalid_origin");
     };
+    if !fill
+        .approvals
+        .admit(&caller, &req.origin, None, chrono::Utc::now())
+    {
+        return no_store(refuse(StatusCode::FORBIDDEN, "approval_required"));
+    }
     let scan = Arc::clone(&fill);
     match tokio::task::spawn_blocking(move || scan.matches(&origin)).await {
         Ok(Ok((references, truncated))) => no_store(
@@ -320,14 +328,25 @@ async fn fill_value(
         Ok(caller) => caller,
         Err(response) => return response,
     };
-    if let Err(retry) = fill.fill_limiter.check(RateKey::Extension(caller.origin)) {
-        return rate_limited(retry);
-    }
     let Some(origin) = WebOrigin::parse_request(&req.origin) else {
         return refuse(StatusCode::BAD_REQUEST, "invalid_origin");
     };
     if !valid_reference(&req.reference) {
         return refuse(StatusCode::BAD_REQUEST, "invalid_reference");
+    }
+    match fill.approvals.admit_with_budget(
+        &caller,
+        &req.origin,
+        Some((&req.reference, req.field)),
+        chrono::Utc::now(),
+        || {
+            fill.fill_limiter
+                .check(RateKey::Extension(caller.origin.clone()))
+        },
+    ) {
+        Ok(true) => {}
+        Ok(false) => return no_store(refuse(StatusCode::FORBIDDEN, "approval_required")),
+        Err(retry) => return rate_limited(retry),
     }
     let field = req.field;
     let lookup = Arc::clone(&fill);
@@ -360,6 +379,8 @@ pub(crate) fn routes(state: Arc<FillState>, app: &App) -> Router<App> {
         .route_service("/v1/fill/pair/approve", bound(post(operator::approve)))
         .route_service("/v1/fill/pair/revoke", bound(post(operator::revoke)))
         .route_service("/v1/fill/pairings", bound(get(operator::list)))
+        .route_service("/v1/fill/requests", bound(get(operator::requests)))
+        .route_service("/v1/fill/authorize", bound(post(operator::authorize)))
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(Extension(state))
         .layer(axum::middleware::from_fn(move |request, next| {

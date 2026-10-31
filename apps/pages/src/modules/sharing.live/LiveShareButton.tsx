@@ -40,6 +40,7 @@ export function LiveShareButton() {
         className="icon-btn live-share live-share--on"
         onClick={() => navigate("/live")}
         aria-label="Open live session"
+        aria-controls="live-view"
         title="Open live session"
       >
         <IconShare size={18} />

@@ -6,6 +6,7 @@ import {
 } from "./auth-flow-enroll.mjs";
 import { lock } from "./auth-flow-nav.mjs";
 import { passTheDoor } from "./front-door.mjs";
+import { waitOpen } from "./pages-journey.mjs";
 
 /** Journey 2: a PIN-sealed vault enrolls MFA directly. */
 export async function pinMfaJourney({
@@ -34,8 +35,11 @@ export async function pinMfaJourney({
     .getByLabel("I understand this vault cannot be recovered.", { exact: true })
     .check();
   await page.getByRole("button", { name: "Seal with PIN" }).click();
-  await page.waitForTimeout(5000);
-  check(/@/.test(await text(page)), "sealed device landed inside the app");
+  await waitOpen(page);
+  check(
+    await page.locator(".vault").isVisible(),
+    "sealed device landed inside the app",
+  );
   await goSecurity(page);
   await page
     .locator(".sw--method", { hasText: "Authenticator app" })

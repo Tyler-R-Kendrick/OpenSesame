@@ -64,3 +64,10 @@ const { provider, admission, metadataFetcher } = createOpenSesameProvider({
 ```bash
 pnpm --filter @opensesame/oauth-provider test
 ```
+
+When dynamic registration is enabled, `/reg` requires an adapter-backed initial
+access token in `Authorization: Bearer <token>`. A trusted deployment operator
+can issue one through `new bundle.provider.InitialAccessToken({}).save()`;
+keep its value secret and distribute it only to authorized registrants. External
+registration metadata is limited to 64 KiB for JWKS and sector identifier
+responses, and 5 KiB for client metadata documents.

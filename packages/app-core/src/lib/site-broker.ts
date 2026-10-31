@@ -2,11 +2,11 @@ import { isLoopbackOrigin } from "@opensesame/static-auth";
 import { env, staticAuthRelease } from "../host.js";
 import { page, pageOrigin } from "../ports.js";
 /**
- * Approved loopback passthrough of an existing upstream assertion (ADR 0034).
- * Forwards that assertion through an exact-origin postMessage.
- * Native SAML identity stays local and supplies no OIDC assertion.
+ * Approved loopback assertion passthrough (ADR 0034) uses exact-origin postMessage.
+ * Verified native identity stays local and supplies no bearer.
  */
 
+import { isNativeFederationFormat } from "./federation-native-session.js";
 import { originClientId } from "./federation-origin.js";
 import type { UpstreamIdentity } from "./federation.js";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
@@ -416,7 +416,7 @@ export function buildSuccessMessage(
   identity: UpstreamIdentity,
 ): SignInSuccess {
   if (!originMayUseBroker(request.origin)) throw new Error("loopback_only");
-  if (identity.assertionFormat === "saml")
+  if (isNativeFederationFormat(identity.assertionFormat))
     throw new Error("upstream_assertion_format_mismatch");
   return {
     type: "opensesame:signin",

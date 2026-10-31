@@ -5,7 +5,10 @@ import { repoRootFromHere } from "./ci-changed-areas.mjs";
 import { driverReach, gatesForPaths } from "./ci-gates.mjs";
 
 const root = repoRootFromHere();
-const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+const ci = readFileSync(
+  join(root, ".github/workflows/ci-prerelease-checks.yml"),
+  "utf8",
+);
 const job = ci.split("  live-join-e2e:")[1]?.split("\n  rust:")[0] ?? "";
 const reach = driverReach(root);
 const gatesOf = (...paths) => [...gatesForPaths(paths, reach)];
@@ -16,17 +19,25 @@ describe("the live join walk's CI job (ADR 0150)", () => {
     expect(job).toContain("LIVE_OWNER: ${{ matrix.owner }}");
     expect(job).toContain("LIVE_JOINERS: chromium,firefox,webkit");
     expect(job).toContain("fail-fast: false");
-    expect(job).toContain("pnpm --filter @opensesame/pages verify:live-join");
+    const command = JSON.parse(
+      readFileSync(join(root, "apps/pages/package.json"), "utf8"),
+    ).scripts["verify:live-join"];
+    expect(job).toContain(command);
   });
 
-  it("runs the browsers the pinned Playwright installs, not the runner's own", () => {
-    expect(job).toContain(
-      "pnpm exec playwright install --with-deps chromium firefox webkit",
+  it("runs the pinned SDK's preinstalled browsers without an apt mirror", () => {
+    const sdk = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
+      .devDependencies["@playwright/test"];
+    const image = job.match(
+      /LIVE_JOIN_IMAGE: mcr\.microsoft\.com\/playwright:v(\d+\.\d+\.\d+)-noble@sha256:[0-9a-f]{64}\b/,
     );
+    expect(image?.[1]).toBe(sdk);
+    expect(job.match(/\.version,\s*["']([^"']+)["']/)?.[1]).toBe(sdk);
+    expect(job).toContain(' --user "$(id -u):$(id -g)"');
+    expect(job).toContain("runs-on: ubuntu-24.04");
+    expect(job).toContain("timeout-minutes: 50");
     expect(job).not.toContain("PLAYWRIGHT_CHROMIUM");
-    expect(job).toContain(
-      "key: playwright-chromium-firefox-webkit-${{ runner.os }}-${{ steps.playwright.outputs.version }}",
-    );
+    expect(job).not.toContain("install --with-deps");
   });
 
   it("builds every server and both Pages builds the walks need, and fails rather than skip", () => {

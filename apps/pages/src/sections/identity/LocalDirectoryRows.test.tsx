@@ -3,6 +3,7 @@ import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-a
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { notifyLocalIamChange } from "@opensesame/app-core/lib/local-iam-events.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { signInLocalIdentity } from "@opensesame/app-core/lib/local-sessions.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
@@ -27,6 +28,8 @@ beforeEach(async () => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
   fixture = await localRequestFixture();
+  await accessBootstrap.ensureDefaultAccess(fixture.tomb);
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   Object.assign(vaultHooksSeams, {
     useVault: () => ({ ...originalVault.useVault(), tomb: fixture.tomb }),
     useVaultStore: () => ({ activeTomb: () => fixture.tomb }),
@@ -50,6 +53,7 @@ async function addPerson(name: string) {
     kind: "person",
     name,
   });
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
 }
 
 function openPeople() {

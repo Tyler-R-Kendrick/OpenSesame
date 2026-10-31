@@ -1,4 +1,4 @@
-/** Apply only the five reviewed native patches at exact pinned lines; no host patch tool. */
+/** Apply only reviewed native patches at exact pinned lines; no host patch tool. */
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, readFile } from "node:fs/promises";
@@ -12,10 +12,15 @@ const targets = {
     "cmd/tsconnect/wasm/wasm_js.go",
     "net/tsdial/tsdial.go",
     "ipn/ipnlocal/node_backend.go",
+    "derp/derphttp/derphttp_client.go",
   ],
   "disable-logtail.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
   "native-peer-get.patch": ["cmd/tsconnect/wasm/wasm_js.go"],
   "exit-route.patch": ["cmd/tsconnect/wasmbuild/wasmbuild.go"],
+  "native-ssh.patch": [
+    "cmd/tsconnect/wasm/wasm_js.go",
+    "net/tlsdial/tlsdial.go",
+  ],
 };
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 function requireValue(condition) {
@@ -69,6 +74,22 @@ function specification(pins, name) {
             path: pins.patch.path,
             beforeSha256: pins.patch.beforeSha256,
             afterSha256: pins.patch.afterSha256,
+          },
+        ],
+      };
+    case "native-ssh.patch":
+      return {
+        digest: pins.nativeSSH.patch.sha256,
+        files: [
+          {
+            path: targets[name][0],
+            beforeSha256: pins.nativeSSH.patch.beforeSha256,
+            afterSha256: pins.nativeSSH.patch.afterSha256,
+          },
+          {
+            path: targets[name][1],
+            beforeSha256: pins.nativeSSH.tlsVerification.beforeSha256,
+            afterSha256: pins.nativeSSH.tlsVerification.afterSha256,
           },
         ],
       };

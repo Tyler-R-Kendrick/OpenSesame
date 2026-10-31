@@ -100,6 +100,21 @@ it.each(["none", "client_secret_basic", "client_secret_post"] as const)(
     expect(JSON.stringify(readDeviceRows())).not.toContain(CLIENT_SECRET);
   },
 );
+it("stays connected after offline consent is proven by a refresh token", async () => {
+  const f = await nativeOAuthClientFixture("client_secret_post");
+  closes.push(f.close);
+  f.state.resourceParameter = "omit";
+  const input = {
+    ...f.input,
+    parameters: { ...f.input.parameters, resource_parameter: "omit" as const },
+    requestedScopes: { user: ["offline_access", "read:items"] },
+  };
+  const saved = await configureNativeOAuthClient(input, f.owner);
+  const connected = await authenticate(f, saved.connectionId);
+  expect(connected.view.status).toBe("connected");
+  expect(connected.view.grants[0]?.grantedScopes).toEqual(["read:items"]);
+});
+
 it.each([
   ["token_relay_url", "http://relay.example/token"],
   ["token_relay_url", "not-a-url"],

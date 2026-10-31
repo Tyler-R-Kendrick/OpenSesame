@@ -5,7 +5,9 @@
  * link, keeps or declines the routes it names, and asks.
  */
 
+import { expect } from "@playwright/test";
 import { SHARED_ITEM } from "./live-item-labels.mjs";
+import { answerAddresses, namesSameMachine } from "./live-join-addresses.mjs";
 import { PIN, addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
 // The WebRTC instrumentation the walks read, kept with the RTC helpers.
@@ -142,19 +144,17 @@ export async function setRoutes(page, wanted) {
     await remove.first().click();
     await page.waitForTimeout(150);
   }
-  for (const address of wanted.addresses ?? []) {
-    await routes.getByLabel("Tailnet, VPN or LAN address").fill(address);
-    await routes.getByRole("button", { name: "Add the address" }).click();
-    await routes.getByText(address, { exact: true }).waitFor();
-  }
+  await namesSameMachine(routes, wanted.addresses ?? []);
   for (const server of wanted.ice ?? []) {
-    await routes.getByLabel("STUN or TURN server").fill(server.url);
+    const field = routes.getByLabel("STUN or TURN server");
+    await field.fill(server.url);
     if (server.username) {
       await routes.getByLabel("TURN username").fill(server.username);
       await routes.getByLabel("TURN credential").fill(server.credential);
     }
     await routes.getByRole("button", { name: "Add the server" }).click();
     await routes.getByText(server.url, { exact: true }).waitFor();
+    await expect(field).toHaveValue("");
   }
   if (wanted.relay)
     await routes
@@ -166,10 +166,16 @@ export async function setRoutes(page, wanted) {
       await routes.getByRole("button", { name: "Add the carrier" }).click();
       continue;
     }
-    await routes.getByLabel(/^Server \(/).fill(carrier.url);
+    const field = routes.getByLabel(/^Server \(/);
+    await field.pressSequentially(carrier.url);
     if (carrier.kind === "nats") await natsChoices(routes, carrier);
-    await routes.getByRole("button", { name: "Add the carrier" }).click();
+    const add = routes.getByRole("button", { name: "Add the carrier" });
+    await expect(add).toBeEnabled();
+    await add.click();
     await routes.getByText(carrier.url, { exact: true }).waitFor();
+    // Rows are optimistic; the submitted field clears after the write settles.
+    // Wait for that reset before another step can type a newer draft.
+    await expect(field).toHaveValue("");
   }
 }
 
@@ -228,11 +234,12 @@ export async function endSession(panel) {
 /**
  * The joiner opens the link and asks. `routes` keeps (true) or declines
  * (false) the servers the link names; null when it names none. `peerTrust`,
- * when set, is pasted into Peer trust signal before the ask.
+ * when set, is pasted into Peer trust signal before the ask. The carrier road
+ * returns null: its request travels automatically, with no manual copy needed.
  */
 export async function joinerAsks(
   page,
-  { link, code, name, routes = null, peerTrust = "" },
+  { link, code, name, routes = null, peerTrust = "", automatic = false },
 ) {
   await page.goto(link, { waitUntil: "networkidle" });
   await page
@@ -263,15 +270,54 @@ export async function joinerAsks(
   if (peerTrust) {
     await page.getByLabel("Peer trust signal", { exact: true }).fill(peerTrust);
   }
-  const choice = page.getByRole("checkbox", { name: /^Through / });
+  const choice = page.getByRole("checkbox", { name: /^Pair through / });
   if (routes !== null) await choice.setChecked(routes);
   await page.getByRole("button", { name: "Ask to join" }).click();
-  const copy = page.getByRole("button", { name: "Copy your request code" });
+  if (automatic) {
+    await page
+      .getByRole("img", {
+        name: "The owner can see your request. Waiting for them to let you in.",
+        exact: true,
+      })
+      .waitFor({ timeout: 20_000 });
+    return "";
+  }
+  const copy = page.getByRole("button", { name: "Copy your join request" });
+  if (routes === true) {
+    const automatic = page.getByRole("img", {
+      name: "The owner can see your request. Waiting for them to let you in.",
+      exact: true,
+    });
+    // A ready carrier hides the manual packet controls. A refused carrier
+    // keeps them as the fallback; both are an actual request, not the form.
+    await automatic.or(copy).first().waitFor({ timeout: 20_000 });
+    return null;
+  }
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }
 
 const SAS_TEXT = /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/;
+
+/** The owner's export is behind its own Peer trust signal disclosure. */
+export async function openPeerTrustSignal(panel) {
+  const summary = panel.getByText("Peer trust signal", { exact: true });
+  const disclosure = summary.locator("..");
+  await summary.waitFor();
+  if ((await disclosure.getAttribute("open")) === null) await summary.click();
+  return disclosure;
+}
+
+/** Read the joiner's session code after opening its Security code disclosure. */
+export async function readJoinerSas(page) {
+  const disclosure = page.locator("details.live-verify");
+  await disclosure.waitFor();
+  if ((await disclosure.getAttribute("open")) === null)
+    await disclosure.getByText("Security code", { exact: true }).click();
+  const sas = disclosure.locator(".live-sas");
+  await sas.waitFor({ state: "visible" });
+  return (await sas.innerText()).trim();
+}
 
 function escapeName(name) {
   return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -297,22 +343,22 @@ async function confirmSessionSas(panel) {
   if (!SAS_TEXT.test(text)) {
     throw new Error(`session SAS is not readable: ${text}`);
   }
+  return text;
 }
 
 /**
  * The owner pastes a request by hand and lets the person in. An open session
- * still auto-admits a request with no peer block (`admit: false`). A request
- * that shows a session SAS waits for "Yes, they match" either way. The reply
- * code.
+ * auto-admits requests (`admit: false`), so wait for its reply rather than
+ * clicking the transient comparison row. Invite sessions require approval.
  */
 export async function ownerAdmitsByHand(
   page,
   panel,
   request,
   name,
-  { admit = true } = {},
+  { admit = true, beforeAdmit } = {},
 ) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
   const match = panel.getByRole("button", {
     name: `Yes, they match for ${name}`,
@@ -323,17 +369,12 @@ export async function ownerAdmitsByHand(
   });
   if (admit) {
     await match.or(letIn).first().waitFor({ timeout: 20_000 });
+    await beforeAdmit?.();
     if (await match.isVisible()) {
       await confirmSessionSas(panel);
       await match.click();
     } else {
       await letIn.click();
-    }
-  } else {
-    await match.or(copy).first().waitFor({ timeout: 20_000 });
-    if (await match.isVisible()) {
-      await confirmSessionSas(panel);
-      await match.click();
     }
   }
   await copy.waitFor({ timeout: 20_000 });
@@ -342,5 +383,6 @@ export async function ownerAdmitsByHand(
 
 export async function joinerConnects(page, reply) {
   await page.getByLabel("The owner's reply code", { exact: true }).fill(reply);
-  await page.getByRole("button", { name: "Connect" }).click();
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await answerAddresses(page);
 }

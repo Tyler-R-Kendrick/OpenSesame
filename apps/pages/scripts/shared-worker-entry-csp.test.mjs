@@ -17,7 +17,10 @@ const specifier = "../../src/modules/networking.tailnet/browser/worker.ts";
 const dir = await mkdtemp(join(tmpdir(), "opensesame-worker-entry-csp-"));
 afterAll(() => rm(dir, { recursive: true, force: true }));
 
-async function bundledEntry(attempt) {
+async function bundledEntry(
+  attempt,
+  plan = { owner, specifier, name: "tailscale-node" },
+) {
   let bundle;
   await build({
     configFile: false,
@@ -25,8 +28,15 @@ async function bundledEntry(attempt) {
     publicDir: false,
     logLevel: "silent",
     plugins: [
+      {
+        name: "isolated-worker-owner",
+        load(id) {
+          if (plan.owner !== owner && id === plan.owner)
+            return `export const start=()=>new Worker(new URL(${JSON.stringify(plan.specifier)},import.meta.url),{type:'module'});`;
+        },
+      },
       sharedWorkerGraph({
-        workers: [{ owner, specifier, name: "tailscale-node" }],
+        workers: [plan],
       }),
       {
         name: "capture-shipped-entry",
@@ -40,7 +50,7 @@ async function bundledEntry(attempt) {
       target: "es2022",
       minify: false,
       rollupOptions: {
-        input: owner,
+        input: plan.owner,
         output: { format: "es", onlyExplicitManualChunks: true },
       },
     },
@@ -48,8 +58,7 @@ async function bundledEntry(attempt) {
   const output = Object.values(bundle);
   const root = output.find(
     (item) =>
-      item.type === "asset" &&
-      item.fileName.startsWith("assets/tailscale-node-"),
+      item.type === "asset" && item.fileName.startsWith(`assets/${plan.name}-`),
   );
   assert.ok(root?.opensesameWorkerChunk);
   const input = join(attempt, "entry.json");
@@ -85,16 +94,28 @@ await monitor.link(()=>{throw Error('Monitor has no imports')});await monitor.ev
 const modules=new Map();const load=file=>{if(!modules.has(file))modules.set(file,new SourceTextModule(outputs[file],{context,identifier:file}));return modules.get(file)};
 const actual=load(root);await actual.link((source,parent)=>load(new URL(source,'file:///'+parent.identifier).pathname.slice(1)));await actual.evaluate();
 assert.equal(listeners.size,1);const dispatch=listeners.get('message');
-const receive=event=>dispatch({origin:'',...event});
-receive({origin:'https://foreign.example.test',data:{kind:'nativeHTTPReady'}});
-assert.deepEqual(messages,[],'Cross-origin messages cannot reach the Worker');
-receive({data:{kind:'nativeHTTPReady'}});
+const receive=event=>dispatch({origin:'',ports:[],...event});
+// The page's end of a transferred MessageChannel: the handler the Worker binds, and what it replies.
+const channel=()=>{const port={onmessage:null,replies:[],postMessage:value=>port.replies.push(value)};return port};
 const config={hostname:'csp-browser',controlURL:'https://controlplane.tailscale.com',authKey:'',state:{},assets:{runtime:'https://assets.example/runtime.js',wasm:'https://assets.example/main.wasm.gz'},nativeHTTP:{routeMode:'peer',peerID:'',trustMode:'public',targets:[{origin:'https://byo.example.test',prefixes:['100.64.0.1/32']}]}};
-receive({data:{kind:'start',config}});
-receive({data:{kind:'start',config:{...config,nativeHTTP:{...config.nativeHTTP,peerID:'n-peer',exitNodeID:'unapproved-fallback'}}}});
+const peer={...config,nativeHTTP:{...config.nativeHTTP,peerID:'n-peer'}};
+const foreign=channel();
+receive({origin:'https://foreign.example.test',data:{kind:'start',config:peer},ports:[foreign]});
+assert.equal(foreign.onmessage,null,'Cross-origin messages cannot reach the Worker');
 receive({data:{kind:'nativeHTTPReady'}});
-assert.deepEqual(JSON.parse(JSON.stringify(messages)),[{kind:'nativeHTTPReady',ready:false},{kind:'nativeHTTPReady',ready:false}]);
+const rejected=channel();
+receive({data:{kind:'start',config},ports:[rejected]});
+receive({data:{kind:'start',config:{...peer,nativeHTTP:{...peer.nativeHTTP,exitNodeID:'unapproved-fallback'}}},ports:[rejected]});
+assert.equal(rejected.onmessage,null,'Rejected peer starts bind no channel');
 assert.equal(network,0,'Rejected peer starts cannot initialize SDK/network');
+const bound=channel();
+receive({data:{kind:'start',config:peer},ports:[bound]});
+assert.equal(typeof bound.onmessage,'function','A valid peer start binds its one transferred port');
+bound.onmessage({data:{kind:'nativeHTTPReady'}});
+await new Promise(resolve=>setTimeout(resolve,0));
+assert.deepEqual(JSON.parse(JSON.stringify(bound.replies)),[{kind:'nativeHTTPReady',ready:false},{kind:'error'}]);
+assert.deepEqual(messages,[],'Nothing is answered on the Worker channel');
+assert.equal(network,0,'Assets off this deployment never reach SDK fetch');
 assert.equal(context.evalAttempts,0,'Actual production Worker must never probe dynamic compilation, even when Zod catches the CSP refusal');
 process.stdout.write('actual-worker-entry-csp-ok');`;
 
@@ -134,4 +155,55 @@ test("the actual shipped Tailscale Worker initializes CSP-safe peer parsing befo
     await readFile(stdoutFile, "utf8"),
     "actual-worker-entry-csp-ok",
   );
+});
+
+test("the actual Bitwarden Secrets Worker initializes CSP-safe schemas in its own realm", async () => {
+  const attempt = await mkdtemp(join(dir, "bitwarden-"));
+  const input = await bundledEntry(attempt, {
+    owner: join(
+      repo,
+      "packages/app-core/src/lib/secret-backends/bitwarden-wasm-loader.ts",
+    ),
+    specifier: "./bitwarden-secrets.worker.ts",
+    name: "bitwarden-secrets.worker",
+  });
+  // No document boot, fixture config, or schema replacement reaches this realm.
+  const script = `import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {createContext,SourceTextModule} from 'node:vm';
+const {root,outputs}=JSON.parse(await readFile(process.argv[1],'utf8'));
+const replies=[];let network=0;
+const context=createContext({URL,TextEncoder,TextDecoder,Response,Headers,AbortController,setTimeout,clearTimeout,atob,btoa,
+location:new URL('https://app.example.test/'+root),postMessage:value=>replies.push(value),
+fetch:()=>{network++;throw Error('Invalid messages must not reach SDK fetch')}},
+{codeGeneration:{strings:false,wasm:false}});
+const monitor=new SourceTextModule(\`globalThis.self=globalThis;globalThis.evalAttempts=0;
+globalThis.Function=new Proxy(Function,{apply(target,receiver,args){globalThis.evalAttempts++;return Reflect.apply(target,receiver,args)},construct(target,args){globalThis.evalAttempts++;return Reflect.construct(target,args)}});\`,{context});
+await monitor.link(()=>{throw Error('Monitor has no imports')});await monitor.evaluate();
+const modules=new Map();const load=file=>{if(!modules.has(file))modules.set(file,new SourceTextModule(outputs[file],{context,identifier:file,initializeImportMeta(meta){meta.url='https://app.example.test/'+file}}));return modules.get(file)};
+const actual=load(root);await actual.link((source,parent)=>load(new URL(source,'file:///'+parent.identifier).pathname.slice(1)));await actual.evaluate();
+assert.equal(typeof context.onmessage,'function');
+context.onmessage({origin:'https://foreign.example.test',data:{}});
+context.onmessage({origin:'',data:{type:'initialize',id:1,settings:{}}});
+await new Promise(resolve=>setTimeout(resolve,0));
+assert.deepEqual(JSON.parse(JSON.stringify(replies)),[{id:-1,ok:false,result:''}]);
+assert.equal(network,0);assert.equal(context.__zod_globalConfig.jitless,true);
+assert.equal(context.evalAttempts,0,'The actual worker must not probe Function while constructing or parsing its schemas');`;
+  let stderr = "";
+  const exit = await new Promise((accept, reject) => {
+    const child = spawn(
+      process.execPath,
+      ["--experimental-vm-modules", "--input-type=module", "-e", script, input],
+      {
+        stdio: ["ignore", "ignore", "pipe"],
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    child.stderr.setEncoding("utf8").on("data", (value) => {
+      stderr += value;
+    });
+    child.once("error", reject);
+    child.once("close", accept);
+  });
+  assert.equal(exit, 0, stderr);
 });

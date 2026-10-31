@@ -14,8 +14,9 @@ import {
   bytesToBase64Url,
   textToBase64Url,
 } from "./native-base64.js";
-import { readBoundedText } from "./native-bounded-body.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
+import { finishNativeResponseBody } from "./native-response-lifetime.js";
+import { readNativeResponseText } from "./native-response-text.js";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SCOPE = "https://www.googleapis.com/auth/cloud-platform";
@@ -102,6 +103,18 @@ export async function signGcpAssertion(
   return `${header}.${claims}.${bytesToBase64Url(new Uint8Array(signature))}`;
 }
 
+async function retireTokenResponse(
+  response: Response | undefined,
+): Promise<void> {
+  if (!response) return;
+  try {
+    if (!response.bodyUsed)
+      await response.body?.cancel().catch(() => undefined);
+  } finally {
+    finishNativeResponseBody(response);
+  }
+}
+
 /** An access token for this key, for one call. A refused key is an authorization error, never Google's words. */
 export async function gcpAccessToken(
   account: GcpServiceAccount,
@@ -116,8 +129,9 @@ export async function gcpAccessToken(
   }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
+  let response: Response | undefined;
   try {
-    const response = await transport.fetch(TOKEN_URL, {
+    response = await transport.fetch(TOKEN_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -136,7 +150,12 @@ export async function gcpAccessToken(
     });
     transport.assertCurrent();
     if (response.redirected) throw new NativeApiError("response");
-    const text = await readBoundedText(response, 16 * 1024);
+    const text = await readNativeResponseText(response, {
+      maxBytes: 16 * 1024,
+      signal: controller.signal,
+      assertCurrent: () => transport.assertCurrent(),
+      invalid: () => new NativeApiError("response"),
+    });
     if ([400, 401].includes(response.status))
       throw new NativeApiError("authorization", response.status);
     if (response.status === 403) throw new NativeApiError("permission", 403);
@@ -146,6 +165,7 @@ export async function gcpAccessToken(
     const token = isJsonObject(parsed) ? parsed.access_token : undefined;
     if (!isString(token) || !TOKEN.test(token))
       throw new NativeApiError("response");
+    transport.assertCurrent();
     return token;
   } catch (error) {
     if (error instanceof NativeApiError) throw error;
@@ -153,6 +173,10 @@ export async function gcpAccessToken(
     if (error instanceof SyntaxError) throw new NativeApiError("response");
     throw new NativeApiError("network");
   } finally {
-    clearTimeout(timeout);
+    try {
+      await retireTokenResponse(response);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 }

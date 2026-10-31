@@ -359,20 +359,26 @@ export async function forgetBrowserNodeState(
   } catch {
     assertCurrentScope();
   }
-  await removeDeviceConfigurationDurable(
-    row.connectionId,
-    () => {
-      assertCurrentScope();
-      const current = readDeviceRows().find(
-        (entry) => entry.connectionId === row.connectionId,
-      );
-      if (!current || current.fields[FIELD] !== row.fields[FIELD])
-        throw new Error("Browser node configuration changed.");
-    },
-    assertCurrentScope,
-  );
-  if (capture)
+  const unchanged = () => {
+    assertCurrentScope();
+    const current = readDeviceRows().find(
+      (entry) => entry.connectionId === row.connectionId,
+    );
+    if (!current || current.fields[FIELD] !== row.fields[FIELD])
+      throw new Error("Browser node configuration changed.");
+  };
+  // The private state goes before the row that names it: a node shown as
+  // forgotten has no credential left behind. A credential the person edited
+  // meanwhile is theirs and stays (the discard compares before it withdraws).
+  if (capture) {
+    unchanged();
     await discardVaultCredentials(capture, tomb, assertCurrentScope).catch(
       assertCurrentScope,
     );
+  }
+  await removeDeviceConfigurationDurable(
+    row.connectionId,
+    unchanged,
+    assertCurrentScope,
+  );
 }

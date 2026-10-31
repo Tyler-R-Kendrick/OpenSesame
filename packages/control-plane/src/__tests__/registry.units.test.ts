@@ -28,6 +28,7 @@ import {
   resolveTrustedIssuer,
 } from "../interactions/trust.js";
 import type { InteractionDetails } from "../interactions/types.js";
+import { approvedOrganizationConfig } from "./approved-organization-fixture.js";
 
 /**
  * The provider registry, the trust fence it feeds, and the public catalog.
@@ -904,16 +905,13 @@ describe("resolveTrustedIssuer", () => {
     samlIssuer: "https://saml.acme.example",
   };
 
-  /**
-   * The stores as C6 specifies them: BYO lookup by issuer, organization lookup
-   * across BOTH issuer columns.
-   */
+  /** BYO and tenant issuer stores, with explicit operator approvals. */
   function ctxWith(
     byoRecords: readonly ByoUpstream[],
     organizations: readonly Organization[],
   ): AppContext {
     return overlapCast({
-      config,
+      config: approvedOrganizationConfig(config, organizations),
       repos: {
         byoUpstreams: {
           findByIssuer: async (issuer: string) =>

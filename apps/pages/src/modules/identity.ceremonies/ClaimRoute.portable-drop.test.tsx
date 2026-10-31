@@ -35,18 +35,18 @@ describe("a drop link", () => {
       throw new Error("offline");
     });
     dropOpenSeams.presentClaim = present;
-    arrive(`/claim#token=${portable}&key=${KEY}&pkt=ospd1.packet`);
+    arrive(`/claim#token=${portable}&key=${KEY}&pkt=ospd2.packet`);
     show();
-    const code = await screen.findByLabelText("One-time code");
+    const code = await screen.findByLabelText("Code");
     await userEvent.type(code, "ABCD{Enter}");
     await waitFor(() =>
-      expect(present).toHaveBeenCalledWith(portable, "ABCD", "ospd1.packet"),
+      expect(present).toHaveBeenCalledWith(portable, "ABCD", "ospd2.packet"),
     );
     expect(peekClaimArrival()).toMatchObject({
       kind: "drop",
       token: portable,
       key: KEY,
-      pkt: "ospd1.packet",
+      pkt: "ospd2.packet",
     });
   });
 });

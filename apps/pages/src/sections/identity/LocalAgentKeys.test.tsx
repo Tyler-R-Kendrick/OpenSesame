@@ -1,14 +1,16 @@
 import * as agentAuthentication from "@opensesame/app-core/lib/local-agent-auth.js";
 import { readLocalAgentKeys } from "@opensesame/app-core/lib/local-agent-keys.js";
-import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
-import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
-import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
+import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import {
+  currentLocalIdentitySession,
+  signInLocalIdentity,
+} from "@opensesame/app-core/lib/local-sessions.js";
+import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
   type LocalAgentChallenge,
   createLocalAgentKey,
 } from "@opensesame/static-auth";
-import { mintVaultKey } from "@opensesame/vault-core";
 import {
   act,
   cleanup,
@@ -22,33 +24,23 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalAgentKeys } from "./LocalAgentKeys.js";
 
 let tomb: string;
+let fixture: Awaited<ReturnType<typeof localRequestFixture>>;
 let principalId: string;
 beforeEach(async () => {
   // jsdom's realm differs from Node's TextEncoder/WebCrypto realm.
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
-  tomb = `agent-ui-${crypto.randomUUID()}`;
-  unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: <T,>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
-  });
-  const directory = await changeLocalDirectory(tomb, 0, {
+  vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
+  fixture = await localRequestFixture();
+  tomb = fixture.tomb;
+  const directory = await fixture.change({
     action: "create",
     kind: "agent",
     name: "Test agent",
   });
-  const agent = directory.entries[0];
+  const agent = directory.entries.find((entry) => entry.kind === "agent");
   if (!agent) throw new Error("Missing agent fixture");
   principalId = agent.id;
+  await signInLocalIdentity(tomb, fixture.personId);
 });
 afterEach(() => {
   cleanup();
@@ -123,6 +115,21 @@ it("enrolls, authenticates with a real signature, and revokes the agent session"
   expect(
     (await currentLocalIdentitySession(tomb, principalId))?.authentication,
   ).toBe("agent_key");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Revoke agent key" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirm key revocation" }),
+  );
+  expect((await screen.findByRole("alert")).textContent).toMatch(
+    /Only an operator/,
+  );
+  expect(await readLocalAgentKeys(tomb)).toHaveLength(1);
+  expect(
+    (await currentLocalIdentitySession(tomb, principalId))?.authentication,
+  ).toBe("agent_key");
+  await userEvent.click(screen.getByRole("button", { name: "Keep agent key" }));
+  await signInLocalIdentity(tomb, fixture.personId);
   await userEvent.click(
     screen.getByRole("button", { name: "Revoke agent key" }),
   );

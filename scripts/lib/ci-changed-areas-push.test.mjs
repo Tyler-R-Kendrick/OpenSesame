@@ -85,7 +85,10 @@ describe("the Web Push walk's area", () => {
 
 describe("the Bundle budgets aggregate", () => {
   it("gates the Web Push job on bundle or push, and Bundle budgets still reports it", () => {
-    const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+    const ci = readFileSync(
+      join(root, ".github/workflows/ci-prerelease-checks.yml"),
+      "utf8",
+    );
     // The Web Push job runs for the Pages build (bundle) or the server code it
     // exercises (push), and `Bundle budgets` still reports it.
     expect(ci).toMatch(
@@ -129,7 +132,10 @@ describe("the Bundle budgets aggregate", () => {
   });
 
   it("runs the device identity walk in its own job, gated on the gate the diff reaches, and Bundle budgets still reports it", () => {
-    const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+    const ci = readFileSync(
+      join(root, ".github/workflows/ci-prerelease-checks.yml"),
+      "utf8",
+    );
     const bundle = ci.split("  bundle:")[1]?.split("  push-e2e:")[0] ?? "";
     // Out of the twenty-minute bundle job, which it had filled.
     expect(bundle).not.toContain("verify:device-identity");
@@ -174,7 +180,10 @@ it.each([
 ])(
   "requires the separate %s browser result",
   (id, build, verify, out, result) => {
-    const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+    const ci = readFileSync(
+      join(root, ".github/workflows/ci-prerelease-checks.yml"),
+      "utf8",
+    );
     const job =
       ci.split(`\n  ${id}:\n`)[1]?.split(/\n {2}[a-z0-9-]+:\n/)[0] ?? "";
     expect(job).toContain("if: needs.changes.outputs.bundle == 'true'");

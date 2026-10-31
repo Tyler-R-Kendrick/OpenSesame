@@ -153,6 +153,7 @@ pub(crate) async fn serve_connection(
     graceful: Option<Watcher>,
     permit: tokio::sync::OwnedSemaphorePermit,
 ) {
+    let remote = stream.peer_addr().ok();
     let (tls, context) = match handshake(&prepared, &generations, stream, &counters).await {
         Ok(done) => done,
         Err(error) => {
@@ -168,6 +169,10 @@ pub(crate) async fn serve_connection(
     let context = Arc::new(context);
     let service = hyper::service::service_fn(move |mut req: Request<Incoming>| {
         req.extensions_mut().insert(context.provenance.clone());
+        if let Some(remote) = remote {
+            req.extensions_mut()
+                .insert(axum::extract::ConnectInfo(remote));
+        }
         if let Some(peer) = &context.peer {
             req.extensions_mut().insert(PeerExtension(Arc::clone(peer)));
             req.extensions_mut().insert(context.deny.clone());

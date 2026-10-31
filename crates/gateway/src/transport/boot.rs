@@ -14,7 +14,7 @@
 //! `mtls_required` deployment ends up answering on plaintext because its key
 //! file was unreadable.
 
-use std::sync::Arc;
+use std::{future::IntoFuture, sync::Arc};
 
 use anyhow::Context as _;
 use axum::Router;
@@ -30,7 +30,7 @@ use crate::config::Args;
 use super::{TransportRuntime, HOST_PLAIN_LISTENER};
 
 /// Serve `app` on the plain listener, and on the secure listener when one is
-/// configured. Returns only when the plain listener stops.
+/// configured. Returns when either serving loop stops.
 ///
 /// # Errors
 ///
@@ -38,34 +38,60 @@ use super::{TransportRuntime, HOST_PLAIN_LISTENER};
 /// a plain listener that cannot be bound.
 pub async fn serve(state: AppState, args: &Args, app: Router) -> anyhow::Result<()> {
     let app = with_ingress(&state, app);
-    if let Some(runtime) = state.transport.clone() {
-        if let Some(listen) = runtime.listen {
-            spawn_secure_listener(&state, &runtime, listen, &app).await?;
-        }
-    }
-    let plain = app.layer(plain_provenance_layer(HOST_PLAIN_LISTENER));
     let listen = args.listen.to_string();
     opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
-    tracing::info!(%listen, "opensesame gateway listening");
+    // Bind both sockets before either serves. A failed primary bind must not
+    // leave a detached secure listener accepting requests after startup failed.
     let listener = tokio::net::TcpListener::bind(args.listen)
         .await
         .with_context(|| format!("bind {listen}"))?;
-    axum::serve(listener, plain).await?;
-    Ok(())
+    let secure = match state
+        .transport
+        .as_ref()
+        .and_then(|runtime| runtime.listen.map(|address| (runtime, address)))
+    {
+        Some((runtime, address)) => {
+            let listener = bind_secure_listener(&state, runtime, address).await?;
+            let app = app.clone().layer(axum::middleware::from_fn_with_state(
+                Arc::clone(&runtime.generations),
+                enforce_current_generation,
+            ));
+            Some((listener, app))
+        }
+        None => None,
+    };
+    let plain = app.layer(plain_provenance_layer(HOST_PLAIN_LISTENER));
+    tracing::info!(%listen, "opensesame gateway listening");
+    let primary = axum::serve(
+        listener,
+        plain.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .into_future();
+    match secure {
+        Some((listener, app)) => {
+            // Neither listener outlives this future. Failure of either one
+            // stops acceptance on both, including when an embedder cancels it.
+            tokio::select! {
+                result = primary => result.map_err(Into::into),
+                result = listener.serve(app) => result.map_err(Into::into),
+            }
+        }
+        None => primary.await.map_err(Into::into),
+    }
 }
 
-/// Bind the secure listener for `runtime` and serve `app` on it in the
-/// background, stamped with the TLS provenance and the generation fence.
+/// Bind the secure listener for `runtime` without starting a detached task.
 ///
 /// # Errors
 ///
 /// The listener cannot be bound with the configured material.
-async fn spawn_secure_listener(
+async fn bind_secure_listener(
     state: &AppState,
     runtime: &TransportRuntime,
     listen: std::net::SocketAddr,
-    app: &Router,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<SecureListener> {
+    opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen.to_string())
+        .map_err(anyhow::Error::msg)?;
     let policy = runtime.policy;
     let client_profile = runtime.client_trust_profile.clone();
     let deny_thumbprint = deny_hook(state, runtime);
@@ -92,17 +118,8 @@ async fn spawn_secure_listener(
             error.code()
         )
     })?;
-    let secure_app = app.clone().layer(axum::middleware::from_fn_with_state(
-        Arc::clone(&runtime.generations),
-        enforce_current_generation,
-    ));
     tracing::info!(listen = %listen, policy = ?policy, "opensesame gateway secure listener");
-    tokio::spawn(async move {
-        if let Err(error) = listener.serve(secure_app).await {
-            tracing::error!(code = error.code(), "secure listener stopped");
-        }
-    });
-    Ok(())
+    Ok(listener)
 }
 
 /// The listener's revoked-leaf hook, composed from **both** authorities that

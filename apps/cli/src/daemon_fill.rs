@@ -1,4 +1,6 @@
-//! `opensesame daemon fill approve | revoke | pairings`: the person's half of
+//! `opensesame daemon fill`: the person's half of pairing and per-operation
+//! credential authorization. `requests` lists the exact pending operations;
+//! `authorize` reviews one on an interactive local terminal. The rest covers
 //! the companion autofill extension's pairing ceremony (ADR 0052 §2 (b),
 //! ADR 0150 §6.4). The companion's popup shows a code; a person at this
 //! computer approves exactly that code here, with the operator credential.
@@ -9,6 +11,7 @@
 //! like a path it never served, and this says which switch to look at.
 use clap::Subcommand;
 use serde_json::{json, Value};
+use std::io::{IsTerminal, Write};
 
 #[derive(Subcommand, Debug)]
 pub enum FillCmd {
@@ -21,6 +24,10 @@ pub enum FillCmd {
     Revoke { origin: String },
     /// List paired extensions and codes waiting for approval — never tokens.
     Pairings,
+    /// Show exact site/entry/field requests waiting for local authorization.
+    Requests,
+    /// Review and approve one short-lived request on this terminal.
+    Authorize { id: String },
 }
 
 fn operator(req: reqwest::RequestBuilder, token: Option<&str>) -> reqwest::RequestBuilder {
@@ -83,6 +90,43 @@ pub async fn run(base: &str, token: Option<&str>, cmd: FillCmd) -> anyhow::Resul
             let listed = send(operator(client.get(url), token), "list").await?;
             println!("{}", serde_json::to_string_pretty(&listed)?);
         }
+        FillCmd::Requests => {
+            let url = format!("{base}/v1/fill/requests");
+            let listed = send(operator(client.get(url), token), "requests").await?;
+            println!("{}", serde_json::to_string_pretty(&listed)?);
+        }
+        FillCmd::Authorize { id } => {
+            anyhow::ensure!(
+                std::io::stdin().is_terminal(),
+                "authorization requires an interactive terminal"
+            );
+            let url = format!("{base}/v1/fill/requests");
+            let listed = send(operator(client.get(url), token), "requests").await?;
+            let request = listed["requests"]
+                .as_array()
+                .and_then(|rows| {
+                    rows.iter()
+                        .find(|row| row["id"].as_str() == Some(id.as_str()))
+                })
+                .ok_or_else(|| anyhow::anyhow!("request expired or is unknown"))?;
+            // JSON escapes attacker-controlled names and control characters;
+            // the person sees the complete immutable operation before consent.
+            if request["field"].is_null() {
+                println!("This allows entry-name lookups for this site until the shown expiry; it releases no credential values.");
+            } else {
+                println!("This allows one release of exactly the shown entry field for this site before the shown expiry.");
+            }
+            println!("{}", serde_json::to_string_pretty(request)?);
+            print!("Authorize exactly this operation? Type yes: ");
+            std::io::stdout().flush()?;
+            let mut answer = String::new();
+            std::io::stdin().read_line(&mut answer)?;
+            anyhow::ensure!(answer.trim() == "yes", "authorization declined");
+            let url = format!("{base}/v1/fill/authorize");
+            let body = json!({ "id": id });
+            send(operator(client.post(url).json(&body), token), "authorize").await?;
+            println!("Authorized. Retry the fill from the extension before the request expires.");
+        }
     }
     Ok(())
 }
@@ -98,6 +142,10 @@ mod tests {
                 code: "ABCD-EFGH".into(),
             },
             FillCmd::Pairings,
+            FillCmd::Requests,
+            FillCmd::Authorize {
+                id: "request".into(),
+            },
         ] {
             let error = run("https://evil.example", Some("t"), cmd)
                 .await

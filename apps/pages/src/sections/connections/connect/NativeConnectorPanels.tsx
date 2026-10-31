@@ -1,25 +1,25 @@
 /** Render one native provider contract and its verified connection, never a hosted service form. */
-import { nativeGoogleBrowserAvailable } from "@opensesame/app-core/browser/native-google-oauth.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { nativeApiResourceActions } from "@opensesame/app-core/lib/native-api-resources.js";
-import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
-import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
+import { compiledApiKeyRoute } from "@opensesame/app-core/lib/native-connector-availability.js";
+import {
+  hasNativeConnectorDriver,
+  nativeConnectorWithdrawn,
+} from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
+import { supportsConfiguredMcp } from "@opensesame/app-core/lib/native-mcp-configured-config.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
-import {
-  nativeOAuthClientConfigured,
-  supportsNativeOAuthResource,
-} from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
+import { nativeOAuthClientConfigured } from "../../../modules/connectors.external/native-oauth-resource-runtime.js";
 import { ConnectorPanel } from "./ConnectorPanel.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
@@ -31,7 +31,10 @@ import type {
   NativeActionDescriptor,
   NativeConnectorDescriptor,
 } from "./native-connector-ui.js";
-import { nativeDeviceProviderDescriptor } from "./native-device-provider-descriptor.js";
+import {
+  nativeDeviceProviderDescriptor,
+  productionDeviceAvailability,
+} from "./native-device-provider-descriptor.js";
 import { nativeGithubDescriptor } from "./native-github-descriptor.js";
 import {
   nativeKeyActions,
@@ -39,6 +42,10 @@ import {
 } from "./native-key-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 import { nativeS3Descriptor } from "./native-s3-descriptor.js";
+import {
+  mcpInactiveReason,
+  nativeOAuthAvailability,
+} from "./native-session-availability.js";
 import { useNativeAuthorization } from "./useNativeAuthorization.js";
 
 function nativeKeyActionsFor(providerId: string) {
@@ -66,85 +73,55 @@ function discordActions(view: NativeConnectorView) {
   ];
 }
 
-function nativeApiKeyAvailable(provider: Provider): boolean {
-  return (
-    hasNativeConnectorDriver("api-key", provider.id) ||
-    connectPlan(provider.id)?.methods.some(
-      (method) =>
-        method.kind === "api-key" &&
-        !!method.preset &&
-        ((!!method.preset.auth && !!method.preset.verify) ||
-          method.preset.credentialVariants.some(
-            (variant) => !!variant.auth && !!variant.verify,
-          )),
-    ) === true
-  );
-}
-
-function mcpInactiveReason(): string | undefined {
-  if (vaultStore.isGenuineSession()) return undefined;
-  return "Open your own vault to connect this provider. Guest sessions do not store provider credentials.";
-}
-
 export function nativeSettingsDescriptor(
   provider: Provider,
   savedMethod?: NativeConnectorView["configuration"]["method"],
 ): NativeConnectorDescriptor | null {
+  const closed = nativeConnectorWithdrawn("api-key");
+  const apiAvailable =
+    compiledApiKeyRoute(provider.id) &&
+    !closed &&
+    vaultStore.isGenuineSession();
   if (provider.id === "github")
-    return nativeGithubDescriptor(
-      provider,
-      hasNativeConnectorDriver("api-key", provider.id),
-    );
-  if (provider.id === "s3")
-    return nativeS3Descriptor(
-      provider,
-      hasNativeConnectorDriver("api-key", provider.id),
-    );
+    return nativeGithubDescriptor(provider, apiAvailable);
+  if (provider.id === "s3") return nativeS3Descriptor(provider, apiAvailable);
   const keyed = nativeKeyDriverFor(provider.id);
   if (keyed)
-    return nativeKeyDescriptor(
-      provider,
-      hasNativeConnectorDriver("api-key", provider.id),
-      keyed.ui(provider.id),
-    );
+    return nativeKeyDescriptor(provider, apiAvailable, keyed.ui(provider.id));
   const plan = connectPlan(provider.id);
   if (!plan)
-    return nativeDeviceProviderDescriptor(provider.id, {
-      has: hasNativeConnectorDriver,
-    });
+    return nativeDeviceProviderDescriptor(
+      provider.id,
+      productionDeviceAvailability(closed),
+    );
   const callbackUrl = new URL(
     `${import.meta.env.BASE_URL}auth/native-connector.html`,
     window.location.origin,
   ).href;
-  const descriptor = nativeProviderDescriptor(plan, {
-    callbackUrl,
-    apiKey: {
-      available: nativeApiKeyAvailable(provider),
+  const descriptor = nativeProviderDescriptor(
+    plan,
+    {
+      callbackUrl,
+      apiKey: {
+        available: apiAvailable,
+      },
+      oauth: nativeOAuthAvailability(provider.id),
+      mcp: {
+        available:
+          vaultStore.isGenuineSession() &&
+          (provider.id === "linear"
+            ? hasNativeConnectorDriver("mcp", provider.id)
+            : supportsConfiguredMcp(provider.id)) &&
+          !nativeConnectorWithdrawn("mcp"),
+        reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
+        inactiveReason: mcpInactiveReason(),
+        actor: "user",
+        defaultScopes: provider.id === "linear" ? ["read"] : undefined,
+      },
     },
-    oauth: {
-      registeredAvailable:
-        hasNativeConnectorDriver("oauth", provider.id) &&
-        supportsNativeOAuthResource(provider.id),
-      available:
-        supportsNativeOAuthResource(provider.id) &&
-        (provider.id !== "google" || nativeGoogleBrowserAvailable()),
-      reason: !hasNativeConnectorDriver("oauth", provider.id)
-        ? "Enable External connectors to configure this OAuth application on this device."
-        : provider.id === "google" && !nativeGoogleBrowserAvailable()
-          ? "Google consent is unavailable under this deployment's isolation policy."
-          : undefined,
-      profile: nativeBrowserOAuthProfile(provider.id) ?? undefined,
-    },
-    mcp: {
-      available: hasNativeConnectorDriver("mcp", provider.id),
-      reason: nativeMcpUnavailableReason(provider.id) ?? undefined,
-      inactiveReason: mcpInactiveReason(),
-      actor: "user",
-      defaultScopes: provider.id === "linear" ? ["read"] : undefined,
-    },
-  });
-  // Linear's GraphQL app/key ceremony lives in its existing advanced form.
-  // Existing native records keep their own method and credential custody.
+    savedMethod,
+  );
+  // Existing Linear records keep their own method and credential custody.
   return provider.id === "linear"
     ? {
         ...descriptor,
@@ -167,7 +144,15 @@ function primaryActions(
     : nativeApiResourceActions(view.providerId, view.configuration.method);
   const actions = resources.length
     ? resources
-    : [{ id: "provider.read", label: `Check ${name} access` }];
+    : [
+        {
+          id: "provider.read",
+          label:
+            view.configuration.method === "native-local"
+              ? `Review ${name} configuration`
+              : `Check ${name} access`,
+        },
+      ];
   return actions.map((action) => ({
     ...action,
     available: true,

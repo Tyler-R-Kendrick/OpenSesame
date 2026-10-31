@@ -39,11 +39,34 @@ export async function selectNativeToolchain({
   await requireHash(revision, selection.beforeRevisionSha256);
   const originalMod = await readFile(join(source, "go.mod"), "utf8");
   const originalSum = await readFile(join(source, "go.sum"), "utf8");
-  const mod = replaceOnce(
-    originalMod,
-    `${selection.module} ${selection.beforeVersion}`,
-    `${selection.module} ${selection.version}`,
-  );
+  const modules = [
+    "crypto",
+    "mod",
+    "net",
+    "sync",
+    "sys",
+    "term",
+    "tools",
+    "telemetry",
+    "text",
+  ].map((name) => `golang.org/x/${name}`);
+  if (
+    selection.dependencies?.length !== modules.length ||
+    selection.dependencies.some(
+      (entry, index) => entry.module !== modules[index],
+    )
+  )
+    throw new Error(
+      "Owned dependency updates differ from the reviewed fixed modules.",
+    );
+  let mod = originalMod;
+  for (const entry of [selection, ...selection.dependencies]) {
+    mod = replaceOnce(
+      mod,
+      `${entry.module} ${entry.beforeVersion}`,
+      `${entry.module} ${entry.version}`,
+    );
+  }
   let sum = originalSum;
   for (const replacement of selection.sumLines) {
     sum = replaceOnce(sum, `${replacement.before}\n`, `${replacement.after}\n`);

@@ -142,6 +142,8 @@ export const CAPABILITY_TUTORIALS = {
   "quorum.request.approve": "settings.trusted-contacts.circle",
   "quorum.recover": "settings.trusted-contacts.circle",
   "password_reset.mailboxes.manage": "feature.password-reset",
+  "password_reset.cua.run": "feature.password-reset",
+  "password_reset.cua.configure": "feature.password-reset",
   "connectors.directory.sync": "connection.create",
   "connectors.bind": "access.connectors",
   "connectors.connect.configure": "connection.create",

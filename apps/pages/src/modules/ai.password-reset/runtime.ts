@@ -12,11 +12,24 @@
  * lease and stops with it.
  */
 
+import { browserInference } from "@opensesame/app-core/lib/browser-inference.js";
 import { PASSWORD_RESET_MAIL_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import {
+  loadModelProvider,
+  resolveModelPlane,
+} from "@opensesame/app-core/lib/model-provider.js";
+import { evaluatePasswordResetReadiness } from "@opensesame/app-core/lib/password-reset/readiness.js";
+import { VAULT_RESET_RUNS_KEY } from "@opensesame/app-core/lib/password-reset/vault-run-tracker.js";
 import { createActivation } from "../activation.js";
+import { TakeoverPanel } from "./TakeoverPanel.js";
 import { PasswordResetMailPanel } from "./panel.js";
+import {
+  createHostResetRunNoticeBridge,
+  installPasswordResetRotationRelay,
+} from "./rotation-relay.js";
 import { createPasswordResetScan } from "./scan.js";
+import { installPasswordResetVaultUiSeams } from "./vault-ui.js";
 
 export const CAPABILITY = "ai.password-reset";
 
@@ -27,6 +40,7 @@ export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
+    await ctx.hydrate([VAULT_RESET_RUNS_KEY]);
     if (activation.disposed()) return activation.handle();
     activation.register("settings-panel", {
       id: "password-reset-mail",
@@ -46,6 +60,27 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "password-reset-mail",
       start: scan.start,
     });
+    activation.register("background-job", {
+      id: "password-reset-run-notices",
+      start: createHostResetRunNoticeBridge().start,
+    });
+    activation.register("route", {
+      id: "password-reset-takeover",
+      path: "/runs/:runId",
+      element: TakeoverPanel,
+      framed: true,
+      order: 70,
+    });
+    activation.onDispose(installPasswordResetVaultUiSeams());
+    activation.onDispose(
+      installPasswordResetRotationRelay({
+        readiness: async () => {
+          const verdict = await browserInference();
+          const plane = resolveModelPlane(loadModelProvider(), verdict);
+          return evaluatePasswordResetReadiness(["ai.password-reset"], plane);
+        },
+      }),
+    );
     return activation.handle();
   },
 };

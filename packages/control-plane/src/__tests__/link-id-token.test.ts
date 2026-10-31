@@ -81,6 +81,38 @@ describe("claiming a guest principal with an upstream id_token", () => {
     });
   });
 
+  it("refuses a correctly signed token issued for another client without attaching identity", async () => {
+    const { privateKey, jwks } = await mintKeys();
+    orgAssertionSeams.discoverJwksUri = async () => `${ISSUER}/jwks`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(Response.json(jwks))),
+    );
+    const { app } = createControlPlane();
+    const created = await guest(app);
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "RS256", kid: "claim-1" })
+      .setIssuer(ISSUER)
+      .setAudience("origin:https://foreign.example")
+      .setSubject("foreign@upstream")
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    const linked = await app.request("/v1/principals/link-identities", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${created.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ idToken: token }),
+    });
+    expect(linked.status).toBe(401);
+    const me = await app.request("/v1/principals/me", {
+      headers: { authorization: `Bearer ${created.accessToken}` },
+    });
+    expect(overlapCast(await me.json()).assurance).toBe("provisional");
+  });
+
   it("accepts a token whose issuer carries a legal trailing slash", async () => {
     const { privateKey, jwks } = await mintKeys();
     orgAssertionSeams.discoverJwksUri = async () => `${ISSUER}/jwks`;

@@ -77,7 +77,7 @@ export type HostPeerOptions = Readonly<{
   /** The guest's name, as the owner was shown it. */
   name?: string;
   /** Where a device asks to use the owner's connections (ADR 0196). */
-  devices?: DeviceBroker | null;
+  devices?: Pick<DeviceBroker, "seat"> | null;
   /**
    * The seat is also offered over a NATS carrier (ADR 0167): a peer route
    * that fails does not end it, since the joiner may still arrive there.

@@ -135,6 +135,10 @@ const CONNECTOR_RECORDS = [
 
 export const CROSS_RULES = [
   shared(
+    `${L}noble-v1-compat.test.ts`,
+    "cross-feature historical cipher compatibility regression fixtures",
+  ),
+  shared(
     "src/lib/integration-ai-labs.ts",
     "pure provider names/order shared by core Settings and the optional Connections catalog; no runtime or credential code",
   ),
@@ -162,6 +166,14 @@ export const CROSS_RULES = [
       "support.remote-ai",
       "closed hosted model protocols and their test fixtures",
     ),
+  ),
+  shared(
+    `${L}native-catalog-contract`,
+    "pure local configuration facts shared by the provider catalog and its optional runtime",
+  ),
+  shared(
+    `${L}native-catalog-status`,
+    "local configuration status facts supplied by the public native connection view",
   ),
   optional(
     `${L}native-`,

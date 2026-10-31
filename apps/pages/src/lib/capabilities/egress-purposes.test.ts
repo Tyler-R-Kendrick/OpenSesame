@@ -29,6 +29,7 @@ import {
   TAILNET_DEVICES_PURPOSE,
   TAILSCALE_BROWSER_NODE_PURPOSE,
   TAILSCALE_BROWSER_PEER_PURPOSE,
+  TAILSCALE_IDENTITY_HTTP_PURPOSE,
   WEB_PUSH_ENROLMENT_PURPOSE,
 } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import {
@@ -69,6 +70,7 @@ const catalogConstants: ReadonlyMap<string, string> = new Map(
     TAILNET_DEVICES_PURPOSE,
     TAILSCALE_BROWSER_NODE_PURPOSE,
     TAILSCALE_BROWSER_PEER_PURPOSE,
+    TAILSCALE_IDENTITY_HTTP_PURPOSE,
     TWO_FACTOR_PURPOSE,
     WEB_PUSH_ENROLMENT_PURPOSE,
   }),

@@ -47,6 +47,11 @@ declare module "oidc-provider" {
   export type AdapterConstructor = new (name: string) => Adapter;
 
   export type Configuration = {
+    fetchResponseBodyLimits?: {
+      "client_id metadata document"?: number;
+      jwks_uri?: number;
+      sector_identifier_uri?: number;
+    };
     adapter?: AdapterConstructor;
     clients?: ClientMetadata[];
     cookies?: import("@opensesame/os-domain").JsonObject;
@@ -144,6 +149,11 @@ declare module "oidc-provider" {
       req: import("node:http").IncomingMessage,
       res: import("node:http").ServerResponse,
     ) => void;
+    InitialAccessToken: new (
+      payload: import("@opensesame/os-domain").JsonObject,
+    ) => {
+      save(): Promise<string>;
+    };
     Client: {
       find(id: string): Promise<import("@opensesame/os-domain").BoundaryValue>;
     };

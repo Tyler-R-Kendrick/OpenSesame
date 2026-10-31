@@ -326,10 +326,11 @@ it("connects the service before starting owner sign-in and returns to the same p
     "/settings/connections/byo-identity?view=configuration#connector",
   );
   draw("byo-identity");
-  await user.click(screen.getByText("Sign-in options"));
+  await user.selectOptions(screen.getByLabelText("Protocol"), "ldap");
+  await user.click(screen.getByText("Directory options"));
   await user.type(
-    screen.getByLabelText("Client secret (server client)"),
-    "unsaved-confidential-secret",
+    screen.getByLabelText("Service bind password"),
+    "unsaved-directory-bind-secret",
   );
   await user.type(
     screen.getByLabelText("Identity service URL"),
@@ -359,9 +360,9 @@ it("connects the service before starting owner sign-in and returns to the same p
     ),
   );
   expect(dependencies.saveIdentityConnection).not.toHaveBeenCalled();
-  expect(screen.getByLabelText("Client secret (server client)")).toHaveProperty(
+  expect(screen.getByLabelText("Service bind password")).toHaveProperty(
     "value",
-    "unsaved-confidential-secret",
+    "unsaved-directory-bind-secret",
   );
 });
 

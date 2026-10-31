@@ -13,7 +13,7 @@
  */
 
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import {

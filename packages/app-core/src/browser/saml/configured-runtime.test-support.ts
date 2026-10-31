@@ -10,6 +10,7 @@ import { X509CertificateGenerator } from "@peculiar/x509";
 import { expect, vi } from "vitest";
 import { SignedXml } from "xml-crypto";
 import { z } from "zod";
+import { kvSeams } from "../../lib/kv.js";
 import { tlsFetch } from "../../lib/native-s3-backup.test-support.js";
 import * as receiver from "./post-session.js";
 const A = "urn:oasis:names:tc:SAML:2.0:assertion";
@@ -194,6 +195,12 @@ export type SamlSavePhase =
   | "record-close"
   | "trust-stage"
   | "trust-callback";
+/** Exercise publication pauses while unrelated durable work is in flight. */
+export function interleaveSamlSaveWrite(phase: SamlSavePhase) {
+  return phase === "record-close"
+    ? kvSeams.kvSetDurable("saml-save-unrelated", "unrelated durable work")
+    : Promise.resolve();
+}
 /** Existing real KV seal/close code over the owned OPFS fixture; no physical browser claim. */
 export async function samlSaveFixture() {
   vi.restoreAllMocks();
@@ -239,8 +246,13 @@ export async function holdSamlSavePhase(
     });
   } else if (phase === "record-close") {
     const durable = kvSeams.kvSetDurable;
-    vi.spyOn(kvSeams, "kvSetDurable").mockImplementationOnce(
+    let held = false;
+    vi.spyOn(kvSeams, "kvSetDurable").mockImplementation(
       async (key, value, guard) => {
+        // Unrelated durable work can finish before the connector publication.
+        if (key !== records.DEVICE_CONNECTOR_KEYS[2] || held)
+          return durable(key, value, guard);
+        held = true;
         await durable(key, value, guard);
         reached.resolve();
         await resume.promise;

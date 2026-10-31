@@ -25,11 +25,16 @@ describe("optional runtime plugins (ADR 0150 §7)", () => {
     }
   });
 
-  it("the browser-autofill plugin carries its fill and its pairing", () => {
+  it("the browser-autofill plugin carries fill, pairing, and independent local authorization", () => {
     const ids = plugged
       .filter((c) => c.plugin === "browser-autofill")
       .map((c) => c.id);
-    expect(ids).toEqual(["vault.autofill.fill", "vault.autofill.pairing"]);
+    expect(ids).toEqual([
+      "vault.autofill.requests",
+      "vault.autofill.authorize",
+      "vault.autofill.fill",
+      "vault.autofill.pairing",
+    ]);
   });
 
   it("no agent surface maps a plugin capability: a model never triggers a fill", () => {
@@ -47,7 +52,7 @@ describe("optional runtime plugins (ADR 0150 §7)", () => {
     }
   });
 
-  it("a browser-extension plugin's capabilities speak only through its companion", () => {
+  it("the companion cannot authorize its own operations; other plugin actions use its messages", () => {
     const companions = new Set(
       catalog.plugins
         .filter((p) => p.kind === "browser-extension")
@@ -56,6 +61,20 @@ describe("optional runtime plugins (ADR 0150 §7)", () => {
     for (const capability of plugged) {
       if (!companions.has(capability.plugin ?? "")) continue;
       expect(capability.surfaces.pwa, capability.id).toBeNull();
+      if (
+        ["vault.autofill.requests", "vault.autofill.authorize"].includes(
+          capability.id,
+        )
+      ) {
+        expect(capability.surfaces.extension).toBeNull();
+        expect(capability.surfaces.cli).toBe(
+          `opensesame daemon fill ${capability.id.split(".").at(-1)}`,
+        );
+        expect(capability.excluded?.extension?.reason).toContain(
+          "independent local operator",
+        );
+        continue;
+      }
       expect(capability.surfaces.extension, capability.id).toMatch(
         /^message:opensesame\.fill(\.[a-z]+)?$/,
       );

@@ -53,7 +53,7 @@ describe("browser-reset-channel", () => {
     const { configureHost: install } = await import("../host.js");
     const { createTestHost: testHost } = await import("../test-host.js");
     const hub = broadcastHub();
-    install(testHost({ broadcast: hub.open }));
+    install(testHost({ broadcast: hub.open, locks: undefined }));
     const channel = await import("./browser-reset-channel.js");
     const heard = vi.fn();
     channel.onBrowserReset(heard);

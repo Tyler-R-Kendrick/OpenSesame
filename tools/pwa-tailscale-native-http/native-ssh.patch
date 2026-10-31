@@ -1,0 +1,109 @@
+--- a/cmd/tsconnect/wasm/wasm_js.go
++++ b/cmd/tsconnect/wasm/wasm_js.go
+@@ -23,0 +24 @@
++	"sync"
+@@ -181 +182 @@
+-		"nativeHTTPPort": nativePort,
++		"nativeHTTPPort":    nativePort,
+@@ -410,0 +412,3 @@
++	mu         sync.Mutex
++	closed     bool
++	cancel     context.CancelFunc
+@@ -446 +450,14 @@
+-	c, err := s.jsIPN.dialer.UserDial(ctx, "tcp", net.JoinHostPort(s.host, "22"))
++	route, address, err := s.jsIPN.nativeSSHRoute(ctx, s.host)
++	if err != nil {
++		writeError("SSH peer authority", err)
++		return
++	}
++	defer route.cancel()
++	s.mu.Lock()
++	if s.closed {
++		s.mu.Unlock()
++		return
++	}
++	s.cancel = route.cancel
++	s.mu.Unlock()
++	c, err := route.dial(ctx, "tcp", address)
+@@ -451,0 +469,4 @@
++	stopWatch := watchNativeSSHConnection(route.ctx, c)
++	defer stopWatch()
++	stopHandshake := watchNativeSSHConnection(ctx, c)
++	defer stopHandshake()
+@@ -455,2 +476,6 @@
+-			// Host keys are not used with Tailscale SSH, but we can use this
+-			// callback to know that the connection has been established.
++			if !route.current() {
++				return errNativeAuthority
++			}
++			if err := route.peer.sshKeys.verify(key); err != nil {
++				return err
++			}
+@@ -464,0 +490,4 @@
++	if err == nil && ctx.Err() != nil {
++		sshConn.Close()
++		err = ctx.Err()
++	}
+@@ -478,0 +508,6 @@
++	s.mu.Lock()
++	if s.closed {
++		s.mu.Unlock()
++		session.Close()
++		return
++	}
+@@ -479,0 +515,7 @@
++	if s.pendingResizeRows != 0 {
++		rows = s.pendingResizeRows
++	}
++	if s.pendingResizeCols != 0 {
++		cols = s.pendingResizeCols
++	}
++	s.mu.Unlock()
+@@ -500,8 +541,0 @@
+-	// We might have gotten a resize notification since we started opening the
+-	// session, pick up the latest size.
+-	if s.pendingResizeRows != 0 {
+-		rows = s.pendingResizeRows
+-	}
+-	if s.pendingResizeCols != 0 {
+-		cols = s.pendingResizeCols
+-	}
+@@ -518,0 +553,5 @@
++	stopHandshake()
++	if ctx.Err() != nil {
++		writeError("SSH connection", ctx.Err())
++		return
++	}
+@@ -529 +568,8 @@
+-	if s.session == nil {
++	s.mu.Lock()
++	s.closed = true
++	cancel, session := s.cancel, s.session
++	s.mu.Unlock()
++	if cancel != nil {
++		cancel()
++	}
++	if session == nil {
+@@ -533 +579 @@
+-	return s.session.Close()
++	return session.Close()
+@@ -537 +583,3 @@
+-	if s.session == nil {
++	s.mu.Lock()
++	session := s.session
++	if session == nil {
+@@ -539,0 +588 @@
++		s.mu.Unlock()
+@@ -542 +591,2 @@
+-	return s.session.WindowChange(rows, cols)
++	s.mu.Unlock()
++	return session.WindowChange(rows, cols)
+--- a/net/tlsdial/tlsdial.go
++++ b/net/tlsdial/tlsdial.go
+@@ -255,5 +255,5 @@
+ 	// own cert verification, but do the same work that it'd do
+ 	// (but using certDNSName) in the VerifyPeerCertificate hook.
++	c.InsecureSkipVerify = true // CodeQL[go/disabled-certificate-check]: VerifyPeerCertificate below enforces certificate and hostname validation.
+-	c.InsecureSkipVerify = true
+ 	c.VerifyConnection = nil
+ 	c.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error {

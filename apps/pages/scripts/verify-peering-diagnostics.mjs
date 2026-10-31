@@ -16,6 +16,7 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
+import { allowLoopbackDevelopment } from "./lib/local-network-permission.mjs";
 import { observePeeringDiagnostic } from "./lib/peering-diagnostic-observation.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -61,15 +62,10 @@ async function device(browser, options = {}) {
     passthrough: [],
     ...options,
   });
-  await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: ORIGIN,
-  });
-  const cdp = await made.context.newCDPSession(made.page);
-  await cdp.send("Browser.setPermission", {
-    permission: { name: "local-network-access" },
-    setting: "granted",
-    origin: ORIGIN,
-  });
+  await allowLoopbackDevelopment(made.page, ORIGIN, [
+    "clipboardReadWrite",
+    "clipboardSanitizedWrite",
+  ]);
   await made.context.addInitScript(WATCH_RTC);
   made.page.on("websocket", (socket) => sockets.push(socket.url()));
   return { ...made, sockets, origin: ORIGIN, dist: DIST };
@@ -84,8 +80,6 @@ async function configs(page) {
   return raw.map((entry) => JSON.parse(entry));
 }
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
-
 bindWalk({
   check,
   setStep,
@@ -93,13 +87,13 @@ bindWalk({
   device,
   shot,
   configs,
-  joined,
   launch,
   SECRET,
   ORIGIN,
   BASE,
   PHONE,
   PASSTHROUGH: [],
+  directAddresses: ["127.0.0.1"],
   NATS: null,
   NTFY: null,
   whileJoinerConnects: async (joiner, connect) => {

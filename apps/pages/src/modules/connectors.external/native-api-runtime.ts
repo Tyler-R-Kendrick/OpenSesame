@@ -1,5 +1,4 @@
 /** Provider API-key calls and cleanup use the activation's captured transport. */
-import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import {
   configureNativeApiConnector,
   invokeNativeApiConnector,
@@ -8,6 +7,7 @@ import {
   verifyNativeApiConnector,
 } from "@opensesame/app-core/lib/native-api-connectors.js";
 import { invokeNativeApiResource } from "@opensesame/app-core/lib/native-api-resources.js";
+import { compiledApiKeyRoute } from "@opensesame/app-core/lib/native-connector-availability.js";
 import {
   type NativeConnectorDriver,
   type NativeDriverInput,
@@ -70,23 +70,8 @@ function validateInstanceInput(input: NativeDriverInput): void {
     );
 }
 function supportedApiProvider(id: string): boolean {
-  if (instance(id) || id === "github" || id === "s3") return true;
-  if (nativeKeyDriverFor(id)) return true;
-  const plan = connectPlan(id);
-  return (
-    id !== "linear" &&
-    !!plan &&
-    !plan.refused &&
-    plan.methods.some(
-      (method) =>
-        method.kind === "api-key" &&
-        !!method.preset &&
-        ((!!method.preset.auth && !!method.preset.verify) ||
-          method.preset.credentialVariants.some(
-            (variant) => !!variant.auth && !!variant.verify,
-          )),
-    )
-  );
+  // Linear keeps its own specialized page; the compiled contract decides the rest.
+  return id !== "linear" && compiledApiKeyRoute(id);
 }
 function apiCleanup(
   transport: NativeProviderTransport,
@@ -245,6 +230,7 @@ async function runOwnedApi<Result>(
   caller: AbortSignal,
   call: (transport: NativeProviderTransport) => Promise<Result>,
 ) {
+  caller.throwIfAborted();
   const transport = ownedApiTransport(capture(), caller);
   try {
     const result = await call(transport);
@@ -280,6 +266,7 @@ export function bindNativeApiRuntime(activation: Activation): void {
           assertCaller?.call(owner);
         };
         checkCaller();
+        caller?.throwIfAborted();
         const original = authority.capture();
         const configure = async (transport: NativeProviderTransport) => {
           const configured = await configureApi(draft, transport);

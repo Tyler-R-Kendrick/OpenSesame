@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use super::second_step;
+use crate::budget_subject::BudgetSubject;
 use crate::error::{ApiError, ApiResult};
 use crate::kdf::KdfConfig;
 use crate::second_factor::api_key_matches;
@@ -94,15 +95,16 @@ async fn password_grant(
         .and_then(|raw| raw.parse::<i64>().ok())
         .unwrap_or(14);
 
-    // Refused before any hash is spent; known and unknown addresses alike.
-    if server.sign_in_failures.blocked(&email) {
-        return Err(ApiError::too_many_requests());
-    }
+    let admission = server.hash_slot().await?;
     let Some(user) = server.db.bitwarden_user_by_email(&email).await? else {
-        server.decoy_check(secret).await?;
-        server.sign_in_failures.record_failure(&email);
+        server.decoy_check_admitted(&admission, secret).await?;
         return Err(ApiError::invalid_grant());
     };
+    let budget = BudgetSubject::Account(&user);
+    if !server.sign_in_failures.reserve(&budget).await? {
+        server.decoy_check_admitted(&admission, secret).await?;
+        return Err(ApiError::invalid_grant());
+    }
     // "Log in with device": the password is the access code of a request
     // one of the account's devices approved, spent here once; it stands in
     // for both steps, as on Bitwarden.
@@ -113,10 +115,9 @@ async fn password_grant(
     if !by_device
         && (form.contains_key("authRequest")
             || !server
-                .check_secret(&user.id, &user.master_password_hash, secret)
+                .check_secret_admitted(&admission, &user.id, &user.master_password_hash, secret)
                 .await?)
     {
-        server.sign_in_failures.record_failure(&email);
         return Err(ApiError::invalid_grant());
     }
     let second = if by_device {
@@ -124,19 +125,9 @@ async fn password_grant(
     } else {
         second_step::check(server, &user, identifier, form).await
     };
-    let passed = match second {
-        Ok(passed) => passed,
-        Err(refused) => {
-            // A wrong code counts against the address like a wrong password.
-            if refused.status() == axum::http::StatusCode::BAD_REQUEST
-                && form.contains_key("twoFactorToken")
-            {
-                server.sign_in_failures.record_failure(&email);
-            }
-            return Err(refused);
-        }
-    };
-    server.sign_in_failures.clear(&email);
+    // An incomplete second step never refunds the reserved guess.
+    let passed = second?;
+    server.sign_in_failures.clear(&budget).await?;
     let refresh = new_refresh_token();
     let device_id = server
         .db
@@ -177,9 +168,6 @@ async fn api_key_grant(
     let secret = required(form, "client_secret")?;
     let identifier = required(form, "deviceIdentifier")?;
     let refused = || ApiError::oauth("invalid_client", "invalid_client");
-    if server.sign_in_failures.blocked(client_id) {
-        return Err(ApiError::too_many_requests());
-    }
     let user = match client_id.strip_prefix("user.") {
         Some(id) => server.db.bitwarden_user_by_id(id).await?,
         None => None,
@@ -188,15 +176,19 @@ async fn api_key_grant(
         Some(user) => server.db.bitwarden_api_key(&user.id).await?,
         None => None,
     };
-    let (Some(user), true) = (
-        user,
-        key.as_deref()
-            .is_some_and(|key| api_key_matches(key, secret)),
-    ) else {
-        server.sign_in_failures.record_failure(client_id);
+    // Nonexistent keys contain no credential to guess; arbitrary client ids
+    // must not fill the shared budget table with cheap unauthenticated rows.
+    let (Some(user), Some(key)) = (user, key) else {
         return Err(refused());
     };
-    server.sign_in_failures.clear(client_id);
+    let budget = BudgetSubject::ApiKey(&user);
+    if !server.sign_in_failures.reserve(&budget).await? {
+        return Err(ApiError::too_many_requests());
+    }
+    if !api_key_matches(&key, secret) {
+        return Err(refused());
+    }
+    server.sign_in_failures.clear(&budget).await?;
     let device_id = server
         .db
         .bitwarden_upsert_device(&BitwardenSignIn {

@@ -95,10 +95,13 @@ prototype back as static HTML.
   different door, a denser list. A Stitch screen is a sketch. Nothing moves
   from Stitch into `apps/pages` directly; it goes through Figma and then a
   component on the app's own CSS.
-- **Skills that do not apply here.** The repo ships the whole `stitch-skills`
-  catalogue so the plugins match upstream, but `shadcn-ui`, `remotion`,
+- **Skills that do not apply here.** The install catalogue carries the whole
+  `stitch-skills` set so plugin installs match upstream, but `shadcn-ui`, `remotion`,
   `react-vite-dashboard` and `stitch::react-native` describe stacks this app
   does not use. An agent reaching for them in `apps/pages` is off the contract.
+  They are catalogued as `unusedStack` under the `design-experiment-optional`
+  profile in `skills/profiles.json`; installed on disk they match upstream
+  (gitignored, refreshed at container start), but they are not defaults.
 
 ## shadcn/ui: DESIGN.md as a design-system page
 
@@ -128,15 +131,20 @@ library: a rule that cannot be expressed in tokens shows up as a gap.
 
 ## Per-agent configuration
 
-Skills have one canonical installation under `.agents/skills/`, pinned in
-`skills-lock.json`. Update that installation once, then run
+Skills have one canonical installation under `.agents/skills/`. First-party
+skills are canonical in `skills/`; third-party skills are optional profiles
+catalogued in `skills/profiles.json` (see `skills/README.md`), not universal
+defaults. Most are catalogued in `skills-lock.json` and installed at latest
+(unpinned) by `scripts/dev/install-agent-skills.sh`; the exceptions are
+`design-system` and `impeccable` (its own updater). Core validation passes
+with the optional profiles uninstalled. Update that installation once, then run
 `node scripts/dev/sync-agent-skills.mjs` and its `--check` mode. Other harnesses
 share relative links; do not install copied trees for each agent. The MCP files name the
 same two servers everywhere.
 
 | Agent | Skills | MCP servers (Storybook + Stitch + shadcn) |
 |-------|--------|----------------------------------|
-| Claude Code | `.claude/skills/` (shared links with harness-specific variants), and the `stitch-design`, `stitch-build`, `stitch-utilities` plugins enabled in `.claude/settings.json` from the `google-labs-code/stitch-skills` marketplace | `.mcp.json` (`${STITCH_API_KEY}`) |
+| Claude Code | `.claude/skills/` (installed mirror links); Stitch marketplace plugins are user-scope opt-in (see `docs/contributing/agent-setup.md`), not enabled by tracked settings | `.mcp.json` (`${STITCH_API_KEY}`) |
 | Cursor | `.agents/skills/` | `.cursor/mcp.json` (`${env:STITCH_API_KEY}`) |
 | Codex | `.agents/skills/` | `.codex/config.toml` (`env_http_headers`) |
 | Grok Build | `.grok/skills/` | add the two URLs with `grok mcp add`; the key as the `X-Goog-Api-Key` header |
@@ -147,9 +155,10 @@ same two servers everywhere.
 
 Claude Code's plugin form (`npx plugins add google-labs-code/stitch-skills
 --scope project --target claude-code`) records the install in the user's own
-`~/.claude/plugins/`; the project settings turn the plugins on for every
-collaborator, and the copied skills under `.claude/skills/` work in a cloud
-session, where a project's marketplaces do not load.
+`~/.claude/plugins/`; enabling it is a user-scope choice (tracked settings
+no longer turn plugins on for collaborators). In cloud sessions, where a
+project's marketplaces do not load, the installed `.claude/skills/` mirrors
+from `scripts/dev/install-agent-skills.sh` provide the same skills.
 
 ## Keep design artifacts small
 

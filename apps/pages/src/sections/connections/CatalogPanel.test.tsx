@@ -40,18 +40,18 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   // Nothing leads to a page that does not exist: the catalog's own tiles are
   // its only links.
   expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();
-  const stripe = container.querySelector("#catalog-stripe");
-  // Stripe has a complete API-key contract and opens its configuration page.
-  const stripeLink = screen.getByRole("link", { name: "Connect Stripe" });
-  expect(stripe?.querySelector("a")).toBe(stripeLink);
-  expect(stripeLink.getAttribute("href")).toBe("/connections/stripe");
-  expect(stripeLink.getAttribute("aria-describedby")).toBe(
-    "catalog-stripe-tags",
+  const byoAi = container.querySelector("#catalog-byo-ai");
+  // BYO AI has a complete configuration contract available to a guest.
+  const byoAiLink = screen.getByRole("link", { name: "Connect BYO AI" });
+  expect(byoAi?.querySelector("a")).toBe(byoAiLink);
+  expect(byoAiLink.getAttribute("href")).toBe("/connections/byo-ai");
+  expect(byoAiLink.getAttribute("aria-describedby")).toBe(
+    "catalog-byo-ai-tags",
   );
-  expect(stripeLink.tabIndex).toBe(-1);
-  const blocked = stripe?.querySelector(".conn-tile__go title");
+  expect(byoAiLink.tabIndex).toBe(-1);
+  const blocked = byoAi?.querySelector(".conn-tile__go title");
   expect(blocked).toBeNull();
-  expect(stripe?.textContent).not.toMatch(/Not connectable/);
+  expect(byoAi?.textContent).not.toMatch(/Not connectable/);
 });
 
 it("puts BYO AI first and keeps partner tiles alphabetical", () => {

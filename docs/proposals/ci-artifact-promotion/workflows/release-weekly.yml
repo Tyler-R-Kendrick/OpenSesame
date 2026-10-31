@@ -1,0 +1,150 @@
+# PROPOSAL ONLY: outside .github/workflows; none of the interfaces below is live.
+# Requires candidate.mjs, ci-prerelease-checks.yml, ci-release-checks.yml and
+# release-publish.yml. Reusables receive the same frozen artifact identity.
+# select-dev outputs candidate fields plus dev_receipt: JSON envelope containing
+# the qualification artifact ID/digest and its exact run ID/attempt. Selection
+# verifies successful trusted dev producer/receipt, complete files, freshness and
+# main ancestry; it rejects rollback. An already released identical candidate
+# emits promote=false and an explicit no-op summary; no eligible candidate fails.
+# Selection
+# follows source ancestry, not whichever old run happened to finish last.
+# Prerelease/release-checks output receipt JSON in that same envelope format.
+# Release checks checkout source_sha (including its tests and lockfiles), never
+# the schedule's newer github.sha. Security findings must actually fail the gate;
+# the existing reporting-only OSV workflow is not sufficient unchanged.
+# All candidate/receipt integrity errors fail closed. No continue-on-error.
+# The weekly time and 48-hour dev-evidence limit are provisional.
+name: Weekly release promotion
+
+on:
+  schedule:
+    - cron: "17 4 * * 4"
+      timezone: America/Chicago
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+# Freeze and qualify one candidate through publication. A newer run must not
+# cancel expensive checks or replace a shared prerelease target underneath them.
+concurrency:
+  group: candidate-release
+  cancel-in-progress: false
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.select.outputs.source_sha }}
+      candidate_id: ${{ steps.select.outputs.candidate_id }}
+      run_id: ${{ steps.select.outputs.run_id }}
+      run_attempt: ${{ steps.select.outputs.run_attempt }}
+      artifact_id: ${{ steps.select.outputs.artifact_id }}
+      artifact_digest: ${{ steps.select.outputs.artifact_digest }}
+      payload_digest: ${{ steps.select.outputs.payload_digest }}
+      dev_receipt: ${{ steps.select.outputs.dev_receipt }}
+      promote: ${{ steps.select.outputs.promote }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Require implemented and activated release policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Explicit readiness includes implemented publishers and bypass removal.
+        # An unset policy must fail; do not turn publish into a silently skipped job.
+        run: node scripts/release/candidate.mjs policy --controller release-weekly
+      - name: Freeze the newest eligible dev-qualified candidate
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/release/candidate.mjs select-dev
+          --workflow .github/workflows/dev-nightly.yml --max-age-hours 48
+          --output "$GITHUB_OUTPUT"
+
+  prerelease:
+    needs: select
+    if: ${{ needs.select.outputs.promote == 'true' }}
+    uses: ./.github/workflows/ci-prerelease-checks.yml
+    with:
+      source_sha: ${{ needs.select.outputs.source_sha }}
+      candidate_id: ${{ needs.select.outputs.candidate_id }}
+      run_id: ${{ needs.select.outputs.run_id }}
+      run_attempt: ${{ needs.select.outputs.run_attempt }}
+      artifact_id: ${{ needs.select.outputs.artifact_id }}
+      artifact_digest: ${{ needs.select.outputs.artifact_digest }}
+      payload_digest: ${{ needs.select.outputs.payload_digest }}
+      prerequisite_receipt: ${{ needs.select.outputs.dev_receipt }}
+      # Qualification channel: run acceptance against the exact artifact. Any
+      # real staging host must be explicitly configured and its payload verified.
+
+  mutation:
+    needs: [select, prerelease]
+    uses: ./.github/workflows/ci-release-checks.yml
+    with:
+      suite: mutation
+      source_sha: ${{ needs.select.outputs.source_sha }}
+      candidate_id: ${{ needs.select.outputs.candidate_id }}
+      run_id: ${{ needs.select.outputs.run_id }}
+      run_attempt: ${{ needs.select.outputs.run_attempt }}
+      artifact_id: ${{ needs.select.outputs.artifact_id }}
+      artifact_digest: ${{ needs.select.outputs.artifact_digest }}
+      payload_digest: ${{ needs.select.outputs.payload_digest }}
+      prerequisite_receipt: ${{ needs.prerelease.outputs.receipt }}
+      # Mutation builds are disposable test products, never production inputs.
+
+  security:
+    needs: [select, prerelease]
+    uses: ./.github/workflows/ci-release-checks.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    with:
+      suite: security
+      source_sha: ${{ needs.select.outputs.source_sha }}
+      candidate_id: ${{ needs.select.outputs.candidate_id }}
+      run_id: ${{ needs.select.outputs.run_id }}
+      run_attempt: ${{ needs.select.outputs.run_attempt }}
+      artifact_id: ${{ needs.select.outputs.artifact_id }}
+      artifact_digest: ${{ needs.select.outputs.artifact_digest }}
+      payload_digest: ${{ needs.select.outputs.payload_digest }}
+      prerequisite_receipt: ${{ needs.prerelease.outputs.receipt }}
+
+  publish:
+    needs: [select, prerelease, mutation, security]
+    uses: ./.github/workflows/release-publish.yml
+    permissions:
+      actions: read
+      contents: write
+      pages: write
+      id-token: write
+      attestations: write
+    with:
+      source_sha: ${{ needs.select.outputs.source_sha }}
+      candidate_id: ${{ needs.select.outputs.candidate_id }}
+      run_id: ${{ needs.select.outputs.run_id }}
+      run_attempt: ${{ needs.select.outputs.run_attempt }}
+      artifact_id: ${{ needs.select.outputs.artifact_id }}
+      artifact_digest: ${{ needs.select.outputs.artifact_digest }}
+      payload_digest: ${{ needs.select.outputs.payload_digest }}
+      prerelease_receipt: ${{ needs.prerelease.outputs.receipt }}
+      mutation_receipt: ${{ needs.mutation.outputs.receipt }}
+      security_receipt: ${{ needs.security.outputs.receipt }}
+      # Reusable's credential-bearing jobs use release / github-pages environment
+      # protections. Test jobs above receive no environment deployment secrets.
+      # Recheck monotonicity, tag/version binding and all receipts before writes.
+      # Pages: download exact dist; upload-pages-artifact may repackage it into
+      # this run, then deploy-pages. Payload bytes/hash stay fixed; no rebuild or
+      # restamping. Use existing pinned actions and the live revision verifier.
+      # Publish native runtime packages from production/ only. Preserve explicitly
+      # named TEST archives for downstream validation through a separate asset
+      # allowlist; never install them as production executables or wildcard-upload.

@@ -44,6 +44,7 @@ import { policyWalk } from "./lib/push-policy-walk.mjs";
 import { PAGES_ORIGIN, startPushStack } from "./lib/push-stack.mjs";
 import { createRun } from "./lib/push-verify-kit.mjs";
 import {
+  dismissGuestToast,
   notificationsOf,
   trackControlledBirth,
   until,
@@ -121,6 +122,7 @@ try {
   await doorGuest(page).waitFor({ timeout: 20_000 });
   await doorGuest(page).click();
   await waitOpen(page);
+  await dismissGuestToast(page);
   await addCapabilities(page, ["Push notifications", "Notification routing"]);
   await until(
     () =>

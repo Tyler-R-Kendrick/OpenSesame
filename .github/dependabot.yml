@@ -32,6 +32,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
+    ignore:
+      # @ai-sdk/openai-compatible 3.x emits provider-spec v4 models, which
+      # the pinned ai@6 core (spec v2/v3) cannot accept. Stay on the 2.x
+      # line until a coordinated AI SDK 7 migration lands.
+      - dependency-name: "@ai-sdk/openai-compatible"
+        versions:
+          - ">= 3.0.0"
     groups:
       npm-minor-and-patch:
         update-types:

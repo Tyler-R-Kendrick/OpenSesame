@@ -6,12 +6,30 @@ import {
   type WorkerMessage,
 } from "./protocol.js";
 
+/** The only commands one stream can send, each fixed to its own id and request. */
+export type NativeStreamChannel = Readonly<{
+  open(): void;
+  pull(sequence: number): void;
+  cancel(): void;
+}>;
+export function nativeStreamChannel(
+  port: Pick<MessagePort, "postMessage">,
+  id: number,
+  request: NativeRequest,
+): NativeStreamChannel {
+  const send = (message: ReturnType<typeof WorkerMessage.parse>) =>
+    port.postMessage(message);
+  return Object.freeze({
+    open: () => send({ kind: "nativeHTTPStream", id, request }),
+    pull: (sequence: number) => send({ kind: "pullHTTP", id, sequence }),
+    cancel: () => send({ kind: "cancelHTTP", id }),
+  });
+}
 type Options = {
-  id: number;
   request: NativeRequest;
   signal: AbortSignal;
   check(): void;
-  post(message: ReturnType<typeof WorkerMessage.parse>): void;
+  channel: NativeStreamChannel;
   retire(): void;
 };
 /** One header-first response retains its original registry entry and caller. */
@@ -25,40 +43,38 @@ export class NativeStreamRequest {
   private ended = false;
   private next = 1;
   private bytes = 0;
-  constructor(private readonly options: Options) {
+  readonly #options: Options;
+  constructor(options: Options) {
+    this.#options = options;
     this.response = new Promise((resolve, reject) => {
       this.resolve = resolve;
       this.reject = reject;
     });
   }
   private current() {
-    this.options.check();
-    this.options.signal.throwIfAborted();
+    this.#options.check();
+    this.#options.signal.throwIfAborted();
     if (this.ended) throw new Error("Native stream ended.");
   }
   start() {
-    this.options.signal.addEventListener("abort", this.fail, { once: true });
+    this.#options.signal.addEventListener("abort", this.fail, { once: true });
     try {
       this.current();
-      this.options.post({
-        kind: "nativeHTTPStream",
-        id: this.options.id,
-        request: this.options.request,
-      });
+      this.#options.channel.open();
     } catch {
       this.fail();
     }
   }
   private finish() {
     this.ended = true;
-    this.options.signal.removeEventListener("abort", this.fail);
-    this.options.retire();
+    this.#options.signal.removeEventListener("abort", this.fail);
+    this.#options.retire();
     this.credit?.();
     this.credit = undefined;
   }
   private cancel() {
     try {
-      this.options.post({ kind: "cancelHTTP", id: this.options.id });
+      this.#options.channel.cancel();
     } catch {
       // An already terminated Worker cannot prevent local withdrawal.
     }
@@ -79,11 +95,7 @@ export class NativeStreamRequest {
       if (this.credit) throw new Error("Concurrent native stream credit.");
       return new Promise<void>((resolve) => {
         this.credit = resolve;
-        this.options.post({
-          kind: "pullHTTP",
-          id: this.options.id,
-          sequence: this.next,
-        });
+        this.#options.channel.pull(this.next);
       });
     } catch {
       this.fail();
@@ -93,7 +105,7 @@ export class NativeStreamRequest {
   private headers(message: Extract<HostEvent, { kind: "nativeHTTPStream" }>) {
     if (this.opened) throw new Error("Duplicate native stream headers.");
     const head = NativeHTTPStreamHead.parse(message.result);
-    if (head.url !== this.options.request.url)
+    if (head.url !== this.#options.request.url)
       throw new Error("Native stream URL changed.");
     const empty = [204, 205, 304].includes(head.status);
     const body = empty

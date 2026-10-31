@@ -11,6 +11,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isJsonObject, isString } from "../server/json-boundary.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const spec = (name) =>
@@ -19,6 +20,91 @@ const spec = (name) =>
   );
 const outputPath = join(here, "../server/connect-verify-targets.generated.mjs");
 
+function validateRelayRow(row, names) {
+  if (
+    !isJsonObject(row) ||
+    !isString(row.service) ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.service) ||
+    ["constructor", "prototype"].includes(row.service) ||
+    names.has(row.service)
+  )
+    throw new Error("Conflicting relay verification preset");
+  const aliases = row.legacy_server_urls ?? [];
+  if (
+    !Array.isArray(aliases) ||
+    aliases.some(
+      (url) => !isString(url) || !/^https:\/\/[a-z0-9.-]+\/?$/i.test(url),
+    )
+  )
+    throw new Error("Invalid relay verification host alias");
+  names.add(row.service);
+}
+
+/** Relay-only source rows must be promoted or removed before a shared row claims them. */
+export function relayVerificationPresets(
+  presets = spec("connect-presets.json"),
+  relay = spec("relay-verification-presets.json"),
+) {
+  if (
+    !isJsonObject(presets) ||
+    !isJsonObject(relay) ||
+    relay.schema_version !== 1
+  )
+    throw new Error("Invalid relay verification presets");
+  const merged = { ...presets };
+  for (const kind of ["oauth", "api_key"]) {
+    if (!Array.isArray(presets[kind]) || !Array.isArray(relay[kind]))
+      throw new Error("Invalid relay verification presets");
+    const names = new Set();
+    for (const row of [...presets[kind], ...relay[kind]]) {
+      validateRelayRow(row, names);
+    }
+    merged[kind] = [...presets[kind], ...relay[kind]];
+  }
+  return merged;
+}
+export function verifyHostBindings(trust = spec("verification-hosts.json")) {
+  if (
+    !isJsonObject(trust) ||
+    trust.schema_version !== 1 ||
+    !isJsonObject(trust.providers)
+  )
+    throw new Error("Invalid verification host policy");
+  const hostname =
+    /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
+  for (const [id, binding] of Object.entries(trust.providers)) {
+    const suffixes = isJsonObject(binding) ? binding.host_suffixes : null;
+    if (
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) ||
+      !Array.isArray(suffixes) ||
+      suffixes.some((suffix) => !isString(suffix) || !hostname.test(suffix)) ||
+      new Set(suffixes).size !== suffixes.length
+    )
+      throw new Error("Invalid provider-owned verification host suffixes");
+  }
+  return trust.providers;
+}
+const hostBindings = verifyHostBindings();
+
+function unboundTemplate(template, hostSuffixes) {
+  const authority = /^https:\/\/([^/?#]+)/i.exec(template ?? "")?.[1];
+  if (!authority || authority.includes("@") || authority.includes("\\"))
+    return true;
+  if (!authority.includes("{")) return false;
+  if (authority.includes(":")) return true;
+  const host = authority.toLowerCase();
+  return !hostSuffixes.some((suffix) => host.endsWith(`.${suffix}`));
+}
+
+function validateProofDisabled(verify) {
+  if (
+    verify.proof_disabled !== undefined &&
+    verify.proof_disabled !== true &&
+    verify.proof_disabled !== false
+  )
+    throw new Error("Invalid verification disabled flag");
+}
+
 function target(
   kind,
   verify,
@@ -26,8 +112,10 @@ function target(
   scheme = "Bearer",
   basic = null,
   sources = [],
+  hostSuffixes = [],
 ) {
-  return {
+  validateProofDisabled(verify);
+  const built = {
     sources,
     kind,
     method: verify.method,
@@ -41,7 +129,11 @@ function target(
     success: verify.success ?? [],
     requiredFields: verify.required_fields ?? [],
     errorFields: verify.error_fields ?? [],
+    hostSuffixes,
+    unbound: unboundTemplate(verify.url, hostSuffixes),
   };
+  if (verify.proof_disabled === true) built.proofDisabled = true;
+  return built;
 }
 
 /**
@@ -95,24 +187,36 @@ function oauthTarget(row) {
       },
       { template: row.token_endpoint, field: "serverConfig.token_endpoint" },
     ]),
+    hostBindings[row.service]?.host_suffixes ?? [],
   );
 }
 
 function apiKeyTarget(row) {
   const verify = legacyApiVerification(row);
   if (!verify) return null;
+  const sources = templated(
+    (row.service_urls ?? []).map((template, index) => ({
+      template,
+      field: `serviceUrls.${index}`,
+    })),
+  );
+  const recoverable = new Set(
+    sources.flatMap((source) =>
+      [...source.template.matchAll(/\{([a-z_]+)\}/g)].map((match) => match[1]),
+    ),
+  );
+  const unresolved = [...verify.url.matchAll(/\{([a-z_]+)\}/g)].some(
+    (match) => match[1] !== "key" && !recoverable.has(match[1]),
+  );
+  if (unresolved) return null;
   return target(
     "api-key",
     verify,
     row.header,
     row.scheme ?? null,
     row.basic ?? null,
-    templated(
-      (row.service_urls ?? []).map((template, index) => ({
-        template,
-        field: `serviceUrls.${index}`,
-      })),
-    ),
+    sources,
+    hostBindings[row.service]?.host_suffixes ?? [],
   );
 }
 
@@ -156,7 +260,7 @@ function mcpUrl(row) {
 
 export function verifyTargets(
   services = spec("connect-services.json"),
-  presets = spec("connect-presets.json"),
+  presets = relayVerificationPresets(),
 ) {
   const out = {};
   const slot = (id) => {
@@ -186,11 +290,35 @@ export function verifyTargets(
 }
 
 /** Custom OAuth connectors name their service by host (`bitbucket.org`). */
-export function verifyHosts(presets = spec("connect-presets.json")) {
+function oauthHosts(row) {
+  return [
+    ...new Set(
+      [row.server_url, ...(row.legacy_server_urls ?? [])]
+        .filter((url) => !url.includes("{"))
+        .map((url) => new URL(url).host),
+    ),
+  ];
+}
+
+export function verifyHosts(presets = relayVerificationPresets()) {
   const out = {};
   for (const row of oauthRows(presets)) {
-    if (!row.verify || row.server_url.includes("{")) continue;
-    out[new URL(row.server_url).host] ??= row.service;
+    if (!row.verify) continue;
+    for (const host of oauthHosts(row)) out[host] ??= row.service;
+  }
+  return Object.fromEntries(
+    Object.entries(out).sort(([a], [b]) => a.localeCompare(b)),
+  );
+}
+
+export function verifyAliasHosts(presets = relayVerificationPresets()) {
+  const out = {};
+  for (const row of oauthRows(presets)) {
+    if (!row.verify) continue;
+    for (const host of oauthHosts(row)) {
+      out[host] ??= [];
+      out[host].push(row.service);
+    }
   }
   return Object.fromEntries(
     Object.entries(out).sort(([a], [b]) => a.localeCompare(b)),
@@ -203,17 +331,20 @@ export function renderModule() {
   );
   return [
     "// Generated by scripts/emit-connect-verify-targets.mjs from",
-    "// spec/connectors/connect-presets.json and connect-services.json — do not edit.",
+    "// spec/connectors/connect-presets.json, relay-verification-presets.json,",
+    "// connect-services.json and verification-hosts.json — do not edit.",
     "/** One `[service, targets]` pair per row, as JSON. */",
     "const ROWS = [",
     ...rows,
     "];",
     "",
     "export const VERIFY_TARGETS = Object.freeze(",
-    "  Object.fromEntries(ROWS.map((row) => JSON.parse(row))),",
+    "  Object.fromEntries(ROWS.map((row) => { const [id, targets] = JSON.parse(row); return [id, Object.freeze(targets)]; })),",
     ");",
     "",
     `export const VERIFY_HOSTS = Object.freeze(${JSON.stringify(verifyHosts())});`,
+    "",
+    `export const VERIFY_OAUTH_ALIAS_HOSTS = Object.freeze(Object.fromEntries(Object.entries(${JSON.stringify(verifyAliasHosts(), null, 2)}).map(([host, ids]) => [host, Object.freeze(ids)])));`,
     "",
   ].join("\n");
 }

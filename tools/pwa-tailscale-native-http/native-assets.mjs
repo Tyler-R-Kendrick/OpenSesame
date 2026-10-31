@@ -46,7 +46,7 @@ async function bridgeBundle(here, repositoryRoot, pins) {
   const require = createRequire(join(repositoryRoot, "package.json"));
   const viteBytes = await readFile(require.resolve("vite/package.json"));
   if (
-    JSON.parse(viteBytes).version !== "6.4.4" ||
+    JSON.parse(viteBytes).version !== "6.4.5" ||
     hash(viteBytes) !== pins.composition.vite.packageSha256
   )
     throw new Error(
@@ -56,11 +56,11 @@ async function bridgeBundle(here, repositoryRoot, pins) {
   const packageBytes = await readFile(packagePath);
   const dependency = JSON.parse(packageBytes);
   if (
-    dependency.version !== "3.25.67" ||
+    dependency.version !== "4.6.6" ||
     hash(packageBytes) !== pins.composition.zod.packageSha256
   )
     throw new Error(
-      "Native bridge requires the exact declared root Zod3 dependency.",
+      "Native bridge requires the exact declared root Zod4 dependency.",
     );
   const license = await readFile(join(dirname(packagePath), "LICENSE"));
   if (hash(license) !== pins.composition.zod.licenseSha256)
@@ -159,7 +159,7 @@ export async function emitNativeAssets({
     await readFile(join(source, "LICENSE")),
     Buffer.from("\n\nGo runtime and Go x509roots/fallback (BSD-3-Clause)\n\n"),
     await readFile(join(compiler, "LICENSE")),
-    Buffer.from("\n\nZod3 runtime (MIT)\n\n"),
+    Buffer.from("\n\nZod4 runtime (MIT)\n\n"),
     bridge.license,
   ]);
   await writeFile(join(directory, "LICENSE.txt"), notice, { flag: "wx" });

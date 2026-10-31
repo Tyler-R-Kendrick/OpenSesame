@@ -22,6 +22,8 @@ export type OperatorIdp = {
   scope?: string;
   jwksUri?: string;
   providerHint?: string;
+  /** Chooses a saved native OIDC dispatcher; never authenticates claims. */
+  nativeIdentity?: true;
 };
 
 /**
@@ -65,10 +67,24 @@ export function normalizeOperatorIdp(
   };
 }
 
+/** The marker cannot silently downgrade to a legacy/public dispatcher. */
+function validNativeMarker(value: JsonObject): boolean {
+  if (value.nativeIdentity === undefined) return true;
+  return (
+    value.nativeIdentity === true &&
+    value.protocol === "oidc" &&
+    isString(value.connectionId) &&
+    value.connectionId.length > 0 &&
+    value.connectionId.length <= 128 &&
+    value.connectionId.trim() === value.connectionId
+  );
+}
+
 export function readOperatorIdp(
   value: JsonValue | undefined,
 ): OperatorIdp | null {
   if (!isJsonObject(value)) return null;
+  if (!validNativeMarker(value)) return null;
   if (value.protocol === "saml") return nativeSamlProvider(value);
   const { providerId, issuer, clientId, label } = value;
   if (!isString(issuer) || !isString(clientId)) return null;
@@ -89,6 +105,14 @@ export function readOperatorIdp(
     value.protocol === "supabase"
   )
     normalized.protocol = value.protocol;
+  return operatorDetails(value, normalized);
+}
+
+function operatorDetails(
+  value: JsonObject,
+  normalized: OperatorIdp,
+): OperatorIdp {
+  if (value.nativeIdentity === true) normalized.nativeIdentity = true;
   if (isString(value.scope)) normalized.scope = value.scope;
   if (isString(value.jwksUri)) normalized.jwksUri = value.jwksUri;
   if (isString(value.providerHint))

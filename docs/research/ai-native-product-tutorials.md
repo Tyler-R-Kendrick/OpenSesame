@@ -6,8 +6,9 @@
 > this repository. `CoachHud` (`apps/pages/src/tutorial/coach/`) draws each
 > step as a React card over the target registry, and the browser
 > `GuideRenderer` only scrolls the control into view. Everything else here
-> holds, including the `@ag-ui/client@0.0.59` pin
-> (`packages/app-core/package.json`) and the text-only rule (model text reaches
+> holds, including the AG-UI client containment (the pin moved from
+> `@ag-ui/client@0.0.59` to `1.0.3` on 2026-10-30 with the same transport
+> surface; see the amendment in ADR 0088 §7) and the text-only rule (model text reaches
 > the page as a text node, now a React one, never as markup).
 
 Research input for [ADR 0088](../adr/0088-ai-native-contextual-support.md).

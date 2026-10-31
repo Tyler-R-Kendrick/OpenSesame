@@ -16,7 +16,7 @@ import { mergedGuideRoutes } from "@opensesame/app-core/tutorial/registry/routes
 import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
 import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { CAPABILITIES } from "@opensesame/capability-registry";
-import { compileGuide } from "@opensesame/guide-lang";
+import { AUTHORED_GUIDE_LIMITS, compileGuide } from "@opensesame/guide-lang";
 import {
   createSupportSession,
   fakeAgentAnswering,
@@ -64,8 +64,15 @@ describe("tutorial generation for every PWA capability", () => {
       expect(goal, capability.id).not.toBeNull();
       if (!goal) return;
 
-      const compiled = compileGuide(goal.guide, vocabulary());
+      const compiled = compileGuide(
+        goal.guide,
+        vocabulary(),
+        AUTHORED_GUIDE_LIMITS,
+      );
       expect(compiled.ok, capability.id).toBe(true);
+      // The support agent compiles model-length trajectories. A checked-in tour
+      // may be longer, so only exercise that path when it also fits the model budget.
+      if (!compileGuide(goal.guide, vocabulary()).ok) return;
 
       const session = createSupportSession({
         port: fakeAgentAnswering(

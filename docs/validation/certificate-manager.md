@@ -21,7 +21,7 @@ number, or a number carried over from
 - Implementation head: _pending: fill from `git rev-parse HEAD` at integration
   time._
 - Toolchain: Rust 1.88 (`cargo +1.88.0`), Node ≥ 22, pnpm 9.15.0, Turbo 2.9.14,
-  Biome 1.9.4, Vitest 4.1.11, Playwright 1.55.1 — as pinned in `AGENTS.md` §2.
+  Biome 1.9.4, Vitest (see `package.json`), Playwright 1.64.1 — versions are canonical in `package.json` / `rust-toolchain.toml` (`AGENTS.md` §2 points there).
 
 ## Delivered behavior
 
@@ -108,6 +108,25 @@ replaced (re-enrollment); `require_bootstrap` demands a client certificate. A
 policy-violating CSR is refused whole, never narrowed, and issued certificates
 are recorded in the inventory (`routes/est_records.rs`). The operator surface is
 `GET|PUT /api/v1/certmgr/profiles/{id}/est-config`.
+
+Certificate authentication requires current direct-client `MtlsRequired` TLS.
+A trusted-ingress proxy's own certificate and forwarded client assertions do
+not authenticate EST enrollment or renewal. When a bootstrap chain is pinned,
+the listener's complete trust-anchor set must match it; a listener trusting
+additional CAs fails closed because verified peer evidence does not retain the
+accepted certificate path. Use a dedicated listener with matching anchors.
+Profiles that explicitly allow password authentication can use a random
+passphrase of at least 16 bytes, with five durable checks per profile and trusted
+source per ten minutes. A source is a verified originating-client fingerprint or
+canonical TCP IP (IPv4 address, IPv6 /64), never a forwarded address header or
+caller-selected field. Missing source metadata, including declared
+`TrustedIngress` without validated originating-client evidence, fails closed for
+password fallback. Same-NAT clients and clients behind an ordinary unmarked
+reverse proxy share its TCP budget; distributed sources have separate budgets.
+Origin evidence partitions the password budget; it does not replace direct
+client TLS proof for certificate authentication. Active source capacity is bounded
+per profile and only expired entries are removed.
+Omitted configuration fields preserve the existing bootstrap requirement.
 
 Not implemented: the ACME server (RFC 8555, mandatory per-profile EAB,
 single-use nonces, HTTP-01 validation or skip-validation) and the SCEP server

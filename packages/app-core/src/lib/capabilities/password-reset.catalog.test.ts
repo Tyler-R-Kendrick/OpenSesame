@@ -48,9 +48,11 @@ describe("the Password reset capability", () => {
     expect(descriptor(ids.reset).requiresService).toBe(false);
   });
 
-  it("owns the one operation that manages the mailboxes, and reads item plaintext", () => {
+  it("owns mailbox and approved CUA operations, and reads item plaintext", () => {
     expect(descriptor(ids.reset).operationIds).toEqual([
       "password_reset.mailboxes.manage",
+      "password_reset.cua.run",
+      "password_reset.cua.configure",
     ]);
     expect(descriptor(ids.reset).keyAccess).toBe("item-plaintext");
   });

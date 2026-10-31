@@ -1,20 +1,35 @@
 /** Unactivated raw-WASM compile driver. Inputs are downloaded separately. */
-import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, open, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { nativePatchCommand } from "./apply-native-patch.mjs";
 import { composeNative, nativeBuildEnvironment } from "./compose-native.mjs";
 import { emitNativeAssets } from "./native-assets.mjs";
+import {
+  auditNativePackages,
+  compileNativePhase,
+  upstreamCompileHelper as helper,
+} from "./native-audit.mjs";
+import { openNativeCommandLogs } from "./native-command-io.mjs";
+import {
+  INNER_GROUP_GRACE_MS,
+  startOwnedCommand,
+  stopOwnedCommand,
+} from "./owned-process-group.mjs";
 import { nativeBuildFailureContext } from "./preparation-diagnostics.mjs";
 import { assertNativeTaskResources } from "./task-resources.mjs";
-
 const here = fileURLToPath(new URL(".", import.meta.url));
 const pins = JSON.parse(await readFile(join(here, "source.json"), "utf8"));
-const [sourceInput, compilerInput, outputInput, ...extra] =
+const [sourceInput, compilerInput, outputInput, mode, ...extra] =
   process.argv.slice(2);
-if (!sourceInput || !compilerInput || !outputInput || extra.length)
+if (
+  !sourceInput ||
+  !compilerInput ||
+  !outputInput ||
+  extra.length ||
+  (mode !== undefined && mode !== "--audit")
+)
   throw new Error(
     "Pass source archive, compiler archive, and a fresh output directory.",
   );
@@ -85,38 +100,9 @@ async function freshOutput() {
     await mkdir(directory, { recursive: true });
   await checkDisk();
 }
-function live(state) {
-  const child = state.child;
-  return (
-    owned.has(state) &&
-    Number.isInteger(child.pid) &&
-    child.pid > 1 &&
-    child.exitCode === null &&
-    child.signalCode === null
-  );
-}
-function signalOwned(state, signal) {
-  if (!live(state)) return;
-  try {
-    process.kill(-state.child.pid, signal);
-  } catch (error) {
-    if (error?.code !== "ESRCH")
-      state.failure = "Could not signal owned compiler group.";
-  }
-}
-function clearKill(state) {
-  if (state.killTimer !== null) clearTimeout(state.killTimer);
-  state.killTimer = null;
-}
-function terminate(state) {
-  if (!live(state)) return;
-  signalOwned(state, "SIGTERM");
-  if (state.killTimer !== null) return;
-  state.killTimer = setTimeout(() => signalOwned(state, "SIGKILL"), 5000);
-}
 function interrupt(signal) {
   interrupted ||= signal;
-  for (const state of owned) terminate(state);
+  for (const state of owned) stopOwnedCommand(state, signal);
 }
 const onInt = () => interrupt("SIGINT");
 const onTerm = () => interrupt("SIGTERM");
@@ -137,7 +123,7 @@ function monitor(state) {
       .catch(() => {
         if (!owned.has(state)) return;
         state.failure = "Native task resource limit exceeded.";
-        terminate(state);
+        stopOwnedCommand(state, "resource");
       })
       .finally(() => {
         checking = false;
@@ -145,64 +131,51 @@ function monitor(state) {
   }, 1000);
 }
 
-function settlement(state, name) {
-  return new Promise((accept, reject) => {
-    state.child.once("error", (error) => {
-      state.observation.spawnCode = error.code;
-      state.observation.reason = "spawn";
-      reject(error);
-    });
-    state.child.once("exit", (code, signal) => {
-      state.observation.exitCode = code;
-      state.observation.signal = signal;
-      state.observation.reason =
-        state.failure === "Native task resource limit exceeded."
-          ? "resource"
-          : interrupted || "exit";
-      clearKill(state);
-      if (code === 0 && !state.failure && !interrupted) accept();
-      else
-        reject(
-          new Error(`${name} failed or was interrupted; read its private log.`),
-        );
-    });
-  });
-}
-async function execute(program, args, name, verify = criticalPins) {
+async function execute(
+  program,
+  args,
+  name,
+  verify = criticalPins,
+  options = {},
+) {
   buildStage = name;
   if (interrupted) throw new Error("Private compile interrupted.");
   await checkDisk();
   await verify(`${name}:before`);
-  const log = await open(join(logs, `${name}.log`), "w");
-  if (interrupted) {
-    await log.close();
-    throw new Error("Private compile interrupted before child start.");
-  }
-  const command = nativePatchCommand(program, args);
-  const child = spawn(command.program, command.args, {
-    cwd: source,
-    env: nativeBuildEnvironment(output, moduleFlags),
-    detached: true,
-    stdio: ["ignore", log.fd, log.fd],
+  const { log, stdout } = await openNativeCommandLogs({
+    logs,
+    name,
+    interrupted,
+    stdoutPath: options.stdoutPath,
   });
-  lastCommand = { phase: name, exitCode: null, signal: null, spawnCode: null };
-  const state = {
-    child,
-    killTimer: null,
-    failure: "",
-    observation: lastCommand,
+  const command = nativePatchCommand(program, args);
+  lastCommand = {
+    phase: name,
+    exitCode: null,
+    signal: null,
+    spawnCode: null,
+    reason: "exit",
   };
+  const state = await startOwnedCommand({
+    program: command.program,
+    args: command.args,
+    cwd: source,
+    env: options.env ?? nativeBuildEnvironment(output, moduleFlags),
+    stdio: ["ignore", stdout?.fd ?? log.fd, log.fd],
+    observation: lastCommand,
+    graceMs: INNER_GROUP_GRACE_MS,
+    failureMessage: `${name} failed or was interrupted; read its private log.`,
+  });
   owned.add(state);
   const poll = monitor(state);
   let failure;
   try {
-    await settlement(state, name);
+    await state.done;
   } catch (error) {
     failure = error;
   } finally {
     clearInterval(poll);
-    clearKill(state);
-    owned.delete(state);
+    if (state.drained) owned.delete(state);
     try {
       await verify(`${name}:after`);
     } catch (error) {
@@ -210,40 +183,21 @@ async function execute(program, args, name, verify = criticalPins) {
     }
     try {
       await log.close();
+      await stdout?.close();
     } catch (error) {
       failure ??= error;
     }
   }
   if (failure) throw failure;
 }
-const helper = String.raw`package main
-import ("encoding/json";"os";"tailscale.com/cmd/tsconnect/wasmbuild")
-func main(){
- if len(os.Args)!=5 { panic("go phase output receipt required") }
- c:=wasmbuild.ProdCommand(os.Args[1],os.Args[3]);c.Stdout=os.Stdout;c.Stderr=os.Stderr
- r:=map[string]any{"phase":os.Args[2],"command":c.Args,"keep":wasmbuild.Keep,"tags":wasmbuild.Tags(),"ldflags":wasmbuild.ProdLDFlags()}
- e:=c.Run();r["pass"]=e==nil;if e!=nil {r["error"]=e.Error()}
- b,j:=json.MarshalIndent(r,"","  ");if j!=nil {panic(j)}
- if j=os.WriteFile(os.Args[4],append(b,'\n'),0600);j!=nil {panic(j)}
- if e!=nil {os.Exit(1)}
-}`;
-async function build(phase) {
-  const go = join(compiler, "bin", "go");
-  const artifact = join(artifacts, `${phase}.raw.wasm`);
-  await execute(
-    go,
-    [
-      "run",
-      join(output, "upstream-command.go"),
-      go,
-      phase,
-      artifact,
-      join(output, `${phase}.json`),
-    ],
-    phase,
-  );
-  return { phase, sha256: await digest(artifact) };
-}
+const build = (phase) =>
+  compileNativePhase(phase, {
+    compiler,
+    artifacts,
+    output,
+    execute,
+    digest,
+  });
 async function patch() {
   const patchPath = join(here, "exit-route.patch");
   await requireHash(patchPath, pins.patch.sha256);
@@ -310,6 +264,36 @@ async function stageNativeHttp() {
   nativeHttpStaged = true;
   await criticalPins("native-http-staged");
 }
+async function verifyDerpCustomRoots() {
+  const derpResults = join(logs, "derp-host-results.log");
+  await execute(
+    join(compiler, "bin/go"),
+    [
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=60s",
+      "-run",
+      "^TestDERPCustomRoots$",
+      "./derp/derphttp",
+    ],
+    "native-derp-host-test",
+    undefined,
+    { stdoutPath: derpResults },
+  );
+  const derpEvents = (await readFile(derpResults, "utf8"))
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  if (
+    !derpEvents.some(
+      (event) =>
+        event.Action === "pass" && event.Test === "TestDERPCustomRoots",
+    )
+  )
+    throw new Error("The DERP custom-root host test did not run.");
+}
+
 async function run() {
   buildStage = "fresh-output";
   await freshOutput();
@@ -328,11 +312,22 @@ async function run() {
   });
   moduleFlags = composed.flags;
   verifyNative = composed.verify;
+  if (mode === "--audit") {
+    await patch();
+    await auditNativePackages({ output, compiler, pins, execute });
+    return;
+  }
   await execute(
     join(compiler, "bin/go"),
     ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/nativehttp"],
     "native-http-host-test",
   );
+  await execute(
+    join(compiler, "bin/go"),
+    ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/wasm"],
+    "native-node-host-test",
+  );
+  await verifyDerpCustomRoots();
   const baseline = await build("baseline");
   const repeated = await build("baseline-repeat");
   if (baseline.sha256 !== repeated.sha256)
@@ -378,16 +373,27 @@ attachSignals();
 try {
   await run();
   console.log(
-    "Pinned native artifacts emitted; PWA activation and provider-operation verification remain required.",
+    mode === "--audit"
+      ? "Pinned production native package audit completed."
+      : "Pinned native artifacts emitted; PWA activation and provider-operation verification remain required.",
   );
 } catch (error) {
-  process.exitCode = interrupted === "SIGINT" ? 130 : 1;
-  if (interrupted === "SIGTERM") process.exitCode = 143;
+  process.exitCode =
+    error?.code === "NATIVE_GROUP_DRAIN"
+      ? 125
+      : interrupted === "SIGINT"
+        ? 130
+        : 1;
+  if (interrupted === "SIGTERM" && error?.code !== "NATIVE_GROUP_DRAIN")
+    process.exitCode = 143;
   console.error(
     "Private raw build failed or was interrupted; inspect its private logs.",
   );
   console.error(nativeBuildFailureContext(error, buildStage, lastCommand));
 } finally {
-  for (const state of owned) terminate(state);
+  for (const state of owned) {
+    stopOwnedCommand(state, "shutdown");
+    await state.done.catch(() => {});
+  }
   detachSignals();
 }

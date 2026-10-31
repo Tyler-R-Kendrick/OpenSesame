@@ -29,11 +29,12 @@ type ClaimArrivalRead = {
 
 type Address = { pathname: string; search: string; hash: string };
 
-/** `?…` with the leaked bearer and its key taken out, and nothing else. */
+/** `?…` with every reserved claim field taken out, and nothing else. */
 function withoutBearer(search: string): string {
   const params = new URLSearchParams(search.replace(/^\?/, ""));
   params.delete("token");
   params.delete("key");
+  params.delete("pkt");
   const rest = params.toString();
   return rest ? `?${rest}` : "";
 }
@@ -45,7 +46,7 @@ function withoutBearer(search: string): string {
 export function readClaimArrival(address: Address): ClaimArrivalRead {
   const { pathname, search, hash } = address;
   const queried = new URLSearchParams(search.replace(/^\?/, ""));
-  const leaked = (queried.get("token") ?? "").startsWith("osc_clm_");
+  const leaked = ["token", "key", "pkt"].some((name) => queried.has(name));
   const cleanSearch = leaked ? withoutBearer(search) : search;
   const carries = fragmentCarriesBearer(hash);
   const scrubbed =

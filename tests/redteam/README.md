@@ -199,7 +199,7 @@ prompt-injection cases also exist as Vitest tests in
 its stub upstream received, so `pnpm test` checks them against the live server:
 
 - The zod validation error strings asserted on in `tests/malformed-input.yaml`
-  (for example `Array must contain at most 64 element(s) at capabilities`) are
+  (for example `Too big: expected array to have <=64 items at capabilities`) are
   asserted against a real `task_start` call.
 - The confused-deputy digest-substitution case (`tests/confused-deputy.yaml`)
   freezes an intent, calls `task_invoke_l1` with a forged

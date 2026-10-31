@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "browserbase-cdp",
+  "kind": "cdp",
+  "display_name": "Browserbase-compatible CDP",
+  "runtime_configuration": ["connection_id", "session_id", "cdp_url"],
+  "confinement": "driver-enforced",
+  "custody": ["input", "reset-link"],
+  "recording": "must-be-absent",
+  "handoff": ["provider-live-view", "host-transport"],
+  "user_provided": true,
+  "conformance_required": true
+}

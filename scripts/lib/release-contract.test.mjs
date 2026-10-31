@@ -168,31 +168,50 @@ describe("Pages publication proof", () => {
 });
 
 describe("release workflow wiring", () => {
-  it("keeps signature diagnostics inside the existing required CI job", () => {
+  it("keeps signature enforcement in the ruleset and build admission in CI", () => {
     const ci = readFileSync(
       new URL("../../.github/workflows/ci.yml", import.meta.url),
       "utf8",
     );
-    expect(ci).toContain("node scripts/release/check-pr-signatures.mjs");
-    expect(ci).toContain("pull-requests: read");
-    expect(ci.indexOf("check-pr-signatures.mjs")).toBeLessThan(
-      ci.indexOf("- name: Install"),
+    const ruleset = JSON.parse(
+      readFileSync(
+        new URL("../../ops/github/default-branch.json", import.meta.url),
+        "utf8",
+      ),
     );
+    expect(ruleset.rules).toContainEqual({ type: "required_signatures" });
+    expect(ci).not.toContain("check-pr-signatures.mjs");
+    expect(ci).not.toContain("check-merge-group-signature.mjs");
+    expect(ci).not.toContain("pull-requests: read");
+    expect(ci).toContain("node scripts/lib/ci-affected-builds.mjs run-ts");
+    expect(ci).toContain("node scripts/lib/ci-affected-builds.mjs run-cargo");
+    expect(ci).not.toContain("ci-affected-tests.mjs");
     for (const name of ["TypeScript", "Bundle budgets", "Rust"])
-      expect(ci).toContain(`name: ${name}`);
+      expect(ci).toContain(`name: ${name}\n`);
   });
-  it("stamps before upload and verifies after deployment", () => {
-    const deploy = readFileSync(
+  it("stamps once during candidate construction and promotes that archive after qualification", () => {
+    const producer = readFileSync(
+      new URL("../../.github/workflows/candidate-build.yml", import.meta.url),
+      "utf8",
+    );
+    const publisher = readFileSync(
+      new URL("../../.github/workflows/release-publish.yml", import.meta.url),
+      "utf8",
+    );
+    expect(producer.indexOf("pages-release.mjs stamp")).toBeLessThan(
+      producer.indexOf("path: src/packed/*.tar.gz"),
+    );
+    expect(publisher).not.toContain("pages-release.mjs stamp");
+    expect(publisher).toContain("verify-promotion");
+    expect(publisher.indexOf("verify-site.mjs")).toBeGreaterThan(
+      publisher.indexOf("uses: actions/deploy-pages@"),
+    );
+    const legacy = readFileSync(
       new URL("../../.github/workflows/deploy-pages.yml", import.meta.url),
       "utf8",
     );
-    expect(deploy.indexOf("pages-release.mjs stamp")).toBeLessThan(
-      deploy.indexOf("uses: actions/upload-pages-artifact@"),
-    );
-    expect(deploy.indexOf("pages-release.mjs verify")).toBeGreaterThan(
-      deploy.indexOf("uses: actions/deploy-pages@"),
-    );
-    expect(deploy).toContain("branches: [main]");
-    expect(deploy).toContain("workflow_dispatch:");
+    expect(legacy).not.toContain("uses: actions/deploy-pages@");
+    expect(legacy).not.toContain("branches: [main]");
+    expect(legacy).toContain("exit 1");
   });
 });

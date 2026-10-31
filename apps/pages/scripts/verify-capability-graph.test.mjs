@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, test } from "vitest";
+import { PUBLIC_FILE_OWNERSHIP } from "../src/lib/capabilities/ownership.js";
 import { canonicalJson } from "./lib/capability-graph.mjs";
 import { verifyDist } from "./verify-capability-graph.mjs";
 
@@ -148,6 +155,30 @@ const codes = (report) =>
       .filter((v) => v.severity === "error")
       .map((v) => v.code),
   ].sort();
+
+test("the classic schema bootstrap is accounted for by authored core ownership", async () => {
+  const file = "browser-schema-config.js";
+  const filesPatch = (files) => ({
+    ...files,
+    [file]: readFileSync(new URL(`../public/${file}`, import.meta.url), "utf8"),
+  });
+  const missing = await verifyDist({ dist: scaffold({ filesPatch }) });
+  assert.deepEqual(codes(missing.report), ["UNACCOUNTED_CHUNK"]);
+  assert.equal(PUBLIC_FILE_OWNERSHIP[file], null);
+  const dist = scaffold({
+    filesPatch,
+    graphPatch: (graph) => ({
+      ...graph,
+      publicFiles: [
+        ...graph.publicFiles,
+        { file, capability: PUBLIC_FILE_OWNERSHIP[file] },
+      ],
+    }),
+  });
+  const { report } = await verifyDist({ dist });
+  assert.equal(report.ok, true);
+  assert.deepEqual(codes(report), []);
+});
 
 describe("verify-capability-graph", () => {
   test("a consistent hardened dist verifies clean and reports sizes", async () => {

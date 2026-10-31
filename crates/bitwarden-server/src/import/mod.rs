@@ -17,6 +17,7 @@ pub mod account;
 mod account_files;
 pub mod vaultwarden;
 
+mod file_paths;
 mod files;
 mod shared;
 

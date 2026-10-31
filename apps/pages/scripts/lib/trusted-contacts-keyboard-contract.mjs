@@ -10,10 +10,11 @@
 //   - a sheet opens with the keyboard on its close key, Tab and Shift+Tab stay
 //     inside it, Escape closes it and gives the keyboard back to the key that
 //     opened it;
-//   - Enter in the one-field form commits the step, and the step that replaces
-//     it leaves the keyboard on a control, never on <body>;
-//   - a paste that is not a packet is refused on its field and its commit key
-//     stays off.
+//   - the unlock-policy editor cannot save a circle without a selected person
+//     with a passkey; typing a name and Enter leaves it open with no circle.
+//
+// Real passkey quorum acceptance and below-threshold refusal are also walked
+// by verify-trusted-unlock.mjs; this walk proves keyboard operation and refusal.
 //
 // Every step is a real key press. Nothing is clicked, focused or dispatched;
 // the only `evaluate` calls read the page, as a person would.
@@ -142,7 +143,10 @@ async function sheet(page, tabTo, name, inside) {
   const key = page.getByRole("button", { name, exact: true });
   await tabTo(page, key);
   await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", { name, exact: true });
+  const dialog = page.getByRole("dialog", {
+    name: "Trusted contacts",
+    exact: true,
+  });
   await expect(dialog, `${name} opens`).toBeVisible();
   expect(
     await focusedName(page),
@@ -159,20 +163,32 @@ async function sheet(page, tabTo, name, inside) {
   ).toBeFocused();
 }
 
-/** A name, Enter, and the step that replaces the form leaves the keyboard on a control. */
+/** A name alone cannot authorize a circle without a passkey-bearing person. */
 async function newCircleStep(page, tabTo) {
   const name = page.getByLabel("Name", { exact: true });
+  const save = page.getByRole("button", {
+    name: "Save the circle",
+    exact: true,
+  });
+  await expect(save).toBeDisabled();
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
   await tabTo(page, name);
+  await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.insertText("Family");
+  await expect(name).toHaveValue("Family");
   await page.keyboard.press("Enter");
-  await expect(
-    page.getByRole("button", { name: "Copy invitation" }),
-  ).toBeVisible({ timeout: 20_000 });
+  await expect(save).toBeDisabled();
+  await expect(name).toBeFocused();
   await focusIn(
     page,
     '[role="dialog"]',
-    "the invitation step takes the keyboard",
+    "an incomplete circle stays in its editor",
   );
+  // Escape leaves a text edit first; the sheet's Escape then closes it.
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("dialog", { name: "Trusted contacts", exact: true }),
+  ).toBeFocused();
 }
 
 export async function trustedContactsKeyboardContract({
@@ -193,7 +209,16 @@ export async function trustedContactsKeyboardContract({
   await expect(page.locator(":focus")).not.toHaveJSProperty("tagName", "BODY");
   await keysInOrder(page, tabTo);
   await sheet(page, tabTo, "Start a circle", () => newCircleStep(page, tabTo));
-  // The hidden file input carries the key's name too, so the key is found by id.
+  await expect(
+    page
+      .locator("#circles")
+      .getByRole("img", { name: "No circles yet.", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator("#circles")
+      .getByRole("heading", { name: "Family", exact: true }),
+  ).toHaveCount(0);
   await context.close();
   if (harness.failures.length === before)
     console.log(

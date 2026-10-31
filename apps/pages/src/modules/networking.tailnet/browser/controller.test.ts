@@ -8,29 +8,13 @@ import {
 } from "@opensesame/app-core/lib/secret-backends/runtime.test-support.js";
 import * as nodeState from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import type { BoundaryValue } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  StatusWorker,
+  stubBrowserNodeWorker,
+} from "./authorization.test-support.js";
 import { createBrowserNodeController } from "./controller.js";
-class WorkerFixture {
-  static current: WorkerFixture;
-  onmessage: ((event: { data: BoundaryValue }) => void) | null = null;
-  onerror: (() => void) | null = null;
-  sent: BoundaryValue[] = [];
-  terminated = false;
-  constructor() {
-    WorkerFixture.current = this;
-  }
-  postMessage(value: BoundaryValue) {
-    this.sent.push(value);
-  }
-  terminate() {
-    this.terminated = true;
-  }
-  emit(data: BoundaryValue) {
-    this.onmessage?.({ data });
-  }
-}
 let fixture: Awaited<ReturnType<typeof runtimeFixture>>;
 let active = true;
 const approve = vi.fn(() => true);
@@ -78,14 +62,14 @@ beforeEach(async () => {
   fixture = await runtimeFixture();
   active = true;
   approve.mockClear();
-  vi.stubGlobal("Worker", WorkerFixture);
+  stubBrowserNodeWorker();
 });
 afterEach(async () => {
   for (const write of heldWrites.splice(0)) write.resume();
   vi.unstubAllGlobals();
   await fixture.close();
 });
-function authorized(worker: WorkerFixture) {
+function authorized(worker: StatusWorker) {
   worker.emit({
     kind: "netmap",
     value: JSON.stringify({
@@ -99,7 +83,7 @@ function authorized(worker: WorkerFixture) {
 it("requires both real SDK state signals and sealed state persistence before admitting later requests", async () => {
   const node = controller();
   await node.start(config);
-  const worker = WorkerFixture.current;
+  const worker = StatusWorker.current;
   worker.emit({
     kind: "netmap",
     value: JSON.stringify({
@@ -127,6 +111,8 @@ it("requires both real SDK state signals and sealed state persistence before adm
   expect(worker.sent).toContainEqual({
     kind: "decision",
     id: 7,
+    url: "wss://controlplane.tailscale.com/ts2021",
+    method: "CONNECT",
     allowed: true,
   });
   expect(
@@ -146,7 +132,7 @@ it("requires both real SDK state signals and sealed state persistence before adm
 it("refuses optional telemetry and late policy decisions after disposal", async () => {
   const node = controller();
   await node.start(config);
-  const worker = WorkerFixture.current;
+  const worker = StatusWorker.current;
   worker.emit({
     kind: "decision",
     id: 1,
@@ -157,6 +143,8 @@ it("refuses optional telemetry and late policy decisions after disposal", async 
     expect(worker.sent).toContainEqual({
       kind: "decision",
       id: 1,
+      url: "https://log.tailscale.com/c/opaque",
+      method: "POST",
       allowed: false,
     }),
   );
@@ -169,16 +157,14 @@ it("refuses optional telemetry and late policy decisions after disposal", async 
     method: "GET",
   });
   await vi.waitFor(() => expect(worker.terminated).toBe(true));
-  expect(worker.sent).not.toContainEqual({
-    kind: "decision",
-    id: 2,
-    allowed: true,
-  });
+  expect(worker.sent).not.toContainEqual(
+    expect.objectContaining({ kind: "decision", id: 2, allowed: true }),
+  );
 });
 it("clears a real authorization URL and terminates when actual vault credential bytes change", async () => {
   const node = controller();
   await node.start(config);
-  const worker = WorkerFixture.current;
+  const worker = StatusWorker.current;
   worker.emit({ kind: "auth", url: "https://login.tailscale.com/a/fixture" });
   await vi.waitFor(() =>
     expect(node.snapshot().authURL).toContain("login.tailscale.com"),
@@ -190,7 +176,7 @@ it("clears a real authorization URL and terminates when actual vault credential 
 it("refuses redirected authorization origins and never publishes a late response after stop", async () => {
   const node = controller();
   await node.start(config);
-  const worker = WorkerFixture.current;
+  const worker = StatusWorker.current;
   worker.emit({ kind: "auth", url: "https://attacker.example/auth" });
   await vi.waitFor(() => expect(worker.terminated).toBe(true));
   worker.emit({ kind: "state", state: "Running" });
@@ -202,7 +188,7 @@ it("refuses redirected authorization origins and never publishes a late response
 it("rejects pending peer results when a browser node is disconnected", async () => {
   const node = controller();
   await node.start(config);
-  const worker = WorkerFixture.current;
+  const worker = StatusWorker.current;
   authorized(worker);
   await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));
   const response = node.get("http://100.64.0.1:8080/proof");
@@ -217,7 +203,7 @@ it("rejects pending peer results when a browser node is disconnected", async () 
 it("never admits a connected node or peer request for an authorized netmap without addresses", async () => {
   const node = controller();
   await node.start(config);
-  const worker = WorkerFixture.current;
+  const worker = StatusWorker.current;
   worker.emit({
     kind: "netmap",
     value: JSON.stringify({
@@ -240,7 +226,7 @@ it("never admits a connected node or peer request for an authorized netmap witho
 it("withdraws a timed-out peer GET before terminating its original drained worker", async () => {
   const node = controller();
   await node.start(config);
-  const worker = WorkerFixture.current;
+  const worker = StatusWorker.current;
   authorized(worker);
   await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));
   vi.useFakeTimers();
@@ -251,9 +237,8 @@ it("withdraws a timed-out peer GET before terminating its original drained worke
     await refused;
     expect(worker.terminated).toBe(false);
     worker.emit({ kind: "closeHTTP", closed: true });
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(worker.terminated).toBe(true);
+    // The acknowledged drain, not the 60 s bound: waitFor advances ~1 s.
+    await vi.waitFor(() => expect(worker.terminated).toBe(true));
     expect(node.snapshot().status).toBe("stopped");
   } finally {
     vi.useRealTimers();
@@ -267,7 +252,7 @@ it.each(["edited", "deleted"])(
     holdWrites();
     const node = controller();
     await node.start(config);
-    const worker = WorkerFixture.current;
+    const worker = StatusWorker.current;
     worker.emit({ kind: "storage", state: { key: "real-committed-state" } });
     await vi.waitFor(() => expect(heldWrites).toHaveLength(1));
     if (change === "edited") await editToken();
@@ -289,12 +274,12 @@ it("cannot adopt an old receipt into a different restarted node record", async (
   holdWrites();
   const node = controller();
   await node.start(config);
-  const older = WorkerFixture.current;
+  const older = StatusWorker.current;
   older.emit({ kind: "storage", state: { key: "older-turn" } });
   await vi.waitFor(() => expect(heldWrites).toHaveLength(1));
   await node.forget();
   await node.start({ ...config, hostname: "new-node-record" });
-  const newer = WorkerFixture.current;
+  const newer = StatusWorker.current;
   heldWrites[0]?.resume();
   await vi.waitFor(() => expect(heldWrites[0]?.returned).toBe(true));
   newer.emit({ kind: "storage", state: { key: "newer-turn" } });
@@ -312,10 +297,10 @@ it("does not decrement a newer turn's in-flight write when an old write settles"
   holdWrites();
   const node = controller();
   await node.start(config);
-  WorkerFixture.current.emit({ kind: "storage", state: { key: "older" } });
+  StatusWorker.current.emit({ kind: "storage", state: { key: "older" } });
   await vi.waitFor(() => expect(heldWrites).toHaveLength(1));
   await node.start(config);
-  const newer = WorkerFixture.current;
+  const newer = StatusWorker.current;
   newer.emit({ kind: "storage", state: { key: "newer" } });
   await vi.waitFor(() => expect(heldWrites).toHaveLength(2));
   heldWrites[0]?.resume();
@@ -349,7 +334,7 @@ it("cannot recover an actual withdrawn activation lease after a held store recei
   });
   holdWrites();
   await node.start(config);
-  const worker = WorkerFixture.current;
+  const worker = StatusWorker.current;
   worker.emit({
     kind: "storage",
     state: { key: "committed-before-withdrawal" },
@@ -376,13 +361,13 @@ it("cannot commit an old turn's still-pending vault write after restarting", asy
       await gate.promise;
       return save(...args);
     });
-  WorkerFixture.current.emit({
+  StatusWorker.current.emit({
     kind: "storage",
     state: { key: "pending-old-turn" },
   });
   await entered.promise;
   await node.start(config);
-  const newer = WorkerFixture.current;
+  const newer = StatusWorker.current;
   newer.emit({ kind: "storage", state: { key: "committed-new-turn" } });
   authorized(newer);
   await vi.waitFor(() => expect(node.snapshot().status).toBe("connected"));

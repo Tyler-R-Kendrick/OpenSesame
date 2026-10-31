@@ -1,0 +1,1618 @@
+[
+  {
+    "path": "Cargo.lock",
+    "rule": "generic-api-key",
+    "line": 1359,
+    "fileSha256": "7674a0dc35da0bea35c787fd5a58aebf04ed0577ac0d3c346260ed39a3536100",
+    "matchSha256": "93083ab4ae3e6e5c8dbd83a3ca66bb211438e30887c4fda849613d932a2aaa73",
+    "reason": "generated Cargo lock dependency-list entry, not secret or checksum"
+  },
+  {
+    "path": "apps/cli/src/certs.rs",
+    "rule": "private-key",
+    "line": 286,
+    "fileSha256": "cf0611a4adccf25322c96db8f52ca6c9d8f9306254e0a058ccd22cc99bee704a",
+    "matchSha256": "b1f8853cfd0d3f84f6f9f22620aeeffa62dc9ff64fa547a3d5d2c0ea9e86fe7d",
+    "reason": "write_private_pem test passes a short PEM-marker string and checks file permissions; no usable private key established"
+  },
+  {
+    "path": "apps/cli/src/security/watchtower/tests.rs",
+    "rule": "private-key",
+    "line": 54,
+    "fileSha256": "f9f498c6b0d2d30fc49c6f5dd4d503dec5ac40fed5fef173983a3c6f04ee50be",
+    "matchSha256": "0a7f095ddc0027fbb9aebe7d75f5be9e68543e2adcafc9c606735d86c81189ac",
+    "reason": "PEM detector test constructs a header around 14 printable ASCII bytes rather than an ASN.1 private key. Exact source Git blob 4e9305234e0b1fc77b1d3ea74af6107b99ec0a38."
+  },
+  {
+    "path": "apps/pages/scripts/lib/bitwarden-sdk-resource.test.mjs",
+    "rule": "generic-api-key",
+    "line": 42,
+    "fileSha256": "6bebb4d16a08f5fa6a64811ce1d489a06a85f16ffc80e55c299233fad956c2a1",
+    "matchSha256": "3252b54733cabaf98d904919ce22d2e812922c4aeeb17c8bc11e51f1767c41fe",
+    "reason": "A JavaScript asset filename supplied to a mocked resource-failure test, not an authentication credential. Exact source Git blob 7282e523e28c35500417d1d4f295d54432afec4c."
+  },
+  {
+    "path": "apps/pages/src/lib/share-target-intake.test.ts",
+    "rule": "generic-api-key",
+    "line": 12,
+    "fileSha256": "f9f08c3d24e7b1148d9f9101c356bafcf107ce0188b811cd942c61e4e88025e1",
+    "matchSha256": "ce88788b3916ac70ad5fa23766374f0586ffe7cb31d0ee7fb4fb3914568eb799",
+    "reason": "UUID-shaped value is used as an in-memory cache selector in a test. Exact source Git blob c32049a39a41ce7507ae7ebe62e08bfc8e5b468a."
+  },
+  {
+    "path": "crates/env-spec/tests/support/mod.rs",
+    "rule": "generic-api-key",
+    "line": 137,
+    "fileSha256": "902da18ca4892fdf926a6da3c121cef0ddc4800ec633b7dce82e7c13f0bcfe38",
+    "matchSha256": "d564e56eadd6c44b2dad8170a20d9f560060b1cef30b0a3cc3cc48c9882e7bf5",
+    "reason": "Explicitly dummy-labeled GitHub-style sample has a nonstandard short length and is used in a test environment fixture. Exact source Git blob ae31299b51a7031adcfe1233d9426d60c4d4bf61."
+  },
+  {
+    "path": "crates/human-vault/tests/fixtures/root_protection_shared_vectors.json",
+    "rule": "generic-api-key",
+    "line": 29,
+    "fileSha256": "05d7384bfdfc453a73e6380d17fac6c810b51f9d6095fa35c960bac38353a642",
+    "matchSha256": "5224e3caf8c5009aee6f8f3b1c7a8c8a3e2758e6bac7cd05ec2a24373aac186d",
+    "reason": "authTagB64 fixture value; public authentication tag rather than credential"
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/fixtures/cloud/sync.json",
+    "rule": "generic-api-key",
+    "line": 108,
+    "fileSha256": "1319a8f0567758996f1ac17b966ee440d77a5aae6f73dc97c9d799780e106130",
+    "matchSha256": "ba4f659ce1aadb0ec7cb2c82c1c9e2811b022725ab2be13c7ef36d9a32ec034f",
+    "reason": "tests/fixtures_gen.rs states these API fixtures are self-generated from deterministic common test account material; committed_fixtures_match_the_generator verifies the committed JSON against build_fixtures."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/fixtures/vaultwarden/sync.json",
+    "rule": "generic-api-key",
+    "line": 108,
+    "fileSha256": "2ec89a4c96b8d51abad00f69dde06b74b559169835469a32a1aa63f5af66bcfe",
+    "matchSha256": "4080a58b29d2411142301397f817a3200418418030ef903733e037028d2cd885",
+    "reason": "tests/fixtures_gen.rs states these API fixtures are self-generated from deterministic common test account material; committed_fixtures_match_the_generator verifies the committed JSON against build_fixtures."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 11,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "2244e9711ea8867e1a267bc19731021de55351f35baa35e367650c7cb1e3d509",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 15,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "063dd71a3a4c4bacd9b08b6fa432a12771684559babb8546820a90ce291ec363",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 16,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "7d1f64976ccb41e741c55f8e3daf349e99676222bc7ea5bf438490f00de1c29c",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 27,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "84dcb24e2a975f7b68b234c9e1c46ef0e103ba2260f365349e79cd2d65b39187",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 31,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "c7f8a3a11b437e690db4e844c737aff7d57801fa8aebd571d7ea1f82173f5c6b",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 32,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "186b01758513f6378371498561e8423951015cd847608e7a9c108994944e3613",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 45,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "4acdc950134daab9beaf0ff2775c4e659e8ae916199f443c9011a3281865d1a3",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 49,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "5445d35128c39ee2f731586ec7db42ac0c114b2faa530963378fe06858898a7c",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 50,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "6149ef35bef7b2690e4c6e5579ce0ae289c252615a0c86283fdac3098b98a7fb",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 63,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "af724009197b5ab2041e79a05edaf81b81db5115dc8a0423fc9f016fce5bf549",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 67,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "0e96c05cc0718f293b62874a1d32e12d3748a9f24eaa3450f97c073cc5c5311b",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "crates/provider-bitwarden/tests/vectors/crypto_vectors.json",
+    "rule": "generic-api-key",
+    "line": 68,
+    "fileSha256": "bc0e2e6c621fa6eed9df9df4ab450b50d838bd1ff8706469d10dc48412954160",
+    "matchSha256": "7e2aa12a8dcfcea71a9b37dea15d2198b9918c3d9823417b7172e46fe8e06ffa",
+    "reason": "Fixture declares self-generated golden vectors. tests/crypto_vectors.rs cases() defines example-domain accounts and fixed sample master passwords; regenerate() builds the golden document from compute(). Production credential reuse remains outside the evidence."
+  },
+  {
+    "path": "packages/app-core/src/lib/age-keys.test.ts",
+    "rule": "age-secret-key",
+    "line": 43,
+    "fileSha256": "ee11c1cb39790aaadf83a983f451c29a0f0f79a72d8f59d6ee546e273f29a446",
+    "matchSha256": "babd60656c326900d9ef03ad89fd42a0d790f2b2e3ebf6ee4c20c60ff79b7663",
+    "reason": "exact line matches earlier reviewed historic age parser fixture; not evidence of deployment or key revocation"
+  },
+  {
+    "path": "packages/app-core/src/lib/capabilities/keys.ts",
+    "rule": "generic-api-key",
+    "line": 12,
+    "fileSha256": "76ed17151cb1fd75d2fa8c541679de3af89e16d3627e637b6efb32f974e99725",
+    "matchSha256": "8bfd0dcddb14f91aa61c432834dcdb13bd23983d86a0d57b11d75e65efda61ab",
+    "reason": "exported constants for local storage keys; exact lines match earlier reviewed historical counterparts"
+  },
+  {
+    "path": "packages/app-core/src/lib/capabilities/keys.ts",
+    "rule": "generic-api-key",
+    "line": 16,
+    "fileSha256": "76ed17151cb1fd75d2fa8c541679de3af89e16d3627e637b6efb32f974e99725",
+    "matchSha256": "f62cd567876fa372dea53e1539c944e801cb6f979374e3b7cbdd6bb2542ae195",
+    "reason": "exported constants for local storage keys; exact lines match earlier reviewed historical counterparts"
+  },
+  {
+    "path": "packages/app-core/src/lib/capabilities/keys.ts",
+    "rule": "generic-api-key",
+    "line": 18,
+    "fileSha256": "76ed17151cb1fd75d2fa8c541679de3af89e16d3627e637b6efb32f974e99725",
+    "matchSha256": "28349247bbbc7435d8172232603a09275486428c377c9e980da730a1464bcb8f",
+    "reason": "exported constants for local storage keys; exact lines match earlier reviewed historical counterparts"
+  },
+  {
+    "path": "packages/app-core/src/lib/capabilities/trust/accepted-revision.ts",
+    "rule": "generic-api-key",
+    "line": 21,
+    "fileSha256": "d4e909c5d4b68cf1a292c9892c88da2fa9b9bcd6295dc6b5cdd31b706ce09aab",
+    "matchSha256": "f62cd567876fa372dea53e1539c944e801cb6f979374e3b7cbdd6bb2542ae195",
+    "reason": "exported accepted-policy storage key; exact line matches reviewed historical counterpart"
+  },
+  {
+    "path": "packages/app-core/src/lib/duress/store/store.test.ts",
+    "rule": "generic-api-key",
+    "line": 141,
+    "fileSha256": "611b773f4d6cd4784b78b0868448b30ad0844a35f4fd48ed04bf9ee9467dc01c",
+    "matchSha256": "7ebb8d9a5ea899caccbf5fd3eb9cc36458dbc24fb69ba75222b865fb587a599b",
+    "reason": "key literal used in journal recovery test, exact line matches earlier reviewed historical test"
+  },
+  {
+    "path": "packages/app-core/src/lib/git-auth-modes.test.ts",
+    "rule": "private-key",
+    "line": 111,
+    "fileSha256": "a3ddf957b834fb724d367a90a0769f7d21f54d794640269b8c239b501572859a",
+    "matchSha256": "c00fee797ea87260849ca1a357a07e07b251fc82431207251973295de002b5f3",
+    "reason": "short PEM marker in Git authentication test, exact line matches earlier reviewed historical parser fixture"
+  },
+  {
+    "path": "packages/app-core/src/lib/github-app-secret.test.ts",
+    "rule": "private-key",
+    "line": 16,
+    "fileSha256": "43808d42dadf7f7391abb1762518836a80f1d31a171858b2f4f486e717fc7851",
+    "matchSha256": "fba52b87fff4c0ba8ea6bc873315f3c86255ba6987e20601b827a65ba7b678f1",
+    "reason": "short PEM marker in APP_PEM parser test, too short to be complete RSA private key"
+  },
+  {
+    "path": "packages/app-core/src/lib/native-azure-ac.test.ts",
+    "rule": "generic-api-key",
+    "line": 15,
+    "fileSha256": "d757ef2e5002138bf170cfe0d56d9e06a212fb84d2bf0a668693e0393269be49",
+    "matchSha256": "8c875274d8e7ee03f177751cb19c327980728fd8388263f37d1e0f0bf1d1f7e0",
+    "reason": "Decoded mock key contains test and secret labels; the test uses a mocked fetch transport. Exact source Git blob 0f85bcd91904565e93320a280d26ee494eca4eb1."
+  },
+  {
+    "path": "packages/app-core/src/lib/native-google-wallet-policy.test.ts",
+    "rule": "private-key",
+    "line": 82,
+    "fileSha256": "00275c949bfa393a7e8f446470a0521f6726994f163c0ddd0bffd07a8bff2f1c",
+    "matchSha256": "e5b67dc8e9bc63d8d474e5f5af1c207a6cb9d7b4fe8399dcef1e63220a9cb499",
+    "reason": "Invalid-key rejection test constructs PEM markers around a repeated-character expression; no ASN.1 private key or usable credential is embedded."
+  },
+  {
+    "path": "packages/app-core/src/lib/native-google-wallet-spec.integration.test.ts",
+    "rule": "private-key",
+    "line": 39,
+    "fileSha256": "3a2a16c1f67171d2b8cacfd02d9247c1dd097063c83b20a8b86ab60819dd92aa",
+    "matchSha256": "0a9db0f4bc5f00a39dd9a09c3712e863037f4041a5827e3ad41fc091ae6380f2",
+    "reason": "Invalid-key rejection test constructs PEM markers around a repeated-character expression; no ASN.1 private key or usable credential is embedded."
+  },
+  {
+    "path": "packages/app-core/src/lib/sops/fixtures/upstream/identities.json",
+    "rule": "age-secret-key",
+    "line": 5,
+    "fileSha256": "eb21ed5f3cfdaf936840e7d073552b129f345c3df2739b3b5098435048ba21d9",
+    "matchSha256": "2da5d951bf18515741f827d027f17a3f0938a079655d40100be53e1e0ef93683",
+    "reason": "four exact lines match earlier reviewed historic SOPS/age fixture; not evidence of deployment or key revocation"
+  },
+  {
+    "path": "packages/app-core/src/lib/sops/fixtures/upstream/identities.json",
+    "rule": "age-secret-key",
+    "line": 9,
+    "fileSha256": "eb21ed5f3cfdaf936840e7d073552b129f345c3df2739b3b5098435048ba21d9",
+    "matchSha256": "b54e49fd01bca08b91426ec807ed317a1b9796deff48aeeaed48353b5bd53f4a",
+    "reason": "four exact lines match earlier reviewed historic SOPS/age fixture; not evidence of deployment or key revocation"
+  },
+  {
+    "path": "packages/app-core/src/lib/sops/fixtures/upstream/identities.json",
+    "rule": "age-secret-key",
+    "line": 13,
+    "fileSha256": "eb21ed5f3cfdaf936840e7d073552b129f345c3df2739b3b5098435048ba21d9",
+    "matchSha256": "54a52450cb0e1e69d07b563f5d64c6b95143fe9be07b8bf8cc95b1831512b5e3",
+    "reason": "four exact lines match earlier reviewed historic SOPS/age fixture; not evidence of deployment or key revocation"
+  },
+  {
+    "path": "packages/app-core/src/lib/sops/fixtures/upstream/identities.json",
+    "rule": "age-secret-key",
+    "line": 17,
+    "fileSha256": "eb21ed5f3cfdaf936840e7d073552b129f345c3df2739b3b5098435048ba21d9",
+    "matchSha256": "dba67371955f60b0e61119aeed884d91309bf9019bb0264a997e471806946a46",
+    "reason": "four exact lines match earlier reviewed historic SOPS/age fixture; not evidence of deployment or key revocation"
+  },
+  {
+    "path": "packages/app-core/src/lib/vault/protection/browser-enroll.ts",
+    "rule": "generic-api-key",
+    "line": 91,
+    "fileSha256": "98a3148604f1aa827794a85643a9ad7a7c0a637717a5ac34ce700b1feb6a94a4",
+    "matchSha256": "9979a1104d66f2d233e25575248b783a7870dc99383b17621ae66f3d3d7a15cd",
+    "reason": "return statement contains property names and computed record values, not embedded credential; matches earlier reviewed historical statement"
+  },
+  {
+    "path": "packages/app-core/src/lib/vault/protection/fixtures/shared-vectors.json",
+    "rule": "generic-api-key",
+    "line": 29,
+    "fileSha256": "05d7384bfdfc453a73e6380d17fac6c810b51f9d6095fa35c960bac38353a642",
+    "matchSha256": "5224e3caf8c5009aee6f8f3b1c7a8c8a3e2758e6bac7cd05ec2a24373aac186d",
+    "reason": "authTagB64 fixture value; exact line matches earlier reviewed historical vector"
+  },
+  {
+    "path": "packages/control-plane/src/__tests__/oauth2-proxy-live.test.ts",
+    "rule": "generic-api-key",
+    "line": 155,
+    "fileSha256": "56d2bf3f6e17a739ece960807a36811d242ae75db27a061355aa14ebda7c157e",
+    "matchSha256": "f05520914e515f2ca6c3bd5b7b2bc551e40ab4e186138e011fb57ac366854ddb",
+    "reason": "exact line matches reviewed historical public-PKCE proxy test argument; no production credential established"
+  },
+  {
+    "path": "packages/wallet/src/google-wallet-policy.generated.ts",
+    "rule": "private-key",
+    "line": 19,
+    "fileSha256": "794a18a3c493b66931f540cce7867820264b8af22f05d4963fbed51cb4038954",
+    "matchSha256": "9ceb794d602ee0c3024d5c673233d4e98012dc93ee1ffce58f2b532d03389171",
+    "reason": "Public validation regular expression containing PEM delimiters and character classes; this is a pattern, not private key material."
+  },
+  {
+    "path": "packages/wallet/src/google-wallet-policy.test.ts",
+    "rule": "private-key",
+    "line": 36,
+    "fileSha256": "80b3c0ee9472b83c3a42d86704f8113149056ec20940f1027559d41a7228351a",
+    "matchSha256": "0a9db0f4bc5f00a39dd9a09c3712e863037f4041a5827e3ad41fc091ae6380f2",
+    "reason": "Invalid-key rejection test constructs PEM markers around a repeated-character expression; no ASN.1 private key or usable credential is embedded."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 20,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "9962046e98d40eb806217fe412028cf417ff991bde236a98d9c625e977301cdc",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 33,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "f14bdfb539e7d6f3dcd1db1cc5773c108c4600d1b3438485ef537ba561da7455",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 39,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "fa14f4983f201e107ef9cd1fd2e858ca85e9a226e20fd4541b88a5101c21280c",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 45,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "27394ba794c1bd8b9538392e91ab627d7b32acb19afdfcba024ed091436ed58e",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 51,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "6825eafef2d3599fcabbb64f6e932d5b341c4e701292ec3df5d904956c260856",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 57,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "e31b0d313e336855ffdf8beaf4ed3ace2707ce5a4a6afb40bda3df5dab1d300b",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 63,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "3807a57cf2a2e880e21308da6849ac55e6f54116ca4a1eb6827272a8f2aef3bd",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 69,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "1ba5e8a71e3ce0bc5c45a547fdb00709d0c60a7226407ed88e9bb48a0e478727",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 75,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "1d0dcdd78c851470be89c8e84f403875f879546e13dfaadc3c7cc38eff20e288",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 81,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "cd90d0ebe52c7370323cf42d87f6b256e8892cca4dcb3d10496475a1ac0dd1a0",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 87,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "581c6585d852fc64a8f5065e1b3d1296c967439f0470e9c2fab3ee6425abd5fb",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 93,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "1c6c4233b1a5923f426e3611cc396f94249de6335d607762d52dabae794eaf60",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 99,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "8b96b36bc55e60bc77d1386b213e85025bea49b79e2725799e39e482ae9f8484",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 105,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "dfab3fae2867a2f4b4b2fe3b551873d357c47e75da7455a3182777d5e7ce4e2b",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 111,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "1bdf3b78fb66c8c21804a85700d9e8edfcdd4d1cabb955b0ced458741bf9b429",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 117,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "e3f61fe570e134b1c31540183c2a0efdee8486c23d4498b22fe988ff2da92ab1",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 123,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "c37cdf515e02d6737eafa867d988227df6dd8a167e642c21341d829f44c784f6",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 129,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "74aa4fa8a02bf0e387368290b50974fc0fad87fed24d23b84d9c35ec2ca9b647",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 135,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "1d4b9cdc600b3ed1f1ab3527178a4b002a20342775628c615f95bc752ec0e7af",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 141,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "1cba914393391825804676f67c8edd970c0d30ac345b6b3759d9bbfee742de69",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 147,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "9b047fea7bb954d46fdc1d976fe0d9835f1125b853899b6ee258772f1c4fc5f7",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 153,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "d631250740669fddb1ba080db60fcdf4be7410ccce5afceeaddf7b7a89e2e06f",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 159,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "639249d245e928ee9efe6ff9d92ebfb603f6ad2ad16122cd83281329303ecfda",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 165,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "f46f78e4da224e9f249a943909fa4274fc74387263c1e612c5be11d178dfc3b2",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 171,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "0fbd8482a167e355c9987f418cb186b2ff995f18bda936c59103e915ffd2c6ea",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 177,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "3f7802478259c6074221e35a643da14d788f7de3a4036ac9cb9e56f69c0b2e4b",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 183,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "d92cd5a2b5651b35a3647768791997af50d9da8626e08284d6a715b6f00a5cb5",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 189,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "6df8160ef4b1bbc074e880302a9c487ee703882fe208030634078aec05fd5c06",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 201,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "129d869cd9ceef553f95f26248eda16bf7dd3e05b4947a508a404682613bba30",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 207,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "58da79e1ce3826a58e36916881de5419a1e37b2c311cc2b183fbd80af1d1a65b",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 213,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "7dab1237dbef75f6949468b4b3d843be362a0e61b001064095499c717dc74b08",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 219,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "87ccb1b65c7cadca2b04211e6e22352b357b540eda2a347210fc2ded179175c3",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 225,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "22c70b8888e4432011505480ec5f793bf7339663a86496cdd92ea7910eaeb040",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 231,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "d81c3a9ff50034d0a42abf3bb72543ea18ce7d43e33de7e9b5549426160830b2",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 237,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "747b0ecebf0db264a6732b0c0e1d0157deccea19e0264a7d1422e678549595cc",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 243,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "c310fcc9382e087098fa0d06a9f9ea7484b26acbf7d65a299b4a76e82ed71bef",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 249,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "78e187b7079c14a8828eb1eda04a134dc905f7e23489e74fb49ab814cd966238",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 255,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "af0469f1b35c8fabbdaa7d5dc94690790c1d8b3b2f5171b40f62cca81e9edf08",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 261,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "d3d7f01431eceaaf783b13df5557c68ad49b4d0bfc2413549241ef02ac436288",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 267,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "047ec32af8420f3616c71a64f25b179ce2e276e604479311bd6b611e7793c9f0",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 273,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "63f5b7850f87928043cb19ee55fbf0bdc5b6b4d392146a4f0b9f1cdef1be9c1f",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 279,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "5311b626b967f39d9c51c4dadff6b2350fd30d6a74c8cf88c2e9f5329b1e3044",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 285,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "2eb4c1a987b12a2fe6cc1a34530576711c45953249d0ea78fa64485dcd9ec206",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 291,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "7eda0151179f54ee412a9fd3e4a2a72250a98bbd242d79d1a2e7a1d7ed4f49da",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 297,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "2ae99e9e5a388a537894a4760ec7bbae4b4408ccbc2f80323d2ed2eede8d31ab",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 303,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "9afe17aee98639bf258a6a1e09d6d33998d4712052356deba7695e1dad9216a0",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 309,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "9c3b97216c23619bd3d25d78eda69b996fa1decd747597ff8b5df5730f215a53",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 315,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "b6616feb3c785c2acaa4039230af9f0e5af6dd6a454089781a6fbfbf49d0f25e",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 321,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "987349eb141af4022ac9793bfd5e53bf1bef067e5ebd84753f4f2d7568f66ef3",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 327,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "21ffb03d374f16197e098475bfe77bdd45551bc4ff5f75ed0006d442c83ed23e",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 333,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "4c838e68eb870bedc5caf3a95abdbc4898bee6df7e50e523fa690f135b0a3a75",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 339,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "9af10289437cfb8c1ae2903b1bb42ec1a5027370b95d3e662b27e82e3152506a",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 345,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "12a4d1fba989e2d07a8ef43e5820056730cac025f34fc434ecea06f3bbf0b104",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 351,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "d4b1f44438e1b60bf7e38aaf8149c4db2bd70f8ce952c3b827ec42a48afcdb35",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 357,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "fa87f2f88e0aa05a1f35cd31aaf3c041bf96df8b3ceb2a8d664ea576a908659e",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 363,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "f20e97b529000f96ce44aa461763bcae09e80e1be8e2dec661a2eff9d6180aa1",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 369,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "f0fff9e21e21262aa48c94b6e7d3d22d53ce281784772f41d38ce3501b2d273b",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 375,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "eab04a43881f4514e2e1cafa0d5fd78e6f7cfceacccb3e121434124b79f71129",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 381,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "388eb93914e95aa3653e1df6633537d948df76b1a4ea817074fa4d8cd1e9c57d",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 387,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "0bda2f4471b9513040ae131a6dbd2db8b1afab600372a1bb4fcf967009735c67",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 393,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "c8dc2f2ed8543ed380bd6cc3eba12e42a4e78d3b1594b594a63f2e660f73c53b",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 399,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "d8f0717e7c7ebcbe4f9a7217e8072506e6820bbc966d8301e2ad0fae51db98ea",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 405,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "651fb7071046cfe33d0e5039292f071b7fac8c21e300b00eae0c6f8b276e31f4",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 411,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "b24ed1254f175ccc2cb855c98fdab7400330bd3fa25828269799a4d7748bf298",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 417,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "14210ad7c15dd0d5cd3c0b50095669d00a7803bf834023b9ae8052a14ccb3ea8",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 423,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "cc8ea6b0c95acb216ed1faa1d867535f0d433919e9c43d9ec0825c32f34a27f3",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 429,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "6f655c80255b05fd71f094aa58c2361c1d43ca7775fd60e0afd9ab40e2ffce9a",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 435,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "bb726e5cc5b65a75721aa444515a96c3efd45969699800de1b9326239e28ab17",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 441,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "c054dd2605ed9d8923da3db8b0f25249da77f15d90e839d7bb95f0f7b6ecb9e6",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 447,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "4229a5cab99128287ec4fc90b6c15166c5ceb91af0176476a7e5620f4d6cd31c",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 453,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "a878c6224b37f9b2ac234e0ea5340b4f14ce7c0ab18ff43e3eff2b888ef6ad82",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 459,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "341f33daa863874297bc92c1a3124dbe3c00b492ca904793e0bddac0d5a6d42e",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 465,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "06b07d86263a756b7911adb8e3ccec9ce3f5f742686ad884f630d1c833a3fcb2",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 471,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "ec49073d3fadedc2ae81c7c67cafd00ae109b718fd8c458618ad7a9e124ae025",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 477,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "1ef19bca61def765d014a1f7ea42f747ff5274c19ead4d808819cd4338e770a7",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 483,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "1f38a0c3f57e5764b49e71db9131a2ef70c79a48af2b2459857cbf276d6b5e66",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 489,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "03fc64490da32141884e52af37bf852c949643fa282a11d6c133407eaa8fbaa2",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 495,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "c6f4682b7cbe0cf0a2a1aa475de11baedd732b55ce4242310c03ed28f6567747",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 501,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "db5c1c11d9e8da52d99c3db0fd98d74c2bdbfae54a75ac36ab268dacc27626c1",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/chacha20/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 507,
+    "fileSha256": "792b8a5df7e455eaa371ba649b17ee95693deefdaeb85f324322db91ea58a432",
+    "matchSha256": "029d1b7cbdb088efdf6042d0d8a41597136f6ebfd2cd42720769bbe0592c65a0",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 3d3bbcdc51d8a8d1c9d384d114d60e32b545830c matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 429,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "4b24f932d34f8a68ca57e2aec54c5fbfe04dad2e2f5e03a2b1dc7e7251e507c2",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 434,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "4f5763e9e4be4c83a5cb196db527442738c7956a6022409d19c8799e2b25efc3",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 439,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "dc573c1d444d02c3b879d5f22d42bc0931945d80ef483f66687c254a6e11da49",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 444,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "0f5e285d31ead12a6d193c8889e0b2722e6f4f97a10cd3207533cd578d7060ca",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 449,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "5d8d6f334ab9b510931d8276c3dc45f031e4a7be89315a5e32e168bc819d2a28",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 454,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "565944f7f463ffcc8ed5dbdf4ab0191a249c3982aefb81c6df4846fb181f8d5d",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 459,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "318f29f527f5168acc3152d4a9f290e01b45e346b2cd2fc01ecabe1f1e63e613",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 464,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "2bb26527e3c3dda28f0ee87c0d3530688ae0d96e7ec496444e2610de34ba2e21",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 469,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "7ce632ec29b562182ad4ac799c3fcc4ee7a969cb3c5421927244bb75ee1eaa81",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 474,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "9de62af6b58e9d51d8ebb126638bd6a9299a5a6acb22bfb8ea03bf605ed1267d",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 479,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "87dfc976b18923b140ee31fcee32bcaf92b87c459476ba9abbd2f7be173a5fb1",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 484,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "6467861ab13611ac61268b7a9353753f8a445201cf1e400809d52e5dc0e6c5b1",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 489,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "0b731741efbd4b800523a9298793c4f5edf2973b9e62bdea17afbc233fab3075",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 494,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "fb42e1859125bc0dfc51d7c3019b06b0eee03c54693554ffc8ef296637adc6ba",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 499,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "e1d886ee3359c5a0b7fa31572cdf9c67d00e065a9814b14ca44ba2da68c06557",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 504,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "a441bf49926824fd012e6731017f4e79903ba7bbc8142988e0fee816f2ec7c14",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 509,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "d695547c74e8f158ff715afbb79ea0fcd39389a766a4beac5c54db691ff63130",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 514,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "112b49262d7d00577fdda784c589c2bee03a54e7e8b9cde7777de8085616eac9",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 524,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "4897eb1aa56b90af06a1780b9efbb82bdfba9b8692f90ad5e06859dfcf7c1f74",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 537,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "c3b3046e2b3a8b9cc127138d8130c6566e99ddbdd84ebc8ed4d7c9ac5f407619",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 551,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "c104e3cf2a99d8af1a63299a010e8c6b3c85efc67fd1e7d64470807cfa50417b",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 572,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "f9043c5770204e285c2a8b18bca18f13ae02c72700d1a693b814b41b3e09d9a0",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 597,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "be3510c34f499399a0f96618b8999234abb971da8ec4f98e123c04cdd25edd64",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 625,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "a52093c6c143a3713c5064ad06384797f7273a67b85c387c4ddf84b36305aaeb",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 657,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "4707728d255620255c1145548542a7f714f096442e85091d7a1cdb6f459b87a5",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 689,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "7ca16ee84eb95176a9377d4f8bcc323d546090645d04260056a8e4c10afa845d",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 728,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "dea81a607b8ddd58b6609feec596dfd70b294699d944c33ea245454a9aa467b8",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 769,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "6cb7e7c568dfdc6c137b2713d701a06ff476410b5e3836df5ba775c3686cca30",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 816,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "a72cbf137b58d8fde78fdd8d9983a81e170a95c2693c18b107c1ce26a9a3fcbb",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 871,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "a039a29375e0f4a761a6971a3e919bacabc1618ad1652e348ea10f81714a21e0",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 929,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "a756759a7d98ca3ae936beca3ab457fb490bfef67b05ec8bebe50c10c9b7d1f8",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 988,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "f33f7f67e0045a237bf2ad37d7311f563a02f6708f8c401094de86b7709b58d8",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1054,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "b93130861e5ac6b8032106cbbd86d5ce5c48bd6928db62261b9b28d2ca425e9c",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1121,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "7cb049b92fd006ec64a6721a721e4110d1c4e886e52d5bdcdfda5b7ca08d11b9",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1190,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "6b631322ffd5ea97034e179f4ed06f21f6548e6b72b060c9efc96780d1f16671",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1268,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "90238fc45d2cc46d286cc37c92b3964ec81f19581a98c96cea715b3b26d9b887",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1354,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "40c1704ed00c325a30ce6cb1d27be7ab6be6d6b3bd7e4b2986a6ac59dc14b54c",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1444,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "a2329c65fb3bb459d2e65709fa02a66b06ca82f88eade7ed2e67b6c32c0e1f67",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1541,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "f86de8d11dd56d5550c7f2460f87fca4bc7e5eeabef5207533d85c8590d24183",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1641,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "d977d223b143ded9f22db9e0fb361776b17bab4a9acce5142aa21e9c4a7e432e",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1741,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "789c57ebcfd32c463ee6c190a18c34326f2a3d97ca84c6c22c76930e12a92cb9",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1846,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "6b74cdb32da88060e2ec2ea98b50919ac44ecef2f354a761fbafe33ec5523ab2",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 1955,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "cfa594274aabb8d3b1194f890aa844588a7ac88d376d22a273d9df010fbf8e90",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 2067,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "b5acca2603704ea1439bac0aff4439247f7c11b6e70e28965a3cad667591b83c",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 2179,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "5476fcc6811d0ec31b21970b891ebf1b77586e3dce7660dc853c90aa87c2d355",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 2297,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "38359dba9de47ffd8539583836b5674d089eaa0a81b5b4a8133981a88a869798",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 2417,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "66d7f3e0176b2fb5c1236d860cd537a73cae3a8d4efd44193bc89fe51f097f08",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 2543,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "d9755963226af75490d0e5175df8d40700b673333341447033035d4a0b28524c",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 2675,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "7aa2cc4fba832284d47f5093362084c6a2e8d46839356ebde1fc3b3405573635",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "scripts/test/live-turn/third_party/x-crypto/internal/poly1305/vectors_test.go",
+    "rule": "generic-api-key",
+    "line": 2809,
+    "fileSha256": "636bc6dde09403bb787819a8a0f8b5521d5655bad6c3c17c21907106cbb96e31",
+    "matchSha256": "4b6db3640e89ec5e5699034bce87fb00ecf0d24913d4a7b7f9c89d90b07fbaf9",
+    "reason": "Public upstream golang.org/x/crypto v0.58.0 test vector; source Git blob 4788950f19c710291d690946689b7e3ca6ded3de matches upstream commit 8fdf07b3114278fb3b78c1cf1814e08bd851eb4c."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 19,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "fa13b63da19d0b426b312428fe14a0606bee36c2a544bfead205d4bbc91a061e",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 20,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "280b4ae6bf970e8376c3708799a8bcaf863ee8c1766062084cde0fc4d462110f",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 21,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "1bb902df4f852eb095811d28d802ec1c8b747920223591560c1a166013a3d357",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 22,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "1797f3eae879157e1aa0f6430418c18619e6165015a205df09da0746edf0b7f9",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 24,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "197fcc5be0dc794f8919d67da943e0acf00209d8eb169f4886cc72f6d3c061b3",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 101,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "3e03f1d92ebda6971b5d089f5b8f4c89a0ebbb7f867cb4372fe7efdf025edcc1",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 102,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "0cc86fe50ebae8a9c5cab84223ba4b9cbc2f9fdce1932d905ea903aa76caa27f",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 103,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "39538ae274e88f2518b1aa1cf540bcd23f41533e94882bd7b88c1ac9b99d36ed",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 104,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "34718bae4b139f62f7e7bc32cc7ea3e18951322a32bbe5208daedebb756d1d62",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/hpke-rfc9180-vectors.json",
+    "rule": "generic-api-key",
+    "line": 106,
+    "fileSha256": "3c4458f32808f7d01324f23abd0ba2155bc8ca0980f2baca3ff4b4e13f8ec687",
+    "matchSha256": "2db92d77fa9557219ebf3f8060e51b4620882ed4d71a573f482a8d4c7c536768",
+    "reason": "Public RFC 9180 Appendix A conformance vector, mechanically parsed as documented by the fixture. Exact source Git blob ef2678ca7789e137c398f0845c58aacafe875213."
+  },
+  {
+    "path": "spec/conformance/quorum-recovery-fixture.json",
+    "rule": "generic-api-key",
+    "line": 16,
+    "fileSha256": "0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf",
+    "matchSha256": "83affed4f6ac94fb8bc95bf018de66bf9cdbe52d913426429fae4e39ec703178",
+    "reason": "Generated test-only recovery fixture; its keys and shares protect nothing as documented in spec/conformance/slip39/README.md. Exact source Git blob 2ade61dfd55c7786c661f0e1dca6e559756a215b."
+  },
+  {
+    "path": "spec/conformance/quorum-recovery-fixture.json",
+    "rule": "generic-api-key",
+    "line": 179,
+    "fileSha256": "0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf",
+    "matchSha256": "5118d272d2c3a4c4d030e68f9955f5fed3cba1886ca39012e5492958e320c923",
+    "reason": "Generated test-only recovery fixture; its keys and shares protect nothing as documented in spec/conformance/slip39/README.md. Exact source Git blob 2ade61dfd55c7786c661f0e1dca6e559756a215b."
+  },
+  {
+    "path": "spec/conformance/quorum-recovery-fixture.json",
+    "rule": "generic-api-key",
+    "line": 195,
+    "fileSha256": "0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf",
+    "matchSha256": "c7ffbbe05d85d16b16e21d5b5a0f84cc4c19584eabe6613fc33236e92be8331e",
+    "reason": "Generated test-only recovery fixture; its keys and shares protect nothing as documented in spec/conformance/slip39/README.md. Exact source Git blob 2ade61dfd55c7786c661f0e1dca6e559756a215b."
+  },
+  {
+    "path": "spec/conformance/quorum-recovery-fixture.json",
+    "rule": "generic-api-key",
+    "line": 211,
+    "fileSha256": "0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf",
+    "matchSha256": "1246efe868dbf49f7c579ad6aae3f5d00f26f8763ddc1d45aac9d63aa9c5b578",
+    "reason": "Generated test-only recovery fixture; its keys and shares protect nothing as documented in spec/conformance/slip39/README.md. Exact source Git blob 2ade61dfd55c7786c661f0e1dca6e559756a215b."
+  },
+  {
+    "path": "spec/conformance/quorum-recovery-fixture.json",
+    "rule": "generic-api-key",
+    "line": 227,
+    "fileSha256": "0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf",
+    "matchSha256": "faf9512fb67a8fa48332071dd857334bce8ac456ee1d9e0fad4c432a1f295044",
+    "reason": "Generated test-only recovery fixture; its keys and shares protect nothing as documented in spec/conformance/slip39/README.md. Exact source Git blob 2ade61dfd55c7786c661f0e1dca6e559756a215b."
+  },
+  {
+    "path": "spec/conformance/quorum-recovery-fixture.json",
+    "rule": "generic-api-key",
+    "line": 243,
+    "fileSha256": "0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf",
+    "matchSha256": "4a2318b3dee24a2c4c1dde105a4c534ca37e8965fd4f8201162c8ce04865900e",
+    "reason": "Generated test-only recovery fixture; its keys and shares protect nothing as documented in spec/conformance/slip39/README.md. Exact source Git blob 2ade61dfd55c7786c661f0e1dca6e559756a215b."
+  },
+  {
+    "path": "spec/conformance/quorum-recovery-fixture.json",
+    "rule": "generic-api-key",
+    "line": 259,
+    "fileSha256": "0964f1e3677870464ebe4fc22f1bc404c0bd8daa6232edcc1391d8a61404eedf",
+    "matchSha256": "2de1d890678a64ac183144e69732e6add7e45301bb157253b07a1d85b519dda7",
+    "reason": "Generated test-only recovery fixture; its keys and shares protect nothing as documented in spec/conformance/slip39/README.md. Exact source Git blob 2ade61dfd55c7786c661f0e1dca6e559756a215b."
+  },
+  {
+    "path": "spec/conformance/vault-drive-protocol.json",
+    "rule": "generic-api-key",
+    "line": 135,
+    "fileSha256": "1939aaf0cb31d72703a2d4968696e36edddb9b663b216fc01792b0c367912277",
+    "matchSha256": "f9d8e5bfc31681bc6709b0abf5fc879fdfd0aefd894f0ddc4dbaa1c5c52c6835",
+    "reason": "Invalid part-name conformance data, checked by the daemon test as rejected path identifiers; excludes the pairing credentials in this file. Exact source Git blob a2e1ea86549f68dcefb77c904a09f0e9626c2554."
+  },
+  {
+    "path": "spec/connectors/google-wallet-configuration.json",
+    "rule": "private-key",
+    "line": 21,
+    "fileSha256": "f62d65bd5c48b8966d6c63f7607c89883d14e640f3a1d33ce9af04011274da67",
+    "matchSha256": "f5b77eb90fe5ec378f1e3649c42b10b558167115cb3de3dafdb182fd8167974f",
+    "reason": "Public validation regular expression containing PEM delimiters and character classes; this is a pattern, not private key material."
+  },
+  {
+    "path": "tests/fuzz/cargo/Cargo.lock",
+    "rule": "generic-api-key",
+    "line": 992,
+    "fileSha256": "4f7b02f5ad7794905c8116b7562b927afc8c5bb71fa3303e26c1bd729450f602",
+    "matchSha256": "93083ab4ae3e6e5c8dbd83a3ca66bb211438e30887c4fda849613d932a2aaa73",
+    "reason": "generated Cargo lock dependency-list entry, not secret or checksum"
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 765,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "eca435ea8692a22e49b3d4fed7f506c55e56b944e0a8cadbfd35131fac56c16a",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/os-domain/src/crypto/claim-token.ts; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 766,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "56871516b53d062c1404697eb26d13804482c84ee6b49acadf03c931ab2cd84d",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/os-domain/src/__tests__/claim-token.test.ts; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 767,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "a7cbc90cb133a750e15d2349c058406c5a17b35d4203c85e8ab10b1ab3b01664",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/os-domain/src/__tests__/claim-token-extended.test.ts; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 786,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "542d7d06e90cd5c28e0ddb077dbbc4a8f83f2bd12bad065df979989d88d07150",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/provider-bitwarden/src/api.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 832,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "84aaadb803b7e5e6257e3ab82bc1e998a9e09082698a320367f4b7b7a7e932c5",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/auth.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 841,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "cb05624d84f5ecfcdad0f9542c84cca04fba832d8ba8d842e2adf900129f9d57",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/routes/auth_requests.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 845,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "4bc417f132fda869dd35eb614a3155010a897ebdf20d1b116b629fedbff7fc67",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/routes/credentials.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 866,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "db4062f4bc3bdb55bf50fa98be1af13ea7611063283918ee7f2a2db6847b17cf",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/routes/send_access.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 872,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "4c0840d7593cdf28df18c65a7b0c439e78f4f7dd50750a813e3d2c38f6e116e6",
+    "reason": "Reviewed SHA-256 source fingerprint for crates/bitwarden-server/src/tokens.rs; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 946,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "34386d5892c652a9c94eb19d5e9f638ce3717a9a7e07ef5dbe48dfd46bf7ea80",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/oauth-provider/src/__tests__/signing-keys.test.ts; deterministic exposure source binding, not a credential."
+  },
+  {
+    "path": "tools/security/exposure-matrix.json",
+    "rule": "generic-api-key",
+    "line": 949,
+    "fileSha256": "fd6efee134d8511817afcda7a3717d3846217c847231b5b81ab01f18b67c2d83",
+    "matchSha256": "447cf5eb223530ddcce9d45f3d8c214c973bcbfeb2fd7f80c9764b86de1823e5",
+    "reason": "Reviewed SHA-256 source fingerprint for packages/oauth-provider/src/keys/dev-signing-key-provider.ts; deterministic exposure source binding, not a credential."
+  }
+]

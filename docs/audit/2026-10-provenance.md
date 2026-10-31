@@ -695,3 +695,94 @@ animated rings, wordmark and successful-unlock doors, and captured separate
 base/changed production builds for desktop, tablet and phone evidence.
 
 - 2026-10-23: Latest-main integration and CI follow-up. Grok Build subscription authentication was unavailable and Kimi Code was not installed; bounded Codex agents prepared isolated slices, with root review, canonical checks, and GitHub-signed stacked publication.
+
+- 2026-10-25: Codex Security Cloud finding remediation in an isolated worktree from `aad2c85b`. Grok subscription authentication was absent and Kimi Code was unavailable. Codex agents implemented separate boundary fixes with independent candidate reviews and focused validation. The operator approved exact organization-bound issuer authorization and independent local autofill approval.
+
+## Security alert remediation, 2026-10-25
+
+The Codex session produced the dependency and assertion-validation changes on
+`fix/security-alerts-20261025`. The repository coding preflight found no Grok
+subscription authentication and no Kimi executable in this managed environment;
+Codex implemented and reviewed the changes directly. No Grok or Kimi authorship
+is claimed. Validation evidence is retained outside the checkout.
+
+## OpenSSF Scorecard remediation, 2026-10-26
+
+Codex agents refreshed the independent fuzz lock, expanded the tracked-input
+OSV gate, and prepared downloadable release signatures and maintenance guidance.
+The coding preflight found no Grok subscription authentication and no Kimi
+executable; Codex implemented and reviewed these slices in an isolated worktree.
+No Grok or Kimi authorship is claimed, and no advisory exceptions were added.
+
+The follow-up pins real upstream TOML-consumer fixes, removes unsupported Go
+OpenPGP source with verified upstream-subset maintenance and a mandatory package
+advisory audit, requires patched Go 1.26.10, and removes a yanked Rust dependency
+version. Codex agents also corrected three stale security-test expectations and
+prepared integrity-pinned cloud tooling. Native crypto/relay, parser and binding
+generation checks accompany these changes; public scoring and live repository
+protections are reported separately from local verification.
+
+The separately pinned native Tailscale compiler lacked the new crypto/x509
+distrust fix. Codex verified upstream Go 1.27.3 and its certificate-chain
+filter, updated immutable compiler hashes, and rebuilt the native distribution.
+The advisory gate now also inventories that compiled Go standard library;
+its real pre-fix scan rejected Go 1.27.2 with GO-2026-6809.
+The exact native WASM package audit also exposed affected SSH imports; verified
+composition requirements update maintained Go modules and their required MVS
+dependencies while preserving immutable upstream source files. A mandatory
+package-graph audit complements the native standard-library inventory.
+
+### 2026-10-25 — Trunk CI and immutable artifact promotion
+
+The user authorized implementation of the reviewed CI proposal. An isolated
+worktree from `aad2c85b4b567fd632d0e409d53d17bb66e8fba4` was partitioned among
+ChatGPT agents for integration/qualification, candidate verification, build and
+publication, and scanner/release-gate changes. The parent integrated and reviewed
+the resulting workflow graph and negative controls. Cursor-hosted Grok/Kimi
+coding tools are not installed in this environment. Validation results and live
+activation limitations belong in the implementation PR; a local test pass is
+not a claim that hosted release qualification or deployment has occurred.
+
+The implementation was subsequently restacked onto `427d8921cbd6b70dbfef76956a37373417387a23`, preserving concurrent dependency, serial CPU-budget, rootless DBus and browser-security fixes. The implementation PR distinguishes validation of the original and current bases.
+
+### 2026-10-26 — CI failure and review follow-up
+
+The user requested fixes and merge of PR #2195. The live CI log identified the
+unsigned implementation commit as the preflight failure; the PR also remained a
+draft. Codex agents repaired both subsequent review findings: generated candidate
+output names containing digits, and the placeholder OSV checksum introduced by
+Copilot Autofix. Regression tests exercise the actual candidate output inventory,
+output-injection refusals, pinned Linux scanner downloads, and verified binary
+overrides. OSV v2.5.0 pins were compared against the official release metadata,
+checksum asset and published provenance subjects. The coding preflight reported
+missing Grok subscription authentication and no Kimi executable; no Grok or Kimi
+authorship is claimed. Signature, required-check and scanner integrity policies
+remain enforced. Test results and the authenticated signing prerequisite are
+recorded in the PR; no hosted qualification or merge is claimed from local tests.
+
+### 2026-10-29 — Build-only trunk integration
+
+The user requested affected-graph compilation as the only trunk gate, with
+static checks in Git hooks and tests in environment delivery. Codex agents split
+build planning, hooks, auxiliary CD triggers and workflow contracts in an isolated
+worktree, based on the supplied `51180167f` checkout. Grok subscription auth was
+absent and Kimi was unavailable; these edits are Codex output. The cached
+`origin/main` was older than the supplied checkout and the environment proxy
+could not fetch GitHub. The connected GitHub API later confirmed main had four
+newer commits; the added CUA browser gate is preserved in development/prerelease
+qualification. The initial connector lacked the required `createCommitOnBranch` operation;
+no unsigned replacement was submitted. On the user's publication follow-up,
+shell network/authentication recovered and GraphQL became available. The change
+was rebased onto `ae450dbce`, preserving newer connector/dependency work, and
+review identified and repaired Cargo's renamed-workspace dependency selection.
+The implementation PR records final validation and hosted publication results.
+
+## OpenSSF Best Practices rebase, 2026-10-26
+
+Kimi Code K3.1 (`kimi-code/k3.1`, upstream `k3.1-pro`) rebased
+`docs/openssf-best-practices` onto current `main` and resolved one
+`SECURITY.md` wording conflict by keeping the base's direct advisory link and
+the branch's fallback contact and response commitment. The focused
+`ReleaseNotes.test.tsx` suite passed all three tests. Kimi also restored the
+intended seven-file diff after an unrelated draft stack displaced the branch;
+the displaced commit remains recoverable in the originating repository.

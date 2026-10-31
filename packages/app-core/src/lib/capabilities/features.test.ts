@@ -80,6 +80,27 @@ describe("FEATURES", () => {
       expect(isSwitchable(featureById(id)), id).toBe(true);
     }
   });
+
+  it("does not offer a switch for a capability the distribution excludes", () => {
+    const networking = featureById("networking");
+    expect(isSwitchable(networking)).toBe(true);
+    const excluded = planWith(
+      [],
+      new Map([
+        ["networking.tailnet", { distributed: false }],
+        ["networking.tailnet-devices", { distributed: false }],
+      ]),
+    );
+    expect(isSwitchable(networking, excluded)).toBe(false);
+  });
+
+  it("keeps a switch for an already approved capability", () => {
+    const approved = planWith(
+      ["connectors.external"],
+      new Map([["connectors.external", { distributed: false }]]),
+    );
+    expect(isSwitchable(featureById("connections"), approved)).toBe(true);
+  });
 });
 
 describe("featureState", () => {

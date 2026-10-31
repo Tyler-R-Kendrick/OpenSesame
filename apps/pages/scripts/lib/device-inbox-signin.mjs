@@ -70,9 +70,13 @@ export async function applicationSignIn(t) {
     width,
   );
   await rig.approveConsent(rp, first.popup, width);
-  await expect(rp.locator("output")).toHaveText(/^Signed in locally: local_/, {
-    timeout: PATIENCE,
-  });
+  await expect(rp.locator("output")).toHaveText(
+    /^Signed in locally: [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    {
+      timeout: PATIENCE,
+    },
+  );
+  const firstSubject = await rp.locator("output").textContent();
   await expect(list).toContainText(SIGNED_IN, { timeout: PATIENCE });
   const fresh = await credentialsOf(first.device);
   await press(rp, rp.getByRole("button", { name: "Revoke", exact: true }));
@@ -93,9 +97,13 @@ export async function applicationSignIn(t) {
   // Signed in again; this time it is the person who ends it, in Access.
   const third = await rig.openConsent(rp, context, fresh, width);
   await rig.approveConsent(rp, third.popup, width);
-  await expect(rp.locator("output")).toHaveText(/^Signed in locally: local_/, {
-    timeout: PATIENCE,
-  });
+  await expect(rp.locator("output")).toHaveText(
+    /^Signed in locally: [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    {
+      timeout: PATIENCE,
+    },
+  );
+  await expect(rp.locator("output")).toHaveText(firstSubject);
   await endGrantAsPerson(main);
   await press(rp, rp.getByRole("button", { name: "Check session" }));
   await expect(rp.locator("output")).toHaveText("Session refused", {

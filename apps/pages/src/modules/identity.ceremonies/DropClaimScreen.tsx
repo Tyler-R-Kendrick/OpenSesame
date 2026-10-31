@@ -1,5 +1,5 @@
 /**
- * Opening a drop (ADR 0062, ADR 0090; ADR 0140 D2): the one-time code the
+ * Opening a drop (ADR 0062, ADR 0090; ADR 0140 D2): the separate code the
  * sender shared, then the payload, decrypted here under the key the link
  * carried.
  *
@@ -54,10 +54,6 @@ const RETRYABLE: ReadonlySet<string> = new Set(["invalid_code", "unreachable"]);
 const LOCKED_OUT = "locked_out";
 
 type DropFailureMark = Readonly<{ tone: "err"; label: string }>;
-
-function openFailure(caught: unknown): Error {
-  return caught instanceof Error ? caught : new Error(FALLBACK);
-}
 
 function spent(err: Error): boolean {
   return !(err instanceof DropError && RETRYABLE.has(err.code));
@@ -147,7 +143,7 @@ export function DropClaimScreen({
       setPayload(await openDrop(targetManifest, fragmentKey));
       onSettled();
     } catch (caught) {
-      const err = openFailure(caught);
+      const err = caught instanceof Error ? caught : new Error(FALLBACK);
       reportClaim(err.message, TITLE);
       setFailureMarkLabel(failureMark(err).label);
       setFailed(true);
@@ -169,13 +165,15 @@ export function DropClaimScreen({
       noValidate
     >
       <div className="field">
-        <label htmlFor="drop-user-code">One-time code</label>
+        <label htmlFor="drop-user-code">
+          {pkt === undefined ? "One-time code" : "Code"}
+        </label>
         <div className="field-inline">
           <input
             id="drop-user-code"
             ref={codeRef}
             name="userCode"
-            className="mono"
+            className="mono f__input--mono"
             autoComplete="one-time-code"
             spellCheck={false}
             value={userCode}

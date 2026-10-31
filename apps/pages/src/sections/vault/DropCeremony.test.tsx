@@ -53,7 +53,7 @@ describe("share ceremony on an item", () => {
     expect(createClaim.mock.calls[0]?.[1]).toBe(86_400_000);
     expect(
       screen.getByRole("region", { name: "Drop ready" }).textContent,
-    ).toMatch(/Opens for\s*1 day/);
+    ).toMatch(/Suggested window\s*1 day/);
     expect(expiryRow()).not.toMatch(/left/);
     expect(screen.queryByRole("radiogroup")).toBeNull();
   });
@@ -74,7 +74,9 @@ describe("share ceremony on an item", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(document.querySelector(".note--err")).toBeNull();
     expect(screen.queryByText("Drop ready")).toBeNull();
-    expect(screen.getByRole("radiogroup", { name: "Opens for" })).toBeTruthy();
+    expect(
+      screen.getByRole("radiogroup", { name: "Suggested window" }),
+    ).toBeTruthy();
   });
 });
 

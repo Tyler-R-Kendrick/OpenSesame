@@ -1,7 +1,12 @@
 # Cursor Cloud Agent image for OpenSesame.
 # Rust 1.88 bookworm (matches rust-toolchain.toml; .devcontainer names a devcontainers
 # tag that is not published on MCR). Do not COPY the repo — Cursor checks out separately.
-FROM rust:1.88.0-bookworm
+FROM node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS node
+FROM rust:1.88.0-bookworm@sha256:af306cfa71d987911a781c37b59d7d67d934f49684058f96cf72079c3626bfe0
+
+# Both images use Bookworm. Copy the integrity-pinned Node distribution rather
+# than running a mutable repository-setup script as root.
+COPY --from=node /usr/local/ /usr/local/
 
 ENV PATH=/usr/local/cargo/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -21,20 +26,9 @@ fi
 . /etc/profile.d/kimi-code.sh
 EOF
 
-RUN cat > /etc/profile.d/kimi-code.sh <<'EOF'
-# Kimi Code CLI on PATH (npm global and ~/.kimi-code installs).
-case ":${PATH}:" in
-  *:/usr/local/bin:*) ;;
-  *) PATH="/usr/local/bin:${PATH}" ;;
-esac
-if [ -d "${HOME}/.kimi-code/bin" ]; then
-  case ":${PATH}:" in
-    *:"${HOME}/.kimi-code/bin":*) ;;
-    *) PATH="${HOME}/.kimi-code/bin:${PATH}" ;;
-  esac
-fi
-export PATH
-EOF
+# This same source is used by repository bootstrap. The cargo profile above
+# reaches it from BASH_ENV as well as ordinary login/interactive shells.
+COPY .cursor/cloud-path.sh /etc/profile.d/kimi-code.sh
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -45,21 +39,23 @@ RUN apt-get update \
     ca-certificates \
     sudo \
     build-essential \
+    python3 \
     libdbus-1-dev \
     pkg-config \
     dbus-daemon \
   && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-  && apt-get install -y --no-install-recommends nodejs \
-  && rm -rf /var/lib/apt/lists/*
-
 ENV GROK_BIN_DIR=/usr/local/bin
-RUN curl -fsSL https://x.ai/cli/install.sh | bash \
+COPY .cursor/tools/downloads.json /opt/opensesame/.cursor/tools/downloads.json
+COPY scripts/dev/install-cloud-cli.mjs /opt/opensesame/scripts/dev/install-cloud-cli.mjs
+RUN node /opt/opensesame/scripts/dev/install-cloud-cli.mjs grok /usr/local/bin/grok \
   && /usr/local/bin/grok --version
 
-ARG KIMI_CODE_VERSION=2.1.1
-RUN npm install -g "@moonshot-ai/kimi-code@${KIMI_CODE_VERSION}" \
+COPY .cursor/tools/package.json .cursor/tools/package-lock.json /opt/opensesame-cloud-tools/
+# npm ci checks every tarball against the committed integrity lock. Native
+# optional dependencies retain their build scripts; Kimi's local postinstall is a no-op.
+RUN npm_config_nodedir=/usr/local npm ci --prefix /opt/opensesame-cloud-tools --omit=dev --no-audit --no-fund \
+  && ln -s /opt/opensesame-cloud-tools/node_modules/.bin/kimi /usr/local/bin/kimi \
   && kimi --version
 
 RUN rustup component add rustfmt clippy \

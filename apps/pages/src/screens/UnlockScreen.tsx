@@ -6,7 +6,7 @@ import { currentSession } from "@opensesame/app-core/lib/identity.js";
 import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
 import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
 import { noWayIn } from "@opensesame/app-core/lib/settings.js";
-import { loadSetup, unlockViable } from "@opensesame/app-core/lib/setup.js";
+import { loadSetup } from "@opensesame/app-core/lib/setup.js";
 import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
@@ -206,7 +206,7 @@ function UnlockForm({
   const [signingIn, setSigningIn] = useState(() =>
     outcomeWantsSignIn(readAuthOutcome()),
   );
-  const returning = unlockViable(status) && !awaitingSecondStep;
+  const returning = !firstRun && !awaitingSecondStep;
   const showSignIn = returning && signingIn;
   // Not "no identity service" (ADR 0078) — the narrower and truer claim: setup left no way in.
   const nothingSignsIn = unlockScreenDependencies.noWayIn();

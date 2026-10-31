@@ -15,15 +15,15 @@
     "@opensesame/browser-at-rest": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/siop-v2": "workspace:*",
-    "express": "5.2.1"
+    "express": "5.3.0"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
     "@types/node": "22.15.29",
-    "jose": "6.2.8",
-    "tsx": "4.19.4",
+    "jose": "6.2.13",
+    "tsx": "4.23.15",
     "typescript": "5.8.3",
-    "vite": "6.4.4",
-    "vitest": "4.1.11"
+    "vite": "6.4.5",
+    "vitest": "4.1.12"
   }
 }

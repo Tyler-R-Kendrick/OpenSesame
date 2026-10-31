@@ -28,16 +28,15 @@ import {
   guardedLibraryFetch,
 } from "../services/guarded-fetch.js";
 import { orgAssertionSeams, originAudiences } from "./org-assertion.js";
-import { revokeOrganizationMembership } from "./organizations.js";
 
 /**
  * OIDC Back-Channel Logout 1.0 (C17, D13, ADR 0056).
  *
  * This is how an upstream tells us a human's session is over — the
- * deprovisioning signal that replaces holding upstream refresh tokens we
+ * session-termination signal that replaces holding upstream refresh tokens we
  * deliberately never take custody of (ADR 0005). The IdP POSTs a signed
- * `logout_token`; we end that subject's sessions here and, when the issuer is
- * a tenant's, the membership it authorised.
+ * `logout_token`; we end that subject's sessions here. Organization membership
+ * survives logout; only explicit deprovisioning may remove it.
  *
  * It is an unauthenticated POST that revokes sessions, so the fences are the
  * whole design:
@@ -284,45 +283,6 @@ function readLogoutClaims(
   };
 }
 
-/** End memberships this issuer granted, when it belongs to a tenant. */
-async function endOrganizationMemberships(
-  ctx: AppContext,
-  resolution: TrustResolution,
-  issuer: string,
-  subject: string,
-  correlationId: string,
-): Promise<number> {
-  if (resolution.source !== "org") return 0;
-  const principalIds = new Set<string>();
-  for (const kind of ["oidc", "oauth2", "saml", "ldap", "email"]) {
-    const scoped = await ctx.repos.externalIdentities.findByTuple({
-      kind,
-      issuer,
-      tenant: resolution.organizationId,
-      subject,
-    });
-    const identity =
-      scoped ??
-      (await ctx.repos.externalIdentities.findByTuple({
-        kind,
-        issuer,
-        subject,
-      }));
-    if (identity) principalIds.add(identity.principalId);
-  }
-  let ended = 0;
-  for (const principalId of principalIds) {
-    const result = await revokeOrganizationMembership(ctx, {
-      organizationId: resolution.organizationId,
-      principalId,
-      correlationId,
-      reason: "upstream_backchannel_logout",
-    });
-    if (result.membershipRemoved) ended += 1;
-  }
-  return ended;
-}
-
 export function createBackchannelLogoutRoutes(): Hono<{
   Variables: Variables;
 }> {
@@ -383,19 +343,12 @@ export function createBackchannelLogoutRoutes(): Hono<{
     // what the uniform 200 already says to every caller.
     const correlationId = c.get("correlationId");
     let sessionsRevoked = 0;
-    let membershipsEnded = 0;
     if (claims.subject) {
       sessionsRevoked = await revokeSessionsForIdentity(
         ctx,
         issuer,
         claims.subject,
-      );
-      membershipsEnded = await endOrganizationMemberships(
-        ctx,
-        resolution,
-        issuer,
-        claims.subject,
-        correlationId,
+        resolution.source === "org" ? resolution.organizationId : undefined,
       );
     }
 
@@ -411,7 +364,7 @@ export function createBackchannelLogoutRoutes(): Hono<{
         action: "principal.upstream_logout",
         issuer,
         via: "backchannel_logout",
-        count: sessionsRevoked + membershipsEnded,
+        count: sessionsRevoked,
       },
     });
 

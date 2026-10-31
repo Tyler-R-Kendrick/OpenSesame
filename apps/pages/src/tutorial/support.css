@@ -461,3 +461,26 @@
     padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
+.support__project summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+
+.support__project-links {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support__project-links a {
+  display: flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

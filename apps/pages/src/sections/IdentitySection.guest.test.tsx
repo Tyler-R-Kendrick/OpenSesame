@@ -19,6 +19,7 @@ import { IdentitySection } from "./IdentitySection.js";
 import { contributeIdentityForTests } from "./identity/identity-test-support.js";
 
 import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
+import { testLockManager } from "../test-support/lock-manager.js";
 // The Identity tabs belong to three capabilities (local IAM, federation,
 // directory provisioning), and each contributes its own view. These cases
 // describe a deployment that approved them, so they register the same
@@ -43,19 +44,7 @@ afterEach(() => {
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: (_name: string, action: () => Promise<void>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
-  });
+  vi.stubGlobal("navigator", { locks: testLockManager });
   vi.spyOn(deviceIdentity, "isRemoteIdentityConfigured").mockReturnValue(true);
 });
 

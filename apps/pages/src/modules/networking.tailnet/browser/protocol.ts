@@ -101,23 +101,39 @@ const PeerTLSConfiguration = z.unknown().transform((value, context) => {
   context.addIssue({ code: "custom", message: "Invalid peer TLS trust." });
   return z.NEVER;
 });
-export const Configuration = z.object({
-  hostname: z
-    .string()
-    .min(1)
-    .max(63)
-    .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/),
-  controlURL: z.string().url(),
-  authKey: z.string().max(16384),
-  state: z.record(z.string(), z.string().max(1_000_000)),
-  assets: z.object({
-    runtime: z.string().url(),
-    wasm: z.string().url(),
-    nativeHTTP: z.string().url().optional(),
-  }),
-  nativeHTTP: NativeHTTPConfiguration.optional(),
-  peerTLS: PeerTLSConfiguration.optional(),
-});
+export const Configuration = z
+  .object({
+    ephemeral: z.boolean().default(false),
+    hostname: z
+      .string()
+      .min(1)
+      .max(63)
+      .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/),
+    controlURL: z.string().url(),
+    authKey: z.string().max(16384),
+    state: z.record(z.string(), z.string().max(1_000_000)),
+    assets: z.object({
+      runtime: z.string().url(),
+      wasm: z.string().url(),
+      nativeHTTP: z.string().url().optional(),
+    }),
+    nativeHTTP: NativeHTTPConfiguration.optional(),
+    peerTLS: PeerTLSConfiguration.optional(),
+  })
+  .refine(
+    (config) =>
+      !config.ephemeral ||
+      (config.authKey === "" && Object.keys(config.state).length === 0),
+    {
+      message:
+        "Memory-only identity enrollment cannot accept stored node state or an auth key.",
+    },
+  );
+/**
+ * The Worker's own channel reaches anything holding the Worker object, so it
+ * carries `start` alone. Everything else, both ways, rides the one port that
+ * `start` transferred, which only the controller and the worker hold.
+ */
 export const WorkerMessage = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("nativeHTTPReady") }),
   z.object({
@@ -143,14 +159,18 @@ export const WorkerMessage = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("closeHTTP") }),
   z.object({ kind: z.literal("start"), config: Configuration }),
   z.object({ kind: z.literal("login") }),
+  // A peer GET the page's egress policy approved for this exact URL.
   z.object({
     kind: z.literal("get"),
     id: z.number().int(),
     url: z.string().url(),
   }),
+  // Names the request it answers; a reply for another URL or method settles nothing.
   z.object({
     kind: z.literal("decision"),
     id: z.number().int(),
+    url: z.string().url(),
+    method: z.string(),
     allowed: z.boolean(),
   }),
 ]);
@@ -208,3 +228,5 @@ export const NetMap = z.object({
 });
 
 export type HostEvent = z.infer<typeof HostMessage>;
+
+export type WorkerCommand = z.infer<typeof WorkerMessage>;

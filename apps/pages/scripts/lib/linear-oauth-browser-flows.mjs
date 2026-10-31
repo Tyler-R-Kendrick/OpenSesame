@@ -1,10 +1,58 @@
 /** Independent actor approvals through the real static popup callback. */
+import { expect } from "@playwright/test";
 import {
   beginLinearConsent,
   finishLinearConsent,
   showSavedLinear,
 } from "./linear-browser-consent.mjs";
 import { LINEAR_TEST_CLIENT } from "./linear-provider-contract.mjs";
+async function cancelConsent(harness, page, label) {
+  const { check } = harness;
+  const cancelled = await beginLinearConsent(
+    harness,
+    page,
+    label,
+    "Create and authorize Linear",
+  );
+  const cancelledState = new URL(cancelled.url()).searchParams.get("state");
+  await harness.snap(page, `${label}-pending-oauth-cancellation`, {
+    fullPage: false,
+  });
+  harness.setStep(`${label}-oauth-authorization`);
+  const closed = cancelled.waitForEvent("close");
+  await page
+    .getByRole("button", { name: "Cancel sign-in", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Cancel sign-in", exact: true }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("button", {
+      name: "Save and authorize Linear",
+      exact: true,
+    }),
+  ).toBeEnabled();
+  check(
+    true,
+    `${label}: Cancel ends pending sign-in and restores configuration`,
+  );
+  // The isolated foreign page has no opener capability. Dismiss it as the
+  // person would, after proving the application's authorization has ended.
+  await cancelled.close();
+  await closed;
+  check(
+    cancelled.isClosed() && page.context().pages().length === 1,
+    `${label}: the user can dismiss the cancelled isolated provider popup`,
+  );
+  check(
+    (await page
+      .getByRole("img", { name: "Linear connected", exact: true })
+      .count()) === 0,
+    `${label}: cancelled consent never activates the connector`,
+  );
+  return cancelledState;
+}
+
 async function actorConsents(harness, page, label, authority, visit) {
   const { check } = harness;
   harness.setStep(`${label}-oauth-authorization`);
@@ -23,17 +71,22 @@ async function actorConsents(harness, page, label, authority, visit) {
       .getAttribute("readonly")) !== null,
     `${label}: managed application client ID is not editable`,
   );
+  const cancelledState = await cancelConsent(harness, page, label);
   const denied = await beginLinearConsent(
     harness,
     page,
     label,
-    "Create and authorize Linear",
+    "Save and authorize Linear",
   );
   check(
     new URL(denied.url()).searchParams.get("actor") === "app",
     `${label}: app consent begins first`,
   );
   const deniedState = new URL(denied.url()).searchParams.get("state");
+  check(
+    deniedState !== cancelledState,
+    `${label}: retry after cancellation reserves a fresh authorization state`,
+  );
   await finishLinearConsent(harness, page, denied, label, (popup) =>
     authority.deny(popup),
   );

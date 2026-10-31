@@ -151,7 +151,7 @@ async fn refresh_tokens_die_with_the_stamp_and_lapse_when_unused() {
 }
 
 #[tokio::test]
-async fn repeated_failures_are_refused_before_any_hash_known_or_not() {
+async fn exhausted_accounts_and_unknown_addresses_keep_the_same_public_refusal() {
     let harness = Harness::start_with(|mut config| {
         config.max_failed_sign_ins = 3;
         config
@@ -168,15 +168,15 @@ async fn repeated_failures_are_refused_before_any_hash_known_or_not() {
             400
         );
     }
-    // Even the right password waits out the window; the unknown address is
-    // treated the same way, so the limiter does not reveal which exists.
+    // Even the right password waits out the window. Unknown and exhausted
+    // addresses both do decoy work and return the same generic refusal.
     assert_eq!(
         password_grant(&harness, "l@example.com", &account.password_hash()).await,
-        429
+        400
     );
     assert_eq!(
         password_grant(&harness, "ghost@example.com", "d3Jvbmc=").await,
-        429
+        400
     );
     // Other addresses are unaffected.
     let other = Account::register(&harness.http_url, "m@example.com", PASSWORD, LIGHT).await;

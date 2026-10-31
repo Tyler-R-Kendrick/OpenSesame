@@ -47,6 +47,7 @@ export function packJsonRows(rows) {
     );
   let packed = [...rows];
   const dictionary = [];
+  const sparseThreshold = rows.length > 10 ? 36 : 9;
   for (const [fragment] of candidates(rows)) {
     const marker = `~${dictionary.length.toString(16)}~`;
     const occurrences = packed.reduce(
@@ -58,7 +59,7 @@ export function packJsonRows(rows) {
     // Row catalogs share common prose/URL fragments across many providers;
     // keep the original single-document policy encoding unchanged.
     if (
-      (rows.length > 1 && occurrences < 9) ||
+      (rows.length > 1 && occurrences < sparseThreshold) ||
       saved <= JSON.stringify(fragment).length + 3
     )
       continue;

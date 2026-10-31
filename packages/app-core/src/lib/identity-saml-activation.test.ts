@@ -1,14 +1,12 @@
 /** @vitest-environment jsdom */
 import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import * as popupPort from "../browser/native-auth-session.js";
-import {
-  holdSamlSavePhase,
-  samlSaveFixture,
-} from "../browser/saml/configured-runtime.test-support.js";
 import {
   configuredSamlOracle,
   configuredSamlTls,
+  holdSamlSavePhase,
+  interleaveSamlSaveWrite,
+  samlSaveFixture,
 } from "../browser/saml/configured-runtime.test-support.js";
 import { configureHost } from "../host.js";
 import { createMemoryStorage } from "../memory-storage.js";
@@ -22,6 +20,7 @@ import {
 } from "./device-connector-records.js";
 import { readNativeFederationSession } from "./federation-native-session.js";
 import { clearSession } from "./federation.js";
+import { captureConfiguredIdentitySessionOwner } from "./identity-connections-admission.js";
 import {
   getIdentityConnectionRuntime,
   identityConnectionRevision,
@@ -37,6 +36,7 @@ import {
   saveIdentityConnection,
   testIdentityConnection,
 } from "./identity-connections.js";
+import { configuredSamlPopup } from "./identity-saml-popup.test-support.js";
 import { kvFlush, kvForgetAll, kvHydrate, kvSeams } from "./kv.js";
 import { bindNativeProviderTransport } from "./native-connector-transport.js";
 import { signInMethods } from "./settings.js";
@@ -101,23 +101,6 @@ function draft(url = "") {
     samlAuthnContext: "urn:configured:context",
   };
 }
-function popup() {
-  vi.spyOn(window, "open").mockImplementation(() => {
-    events.push("popup");
-    return window;
-  });
-  vi.spyOn(popupPort, "resumeNativeAuthPopup").mockReturnValue({
-    cancel: vi.fn(),
-    wait: vi.fn(),
-    waitWebMessage: vi.fn(),
-    showDeviceConsent: vi.fn(),
-    showRedirectConsent: vi.fn(),
-    showFormConsent: vi.fn(() => ({
-      signal: new AbortController().signal,
-      close() {},
-    })),
-  });
-}
 it("native SAML accepts exact URN entities, enforces shared signing validation and requires no broker", () => {
   expect(identityConnectionProblems(draft())).toEqual([]);
   expect(
@@ -164,7 +147,7 @@ it("saves sealed inline configuration, reloads cold and consumes genuine proof w
   for (const key of DEVICE_CONNECTOR_KEYS) memory.delete(key);
   kvForgetAll();
   expect(readIdentityConnection(connection.connectionId)).toBeNull();
-  popup();
+  configuredSamlPopup(events);
   oracle.install(events);
   const ambient = vi.spyOn(globalThis, "fetch");
   await beginIdentityConnectionSignIn(connection.connectionId);
@@ -201,7 +184,7 @@ it("cold URL sign-in retains one original route before hydration and spends the 
     kvForgetAll();
     events.length = 0;
     original.capture.mockClear();
-    popup();
+    configuredSamlPopup(events);
     oracle.install(events);
     await beginIdentityConnectionSignIn(connection.connectionId);
     expect(events.slice(0, 3)).toEqual(["capture", "popup", "hydrate"]);
@@ -225,7 +208,7 @@ it("cannot silently adopt a route enabled during cold hydration", async () => {
     unbind();
     for (const key of DEVICE_CONNECTOR_KEYS) memory.delete(key);
     kvForgetAll();
-    popup();
+    configuredSamlPopup(events);
     const later = { fetch: vi.fn(tls.fetch), assertCurrent() {} };
     const hydrate = vi.mocked(kvSeams.kvHydrate).getMockImplementation();
     if (!hydrate) throw new Error("Expected independent cold ledger hydration");
@@ -288,7 +271,7 @@ it.each([
   },
 );
 it.each(["record-close", "trust-callback"] as const)(
-  "restores an earlier configured connection with a phase-appropriate revision after %s withdrawal",
+  "restores an earlier configured connection with a fresh revision after %s withdrawal",
   async (phase) => {
     const fixture = await samlSaveFixture();
     const prior = { ...draft(), name: "Earlier saved identity" };
@@ -296,7 +279,15 @@ it.each(["record-close", "trust-callback"] as const)(
     await projectIdentityTrust(prior, saved.connectionId);
     const revision = identityConnectionRevision(saved.connectionId);
     const providers = signInMethods().providers;
+    const secrets = readDeviceSecrets();
+    const previousOwner = captureConfiguredIdentitySessionOwner(
+      saved.connectionId,
+    );
+    let failedOwner:
+      | ReturnType<typeof captureConfiguredIdentitySessionOwner>
+      | undefined;
     const held = await holdSamlSavePhase(phase, fenceLocalSignOut);
+    const unrelatedWrite = interleaveSamlSaveWrite(phase);
     const outcome = saveIdentityConnection(
       { ...draft(), name: "Attempted replacement" },
       saved.connectionId,
@@ -306,18 +297,22 @@ it.each(["record-close", "trust-callback"] as const)(
     );
     try {
       await held.reached;
+      const attemptedRevision = identityConnectionRevision(saved.connectionId);
+      failedOwner = captureConfiguredIdentitySessionOwner(saved.connectionId);
+      expect(attemptedRevision).not.toBe(revision);
       if (phase !== "trust-callback") fenceLocalSignOut();
       held.resume();
       expect(await outcome).toBe(false);
       expect(getIdentityConnectionRuntime(saved.connectionId)).toEqual(prior);
-      // A published attempt is compensated by republishing the previous
-      // bytes under a fresh revision; an attempt stopped at record-close
-      // never published, so the prior row and revision stand untouched.
+      // Both hooks run after durable publication. Compensation republishes
+      // the previous bytes under a fresh revision, so neither attempt revives.
       const restoredRevision = identityConnectionRevision(saved.connectionId);
       expect(restoredRevision).toEqual(expect.any(String));
-      if (phase === "trust-callback")
-        expect(restoredRevision).not.toBe(revision);
-      else expect(restoredRevision).toBe(revision);
+      expect(restoredRevision).not.toBe(revision);
+      expect(restoredRevision).not.toBe(attemptedRevision);
+      expect(() => previousOwner.assertCurrent()).toThrow();
+      expect(() => failedOwner?.assertCurrent()).toThrow();
+      expect(readDeviceSecrets()).toEqual(secrets);
       expect(signInMethods().providers).toEqual(providers);
       kvForgetAll();
       await kvHydrate([...DEVICE_CONNECTOR_KEYS, "settings.v1"]);
@@ -327,8 +322,11 @@ it.each(["record-close", "trust-callback"] as const)(
       );
       expect(signInMethods().providers).toEqual(providers);
     } finally {
+      previousOwner.release();
+      failedOwner?.release();
       await held.close();
       await outcome;
+      await unrelatedWrite;
       await fixture.close();
     }
   },
@@ -378,12 +376,11 @@ it("preserves a real queued successor with identical public trust and different 
     await fixture.close();
   }
 });
-
 it("edits its own active SAML connection while retiring the old verified session", async () => {
   const fixture = await samlSaveFixture();
   try {
     const saved = await saveIdentityConnection(draft());
-    popup();
+    configuredSamlPopup(events);
     oracle.install(events);
     await beginIdentityConnectionSignIn(saved.connectionId);
     expect(readNativeFederationSession()?.upstreamId).toBe(
