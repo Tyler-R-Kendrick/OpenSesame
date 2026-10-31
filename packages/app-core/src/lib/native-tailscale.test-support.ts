@@ -1,77 +1,83 @@
 import { vi } from "vitest";
+import {
+  fakeTailscaleApiKey,
+  fakeTailscaleAuthKey,
+  fakeTailscaleClientId,
+  fakeTailscaleClientKey,
+  fakeTailscaleLeakMessage,
+} from "./fake-tailscale-key.js";
 
-/** Synthetic fixture text. Pieces stay split so no source line is a full key. */
-const fixtureKey = (parts: readonly string[]) => parts.join("");
+export type NativeTailscaleFixtures = {
+  apiToken: string;
+  accessToken: string;
+  clientId: string;
+  clientSecret: string;
+  authKey: string;
+  replacementClientSecret: string;
+  leakMessage: string;
+  token: (tailnet?: string) => {
+    providerId: string;
+    displayName: string;
+    parameters: { tailnet: string };
+    credentials: { api_token: string };
+  };
+  oauth: () => {
+    providerId: string;
+    displayName: string;
+    parameters: Record<string, never>;
+    credentials: { client_id: string; client_secret: string };
+  };
+  exchange: {
+    match: RegExp;
+    method: string;
+    body: {
+      access_token: string;
+      token_type: string;
+      expires_in: number;
+    };
+  };
+};
 
-export const TOKEN = fixtureKey([
-  "ts",
-  "key-",
-  "api-",
-  "kABCDEF",
-  "123456-",
-  "secret",
-  "secret",
-  "secret",
-]);
-export const CLIENT_ID = "k123CNTRL";
-export const CLIENT_SECRET = fixtureKey([
-  "ts",
-  "key-",
-  "client-",
-  "k123",
-  "CNTRL-",
-  "abcdefgh",
-  "ijklmnop",
-]);
-export const ACCESS = fixtureKey([
-  "ts",
-  "key-",
-  "api-",
-  "kOAUTH0-",
-  "minted-",
-  "access-",
-  "token-",
-  "01234567",
-  "89",
-]);
-export const AUTH_KEY = fixtureKey([
-  "ts",
-  "key-",
-  "auth-",
-  "kAUTH1-",
-  "01234567",
-  "89abcdef",
-]);
-export const REPLACEMENT_SECRET = fixtureKey([
-  "ts",
-  "key-",
-  "client-",
-  "k123",
-  "CNTRL-",
-  "replacem",
-  "entsecret",
-]);
-export const LEAK_MESSAGE = fixtureKey([
-  "Key ",
-  "ts",
-  "key-",
-  "api-",
-  "kLEAK",
-  " for user@private.example is invalid",
-]);
-
-export const token = (tailnet = "-") => ({
-  providerId: "tailscale",
-  displayName: "Tailscale",
-  parameters: { tailnet },
-  credentials: { api_token: TOKEN },
-});
-export const oauth = () => ({
-  providerId: "tailscale",
-  displayName: "Tailscale",
-  parameters: {},
-  credentials: { client_id: CLIENT_ID, client_secret: CLIENT_SECRET },
-});
+/** Fresh fake Tailscale credentials and route stubs for one test. */
+export function createNativeTailscaleFixtures(): NativeTailscaleFixtures {
+  const apiToken = fakeTailscaleApiKey();
+  const accessToken = fakeTailscaleApiKey();
+  const clientId = fakeTailscaleClientId();
+  const clientSecret = fakeTailscaleClientKey();
+  const authKey = fakeTailscaleAuthKey();
+  const replacementClientSecret = fakeTailscaleClientKey();
+  const leakMessage = fakeTailscaleLeakMessage(apiToken);
+  return {
+    apiToken,
+    accessToken,
+    clientId,
+    clientSecret,
+    authKey,
+    replacementClientSecret,
+    leakMessage,
+    token: (tailnet = "-") => ({
+      providerId: "tailscale",
+      displayName: "Tailscale",
+      parameters: { tailnet },
+      credentials: { api_token: apiToken },
+    }),
+    oauth: () => ({
+      providerId: "tailscale",
+      displayName: "Tailscale",
+      parameters: {},
+      credentials: { client_id: clientId, client_secret: clientSecret },
+    }),
+    exchange: {
+      match: /\/oauth\/token$/,
+      method: "POST",
+      body: {
+        access_token: accessToken,
+        token_type: "Bearer",
+        expires_in: 3600,
+      },
+    },
+  };
+}
 
 type Reply = {
   match: RegExp;
@@ -116,10 +122,4 @@ export const devices = {
       { id: "n6789", hostname: "phone", addresses: [], authorized: false },
     ],
   },
-};
-
-export const exchange = {
-  match: /\/oauth\/token$/,
-  method: "POST",
-  body: { access_token: ACCESS, token_type: "Bearer", expires_in: 3600 },
 };
