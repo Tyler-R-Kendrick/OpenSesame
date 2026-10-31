@@ -47,7 +47,7 @@ export function packJsonRows(rows) {
     );
   let packed = [...rows];
   const dictionary = [];
-  const sparseThreshold = rows.length > 10 ? 36 : 9;
+  const sparseThreshold = rows.length > 10 ? 12 : 9;
   for (const [fragment] of candidates(rows)) {
     const marker = `~${dictionary.length.toString(16)}~`;
     const occurrences = packed.reduce(
@@ -55,9 +55,9 @@ export function packJsonRows(rows) {
       0,
     );
     const saved = (fragment.length - marker.length) * occurrences;
-    // Sparse substitutions shorten source but disturb gzip's repeated text.
-    // Row catalogs share common prose/URL fragments across many providers;
-    // keep the original single-document policy encoding unchanged.
+    // Twelve occurrences reduce raw source while trading a small increase
+    // in per-file gzip size; bundle budgets still enforce both. Single-document
+    // policies retain their existing threshold.
     if (
       (rows.length > 1 && occurrences < sparseThreshold) ||
       saved <= JSON.stringify(fragment).length + 3

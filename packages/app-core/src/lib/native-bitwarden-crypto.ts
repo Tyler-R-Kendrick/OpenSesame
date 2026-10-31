@@ -1,12 +1,12 @@
 /**
- * Bitwarden's client-side cryptography, on the Web Crypto API every browser
- * ships (ADR 0218): the `EncString` envelope (AES-256-CBC with an
+ * Bitwarden's client-side cryptography, using Web Crypto and the shared
+ * Argon2id implementation (ADR 0218): the `EncString` envelope (AES-256-CBC with an
  * HMAC-SHA256 over the IV and ciphertext, verified before anything is
  * decrypted), HKDF-Expand key stretching, the master-key derivations
  * (PBKDF2-SHA256 and Argon2id) and the Secrets Manager access-token key.
  * Pure functions of bytes: no network, no storage, nothing logged.
  */
-import { argon2id } from "@noble/hashes/argon2.js";
+import { argon2id } from "hash-wasm";
 
 const encoder = new TextEncoder();
 
@@ -177,11 +177,14 @@ export async function masterKey(
   const hashedSalt = new Uint8Array(
     await crypto.subtle.digest("SHA-256", own(salt)),
   );
-  return argon2id(secret, hashedSalt, {
-    t: checked.iterations,
-    m: checked.memoryMiB * 1024,
-    p: checked.parallelism,
-    dkLen: 32,
+  return argon2id({
+    password: secret,
+    salt: hashedSalt,
+    iterations: checked.iterations,
+    memorySize: checked.memoryMiB * 1024,
+    parallelism: checked.parallelism,
+    hashLength: 32,
+    outputType: "binary",
   });
 }
 
