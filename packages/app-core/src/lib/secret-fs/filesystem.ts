@@ -14,8 +14,9 @@
 import { Effect, FileSystem, Semaphore } from "effect";
 import { SecretFsConflict } from "./errors.js";
 import type { SecretFsError } from "./errors.js";
+import { checkWriteOwner } from "./files-owner.js";
 import { STAGING_SUFFIX, checkPath, revisionOf } from "./files.js";
-import type { Revision, SecretFiles } from "./files.js";
+import type { Revision, SecretFiles, WriteOptions } from "./files.js";
 import {
   DIRECTORY_MODE,
   FILE_MODE,
@@ -43,7 +44,12 @@ const readNow = (dir: Directory, path: string) =>
   });
 
 /** Write `bytes` beside `path` and rename them over it, or leave `path` as it was. */
-const stageAndRename = (dir: Directory, path: string, bytes: Uint8Array) =>
+const stageAndRename = (
+  dir: Directory,
+  path: string,
+  bytes: Uint8Array,
+  check?: () => void,
+) =>
   Effect.gen(function* () {
     const { fs } = dir;
     const target = dir.absolute(path);
@@ -54,14 +60,20 @@ const stageAndRename = (dir: Directory, path: string, bytes: Uint8Array) =>
       fs.makeDirectory(directory, { recursive: true, mode: DIRECTORY_MODE }),
     );
     const staged = `${directory}/.${basename(target)}.${crypto.randomUUID()}${STAGING_SUFFIX}`;
-    const stage = Effect.scoped(
-      Effect.gen(function* () {
-        const file = yield* fs.open(staged, { flag: "wx", mode: FILE_MODE });
-        yield* file.writeAll(bytes);
-        yield* file.sync;
-      }),
-    ).pipe(Effect.andThen(fs.rename(staged, target)));
-    yield* platform(path, stage).pipe(
+    const stage = platform(
+      path,
+      Effect.scoped(
+        Effect.gen(function* () {
+          const file = yield* fs.open(staged, { flag: "wx", mode: FILE_MODE });
+          yield* file.writeAll(bytes);
+          yield* file.sync;
+        }),
+      ),
+    ).pipe(
+      Effect.andThen(checkWriteOwner(path, check)),
+      Effect.andThen(platform(path, fs.rename(staged, target))),
+    );
+    yield* stage.pipe(
       Effect.tapError(() =>
         fs.remove(staged, { force: true }).pipe(Effect.ignore),
       ),
@@ -133,10 +145,17 @@ export function makeFileSystemSecretFiles(
     const read: SecretFiles["read"] = (path) =>
       checkPath(path).pipe(Effect.flatMap((checked) => readNow(dir, checked)));
 
-    const write: SecretFiles["write"] = (path, bytes, options) =>
+    const write = (
+      path: string,
+      bytes: Uint8Array,
+      options?: WriteOptions,
+      check?: () => void,
+    ) =>
       Effect.gen(function* () {
         yield* checkPath(path);
+        yield* checkWriteOwner(path, check);
         const replace = Effect.gen(function* () {
+          yield* checkWriteOwner(path, check);
           if (options?.ifRevision !== undefined) {
             const actual = yield* standing(dir, path);
             if (actual !== options.ifRevision) {
@@ -147,7 +166,7 @@ export function makeFileSystemSecretFiles(
               });
             }
           }
-          yield* stageAndRename(dir, path, bytes);
+          yield* stageAndRename(dir, path, bytes, check);
           return revisionOf(bytes);
         });
         const guarded: Effect.Effect<Revision, SecretFsError> =
@@ -172,6 +191,13 @@ export function makeFileSystemSecretFiles(
         Effect.flatMap((under) => listFiles(dir, under)),
       );
 
-    return { read, write, remove, list };
+    return {
+      read,
+      write,
+      writeGuarded: (path, bytes, check, options) =>
+        write(path, bytes, options, check),
+      remove,
+      list,
+    };
   });
 }

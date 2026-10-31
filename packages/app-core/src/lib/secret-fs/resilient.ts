@@ -22,6 +22,7 @@
 import { Clock, Duration, Effect, type Exit, Ref, Schedule } from "effect";
 import { SecretFsUnavailable, isTransient } from "./errors.js";
 import type { SecretFsError } from "./errors.js";
+import { checkWriteOwner } from "./files-owner.js";
 import { revisionOf } from "./files.js";
 import type { SecretFiles } from "./files.js";
 
@@ -151,6 +152,7 @@ function guardedWrite(
   files: SecretFiles,
   circuit: Circuit,
   policy: ResiliencePolicy,
+  check?: () => void,
 ): SecretFiles["write"] {
   return (path, bytes, options) => {
     const landed = revisionOf(bytes);
@@ -164,15 +166,19 @@ function guardedWrite(
         path,
         Effect.suspend(() => {
           tries += 1;
-          return files.write(path, bytes, options);
+          return checkWriteOwner(path, check).pipe(
+            Effect.andThen(files.write(path, bytes, options)),
+          );
         }).pipe(
-          Effect.catchTag("SecretFsConflict", (conflict) =>
-            tries > 1 && conflict.actual === landed
-              ? Effect.succeed(landed)
-              : Effect.fail(conflict),
+          Effect.catchTag(
+            "SecretFsConflict",
+            (conflict): Effect.Effect<string, SecretFsError> =>
+              tries > 1 && conflict.actual === landed
+                ? checkWriteOwner(path, check).pipe(Effect.as(landed))
+                : Effect.fail(conflict),
           ),
         ),
-      );
+      ).pipe(Effect.tap(() => checkWriteOwner(path, check)));
     });
   };
 }
@@ -184,11 +190,28 @@ export function resilient(
   const policy = { ...DEFAULT_RESILIENCE, ...overrides };
   return Effect.gen(function* () {
     const circuit = makeCircuit(yield* Ref.make<Breaker>(CLOSED), policy);
-    return {
+    const guardedCommit = files.writeGuarded?.bind(files);
+    const wrapped: SecretFiles = {
       read: (path) => guarded(circuit, policy, path, files.read(path)),
       write: guardedWrite(files, circuit, policy),
       remove: (path) => guarded(circuit, policy, path, files.remove(path)),
       list: (prefix) => guarded(circuit, policy, prefix, files.list(prefix)),
     };
+    if (guardedCommit)
+      return {
+        ...wrapped,
+        writeGuarded: (path, bytes, check, options) =>
+          guardedWrite(
+            {
+              ...files,
+              write: (target, data, condition) =>
+                guardedCommit(target, data, check, condition),
+            },
+            circuit,
+            policy,
+            check,
+          )(path, bytes, options),
+      };
+    return wrapped;
   });
 }

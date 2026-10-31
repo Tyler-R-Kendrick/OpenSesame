@@ -44,6 +44,13 @@ export interface SecretFiles {
     bytes: Uint8Array,
     options?: WriteOptions,
   ) => Effect.Effect<Revision, SecretFsError>;
+  /** Explicit owner check at the actual rename/send/publication point, not an ordinary-write shim. */
+  readonly writeGuarded?: (
+    path: string,
+    bytes: Uint8Array,
+    beforeCommit: () => void,
+    options?: WriteOptions,
+  ) => Effect.Effect<Revision, SecretFsError>;
   /** Removes the file; a file that is already gone is not a failure. */
   readonly remove: (path: string) => Effect.Effect<void, SecretFsError>;
   /** Every file at or under `prefix` ("" for all), sorted, relative to the root. */
