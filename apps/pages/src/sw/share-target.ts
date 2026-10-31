@@ -23,6 +23,7 @@ import {
   shareTargetPageUrl,
 } from "../lib/share-target.js";
 import type { WorkerContext } from "./context.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 const HEADERS = {
   "Cache-Control": "no-store",
@@ -215,7 +216,7 @@ async function stage(
     await cache.put(
       new Request(metaEntry),
       new Response(
-        await sealShareTarget(key, encoder.encode(JSON.stringify(meta))),
+        asBufferSource(await sealShareTarget(key, encoder.encode(JSON.stringify(meta)))),
         { headers: { "Content-Type": "application/octet-stream" } },
       ),
     );
@@ -223,10 +224,10 @@ async function stage(
       await cache.put(
         new Request(fileEntry),
         new Response(
-          await sealShareTarget(
+          asBufferSource(await sealShareTarget(
             key,
             new Uint8Array(await staged.file.arrayBuffer()),
-          ),
+          )),
           { headers: { "Content-Type": "application/octet-stream" } },
         ),
       );

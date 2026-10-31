@@ -6,6 +6,7 @@ import {
   openBitwardenXaes,
   sealBitwardenXaes,
 } from "./bitwarden-native-xaes.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 const keyFor = (seed: number) =>
   Uint8Array.from({ length: 32 }, (_, index) => (index * 29 + seed) & 255);
@@ -124,7 +125,7 @@ it("interoperates with actual WebCrypto GCM using an independent derived key", a
   const encoded = sealBitwardenXaes(plaintext, key, nonce, aad);
   const aes = await crypto.subtle.importKey(
     "raw",
-    nodeSubkey(key),
+    asBufferSource(nodeSubkey(key)),
     "AES-GCM",
     false,
     ["decrypt"],
@@ -137,7 +138,7 @@ it("interoperates with actual WebCrypto GCM using an independent derived key", a
       tagLength: 128,
     },
     aes,
-    encoded,
+    asBufferSource(encoded),
   );
   expect(new Uint8Array(opened)).toEqual(plaintext);
 });

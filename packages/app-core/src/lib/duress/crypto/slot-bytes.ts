@@ -6,6 +6,7 @@ import {
   assertDuressCodeLength,
   assertDuressKdfParams,
 } from "../keys/pin-floors.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export const te = new TextEncoder();
 export const SLOT_PURPOSE = te.encode("opensesame/duress/slot/v1");
@@ -27,7 +28,7 @@ export function fromB64(s: string): Uint8Array {
 }
 
 export async function importAes(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, [
+  return crypto.subtle.importKey("raw", asBufferSource(raw), "AES-GCM", false, [
     "encrypt",
     "decrypt",
   ]);
@@ -47,7 +48,7 @@ export async function pbkdf2(
     ["deriveBits"],
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+    { name: "PBKDF2", hash: "SHA-256", salt: asBufferSource(salt), iterations },
     base,
     256,
   );

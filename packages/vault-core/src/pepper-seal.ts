@@ -10,7 +10,7 @@
  * account and method ids: moved to another method, it fails to open.
  */
 
-import { isString, overlapCast } from "@opensesame/os-domain";
+import { asBufferSource, isString } from "@opensesame/os-domain";
 import type { PepperSeal } from "./account.js";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
 import {
@@ -52,7 +52,7 @@ async function pepperKey(
     ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: overlapCast(salt), iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: asBufferSource(salt), iterations, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -101,7 +101,7 @@ function legacyBinding(binding: string): string {
 }
 
 async function dataKey(bytes: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", overlapCast(bytes), "AES-GCM", false, [
+  return crypto.subtle.importKey("raw", asBufferSource(bytes), "AES-GCM", false, [
     "encrypt",
     "decrypt",
   ]);

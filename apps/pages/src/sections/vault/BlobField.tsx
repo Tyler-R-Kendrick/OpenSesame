@@ -13,6 +13,7 @@ import {
   pickFiles,
   saveBlob,
 } from "../../lib/file-system.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 function iconKey(label: string, onClick: () => void, icon: ReactNode) {
   return (
@@ -109,7 +110,7 @@ async function saveFile(manifest: string): Promise<void> {
   const summary = fileSummary(manifest);
   if (summary === null) return;
   const opened = await openFile(manifest, await defaultFileStores());
-  const blob = new Blob([opened.bytes], { type: opened.mediaType });
+  const blob = new Blob([asBufferSource(opened.bytes)], { type: opened.mediaType });
   await saveBlob(blob, summary.name === "" ? "file" : summary.name, "File");
 }
 

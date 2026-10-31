@@ -8,6 +8,8 @@
  * This module is browser-safe (no node:crypto).
  */
 
+import { asBufferSource } from "@opensesame/os-domain";
+
 export interface DigestBoundPaymentProof {
   boundDigest: string;
   verifiedBytes?: Uint8Array;
@@ -74,7 +76,7 @@ async function verifyEs256(
   try {
     const key = await crypto.subtle.importKey(
       "spki",
-      publicKeySpki,
+      asBufferSource(publicKeySpki),
       { name: "ECDSA", namedCurve: "P-256" },
       false,
       ["verify"],
@@ -82,8 +84,8 @@ async function verifyEs256(
     return crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
       key,
-      signature,
-      hexToBytes(digestHex),
+      asBufferSource(signature),
+      asBufferSource(hexToBytes(digestHex)),
     );
   } catch {
     return false;
@@ -138,7 +140,7 @@ export async function signDigestWithEphemeralP256(
     await crypto.subtle.sign(
       { name: "ECDSA", hash: "SHA-256" },
       pair.privateKey,
-      hexToBytes(digestHex),
+      asBufferSource(hexToBytes(digestHex)),
     ),
   );
   return { verifiedBytes: sig, publicKeySpki: spki };

@@ -12,6 +12,7 @@ import spec from "../../../../../spec/conformance/vault-drive-protocol.json" wit
 };
 import { DriveError, driveClientSeams } from "./client.js";
 import { listDriveParts, readDrivePart, writeDrivePart } from "./parts.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 const original = driveClientSeams.fetch;
 const pairing = {
@@ -86,7 +87,10 @@ describe("the parts client, exchange by exchange", () => {
           : response.body
             ? JSON.stringify(response.body)
             : null;
-        return new Response(body, { status: response.status });
+        return new Response(
+          body === null || typeof body === "string" ? body : asBufferSource(body),
+          { status: response.status },
+        );
       };
       const outcome = await outcomeOf(exchange, { ...pairing, key });
 

@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource, overlapCast } from "@opensesame/os-domain";
 import {
   MAX_PBKDF2_ITERATIONS,
   VaultCorruptError,
@@ -230,7 +230,7 @@ describe("exportRawVaultKey", () => {
     const raw = randomBytes(32);
     const key = await crypto.subtle.importKey(
       "raw",
-      overlapCast(raw),
+      asBufferSource(raw),
       "AES-GCM",
       true,
       ["encrypt", "decrypt"],

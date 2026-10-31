@@ -23,6 +23,7 @@ import {
   type SecretBackendSession,
 } from "./secret-backends/types.js";
 import { zodJitless } from "./zod-jitless.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 zodJitless();
 const MAX_BYTES = 512 * 1024;
@@ -185,7 +186,7 @@ async function readBackup(
     const bytes = base64ToBytes(encoded);
     if (bytes.length !== parsed.data.size || bytesToBase64(bytes) !== encoded)
       failure();
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", asBufferSource(bytes)));
     if (
       Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
         "",

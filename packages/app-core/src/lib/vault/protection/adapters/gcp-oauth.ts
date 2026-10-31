@@ -12,7 +12,7 @@ import {
   type BoundaryValue,
   isJsonObject,
   isString,
-} from "@opensesame/os-domain";
+ asBufferSource } from "@opensesame/os-domain";
 import { ProtectionError } from "../errors.js";
 import { b64ToBytes, bytesToB64 } from "./cloud-wrapping-secret.js";
 
@@ -97,7 +97,7 @@ async function signAssertion(
   try {
     key = await crypto.subtle.importKey(
       "pkcs8",
-      pkcs8FromPem(account.privateKey),
+      asBufferSource(pkcs8FromPem(account.privateKey)),
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
       false,
       ["sign"],

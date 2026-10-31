@@ -47,7 +47,8 @@ describe("browser-reset-channel", () => {
 
   it("makes a tab id without randomUUID, and still tells its own message apart", async () => {
     vi.stubGlobal("crypto", {
-      getRandomValues: (bytes: Uint8Array) => realCrypto.getRandomValues(bytes),
+      getRandomValues: <T extends ArrayBufferView<ArrayBuffer>>(bytes: T): T =>
+        realCrypto.getRandomValues(bytes),
     });
     vi.resetModules();
     const { configureHost: install } = await import("../host.js");
@@ -78,7 +79,8 @@ describe("browser-reset-channel", () => {
       randomUUID: () => {
         throw new DOMException("insecure", "SecurityError");
       },
-      getRandomValues: (bytes: Uint8Array) => realCrypto.getRandomValues(bytes),
+      getRandomValues: <T extends ArrayBufferView<ArrayBuffer>>(bytes: T): T =>
+        realCrypto.getRandomValues(bytes),
     });
     vi.resetModules();
     const { configureHost: install } = await import("../host.js");

@@ -6,6 +6,7 @@
 import { b64, fromB64, hex, timingSafeEqual } from "./bytes.js";
 import type { CustodyGrant } from "./roles.js";
 import { roleAllows } from "./roles.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export type RecoveryRequest = Readonly<{
   requestId: string;
@@ -70,19 +71,19 @@ export type ApprovalOutcome =
   | { kind: "approval_rejected"; reason: string };
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const dig = await crypto.subtle.digest("SHA-256", bytes);
+  const dig = await crypto.subtle.digest("SHA-256", asBufferSource(bytes));
   return hex(new Uint8Array(dig));
 }
 
 async function hmacB64(key: Uint8Array, msg: Uint8Array): Promise<string> {
   const ck = await crypto.subtle.importKey(
     "raw",
-    key,
+    asBufferSource(key),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
   );
-  return b64(new Uint8Array(await crypto.subtle.sign("HMAC", ck, msg)));
+  return b64(new Uint8Array(await crypto.subtle.sign("HMAC", ck, asBufferSource(msg))));
 }
 
 export async function digestRecoveryRequest(

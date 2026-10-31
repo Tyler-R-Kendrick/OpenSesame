@@ -4,6 +4,8 @@
  */
 export * from "./json.js";
 export * from "./fnv1a.js";
+// ArrayBuffer-backed copies for Web Crypto, fetch, and WebAuthn. Pure DOM.
+export * from "./buffer-source.js";
 export * from "./canonical-origin.js";
 export * from "./types.js";
 // Published vault address owner/slug (ADR 0181). A pure parser, no I/O.

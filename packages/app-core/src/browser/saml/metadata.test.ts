@@ -8,6 +8,7 @@ import {
 import { X509CertificateGenerator } from "@peculiar/x509";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { readSamlIdpMetadata } from "./metadata.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 const MD = "urn:oasis:names:tc:SAML:2.0:metadata";
 const DS = "http://www.w3.org/2000/09/xmldsig#";
@@ -102,7 +103,7 @@ it("extracts an actual X509 RSA key through mature browser XMLDSIG code and veri
     await crypto.subtle.verify(
       "RSASSA-PKCS1-v1_5",
       publicKey,
-      sign("sha256", message, signingKey),
+      asBufferSource(sign("sha256", message, signingKey)),
       message,
     ),
   ).toBe(true);

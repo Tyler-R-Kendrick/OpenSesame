@@ -11,7 +11,7 @@
  * caller and is the caller's to wipe: it is the key a share is wrapped under.
  */
 
-import { overlapCast } from "@opensesame/os-domain";
+import { overlapCast, asBufferSource, ownBytes } from "@opensesame/os-domain";
 import { requireCredentials } from "../../ports.js";
 import {
   PrfCeremonyError,
@@ -77,7 +77,7 @@ function bytesOf(source: BufferSource): Uint8Array {
 }
 
 function allow(ids: readonly string[]): PublicKeyCredentialDescriptor[] {
-  return ids.map((id) => ({ type: "public-key", id: fromB64url(id) }));
+  return ids.map((id) => ({ type: "public-key", id: asBufferSource(fromB64url(id)) }));
 }
 
 /**
@@ -143,7 +143,7 @@ function readAsserted(
   let prfOutput: Uint8Array | null = null;
   if (wantPrf && first) {
     const output = bytesOf(first);
-    assertUsablePrfOutput(output.buffer);
+    assertUsablePrfOutput(ownBytes(output).buffer);
     prfOutput = output;
   } else if (wantPrf && !prfOptional) {
     throw new PrfCeremonyError(
@@ -172,11 +172,11 @@ export function webauthnCeremony(
         publicKey: {
           rp: { id: input.rpId, name: input.rpName },
           user: {
-            id: input.userId,
+            id: asBufferSource(input.userId),
             name: input.userName,
             displayName: input.userName,
           },
-          challenge: input.challenge,
+          challenge: asBufferSource(input.challenge),
           pubKeyCredParams: [
             { type: "public-key", alg: -7 },
             { type: "public-key", alg: -8 },
@@ -189,7 +189,7 @@ export function webauthnCeremony(
             residentKey: "discouraged",
           },
           attestation: "none",
-          extensions: { prf: { eval: { first: input.prfInput } } },
+          extensions: { prf: { eval: { first: asBufferSource(input.prfInput) } } },
         },
       });
       return readRegistered(created);
@@ -197,14 +197,14 @@ export function webauthnCeremony(
     async assert(input) {
       const publicKey: PublicKeyCredentialRequestOptions = {
         rpId: input.rpId,
-        challenge: input.challenge,
+        challenge: asBufferSource(input.challenge),
         allowCredentials: allow(input.allowCredentialIds),
         userVerification: input.requireUserVerification
           ? "required"
           : "preferred",
       };
       if (input.prfInput) {
-        publicKey.extensions = { prf: { eval: { first: input.prfInput } } };
+        publicKey.extensions = { prf: { eval: { first: asBufferSource(input.prfInput) } } };
       }
       const got = await container.get({ publicKey });
       return readAsserted(

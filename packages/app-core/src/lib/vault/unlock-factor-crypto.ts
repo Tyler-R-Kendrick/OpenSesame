@@ -1,5 +1,5 @@
 /** Fixed PIN/AES/text operations; no ceremony or owner authority. */
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 import {
   type PasskeyUnlockRecord,
   type PinUnlockRecord,
@@ -63,9 +63,9 @@ export async function encryptWithKey(
 ): Promise<SealedBlob> {
   const iv = randomBytes(IV_BYTES);
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: overlapCast(iv) },
+    { name: "AES-GCM", iv: asBufferSource(iv) },
     key,
-    overlapCast(plaintext),
+    asBufferSource(plaintext),
   );
   return { ivB64: bytesToB64(iv), ctB64: bytesToB64(new Uint8Array(ct)) };
 }
@@ -75,9 +75,9 @@ export async function decryptWithKey(
   blob: SealedBlob,
 ): Promise<Uint8Array> {
   const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: overlapCast(b64ToBytes(blob.ivB64)) },
+    { name: "AES-GCM", iv: asBufferSource(b64ToBytes(blob.ivB64)) },
     key,
-    overlapCast(b64ToBytes(blob.ctB64)),
+    asBufferSource(b64ToBytes(blob.ctB64)),
   );
   return new Uint8Array(plain);
 }
@@ -88,7 +88,7 @@ async function deriveAesKeyFromPassword(
   iterations: number,
 ): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: overlapCast(salt), iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: asBufferSource(salt), iterations, hash: "SHA-256" },
     await crypto.subtle.importKey(
       "raw",
       new TextEncoder().encode(password.normalize("NFKC")),
@@ -199,7 +199,7 @@ export async function kekFromWebauthnPrf(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt: overlapCast(publicSalt),
+      salt: asBufferSource(publicSalt),
       info: PRF_INFO,
     },
     ikm,

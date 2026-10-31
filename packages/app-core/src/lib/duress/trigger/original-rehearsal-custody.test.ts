@@ -21,8 +21,8 @@ type Fixture = {
   key: Uint8Array;
   action: Uint8Array;
   payload: Uint8Array;
-  prf: Uint8Array;
-  evaluationSalt: Uint8Array;
+  prf: Uint8Array<ArrayBuffer>;
+  evaluationSalt: Uint8Array<ArrayBuffer>;
   draft: EnrollmentDraft | undefined;
   observed: Uint8Array[];
   expectedFailure: ErrorOptions | undefined;

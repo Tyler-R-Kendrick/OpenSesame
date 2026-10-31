@@ -3,7 +3,7 @@
  * Failed ceremonies throw typed errors and never touch unlock wraps (KP-23).
  */
 
-import { overlapCast } from "@opensesame/os-domain";
+import { overlapCast, asBufferSource } from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64, randomBytes } from "@opensesame/vault-core";
 import {
   isPublicKeyCredential,
@@ -251,8 +251,7 @@ function buildPrfGetRequest(
   const allowCredentials: PublicKeyCredentialDescriptor[] = allowed.map(
     (row) => {
       const idBytes = b64ToBytes(row.credentialIdB64);
-      // SAFETY: WebAuthn accepts BufferSource; Uint8Array is a BufferSource.
-      const id: BufferSource = idBytes;
+      const id: BufferSource = asBufferSource(idBytes);
       return { type: "public-key", id };
     },
   );

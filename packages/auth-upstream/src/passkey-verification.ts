@@ -1,3 +1,4 @@
+import { ownBytes } from "@opensesame/os-domain";
 import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
@@ -65,7 +66,7 @@ export async function verifyPasskeyAuthentication(
       expectedRPID: input.rp.rpID,
       credential: {
         id: input.credential.credentialId,
-        publicKey: input.credential.publicKey,
+        publicKey: ownBytes(input.credential.publicKey),
         counter: input.credential.counter,
       },
       requireUserVerification: input.requireUserVerification ?? true,

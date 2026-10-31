@@ -4,11 +4,11 @@
  */
 
 import {
+  asBufferSource,
   type BoundaryValue,
   isJsonObject,
   isNumber,
   isString,
-  overlapCast,
 } from "@opensesame/os-domain";
 import {
   DOMAIN_CAPSULE,
@@ -60,11 +60,11 @@ export async function sealRootCapsule(
   const ct = await crypto.subtle.encrypt(
     {
       name: "AES-GCM",
-      iv,
-      additionalData: overlapCast(contextAad(context)),
+      iv: asBufferSource(iv),
+      additionalData: asBufferSource(contextAad(context)),
     },
     kek,
-    canonicalizeToBytes(plaintext),
+    asBufferSource(canonicalizeToBytes(plaintext)),
   );
   return { ivB64: bytesToB64(iv), ctB64: bytesToB64(new Uint8Array(ct)) };
 }
@@ -136,11 +136,11 @@ export async function openRootCapsule(
     raw = await crypto.subtle.decrypt(
       {
         name: "AES-GCM",
-        iv: overlapCast(iv),
-        additionalData: overlapCast(contextAad(expected)),
+        iv: asBufferSource(iv),
+        additionalData: asBufferSource(contextAad(expected)),
       },
       kek,
-      overlapCast(b64ToBytes(sealed.ctB64)),
+      asBufferSource(b64ToBytes(sealed.ctB64)),
     );
   } catch {
     throw new ProtectionError(

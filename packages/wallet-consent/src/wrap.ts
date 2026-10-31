@@ -3,6 +3,8 @@
  * under a different key) Wallet material.
  */
 
+import { asBufferSource } from "@opensesame/os-domain";
+
 export async function generateWalletWrappingKey(): Promise<CryptoKey> {
   return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
     "encrypt",
@@ -22,9 +24,9 @@ export async function sealWalletMaterial(
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
+      { name: "AES-GCM", iv: asBufferSource(iv) },
       wrappingKey,
-      plaintext,
+      asBufferSource(plaintext),
     ),
   );
   return { iv, ciphertext };
@@ -36,9 +38,9 @@ export async function openWalletMaterial(
 ): Promise<Uint8Array> {
   return new Uint8Array(
     await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: sealed.iv },
+      { name: "AES-GCM", iv: asBufferSource(sealed.iv) },
       wrappingKey,
-      sealed.ciphertext,
+      asBufferSource(sealed.ciphertext),
     ),
   );
 }

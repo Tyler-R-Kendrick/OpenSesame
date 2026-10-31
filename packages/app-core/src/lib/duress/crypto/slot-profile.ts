@@ -15,6 +15,7 @@ import {
   pbkdf2,
   te,
 } from "./slot-bytes.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export const MAX_SLOTS = 8;
 
@@ -134,7 +135,7 @@ export async function sealProfileSlot(input: {
 
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv, additionalData: aadFor(meta) },
+      { name: "AES-GCM", iv, additionalData: asBufferSource(aadFor(meta)) },
       key,
       body,
     ),
@@ -181,9 +182,9 @@ export async function openProfileSlot(
     };
     const pt = new Uint8Array(
       await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv, additionalData: aadFor(meta) },
+        { name: "AES-GCM", iv: asBufferSource(iv), additionalData: asBufferSource(aadFor(meta)) },
         key,
-        fromB64(slot.ciphertextB64),
+        asBufferSource(fromB64(slot.ciphertextB64)),
       ),
     );
     const view = new DataView(pt.buffer);

@@ -23,14 +23,22 @@ const bytes = (size: number) =>
 
 afterEach(() => vi.restoreAllMocks());
 
-function nodeMac(ciphertext: Uint8Array, nonce = iv, ownKey = key): Buffer {
+function nodeMac(
+  ciphertext: Uint8Array,
+  nonce = iv,
+  ownKey: Uint8Array = key,
+): Buffer {
   return createHmac("sha256", ownKey.slice(32))
     .update(nonce)
     .update(ciphertext)
     .digest();
 }
 
-function nodeSeal(plaintext: Uint8Array, ownKey = key, legacy = false): string {
+function nodeSeal(
+  plaintext: Uint8Array,
+  ownKey: Uint8Array = key,
+  legacy = false,
+): string {
   const cipher = createCipheriv("aes-256-cbc", ownKey.slice(0, 32), iv);
   const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const fields = [iv.toString("base64"), ciphertext.toString("base64")];

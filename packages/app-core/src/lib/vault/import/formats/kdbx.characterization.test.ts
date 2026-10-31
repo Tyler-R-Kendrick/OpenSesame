@@ -86,7 +86,7 @@ async function build(root: GroupSpec): Promise<Uint8Array> {
       }
       created.tags = entry.tags ?? [];
       for (const name of entry.attachments ?? []) {
-        created.binaries.set(name, new Uint8Array([1, 2, 3]));
+        created.binaries.set(name, new Uint8Array([1, 2, 3]).buffer);
       }
       created.times.creationTime = CREATED;
       created.times.lastModTime = MODIFIED;

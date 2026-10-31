@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   findSkippedAttachments,
@@ -18,7 +18,7 @@ function crc32(bytes: Uint8Array): number {
 }
 
 async function deflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([overlapCast(bytes)])
+  const stream = new Blob([asBufferSource(bytes)])
     .stream()
     .pipeThrough(new CompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());

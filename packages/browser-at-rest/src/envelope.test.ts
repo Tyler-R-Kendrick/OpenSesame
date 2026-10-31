@@ -1,3 +1,4 @@
+import { asBufferSource } from "@opensesame/os-domain";
 import { expect, it } from "vitest";
 import { openFromRest, sealForRest, useClientAtRestKeys } from "./seal.js";
 
@@ -25,9 +26,13 @@ it("wraps fresh data keys and authenticates the full frame and canonical context
   const unwrap = (value: string) => {
     const bytes = packed(value);
     return crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: bytes.subarray(0, 12), additionalData: aad },
+      {
+        name: "AES-GCM",
+        iv: asBufferSource(bytes.subarray(0, 12)),
+        additionalData: aad,
+      },
       key,
-      bytes.subarray(12, 60),
+      asBufferSource(bytes.subarray(12, 60)),
     );
   };
   expect(new Uint8Array(await unwrap(first))).not.toEqual(

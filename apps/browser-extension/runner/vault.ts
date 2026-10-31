@@ -175,7 +175,14 @@ export class RunnerVault {
     options: VaultOptions = {},
   ) {
     this.now = options.now ?? Date.now;
-    this.random = options.random ?? ((bytes) => crypto.getRandomValues(bytes));
+    this.random =
+      options.random ??
+      ((bytes) => {
+        const owned = new Uint8Array(bytes.length);
+        crypto.getRandomValues(owned);
+        bytes.set(owned);
+        return bytes;
+      });
   }
 
   // --- entries -----------------------------------------------------------

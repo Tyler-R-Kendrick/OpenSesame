@@ -7,6 +7,7 @@ import type { JsonObject } from "../json-boundary.js";
 
 import { PEER_BOUNDS } from "./bounds.js";
 import { assertSafePeerOrigin } from "./origin.js";
+import { asBufferSource } from "@opensesame/os-domain";
 export { assertSafePeerOrigin };
 
 export type PeerEnvelope = Readonly<{
@@ -87,7 +88,7 @@ export async function encryptPeerPayload(
   }
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext),
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, asBufferSource(plaintext)),
   );
   const packed = new Uint8Array(iv.length + ct.length);
   packed.set(iv, 0);
@@ -190,7 +191,7 @@ export async function signPeerEnvelope(
     await crypto.subtle.sign(
       { name: "ECDSA", hash: "SHA-256" },
       privateKey,
-      body,
+      asBufferSource(body),
     ),
   );
   return { ...full, signatureB64: b64(sig) };
@@ -321,8 +322,8 @@ export async function verifyPeerEnvelope(
     ok = await crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
       publicKey,
-      fromB64(env.signatureB64),
-      body,
+      asBufferSource(fromB64(env.signatureB64)),
+      asBufferSource(body),
     );
   } catch {
     seenNonces.delete(env.nonce);

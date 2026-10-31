@@ -24,6 +24,7 @@
 import {
   type ChannelCapabilities,
   type NotificationClass,
+  asBufferSource,
   channelCapabilities,
 } from "@opensesame/os-domain";
 
@@ -40,6 +41,7 @@ import type {
   WakeSignal,
 } from "../contract.js";
 import {
+  type PublicPost,
   deliverToPublicEndpoint,
   endpointRefusal,
   postPublicOnly,
@@ -65,7 +67,12 @@ export interface WebPushConfig extends VapidIdentity {
 
 export function createWebPushAdapter(config: WebPushConfig): ChannelAdapter {
   // The endpoint is browser-supplied: public-only, pinned, no redirects.
-  const post = config.fetchImpl ?? postPublicOnly;
+  // fetch() wants an ArrayBuffer-backed body; the public poster already accepts Buffer.
+  const fetchImpl = config.fetchImpl;
+  const post: PublicPost<Buffer> = fetchImpl
+    ? (url, init) =>
+        fetchImpl(url, { ...init, body: asBufferSource(init.body) })
+    : postPublicOnly;
   const now: ClockLike = config.now ?? (() => new Date());
   const ttl = config.ttlSeconds ?? 60;
 

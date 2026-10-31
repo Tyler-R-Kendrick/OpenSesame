@@ -12,6 +12,7 @@ import {
   protonExport,
 } from "./file-import.test-support.js";
 import { secretBackendDraft } from "./presets.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 let store: VaultStore;
 beforeEach(async () => {
@@ -96,7 +97,7 @@ it("uses the real 1PUX ZIP and Proton Pass JSON/ZIP parsers", async () => {
     config(
       "1password",
       "1password-1pux",
-      new File([exportZip([["export.data", onePasswordExport]])], "vault.1pux"),
+      new File([asBufferSource(exportZip([["export.data", onePasswordExport]]))], "vault.1pux"),
     ),
     config(
       "proton-pass",
@@ -107,7 +108,7 @@ it("uses the real 1PUX ZIP and Proton Pass JSON/ZIP parsers", async () => {
       "proton-pass",
       "protonpass-json",
       new File(
-        [exportZip([["ProtonPass/export.json", protonExport]])],
+        [asBufferSource(exportZip([["ProtonPass/export.json", protonExport]]))],
         "proton.zip",
       ),
     ),
@@ -196,10 +197,10 @@ it("validates selected provider/format, rejects empty/read-failed/oversized file
   ).rejects.toThrow("64 MB");
   const ambiguous = new File(
     [
-      exportZip([
+      asBufferSource(exportZip([
         ["one.json", protonExport],
         ["two.json", protonExport],
-      ]),
+      ])),
     ],
     "proton.zip",
   );
@@ -208,11 +209,11 @@ it("validates selected provider/format, rejects empty/read-failed/oversized file
   ).rejects.toMatchObject({ code: "ambiguous" });
   const disguised = new File(
     [
-      exportZip([
+      asBufferSource(exportZip([
         ["export.data", protonExport],
         ["one.json", protonExport],
         ["two.json", protonExport],
-      ]),
+      ])),
     ],
     "proton.zip",
   );
@@ -221,10 +222,10 @@ it("validates selected provider/format, rejects empty/read-failed/oversized file
   ).rejects.toMatchObject({ code: "ambiguous" });
   const duplicate1pux = new File(
     [
-      exportZip([
+      asBufferSource(exportZip([
         ["one/export.data", onePasswordExport],
         ["two/export.data", onePasswordExport],
-      ]),
+      ])),
     ],
     "ambiguous.1pux",
   );
@@ -232,7 +233,7 @@ it("validates selected provider/format, rejects empty/read-failed/oversized file
     backend.authenticate(config("1password", "1password-1pux", duplicate1pux)),
   ).rejects.toMatchObject({ code: "ambiguous" });
   const encrypted = new File(
-    [exportZip([["data.pgp", "encrypted"]])],
+    [asBufferSource(exportZip([["data.pgp", "encrypted"]]))],
     "proton.zip",
   );
   await expect(

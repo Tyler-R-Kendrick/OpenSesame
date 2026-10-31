@@ -3,7 +3,7 @@
  * excluding authB64. Mutable revision is included here, not in wrapper AAD.
  */
 
-import { type JsonValue, overlapCast } from "@opensesame/os-domain";
+import { type JsonValue, overlapCast, asBufferSource } from "@opensesame/os-domain";
 import {
   DOMAIN_MANIFEST_MAC,
   type RootProtectionManifest,
@@ -60,7 +60,7 @@ export async function authenticateManifest(
   const sig = await crypto.subtle.sign(
     "HMAC",
     key,
-    canonicalizeToBytes(payload),
+    asBufferSource(canonicalizeToBytes(payload)),
   );
   return bytesToB64(new Uint8Array(sig));
 }

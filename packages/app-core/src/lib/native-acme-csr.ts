@@ -1,3 +1,4 @@
+import { asBufferSource } from "@opensesame/os-domain";
 /**
  * A PKCS#10 certificate request, built in this page (RFC 2986), for ACME's
  * finalize step: an ECDSA P-256 key, the names in a subjectAltName extension,
@@ -116,7 +117,7 @@ export async function buildCsr(
     await crypto.subtle.sign(
       { name: "ECDSA", hash: "SHA-256" },
       keys.privateKey,
-      info,
+      asBufferSource(info),
     ),
   );
   return der(

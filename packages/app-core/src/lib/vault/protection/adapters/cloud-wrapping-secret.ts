@@ -6,7 +6,7 @@
  * (vault size independent). No clear-key CORS proxy.
  */
 
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 import {
   DOMAIN_CLOUD_WRAP,
   type ProtectionContext,
@@ -51,7 +51,7 @@ export async function deriveCloudKek(
   assertWrappingSecret(wrappingSecret);
   const base = await crypto.subtle.importKey(
     "raw",
-    overlapCast(wrappingSecret),
+    asBufferSource(wrappingSecret),
     "HKDF",
     false,
     ["deriveKey"],

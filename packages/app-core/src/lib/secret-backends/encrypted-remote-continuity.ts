@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 import type { CredentialItem } from "@opensesame/vault-core";
 import { bytesToB64 } from "@opensesame/vault-core/bytes.js";
 /** Authenticated inventory continuity travels inside its actual vault key credential. */
@@ -74,7 +74,7 @@ export function createEncryptedRemoteContinuity(
         new Uint8Array(
           await crypto.subtle.digest(
             "SHA-256",
-            overlapCast(new TextEncoder().encode(envelope)),
+            asBufferSource(new TextEncoder().encode(envelope)),
           ),
         ),
       );

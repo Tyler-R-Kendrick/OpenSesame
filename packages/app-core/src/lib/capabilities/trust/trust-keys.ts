@@ -14,7 +14,7 @@ import {
   isNumber,
   isString,
   overlapCast,
-} from "@opensesame/os-domain";
+ asBufferSource } from "@opensesame/os-domain";
 import { canonicalizeToBytes } from "../../vault/protection/canonicalize.js";
 import {
   DIGEST_PREFIX,
@@ -119,8 +119,8 @@ export async function verifyEs256(
     const ok = await crypto.subtle.verify(
       ECDSA_SHA256,
       key,
-      signature,
-      signedBytes,
+      asBufferSource(signature),
+      asBufferSource(signedBytes),
     );
     return ok ? "ok" : "bad-signature";
   } catch {

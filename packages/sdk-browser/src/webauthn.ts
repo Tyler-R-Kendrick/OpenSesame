@@ -1,5 +1,6 @@
 import {
   type BoundaryValue,
+  asBufferSource,
   isBoolean,
   isFunction,
   isJsonObject,
@@ -192,16 +193,16 @@ export function creationOptionsFromJson(
   return {
     publicKey: {
       ...rest,
-      challenge: b64urlToBytes(json.challenge),
+      challenge: asBufferSource(b64urlToBytes(json.challenge)),
       user: {
         ...json.user,
-        id: b64urlToBytes(json.user.id),
+        id: asBufferSource(b64urlToBytes(json.user.id)),
       },
       ...(excludeCredentials
         ? {
             excludeCredentials: excludeCredentials.map((c) => ({
               ...c,
-              id: b64urlToBytes(c.id),
+              id: asBufferSource(b64urlToBytes(c.id)),
             })),
           }
         : undefined),
@@ -216,12 +217,12 @@ export function requestOptionsFromJson(
   return {
     publicKey: {
       ...rest,
-      challenge: b64urlToBytes(json.challenge),
+      challenge: asBufferSource(b64urlToBytes(json.challenge)),
       ...(allowCredentials
         ? {
             allowCredentials: allowCredentials.map((c) => ({
               ...c,
-              id: b64urlToBytes(c.id),
+              id: asBufferSource(b64urlToBytes(c.id)),
             })),
           }
         : undefined),

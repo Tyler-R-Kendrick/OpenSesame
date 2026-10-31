@@ -4,7 +4,11 @@
  * remain readable. Without durable keys, callers retain values only in memory.
  */
 
-import { isJsonObject, overlapCast } from "@opensesame/os-domain";
+import {
+  asBufferSource,
+  isJsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 export const CLIENT_AT_REST_PREFIX = "osc2.";
 export const LEGACY_CLIENT_AT_REST_PREFIX = "osc1.";
@@ -190,9 +194,13 @@ async function openEnvelope(
   const aad = new TextEncoder().encode(scope);
   const raw = new Uint8Array(
     await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: bytes.subarray(0, 12), additionalData: aad },
+      {
+        name: "AES-GCM",
+        iv: asBufferSource(bytes.subarray(0, 12)),
+        additionalData: aad,
+      },
       current,
-      bytes.subarray(12, 60),
+      asBufferSource(bytes.subarray(12, 60)),
     ),
   );
   try {
@@ -210,11 +218,11 @@ async function openEnvelope(
     return await crypto.subtle.decrypt(
       {
         name: "AES-GCM",
-        iv: bytes.subarray(60, 72),
+        iv: asBufferSource(bytes.subarray(60, 72)),
         additionalData: payloadAd,
       },
       dataKey,
-      bytes.subarray(72),
+      asBufferSource(bytes.subarray(72)),
     );
   } finally {
     raw.fill(0);
@@ -239,11 +247,11 @@ export async function openFromRest(
       plain = await crypto.subtle.decrypt(
         {
           name: "AES-GCM",
-          iv: bytes.subarray(0, 12),
-          additionalData: binding(store, name),
+          iv: asBufferSource(bytes.subarray(0, 12)),
+          additionalData: asBufferSource(binding(store, name)),
         },
         current,
-        bytes.subarray(12),
+        asBufferSource(bytes.subarray(12)),
       );
     } else {
       return null;

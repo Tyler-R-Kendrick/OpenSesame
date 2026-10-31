@@ -21,6 +21,7 @@ import {
   pbkdf2,
   te,
 } from "./slot-bytes.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export type PrfAndCodeEnvelope = Readonly<{
   version: 1;
@@ -82,7 +83,7 @@ export async function sealPrfAndCodeWithDisclosure(input: {
     await crypto.subtle.encrypt(
       { name: "AES-GCM", iv: innerIv, additionalData: aadInner },
       innerKey,
-      input.compartmentKey,
+      asBufferSource(input.compartmentKey),
     ),
   );
   const innerBlob = new Uint8Array(12 + innerCt.length);
@@ -91,7 +92,7 @@ export async function sealPrfAndCodeWithDisclosure(input: {
 
   const prfKeyMat = await crypto.subtle.importKey(
     "raw",
-    input.prfOutput,
+    asBufferSource(input.prfOutput),
     "HKDF",
     false,
     ["deriveBits"],
@@ -164,7 +165,7 @@ export async function openPrfAndCode(input: {
     const salt = fromB64(input.envelope.saltB64);
     const prfKeyMat = await crypto.subtle.importKey(
       "raw",
-      input.prfOutput,
+      asBufferSource(input.prfOutput),
       "HKDF",
       false,
       ["deriveBits"],
@@ -174,7 +175,7 @@ export async function openPrfAndCode(input: {
         {
           name: "HKDF",
           hash: "SHA-256",
-          salt,
+          salt: asBufferSource(salt),
           info: PRF_CODE_PURPOSE,
         },
         prfKeyMat,
@@ -196,11 +197,11 @@ export async function openPrfAndCode(input: {
       await crypto.subtle.decrypt(
         {
           name: "AES-GCM",
-          iv: fromB64(input.envelope.outerIvB64),
+          iv: asBufferSource(fromB64(input.envelope.outerIvB64)),
           additionalData: aadOuter,
         },
         outerKey,
-        fromB64(input.envelope.outerCtB64),
+        asBufferSource(fromB64(input.envelope.outerCtB64)),
       ),
     );
     const codeKey = await pbkdf2(input.code, salt, input.envelope.iterations);

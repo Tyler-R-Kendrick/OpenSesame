@@ -44,6 +44,7 @@ import {
   browserEvidence,
   mapPrfToProtectionError,
 } from "./webauthn-prf.js";
+import { ownBytes } from "@opensesame/os-domain";
 export function protectorToUnlockRecord(
   record: WebauthnPrfProtectorRecord,
 ): PasskeyUnlockRecord {
@@ -157,10 +158,7 @@ async function webauthnPrfOpen(
 /** Copy a view so wrap does not read bytes outside the view. */
 function copiedBuffer(value: ArrayBuffer | Uint8Array): ArrayBuffer {
   if (value instanceof Uint8Array) {
-    return value.buffer.slice(
-      value.byteOffset,
-      value.byteOffset + value.byteLength,
-    );
+    return ownBytes(value).buffer;
   }
   return value.slice(0);
 }

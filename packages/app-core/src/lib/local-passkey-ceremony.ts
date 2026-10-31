@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { overlapCast, asBufferSource } from "@opensesame/os-domain";
 import { b64urlToBytes, isPublicKeyCredential } from "@opensesame/sdk-browser";
 import {
   credentials,
@@ -44,13 +44,13 @@ export async function getSignInCredential(
   prf?: Awaited<ReturnType<typeof prepareSignInPrf>>["extension"],
 ) {
   const publicKey: PublicKeyCredentialRequestOptions = {
-    challenge: start.challenge,
+    challenge: asBufferSource(start.challenge),
     rpId: start.rp.rpID,
     userVerification: "required",
     timeout: PASSKEY_CEREMONY_MS,
     allowCredentials: keys.map((key) => ({
       type: "public-key",
-      id: b64urlToBytes(key.credentialId),
+      id: asBufferSource(b64urlToBytes(key.credentialId)),
     })),
   };
   if (prf) publicKey.extensions = overlapCast({ prf });

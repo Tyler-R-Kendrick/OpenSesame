@@ -1,4 +1,8 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  asBufferSource,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
 import { gcmOpen, gcmSeal } from "./gcm.js";
 
@@ -114,7 +118,7 @@ async function deriveMasterKey(
     ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: overlapCast(salt), iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: asBufferSource(salt), iterations, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -168,7 +172,7 @@ export async function importVaultKey(raw: Uint8Array): Promise<CryptoKey> {
   if (raw.byteLength !== VAULT_KEY_BYTES) {
     throw new VaultCorruptError("vault key is the wrong size");
   }
-  return crypto.subtle.importKey("raw", overlapCast(raw), "AES-GCM", false, [
+  return crypto.subtle.importKey("raw", asBufferSource(raw), "AES-GCM", false, [
     "encrypt",
     "decrypt",
   ]);

@@ -17,6 +17,7 @@
  */
 import {
   type JsonValue,
+  asBufferSource,
   isJsonObject,
   isString,
   overlapCast,
@@ -79,7 +80,7 @@ export async function writeDrivePart(
     method: "PUT",
     headers: driveHeaders(pairing, "application/octet-stream"),
     credentials: "omit",
-    body: bytes,
+    body: asBufferSource(bytes),
   });
   if (!response.ok) throw refused(response);
 }

@@ -4,7 +4,7 @@ import {
   type JsonObject,
   isJsonObject,
   overlapCast,
-} from "@opensesame/os-domain";
+ asBufferSource } from "@opensesame/os-domain";
 import { b64urlToBytes, bytesToB64url } from "@opensesame/vault-core";
 import {
   MAX_CODE_CIPHERTEXT_CHARS,
@@ -48,7 +48,7 @@ async function codeKey(code: string, salt: Uint8Array): Promise<CryptoKey> {
     {
       name: "PBKDF2",
       hash: "SHA-256",
-      salt: overlapCast(salt),
+      salt: asBufferSource(salt),
       iterations: CODE_KDF_ITERATIONS,
     },
     material,
@@ -72,7 +72,7 @@ export async function sealCodeManifest(
   }
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: nonce, additionalData: associatedData(binding) },
+    { name: "AES-GCM", iv: nonce, additionalData: asBufferSource(associatedData(binding)) },
     await codeKey(code, binding.codeSalt),
     plaintext,
   );
@@ -99,11 +99,11 @@ export async function openCodeManifest(
     const plaintext = await crypto.subtle.decrypt(
       {
         name: "AES-GCM",
-        iv: b64urlToBytes(sealed.nonce),
-        additionalData: associatedData(binding),
+        iv: asBufferSource(b64urlToBytes(sealed.nonce)),
+        additionalData: asBufferSource(associatedData(binding)),
       },
       await codeKey(code, binding.codeSalt),
-      b64urlToBytes(sealed.ciphertext),
+      asBufferSource(b64urlToBytes(sealed.ciphertext)),
     );
     const manifest: BoundaryValue = overlapCast(
       JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)),

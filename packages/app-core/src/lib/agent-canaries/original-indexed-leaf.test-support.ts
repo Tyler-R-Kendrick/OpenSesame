@@ -27,7 +27,7 @@ export function gate() {
   return { promise, release };
 }
 export type Fixture = {
-  raw: Uint8Array;
+  raw: Uint8Array<ArrayBuffer>;
   key: CryptoKey | undefined;
   seal: CanaryIndexedSealData | undefined;
   closing: Observed<void> | undefined;

@@ -37,7 +37,7 @@ import {
   type BoundaryValue,
   isJsonObject,
   isString,
-} from "@opensesame/os-domain";
+ asBufferSource } from "@opensesame/os-domain";
 
 export const PENDING_DIR = "config/trusted-contacts/pending";
 
@@ -66,7 +66,7 @@ async function nameOf(key: string): Promise<string> {
       "that ceremony cannot be kept on this device",
     );
   }
-  return toHex(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)));
+  return toHex(new Uint8Array(await crypto.subtle.digest("SHA-256", asBufferSource(bytes))));
 }
 
 type Document = Readonly<{ key: string; value: Json }>;

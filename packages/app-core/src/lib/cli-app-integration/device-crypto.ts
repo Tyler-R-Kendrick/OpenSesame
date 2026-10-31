@@ -3,6 +3,7 @@
  */
 
 import { z } from "zod";
+import { asBufferSource } from "@opensesame/os-domain";
 
 const enc = new TextEncoder();
 
@@ -19,7 +20,7 @@ async function readCliAppPairingVaultSessionRoot(): Promise<string | null> {
 const DEVICE_SIGNING_STORAGE_KEY = "opensesame-cli-app-device-signing.v1";
 
 async function sha256(data: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", asBufferSource(data)));
 }
 
 export {
@@ -105,7 +106,7 @@ export async function signP256Sha256B64(
     await crypto.subtle.sign(
       { name: "ECDSA", hash: "SHA-256" },
       privateKey,
-      message,
+      asBufferSource(message),
     ),
   );
   return b64urlEncode(sig);
@@ -164,7 +165,7 @@ async function wrapDeviceKeyMaterial(
   const cryptoKey = await deriveDeviceWrapKey(vaultSessionRoot);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const cipher = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, pkcs8),
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, asBufferSource(pkcs8)),
   );
   const out = new Uint8Array(iv.byteLength + cipher.byteLength);
   out.set(iv, 0);
@@ -183,7 +184,11 @@ async function unwrapDeviceKeyMaterial(
   try {
     const cryptoKey = await deriveDeviceWrapKey(vaultSessionRoot);
     const plain = new Uint8Array(
-      await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, cipher),
+      await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: asBufferSource(iv) },
+        cryptoKey,
+        asBufferSource(cipher),
+      ),
     );
     return plain;
   } catch {
@@ -235,7 +240,7 @@ async function ensureCliAppSigningKeyForStorage(
     try {
       const privateKey = await crypto.subtle.importKey(
         "pkcs8",
-        pkcs8,
+        asBufferSource(pkcs8),
         { name: "ECDSA", namedCurve: "P-256" },
         false,
         ["sign"],

@@ -33,6 +33,7 @@ import type { S3Reply } from "./s3-response.js";
 import { EMPTY_PAYLOAD, signS3 } from "./s3-sigv4.js";
 import type { S3Credentials } from "./s3-sigv4.js";
 import { s3Write } from "./s3-write.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_LIST_PAGES = 1000;
@@ -170,7 +171,7 @@ function exchangeCall(
         retain: call.method === "GET",
         init: {
           method: call.method,
-          body: call.body ?? null,
+          body: call.body ? asBufferSource(call.body) : null,
           cache: "no-store",
           redirect: "error",
           headers: signed.headers,

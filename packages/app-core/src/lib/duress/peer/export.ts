@@ -10,6 +10,7 @@ import {
   overlapCast,
 } from "../json-boundary.js";
 import type { PeerPairing } from "./pairing.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 type ExportedPeerPairingWire = Readonly<{
   peerRef: string;
@@ -74,7 +75,7 @@ export async function exportPeerPairing(
   const expiresAt = new Date(now + ttlMs).toISOString();
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv, additionalData: exportAad(issuedAt, expiresAt) },
+      { name: "AES-GCM", iv, additionalData: asBufferSource(exportAad(issuedAt, expiresAt)) },
       wrapKey,
       plaintext,
     ),
@@ -120,7 +121,7 @@ export async function importPeerPairing(
         {
           name: "AES-GCM",
           iv: packed.slice(0, 12),
-          additionalData: exportAad(blob.issuedAt, blob.expiresAt),
+          additionalData: asBufferSource(exportAad(blob.issuedAt, blob.expiresAt)),
         },
         wrapKey,
         packed.slice(12),

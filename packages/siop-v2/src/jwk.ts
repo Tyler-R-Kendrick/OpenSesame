@@ -5,6 +5,7 @@
 import {
   type JsonObject,
   type JsonValue,
+  asBufferSource,
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
@@ -97,6 +98,9 @@ export async function ecP256JwkThumbprint(
     y: jwk.y,
   };
   const text = JSON.stringify(canonical);
-  const digest = await crypto.subtle.digest("SHA-256", encodeUtf8(text));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    asBufferSource(encodeUtf8(text)),
+  );
   return encodeBase64url(new Uint8Array(digest));
 }

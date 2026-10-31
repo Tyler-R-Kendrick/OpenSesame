@@ -1,4 +1,4 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast, ownBytes } from "@opensesame/os-domain";
 import { randomBytes } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -18,7 +18,7 @@ describe("passkey ceremonies", () => {
 
     constructor(
       private readonly extensionResults: BoundaryValue,
-      rawId: ArrayBuffer = randomBytes(16).buffer,
+      rawId: ArrayBuffer = ownBytes(randomBytes(16)).buffer,
     ) {
       this.rawId = rawId;
     }

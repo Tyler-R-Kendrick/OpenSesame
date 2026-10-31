@@ -24,6 +24,7 @@ import {
   utf8Bytes,
 } from "./bytes.js";
 import type { AssertionProof, GuardianCredential } from "./types.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 const FLAG_UP = 0x01;
 const FLAG_UV = 0x04;
@@ -115,7 +116,7 @@ async function verifyEs256(
 ): Promise<boolean> {
   const key = await crypto.subtle.importKey(
     "spki",
-    spki,
+    asBufferSource(spki),
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     ["verify"],
@@ -123,8 +124,8 @@ async function verifyEs256(
   return crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    derToP1363(signature),
-    message,
+    asBufferSource(derToP1363(signature)),
+    asBufferSource(message),
   );
 }
 

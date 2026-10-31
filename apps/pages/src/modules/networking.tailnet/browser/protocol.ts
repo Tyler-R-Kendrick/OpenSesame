@@ -36,15 +36,18 @@ export const NativeHTTPResponse = z
   })
   .strict();
 export const NativeHTTPStreamHead = NativeHTTPResponse.omit({ body: true });
+// Uint8Array, not Uint8Array<ArrayBuffer>: a shared view must typecheck so the
+// refine below can reject it. z.instanceof infers the ArrayBuffer-only instance.
+const maybeSharedBytes = z.custom<Uint8Array>(
+  (value) => value instanceof Uint8Array,
+);
 export const NativeHTTPStreamChunk = z
   .object({
     sequence: OperationID,
-    body: z
-      .instanceof(Uint8Array)
-      .refine(
-        (value) =>
-          value.buffer instanceof ArrayBuffer && value.byteLength <= 32768,
-      ),
+    body: maybeSharedBytes.refine(
+      (value) =>
+        value.buffer instanceof ArrayBuffer && value.byteLength <= 32768,
+    ),
     eof: z.boolean(),
   })
   .strict();

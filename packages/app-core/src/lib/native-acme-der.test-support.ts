@@ -1,3 +1,4 @@
+import { asBufferSource } from "@opensesame/os-domain";
 /**
  * A DER reader written apart from the encoder it checks: enough of PKCS#10 to
  * pull out the subject, the key, the subjectAltName names and the signature,
@@ -101,7 +102,7 @@ export function derToP1363(signature: Uint8Array): Uint8Array {
 export async function csrSignatureHolds(csr: ParsedCsr): Promise<boolean> {
   const key = await crypto.subtle.importKey(
     "spki",
-    csr.spki,
+    asBufferSource(csr.spki),
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     ["verify"],
@@ -109,7 +110,7 @@ export async function csrSignatureHolds(csr: ParsedCsr): Promise<boolean> {
   return crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    derToP1363(csr.signatureDer),
-    csr.info,
+    asBufferSource(derToP1363(csr.signatureDer)),
+    asBufferSource(csr.info),
   );
 }

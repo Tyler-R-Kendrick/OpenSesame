@@ -1,12 +1,12 @@
 /** Data integrity only: digest preparation/comparison never grants enrollment. */
 import {
+  asBufferSource,
   type BoundaryValue,
   type JsonObject,
   isBoolean,
   isJsonObject,
   isNumber,
   isString,
-  overlapCast,
 } from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
 import { VaultCorruptError, type VaultHeader } from "./crypto.js";
@@ -190,7 +190,7 @@ export async function prepareFactorConfigurationBinding(
   header: VaultHeader,
 ): Promise<FactorConfigurationBinding> {
   const bytes = selectedBytes(header);
-  const digest = await crypto.subtle.digest("SHA-256", overlapCast(bytes));
+  const digest = await crypto.subtle.digest("SHA-256", asBufferSource(bytes));
   return { version: 1, digestB64: bytesToB64(new Uint8Array(digest)) };
 }
 

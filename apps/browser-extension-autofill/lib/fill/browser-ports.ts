@@ -72,7 +72,12 @@ export function browserFillPorts(): FillPorts {
   const session = browser.storage.session
     ? keyValue(browser.storage.session)
     : memoryStore();
-  const random = (bytes: Uint8Array) => crypto.getRandomValues(bytes);
+  const random = (bytes: Uint8Array): Uint8Array => {
+    const owned = new Uint8Array(bytes.length);
+    crypto.getRandomValues(owned);
+    bytes.set(owned);
+    return bytes;
+  };
   const token = sessionPairingToken(
     session,
     () => browser.storage.local.remove(TOKEN_KEY),

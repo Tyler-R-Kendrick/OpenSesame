@@ -79,7 +79,7 @@ export async function s3Exchange(options: Exchange): Promise<S3Reply> {
       );
     return cancellation;
   };
-  let bytes = new Uint8Array();
+  let bytes: Uint8Array = new Uint8Array();
   try {
     check();
     response = await options.send(options.url, { ...options.init, signal });

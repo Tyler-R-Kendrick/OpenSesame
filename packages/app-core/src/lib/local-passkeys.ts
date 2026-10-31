@@ -1,5 +1,5 @@
 import type { VerifiedRegistration } from "@opensesame/auth-upstream/browser";
-import { overlapCast } from "@opensesame/os-domain";
+import { overlapCast, ownBytes, asBufferSource } from "@opensesame/os-domain";
 import {
   b64urlToBytes,
   bytesToB64url,
@@ -31,10 +31,7 @@ import {
 const CEREMONY_MS = PASSKEY_CEREMONY_MS;
 
 export function viewBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  );
+  return ownBytes(bytes).buffer;
 }
 
 export type LocalPasskeyVaultOffer = {
@@ -140,7 +137,7 @@ export async function enrollLocalPasskey(
   try {
     const credential = await requireCredentials().create({
       publicKey: {
-        challenge: start.challenge,
+        challenge: asBufferSource(start.challenge),
         rp: { id: start.rp.rpID, name: "OpenSesame local identity" },
         user: {
           id: userId,
@@ -158,7 +155,7 @@ export async function enrollLocalPasskey(
           .filter((key) => key.principalId === principalId)
           .map((key) => ({
             type: "public-key",
-            id: b64urlToBytes(key.credentialId),
+            id: asBufferSource(b64urlToBytes(key.credentialId)),
           })),
         extensions: overlapCast({
           prf: { eval: { first: prfSalt } },

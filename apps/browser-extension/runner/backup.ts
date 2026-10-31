@@ -108,7 +108,7 @@ export interface BackupBinding {
   origin: string;
 }
 
-function aad(binding: BackupBinding): Uint8Array {
+function aad(binding: BackupBinding): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(
     `opensesame.runner-backup.v1\u0000${binding.handle}\u0000${binding.origin}`,
   );

@@ -2,6 +2,7 @@ import { expand } from "@noble/hashes/hkdf.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { argon2id } from "hash-wasm";
 import { z } from "zod";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export type BitwardenKdf =
   | { kdfType: 0; iterations: number }
@@ -100,13 +101,13 @@ async function derivePbkdf2(
 ): Promise<Uint8Array> {
   const material = await crypto.subtle.importKey(
     "raw",
-    password,
+    asBufferSource(password),
     "PBKDF2",
     false,
     ["deriveBits"],
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+    { name: "PBKDF2", hash: "SHA-256", salt: asBufferSource(salt), iterations },
     material,
     256,
   );

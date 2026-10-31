@@ -10,7 +10,7 @@ import {
   type BoundaryValue,
   isJsonObject,
   isString,
-  overlapCast,
+  asBufferSource,
 } from "@opensesame/os-domain";
 import {
   b64ToBytes,
@@ -100,7 +100,7 @@ async function importDropKey(fragmentKey: string): Promise<CryptoKey> {
       "This drop link is missing its decryption key. Ask for a fresh link.",
     );
   }
-  return crypto.subtle.importKey("raw", overlapCast(raw), "AES-GCM", false, [
+  return crypto.subtle.importKey("raw", asBufferSource(raw), "AES-GCM", false, [
     "decrypt",
   ]);
 }
@@ -113,9 +113,9 @@ async function seal(
 ): Promise<SealedPart> {
   const iv = randomBytes(IV_BYTES);
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: overlapCast(iv) },
+    { name: "AES-GCM", iv: asBufferSource(iv) },
     key,
-    overlapCast(plaintext),
+    asBufferSource(plaintext),
   );
   return {
     nonce: bytesToB64(iv),
@@ -130,9 +130,9 @@ async function open(
 ): Promise<Uint8Array> {
   try {
     const plain = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: overlapCast(b64ToBytes(nonce)) },
+      { name: "AES-GCM", iv: asBufferSource(b64ToBytes(nonce)) },
       key,
-      overlapCast(b64ToBytes(ciphertext)),
+      asBufferSource(b64ToBytes(ciphertext)),
     );
     return new Uint8Array(plain);
   } catch {
@@ -144,7 +144,7 @@ async function open(
 }
 
 async function sha256B64(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", overlapCast(bytes));
+  const digest = await crypto.subtle.digest("SHA-256", asBufferSource(bytes));
   return bytesToB64(new Uint8Array(digest));
 }
 
@@ -176,7 +176,7 @@ export async function sealDrop(payload: DropPayload): Promise<SealedDrop> {
   const rawKey = randomBytes(KEY_BYTES);
   const key = await crypto.subtle.importKey(
     "raw",
-    overlapCast(rawKey),
+    asBufferSource(rawKey),
     "AES-GCM",
     false,
     ["encrypt"],

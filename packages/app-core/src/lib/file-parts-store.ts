@@ -6,6 +6,7 @@
 import type { ObjectStore } from "@opensesame/vault-core";
 import { originFiles } from "../ports.js";
 import { FILE_PARTS_DIRECTORY } from "./storage-ownership.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 function partName(key: string): string {
   if (!/^[A-Za-z0-9_-]{16}$/.test(key)) throw new Error("file part is missing");
@@ -45,7 +46,7 @@ export async function localFileStore(): Promise<ObjectStore> {
     async putObject(key, body) {
       const handle = await dir.getFileHandle(partName(key), { create: true });
       const writable = await handle.createWritable();
-      await writable.write(body);
+      await writable.write(asBufferSource(body));
       await writable.close();
     },
     async getObject(key) {

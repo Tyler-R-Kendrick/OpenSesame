@@ -30,6 +30,7 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconDownload } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 /** What a drop link carried. */
 export type DropOpenerProps = Readonly<{
@@ -72,7 +73,7 @@ function PayloadView({ payload }: { payload: DropPayload }) {
       payload.kind === "text"
         ? null
         : URL.createObjectURL(
-            new Blob([payload.bytes], { type: payload.contentType }),
+            new Blob([asBufferSource(payload.bytes)], { type: payload.contentType }),
           ),
     [payload],
   );
