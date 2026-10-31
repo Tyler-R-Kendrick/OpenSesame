@@ -23,7 +23,7 @@ type GenerateInput = {
   model: LanguageModel;
   schema: typeof decisionSchema;
   schemaName: "password_reset_decision";
-  system: string;
+  instructions: string;
   prompt: string;
   maxOutputTokens: number;
   abortSignal: AbortSignal;
@@ -126,7 +126,7 @@ class AiDecisions implements DecisionsApi {
         ),
         schema: decisionSchema,
         schemaName: "password_reset_decision",
-        system: SYSTEM,
+        instructions: SYSTEM,
         prompt: JSON.stringify({ observation, candidates: input.candidates }),
         maxOutputTokens: this.config.maxOutputTokens ?? 1_024,
         abortSignal: AbortSignal.timeout(this.config.timeoutMs ?? 30_000),
