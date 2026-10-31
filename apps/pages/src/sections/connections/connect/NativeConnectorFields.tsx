@@ -16,6 +16,16 @@ import type {
   NativeMethodDescriptor,
 } from "./native-connector-ui.js";
 
+function methodLinks(links: NativeMethodDescriptor["links"]) {
+  const unique = new Map<string, { label: string; url: string }>();
+  for (const link of links ?? []) {
+    const url = nativePublicUrl(link.url);
+    if (url)
+      unique.set(JSON.stringify([link.label, url]), { label: link.label, url });
+  }
+  return [...unique].map(([id, link]) => ({ id, ...link }));
+}
+
 function NativeFieldControl({
   field,
   value,
@@ -104,10 +114,8 @@ export function NativeConnectorFields({
   onValue: (id: string, value: string) => void;
   onScopes: (actor: string, selected: string[]) => void;
 }) {
-  const instructionOrigins = (method.links ?? []).flatMap((link) => {
-    const url = nativePublicUrl(link.url);
-    return url ? [new URL(url).origin] : [];
-  });
+  const links = methodLinks(method.links);
+  const instructionOrigins = links.map((link) => new URL(link.url).origin);
   const fields = method.fields.filter(
     (field) => (field.required || field.secret) && !field.displayOnly,
   );
@@ -148,14 +156,11 @@ export function NativeConnectorFields({
         </details>
       ) : null}
       <div className="cx-links">
-        {method.links?.map((link) => {
-          const url = nativePublicUrl(link.url);
-          return url ? (
-            <OutLink key={link.label} href={url}>
-              {link.label}
-            </OutLink>
-          ) : null;
-        })}
+        {links.map((link) => (
+          <OutLink key={link.id} href={link.url}>
+            {link.label}
+          </OutLink>
+        ))}
       </div>
     </>
   );
