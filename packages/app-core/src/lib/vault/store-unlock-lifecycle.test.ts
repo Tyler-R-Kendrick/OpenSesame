@@ -2,6 +2,7 @@ import { parseTotp, totpCode } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import { kvGet } from "../kv.js";
 import { vfsFlush } from "../vfs.js";
+import * as unlockMethods from "./unlock-methods.js";
 import {
   NEXT_PASSWORD,
   PASSWORD,
@@ -49,6 +50,28 @@ describe("VaultStore TOTP challenge flow", () => {
     reopened.cancelTotpChallenge();
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
     expect(reopened.getSnapshot().status).toBe("locked");
+  });
+
+  it("rejects confirmTotp after cancel even when verification was in flight", async () => {
+    const { code } = await totpVault();
+    const reopened = newStore();
+    await reopened.unlock(PASSWORD);
+    const matchSpy = vi
+      .spyOn(unlockMethods, "totpCodeMatches")
+      .mockImplementation(async () => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 20);
+        });
+        return true;
+      });
+    const confirm = reopened.confirmTotp(code());
+    await new Promise((resolve) => {
+      setTimeout(resolve, 5);
+    });
+    reopened.cancelTotpChallenge();
+    await expect(confirm).rejects.toThrow(/no longer pending/);
+    expect(reopened.getSnapshot().status).toBe("locked");
+    matchSpy.mockRestore();
   });
 
   it("demands a primary unlock before any code is checked", async () => {

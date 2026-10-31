@@ -286,6 +286,8 @@ export class VaultStore {
   });
   /** Expiry for a parked second step; cleared when the challenge ends. */
   #pendingChallenge = new PendingChallenge();
+  /** Bumped on cancel/expiry so in-flight second-step confirms cannot open the vault. */
+  #secondStepEpoch = 0;
   /** Per-challenge throttle for email/text code sends. */
   #sendGuard = new CodeSendGuard();
   /** Serializes body writes so overlapping mutations cannot land out of order. */
@@ -710,6 +712,17 @@ export class VaultStore {
     this.#emit();
   }
 
+  #bumpSecondStepEpoch(): number {
+    this.#secondStepEpoch += 1;
+    return this.#secondStepEpoch;
+  }
+
+  #assertSecondStepEpoch(expected: number): void {
+    if (expected !== this.#secondStepEpoch) {
+      throw new WrongPasswordError("That second step is no longer pending.");
+    }
+  }
+
   /** A frozen device refuses even a right credential, counts it, and zeroes the root. */
   #refuseWhileFrozen = frozenAuthenticationRefusal(
     () => this.#scope.tomb,
@@ -727,7 +740,13 @@ export class VaultStore {
    * stored, parks the key until enough local identities authenticate with a
    * passkey. No body is exposed while it is parked.
    */
-  async #requireTrustedUnlock(vaultKey: CryptoKey): Promise<void> {
+  async #requireTrustedUnlock(
+    vaultKey: CryptoKey,
+    secondStepEpoch?: number,
+  ): Promise<void> {
+    if (secondStepEpoch !== undefined) {
+      this.#assertSecondStepEpoch(secondStepEpoch);
+    }
     this.#pendingVaultKey = null;
     unlockTomb(this.#scope.tomb, vaultKey);
     let policy: TrustedUnlockPolicy | null;
@@ -738,7 +757,7 @@ export class VaultStore {
       throw error;
     }
     if (!policy) {
-      await this.#activateSession(vaultKey);
+      await this.#activateSession(vaultKey, secondStepEpoch);
       return;
     }
     this.#pendingTrustedKey = vaultKey;
@@ -832,7 +851,13 @@ export class VaultStore {
     if (lease) void lease.release().catch(() => undefined);
   }
 
-  async #activateSession(vaultKey: CryptoKey): Promise<void> {
+  async #activateSession(
+    vaultKey: CryptoKey,
+    secondStepEpoch?: number,
+  ): Promise<void> {
+    if (secondStepEpoch !== undefined) {
+      this.#assertSecondStepEpoch(secondStepEpoch);
+    }
     this.#refuseWhileFrozen();
     const lease = await this.#acquireSessionLease(this.#scope.tomb);
     this.#vaultKey = vaultKey;
@@ -845,10 +870,19 @@ export class VaultStore {
     unlockTomb(this.#scope.tomb, vaultKey);
     try {
       await rebindTombSeals(this.#scope.tomb, vaultKey);
+      if (secondStepEpoch !== undefined) {
+        this.#assertSecondStepEpoch(secondStepEpoch);
+      }
       // Phase C: seal legacy plaintext config into this tomb, hydrate modules, then prefs and body.
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
+      if (secondStepEpoch !== undefined) {
+        this.#assertSecondStepEpoch(secondStepEpoch);
+      }
       await this.#preferences.load(() => this.#scope.tomb);
       this.#body = await this.#loadBody(vaultKey);
+      if (secondStepEpoch !== undefined) {
+        this.#assertSecondStepEpoch(secondStepEpoch);
+      }
       this.#sealMark = sealMark(this.#scope.tomb);
       syncInstalledTypes(this.#body.itemTypes);
     } catch (error) {
@@ -875,6 +909,7 @@ export class VaultStore {
     this.#refuseWhileFrozen(miss);
     if (hasSecondStep(this.#header)) {
       this.#pendingVaultKey = vaultKey;
+      this.#bumpSecondStepEpoch();
       const gate = this.#header?.unlocks?.totp;
       // The vault is its own registered authenticator: supply the code from
       // the sealed seed instead of asking (ADR 0113); failure falls back.
@@ -1069,14 +1104,16 @@ export class VaultStore {
     if (!pending || !gate) {
       throw new Error("Enter a primary unlock method first.");
     }
+    const secondStepEpoch = this.#secondStepEpoch;
     const secret = await openTotpSecret(pending, gate);
     const ok = await totpCodeMatches(secret, code, gate.digits, gate.period);
     if (!ok) {
       this.#recordFailedUnlock();
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
+    this.#assertSecondStepEpoch(secondStepEpoch);
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
-      this.#requireTrustedUnlock(k),
+      this.#requireTrustedUnlock(k, secondStepEpoch),
     );
     // A gate with no registration yet gets one now (ADR 0113), unless a
     // trusted-contact challenge is holding the key before the vault opens.
@@ -1086,6 +1123,7 @@ export class VaultStore {
   }
 
   cancelTotpChallenge(): void {
+    this.#bumpSecondStepEpoch();
     this.#pendingChallenge.clear();
     this.#pendingVaultKey = null;
     this.#pendingCode = null;
@@ -1123,6 +1161,7 @@ export class VaultStore {
     if (!pending || !sent) {
       throw new Error("Ask for a code first.");
     }
+    const secondStepEpoch = this.#secondStepEpoch;
     try {
       await verifyCode(sent.challengeId, code);
     } catch (error) {
@@ -1130,8 +1169,9 @@ export class VaultStore {
       throw error;
     }
     this.#pendingCode = null;
+    this.#assertSecondStepEpoch(secondStepEpoch);
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
-      this.#requireTrustedUnlock(k),
+      this.#requireTrustedUnlock(k, secondStepEpoch),
     );
   }
 
