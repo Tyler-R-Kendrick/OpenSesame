@@ -41,6 +41,12 @@ secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
+# HMAC-SHA256 under an HKDF-derived key authenticates the helper-mint grant
+# file (ADR 0138 §2). Both are already in this tree through
+# cli-app-integration, so the closure `pnpm audit:daemon-deps` guards is
+# unchanged.
+hkdf = { workspace = true }
+hmac = { workspace = true }
 sha2 = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

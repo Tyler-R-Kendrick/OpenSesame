@@ -41,6 +41,7 @@ pub(crate) fn test_state(host_api: &str) -> App {
         promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
         invoke_limiter: Arc::new(ratelimit::TokenBucket::default()),
         mint_limiter: Arc::new(ratelimit::TokenBucket::default()),
+        helper_mints: Arc::new(crate::helper_mints::HelperMints::in_memory()),
         invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
         token_source_factory: Arc::new(|_| None),
         duress_peer: None,

@@ -14,12 +14,9 @@ async fn assert_member_cannot_mint(state: &AppState, id: &str) {
     assert!(!denied.to_string().contains(DERIVED_TOKEN));
 }
 
-#[tokio::test]
-async fn github_mint_returns_a_derived_token_never_the_sealed_material() {
-    let Some(pem) = mint_test_rsa_pem() else {
-        eprintln!("skipping: openssl unavailable");
-        return;
-    };
+/// A GitHub App connection owned by alice, before its owner opts it in:
+/// the state, alice's session and the connection id.
+async fn github_connection(pem: &str) -> (AppState, String, String) {
     let api_base = github_api_server().await;
     let state = github_harness(&api_base).await;
     let alice = session_for(
@@ -57,7 +54,18 @@ async fn github_mint_returns_a_derived_token_never_the_sealed_material() {
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{created}");
-    let id = created["connection_id"].as_str().unwrap();
+    let id = created["connection_id"].as_str().unwrap().to_string();
+    (state, alice, id)
+}
+
+#[tokio::test]
+async fn github_mint_returns_a_derived_token_never_the_sealed_material() {
+    let Some(pem) = mint_test_rsa_pem() else {
+        eprintln!("skipping: openssl unavailable");
+        return;
+    };
+    let (state, alice, id) = github_connection(&pem).await;
+    let id = id.as_str();
 
     // Deny by default, even with everything else in place.
     let (status, body) = as_session(
@@ -120,6 +128,54 @@ async fn github_mint_returns_a_derived_token_never_the_sealed_material() {
     );
 
     assert_mint_redaction(&pem, &minted, &rendered_events);
+}
+
+/// A credential helper's mint names the local process it was for in the
+/// receipt (ADR 0138 §2): the daemon sends `on_behalf_of`, the caller stays
+/// the operator, and the actor on the response and the event trail carries both.
+#[tokio::test]
+async fn a_mint_on_behalf_of_a_local_process_records_it_as_the_actor() {
+    let Some(pem) = mint_test_rsa_pem() else {
+        eprintln!("skipping: openssl unavailable");
+        return;
+    };
+    let (state, alice, id) = github_connection(&pem).await;
+    opt_in(&state, &alice, &id).await;
+    let (status, minted) = call(
+        &state,
+        "POST",
+        &format!("/api/v1/connections/{id}/mint"),
+        Some(json!({
+            "installation_id": "777",
+            "on_behalf_of": {"uid": 1000, "pid": 4242}
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{minted}");
+    assert_eq!(minted["actor"], "operator on_behalf_of=uid:1000,pid:4242");
+    let (status, events) = call(
+        &state,
+        "GET",
+        &format!("/api/v1/connections/{id}/events"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{events}");
+    assert!(
+        events
+            .to_string()
+            .contains("act=operator on_behalf_of=uid:1000,pid:4242"),
+        "{events}"
+    );
+    // The peer is a record, not a credential: an unknown field is refused.
+    let (status, _) = call(
+        &state,
+        "POST",
+        &format!("/api/v1/connections/{id}/mint"),
+        Some(json!({"installation_id": "777", "on_behalf_of": {"uid": 1, "pid": 2, "role": "admin"}})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 fn assert_mint_redaction(pem: &str, minted: &serde_json::Value, rendered_events: &str) {
