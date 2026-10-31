@@ -31,7 +31,7 @@ beforeEach(async () => {
   // A new social ceremony must authenticate its person; the request fixture's
   // earlier presentation is ended through the real session lifecycle first.
   await sessions.revokeLocalIdentitySession(fixture.tomb, fixture.session.id);
-  vi.stubGlobal("location", { ...location, replace: navigate });
+  vi.stubGlobal("location", Object.assign(location, { replace: navigate }));
   Object.assign(vaultHooksSeams, {
     useVault: () => ({ ...originalVault.useVault(), tomb: fixture.tomb }),
   });
