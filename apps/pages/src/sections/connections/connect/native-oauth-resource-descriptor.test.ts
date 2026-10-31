@@ -99,10 +99,16 @@ it("derives standard configurable native OAuth from the actual confidential prov
   const method = descriptor.methods.find((row) => row.id === "oauth");
   expect(method).toEqual(
     nativePolicyMethod(f.plan.id, {
-      ...nativeOAuthResourceDescriptor(f.preset, callbackUrl, true),
+      ...nativeOAuthResourceDescriptor(f.preset, callbackUrl, true, {
+        resourceParameter: "omit",
+      }),
       preferredRank: 35,
     }),
   );
+  // A provider's own OAuth contract names no RFC 8707 `resource`: none is sent unless the person chooses it.
+  expect(
+    method?.fields.find((row) => row.id === "resource_parameter"),
+  ).toMatchObject({ defaultValue: "omit" });
   expect(
     method?.fields
       .filter((row) => row.secret)

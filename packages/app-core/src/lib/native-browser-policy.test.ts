@@ -28,6 +28,30 @@ const authored = JSON.parse(
     "utf8",
   ),
 );
+/**
+ * The probes added with the connector bridge (ADR 0218): Tailscale's API and
+ * Bitwarden's identity and API servers, in both regions, answer this site
+ * with no Access-Control-Allow-Origin header. A new rule joins this list, or
+ * the count below fails.
+ */
+const BRIDGE_PROBES = [
+  "tailscale GET https://api.tailscale.com/api/v2/tailnet/-/devices",
+  "bitwarden POST https://identity.bitwarden.com/connect/token",
+  "bitwarden GET https://api.bitwarden.com/sync",
+  "bitwarden POST https://identity.bitwarden.eu/connect/token",
+  "bitwarden GET https://api.bitwarden.eu/sync",
+  "bitwarden-sm POST https://identity.bitwarden.com/connect/token",
+  "bitwarden-sm GET https://api.bitwarden.com/secrets/sync",
+  "bitwarden-sm POST https://identity.bitwarden.eu/connect/token",
+  "bitwarden-sm GET https://api.bitwarden.eu/secrets/sync",
+];
+/**
+ * Higgsfield's key check: its preflight is answered HTTP 400 with no
+ * Access-Control-Allow-Origin header, and its documentation says not to call
+ * the API from browser code.
+ */
+const HIGGSFIELD_PROBE =
+  "higgsfield GET https://api.higgsfield.ai/requests/00000000-0000-0000-0000-000000000000/status";
 describe("audited browser-only policy", () => {
   it("compiles the single authored source without drift", () => {
     expect(JSON.parse(NATIVE_BROWSER_POLICY_JSON)).toEqual(authored);
@@ -44,7 +68,15 @@ describe("audited browser-only policy", () => {
   });
   it("contains only TLS-verified concrete refusals with reproducible public evidence", () => {
     expect(authored.audited_origin).toBe("https://tyler-r-kendrick.github.io");
-    expect(authored.rules).toHaveLength(95);
+    const probes = authored.rules.map(
+      (rule: { provider_id: string; probe: { method: string; url: string } }) =>
+        `${rule.provider_id} ${rule.probe.method} ${rule.probe.url}`,
+    );
+    expect(probes).toEqual(
+      expect.arrayContaining([...BRIDGE_PROBES, HIGGSFIELD_PROBE]),
+    );
+    // 94 rules were audited before the bridge; the rest are named above.
+    expect(authored.rules).toHaveLength(94 + BRIDGE_PROBES.length + 1);
     for (const rule of authored.rules) {
       expect(rule.probe.tls_verified).toBe(true);
       expect(rule.probe.status).toBeLessThan(500);

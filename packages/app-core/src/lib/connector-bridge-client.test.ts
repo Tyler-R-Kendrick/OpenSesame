@@ -123,3 +123,39 @@ describe("the page's questions to the bridge", () => {
     expect(fake.handlers.size).toBe(0);
   });
 });
+
+describe("winding the client down", () => {
+  it("still reads an answer to a request already sent, then lets the channel go", async () => {
+    const fake = fakeBridge({
+      onFetch: () => ({
+        status: 200,
+        headers: [],
+        body: '{"access_token":"t"}',
+      }),
+    });
+    const client = createBridgeClient(fake.channel);
+    const sent = client.fetch(request);
+    client.drain();
+    expect(await sent).toMatchObject({ status: 200 });
+    // The channel is released once the last answer has landed.
+    expect(fake.handlers.size).toBe(0);
+  });
+
+  it("starts nothing new once it is winding down", async () => {
+    const fake = fakeBridge();
+    const client = createBridgeClient(fake.channel);
+    client.drain();
+    await expect(client.fetch(request)).rejects.toMatchObject({
+      code: "unanswered",
+    });
+    expect(fake.heard).toHaveLength(0);
+  });
+
+  it("close, by contrast, drops what was waiting", async () => {
+    const fake = fakeBridge({ silent: true });
+    const client = createBridgeClient(fake.channel);
+    const sent = client.fetch(request);
+    client.close();
+    await expect(sent).rejects.toBeInstanceOf(BridgeCallError);
+  });
+});

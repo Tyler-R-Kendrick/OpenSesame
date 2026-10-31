@@ -1,0 +1,1962 @@
+{
+  "schema_version": 1,
+  "audited_origin": "https://tyler-r-kendrick.github.io",
+  "checked_date": "2026-10-31",
+  "qualification": "Unauthenticated, TLS-verified requests from the audited origin with fake credentials; nothing is granted. An endpoint is direct when its real answer carries an allowing Access-Control-Allow-Origin and, where the request needs a preflight (a custom header such as Authorization), the preflight allows the origin and names the headers. Tenant endpoints answer for themselves and are not probed; only the family of hosts a tenant may live at is recorded.",
+  "providers": [
+    {
+      "provider_id": "asana",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://app.asana.com/-/oauth_token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:55:11+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://app.asana.com/api/1.0/users/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "X-Requested-With, X-Allow-Asana-Client, X-Asana-Client-Lib, Content-Type, Authorization, Asana-Enable, Asana-Disable, Asana-First-Party-Disable",
+            "checked_at": "2026-10-31T00:55:11+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://app.asana.com/-/oauth_revoke",
+          "direct": true,
+          "probe": {
+            "status": 200,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:55:11+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "attio",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://app.attio.com/oidc/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.attio.com/v2/objects",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 204,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://app.attio.com/oidc/revoke",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "auth0",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://{domain}/oauth/token",
+          "direct": false,
+          "tenant": true
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://{domain}/userinfo",
+          "direct": false,
+          "tenant": true
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://{domain}/oauth/revoke",
+          "direct": false,
+          "tenant": true
+        }
+      ],
+      "tenant_hosts": ["*.auth0.com"]
+    },
+    {
+      "provider_id": "bamboohr",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://{domain}.bamboohr.com/token.php?request=token",
+          "direct": false,
+          "tenant": true
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://{domain}.bamboohr.com/api/v1/meta/company",
+          "direct": false,
+          "tenant": true
+        }
+      ],
+      "tenant_hosts": ["*.bamboohr.com"]
+    },
+    {
+      "provider_id": "beehiiv",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://app.beehiiv.com/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.beehiiv.com/v2/users/identify",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://app.beehiiv.com/oauth/revoke",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "box",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.box.com/oauth2/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.box.com/2.0/users/me",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 204,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://api.box.com/oauth2/revoke",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "calendly",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://auth.calendly.com/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "*,x-requested-with,Content-Type,Accept,If-Modified-Since,If-None-Match,X-Token,Authorization",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.calendly.com/users/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "*,x-requested-with,Content-Type,Accept,If-Modified-Since,If-None-Match,X-Token,Authorization",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://auth.calendly.com/oauth/revoke",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": 404,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "canva",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.canva.com/rest/v1/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "asset-upload-metadata,authorization,content-type,import-metadata,upload-metadata,x-canva-public-api-version",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.canva.com/rest/v1/users/me/profile",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "asset-upload-metadata,authorization,content-type,import-metadata,upload-metadata,x-canva-public-api-version",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://api.canva.com/rest/v1/oauth/revoke",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "asset-upload-metadata,authorization,content-type,import-metadata,upload-metadata,x-canva-public-api-version",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "clickup",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.clickup.com/api/v2/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.clickup.com/api/v2/user",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 204,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "codeberg",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://codeberg.org/login/oauth/access_token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://codeberg.org/api/v1/user",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "convex",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.convex.dev/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 422,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.convex.dev/v1/token_details",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "crowdin",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://accounts.crowdin.com/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.crowdin.com/api/v2/user",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 204,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,ETag,Accept,AcceptEncoding,Authorization,Crowdin-API-FileName,X-Crowdin-Integrations-User-Agent",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "databricks",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://{domain}/oidc/v1/token",
+          "direct": false,
+          "tenant": true
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://{domain}/api/2.0/preview/scim/v2/Me",
+          "direct": false,
+          "tenant": true
+        }
+      ],
+      "tenant_hosts": [
+        "*.azuredatabricks.net",
+        "*.cloud.databricks.com",
+        "*.gcp.databricks.com"
+      ]
+    },
+    {
+      "provider_id": "discord",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://discord.com/api/oauth2/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "Content-Type, Authorization, X-Audit-Log-Reason, X-Track, X-Super-Properties, X-Context-Properties, X-Failed-Requests, X-Fingerprint, X-RPC-Proxy, X-Discord-Locale, X-Discord-Original-MD5, X-Discord-Timezone, X-Debug-Options, x-client-trace-id, If-None-Match, X-Captcha-Key, X-Captcha-Rqtoken, X-Captcha-Session-Id, X-Discord-Resource-Optimization-Level, x-science-test, X-Discord-MFA-Authorization, Range, X-RateLimit-Precision, X-Discord-Features, X-Installation-Id",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://discord.com/api/users/@me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "Content-Type, Authorization, X-Audit-Log-Reason, X-Track, X-Super-Properties, X-Context-Properties, X-Failed-Requests, X-Fingerprint, X-RPC-Proxy, X-Discord-Locale, X-Discord-Original-MD5, X-Discord-Timezone, X-Debug-Options, x-client-trace-id, If-None-Match, X-Captcha-Key, X-Captcha-Rqtoken, X-Captcha-Session-Id, X-Discord-Resource-Optimization-Level, x-science-test, X-Discord-MFA-Authorization, Range, X-RateLimit-Precision, X-Discord-Features, X-Installation-Id",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://discord.com/api/oauth2/token/revoke",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "Content-Type, Authorization, X-Audit-Log-Reason, X-Track, X-Super-Properties, X-Context-Properties, X-Failed-Requests, X-Fingerprint, X-RPC-Proxy, X-Discord-Locale, X-Discord-Original-MD5, X-Discord-Timezone, X-Debug-Options, x-client-trace-id, If-None-Match, X-Captcha-Key, X-Captcha-Rqtoken, X-Captcha-Session-Id, X-Discord-Resource-Optimization-Level, x-science-test, X-Discord-MFA-Authorization, Range, X-RateLimit-Precision, X-Discord-Features, X-Installation-Id",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "docusign",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://account.docusign.com/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://account.docusign.com/oauth/userinfo",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "authorization",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "dropbox",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.dropboxapi.com/oauth2/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "POST",
+          "url": "https://api.dropboxapi.com/2/users/get_current_account",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "Authorization,Cache-Control,Content-Type,If-Modified-Since,If-None-Match,Range,Dropbox-API-Arg,Dropbox-API-Select-User,Dropbox-API-User-Locale,Dropbox-API-Select-Admin,Dropbox-API-Path-Root,X-CSRF-Token,X-Dropbox-Backend,X-Dropbox-Validation,X-Dropbox-Destination,X-Dropbox-User-Agent,X-Dropbox-Force-Request-Tracing,X-Dropbox-Is-ESV,X-Dropbox-ESV-View-Name,Accept,Accept-Language,Content-Language,Origin,Referer,Traceparent,x-coding-agent-use-staging,x-grpc-web,x-user-agent,grpc-timeout,x-grpc-web-client,x-grpc-web-client-timeout",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://api.dropboxapi.com/2/auth/token/revoke",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "figma",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.figma.com/v1/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "Content-Type,X-Figma-Token,Authorization,mcp-protocol-version",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.figma.com/v1/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "Content-Type,X-Figma-Token,Authorization,mcp-protocol-version",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "gitee",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://gitee.com/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:49:06+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://gitee.com/api/v5/user",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:49:06+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "gitlab",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://gitlab.com/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://gitlab.com/api/v4/user",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://gitlab.com/oauth/revoke",
+          "direct": true,
+          "probe": {
+            "status": 403,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "google",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://oauth2.googleapis.com/token",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://openidconnect.googleapis.com/v1/userinfo",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://oauth2.googleapis.com/revoke",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "google-drive",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://oauth2.googleapis.com/token",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://www.googleapis.com/oauth2/v3/userinfo",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://oauth2.googleapis.com/revoke",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "harvest",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://id.getharvest.com/api/v2/oauth2/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://id.getharvest.com/api/v2/accounts",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "hubspot",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.hubapi.com/oauth/v3/token",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.hubapi.com/account-info/v3/details",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 401,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "intercom",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.intercom.io/auth/eagle/token",
+          "direct": false,
+          "probe": {
+            "status": 404,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.intercom.io/me",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 406,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "jira",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://auth.atlassian.com/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.atlassian.com/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://auth.atlassian.com/oauth/revoke",
+          "direct": false,
+          "probe": {
+            "status": 200,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "linkedin",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://www.linkedin.com/oauth/v2/accessToken",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.linkedin.com/v2/userinfo",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 401,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://www.linkedin.com/oauth/v2/revoke",
+          "direct": false,
+          "probe": {
+            "status": 500,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "m365",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://graph.microsoft.com/v1.0/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "microsoft",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://graph.microsoft.com/v1.0/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "microsoft-teams",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://graph.microsoft.com/v1.0/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "monday",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://auth.monday.com/oauth_ms/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "POST",
+          "url": "https://api.monday.com/v2",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "authorization,content-type,accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://auth.monday.com/oauth_ms/oauth/revoke",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "notion",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.notion.com/v1/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 400,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.notion.com/v1/users/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 204,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "Authorization, Content-Type, Accept, Notion-Version, Notion-Beta, Idempotency-Key, User-Agent, X-Notion-Mcp-Redirect-Uri, X-Notion-Mcp-Client-Id, X-Notion-Mcp-Client-Name, X-Notion-Mcp-Client-Version",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://api.notion.com/v1/oauth/revoke",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 400,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "okta",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://{domain}/oauth2/v1/token",
+          "direct": false,
+          "tenant": true
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://{domain}/api/v1/users/me",
+          "direct": false,
+          "tenant": true
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://{domain}/oauth2/v1/revoke",
+          "direct": false,
+          "tenant": true
+        }
+      ],
+      "tenant_hosts": ["*.okta-emea.com", "*.okta.com", "*.oktapreview.com"]
+    },
+    {
+      "provider_id": "photon",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://app.photon.codes/api/auth/oauth2/token",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://app.photon.codes/api/auth/oauth2/userinfo",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": 404,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://app.photon.codes/api/auth/oauth2/revoke",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "reddit",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://www.reddit.com/api/v1/access_token",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": 403,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://oauth.reddit.com/api/v1/me",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": 403,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://www.reddit.com/api/v1/revoke_token",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": 403,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "salesforce",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://login.salesforce.com/services/oauth2/token",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://login.salesforce.com/services/oauth2/userinfo",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://login.salesforce.com/services/oauth2/revoke",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "sanity",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.sanity.io/v2021-06-07/auth/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.sanity.io/v2021-06-07/users/me",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": 204,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "sentry",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://sentry.io/oauth/token/",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://sentry.io/api/0/organizations/",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "X-Sentry-Auth, X-Requested-With, Origin, Accept, Content-Type, Authentication, Authorization, Content-Encoding, sentry-trace, baggage, X-CSRFToken",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "shopify",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://{shop}/admin/oauth/access_token",
+          "direct": false,
+          "tenant": true
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://{shop}/admin/oauth/access_scopes.json",
+          "direct": false,
+          "tenant": true
+        }
+      ],
+      "tenant_hosts": ["*.myshopify.com"]
+    },
+    {
+      "provider_id": "slack",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://slack.com/api/oauth.v2.access",
+          "direct": true,
+          "probe": {
+            "status": 200,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "POST",
+          "url": "https://slack.com/api/auth.test",
+          "direct": false,
+          "probe": {
+            "status": 200,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "slack-route, x-slack-version-ts, x-b3-traceid, x-b3-spanid, x-b3-parentspanid, x-b3-sampled, x-b3-flags, x-background",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://slack.com/api/auth.revoke",
+          "direct": true,
+          "probe": {
+            "status": 200,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "spotify",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://accounts.spotify.com/api/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 204,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "User-Agent, Keep-Alive, Content-Type, Authorization, client-token, spotify-installation-id, dpop",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.spotify.com/v1/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_status": 200,
+            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_headers": "Accept,App-Platform,Authorization,Content-Type,Origin,Retry-After,Spotify-App-Version,X-Cloud-Trace-Context,client-token,content-access-token",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://accounts.spotify.com/oauth2/revoke/v1",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": 204,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "twilio",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://oauth.twilio.com/v2/token",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://iam.twilio.com/scim/v2/Users",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "Accept, Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, Idempotency-Key, X-Pre-Auth-Context, X-Target-Region",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "twitch",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://id.twitch.tv/oauth2/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://id.twitch.tv/oauth2/userinfo",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "Authorization, Accept",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://id.twitch.tv/oauth2/revoke",
+          "direct": true,
+          "probe": {
+            "status": 404,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "typeform",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.typeform.com/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.typeform.com/me",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": "X-Typeform-Key, Content-Type, Authorization, Typeform-Version, typeform-app, X-Requested-With, anonymousid, X-Namespace",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "vercel",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.vercel.com/login/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "POST",
+          "url": "https://api.vercel.com/login/oauth/userinfo",
+          "direct": true,
+          "probe": {
+            "status": 403,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "Authorization, Accept, Content-Type, DPoP",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://api.vercel.com/login/oauth/token/revoke",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "webflow",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.webflow.com/oauth/access_token",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.webflow.com/v2/token/authorized_by",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://webflow.com/oauth/revoke_authorization",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "whoop",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.prod.whoop.com/oauth/oauth2/token",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.prod.whoop.com/developer/v2/user/profile/basic",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://api.prod.whoop.com/oauth/oauth2/revoke",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "workday",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://{api_host}/ccx/oauth2/{tenant}/token",
+          "direct": false,
+          "tenant": true
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://{api_host}/ccx/api/common/v1/{tenant}/workers/me",
+          "direct": false,
+          "tenant": true
+        }
+      ],
+      "tenant_hosts": ["*.myworkday.com"]
+    },
+    {
+      "provider_id": "x",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.x.com/2/oauth2/token",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": 404,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.x.com/2/users/me",
+          "direct": false,
+          "probe": {
+            "status": 403,
+            "allow_origin": null,
+            "preflight_status": 405,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://api.x.com/2/oauth2/revoke",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": 404,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "zeplin",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://api.zeplin.dev/v1/oauth/token",
+          "direct": true,
+          "probe": {
+            "status": 400,
+            "allow_origin": "*",
+            "preflight_status": null,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.zeplin.dev/v1/users/me",
+          "direct": true,
+          "probe": {
+            "status": 401,
+            "allow_origin": "*",
+            "preflight_status": 200,
+            "preflight_allow_origin": "*",
+            "preflight_allow_headers": "Authorization, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, Zeplin-Version",
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "provider_id": "zoom",
+      "endpoints": [
+        {
+          "stage": "token",
+          "method": "POST",
+          "url": "https://zoom.us/oauth/token",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "resource",
+          "method": "GET",
+          "url": "https://api.zoom.us/v2/users/me",
+          "direct": false,
+          "probe": {
+            "status": 401,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        },
+        {
+          "stage": "revocation",
+          "method": "POST",
+          "url": "https://zoom.us/oauth/revoke",
+          "direct": false,
+          "probe": {
+            "status": 400,
+            "allow_origin": null,
+            "preflight_status": 200,
+            "preflight_allow_origin": null,
+            "preflight_allow_headers": null,
+            "checked_at": "2026-10-31T00:47:50+00:00"
+          }
+        }
+      ]
+    }
+  ]
+}
