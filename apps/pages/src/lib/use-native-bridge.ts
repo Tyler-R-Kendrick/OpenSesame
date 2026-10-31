@@ -28,7 +28,7 @@ export function useNativeBridge(providerId?: string): BridgeSnapshot {
   return snapshot;
 }
 
-/** The form fields a person types their own tenant host into (ADR 0217). */
+/** The form fields a person types their own tenant host into (ADR 0218). */
 const TENANT_FIELDS = [
   "token_endpoint",
   "resource",

@@ -184,7 +184,7 @@ describe("responseHeaders", () => {
   });
 });
 
-describe("OAuth hosts and tenant families (ADR 0217)", () => {
+describe("OAuth hosts and tenant families (ADR 0218)", () => {
   const oauthTable = [
     { providerId: "zoom", authorities: [], oauth: ["zoom.us", "api.zoom.us"] },
     { providerId: "okta", authorities: [], tenants: ["*.okta.com"] },

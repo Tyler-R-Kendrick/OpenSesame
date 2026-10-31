@@ -28,6 +28,7 @@ pub mod authority_subjects;
 pub mod dispatch;
 #[cfg(test)]
 mod grant_starvation_tests;
+pub mod minted_subjects;
 mod outcome;
 pub mod responders;
 pub mod scanner;

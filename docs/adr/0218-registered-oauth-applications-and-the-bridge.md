@@ -1,4 +1,4 @@
-# ADR 0217 — A person's own OAuth application connects through the page, and through the bridge where the provider refuses web pages
+# ADR 0218 — A person's own OAuth application connects through the page, and through the bridge where the provider refuses web pages
 
 - **Status:** Accepted
 - **Date:** 2026-10-31

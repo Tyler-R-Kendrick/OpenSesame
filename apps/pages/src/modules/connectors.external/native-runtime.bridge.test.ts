@@ -35,7 +35,7 @@ const exchange = () =>
     body: TOKEN_BODY,
   });
 
-/** A registered OAuth application's token endpoint that refuses web pages (ADR 0217). */
+/** A registered OAuth application's token endpoint that refuses web pages (ADR 0218). */
 describe("a token exchange at a host the bridge holds", () => {
   it.each(["fetch", "settleCredentialMutation"] as const)(
     "is carried by the bridge in %s, after the operator's egress decision, and never sent by the page",

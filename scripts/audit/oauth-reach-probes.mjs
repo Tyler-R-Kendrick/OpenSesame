@@ -2,7 +2,7 @@
 /**
  * Probe, from the audited origin, whether a page can read the token, resource
  * and revocation endpoints of every provider whose OAuth application a person
- * registers themselves (ADR 0217), and keep the answer in
+ * registers themselves (ADR 0218), and keep the answer in
  * `spec/connectors/oauth-reach.json`.
  *
  *   node scripts/audit/oauth-reach-probes.mjs            # report; exit 1 on drift

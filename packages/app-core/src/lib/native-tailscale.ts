@@ -1,5 +1,5 @@
 /**
- * Tailscale from a browser (ADR 0217): the person's own API access token, or an
+ * Tailscale from a browser (ADR 0218): the person's own API access token, or an
  * OAuth client's ID and secret exchanged for a short-lived token, against
  * Tailscale's cloud API. `api.tailscale.com` answers no web page, so the call
  * is carried by the connector bridge. The credential is proved by reading the

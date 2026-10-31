@@ -327,7 +327,7 @@ function NativeFormCommit({
 
 export function NativeConnectorForm(props: Props) {
   const model = useNativeForm(props);
-  // A tenant host the person types is put in the bridge's popup (ADR 0217).
+  // A tenant host the person types is put in the bridge's popup (ADR 0218).
   useBridgeTenantAsk(props.descriptor.providerId, model.values);
   const { descriptor } = props;
   const missing = model.method

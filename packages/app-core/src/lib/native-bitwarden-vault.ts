@@ -1,5 +1,5 @@
 /**
- * A Bitwarden or Vaultwarden vault from a browser (ADR 0217): the account's own
+ * A Bitwarden or Vaultwarden vault from a browser (ADR 0218): the account's own
  * personal API key logs in without a device-approval email or a second step,
  * and the master password, which never leaves this device, derives the key
  * (PBKDF2-SHA256 or Argon2id, then HKDF) that opens the vault key, which opens

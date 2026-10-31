@@ -1,4 +1,4 @@
-/** The Bitwarden vault's calls (ADR 0217): log in with the API key, open the vault key here, read items. */
+/** The Bitwarden vault's calls (ADR 0218): log in with the API key, open the vault key here, read items. */
 import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import { z } from "zod";
 import { NativeApiError } from "./native-api-http.js";

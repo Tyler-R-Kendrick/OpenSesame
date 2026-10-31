@@ -92,7 +92,7 @@ export async function refreshNativeBridge(): Promise<BridgeSnapshot> {
   return snapshot;
 }
 
-/** The literal hosts a provider is carried at: its API-key check and its registered OAuth application (ADR 0217). */
+/** The literal hosts a provider is carried at: its API-key check and its registered OAuth application (ADR 0218). */
 export function bridgeHostsFor(providerId: string): readonly string[] {
   // The app keeps the alias it was asked for; the table is the catalog's.
   const id = canonicalProviderId(providerId) ?? providerId;
@@ -143,7 +143,7 @@ export const BRIDGE_README_URL = BRIDGE_README;
 
 /**
  * What a person registering their own OAuth application should know about the
- * provider's servers (ADR 0217). `null` when a web page can read every endpoint
+ * provider's servers (ADR 0218). `null` when a web page can read every endpoint
  * the connection calls, so the bridge has nothing to carry.
  */
 export function bridgeOAuthAdvice(

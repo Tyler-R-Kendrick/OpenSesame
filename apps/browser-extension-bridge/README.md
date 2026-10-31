@@ -12,7 +12,7 @@ token, account or revocation endpoint a page cannot read (Box, HubSpot, Notion,
 Salesforce, Zoom, X, …, and a tenant host for Okta, Auth0, Databricks, Shopify,
 Workday and BambooHR): the client secret stays sealed in the person's vault and is
 sent only to those hosts, through this extension, which keeps nothing
-([ADR 0217](../../docs/adr/0217-registered-oauth-applications-and-the-bridge.md);
+([ADR 0218](../../docs/adr/0218-registered-oauth-applications-and-the-bridge.md);
 the list is generated from [`spec/connectors/oauth-reach.json`](../../spec/connectors/oauth-reach.json)).
 
 It is never part of the default extension ([`apps/browser-extension`](../browser-extension)),

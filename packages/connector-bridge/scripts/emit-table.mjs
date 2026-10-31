@@ -6,7 +6,7 @@
  *   - `spec/connectors/browser-policy.json` — an API-key method refused on the
  *     strength of a probe from the audited origin.
  *   - `spec/connectors/oauth-reach.json` — a registered OAuth application's
- *     token, resource or revocation endpoint a page could not read (ADR 0217),
+ *     token, resource or revocation endpoint a page could not read (ADR 0218),
  *     and the `*.suffix` families a person's own tenant may live at.
  *
  * Only a provider with a key check to carry is in the table: a row in
@@ -77,7 +77,7 @@ function addOAuth(row) {
   for (const provider of spec("oauth-reach.json").providers) {
     for (const endpoint of provider.endpoints) {
       // The token exchange and the account check are what a connection calls;
-      // revocation is recorded as evidence but is not called (ADR 0217).
+      // revocation is recorded as evidence but is not called (ADR 0218).
       if (endpoint.stage === "revocation") continue;
       const host =
         endpoint.direct || endpoint.tenant ? null : hostOf(endpoint.url);

@@ -178,7 +178,7 @@ describe("browser admission", () => {
   });
 });
 
-describe("a registered OAuth application (ADR 0217)", () => {
+describe("a registered OAuth application (ADR 0218)", () => {
   it("is carried at the hosts a page cannot read, and its token host is among them", () => {
     expect(bridgeHostsFor("zoom")).toEqual(["api.zoom.us", "zoom.us"]);
     expect(bridgeHostsFor("hubspot")).toContain("api.hubapi.com");

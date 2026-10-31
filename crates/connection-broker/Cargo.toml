@@ -9,6 +9,11 @@ license.workspace = true
 name = "opensesame_connection_broker"
 path = "src/lib.rs"
 
+[features]
+# A loopback STS stand-in that verifies SigV4 (ADR 0217), for the gateway's
+# tests. Never enabled by a shipped build.
+sts-stand-in = []
+
 [dependencies]
 opensesame-claims = { path = "../claims" }
 opensesame-connection-detect = { path = "../connection-detect" }
@@ -48,6 +53,15 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
+# The AWS STS mint (ADR 0217): SigV4 request signing, pinned exactly, with the
+# HTTP signer alone (no SigV4a, no event-stream signing; `http1` is the
+# `http` 1.x types its canonical request is built on, already in the tree).
+# The credential and identity types are named only to hand the signer its key.
+aws-sigv4 = { version = "=1.3.8", default-features = false, features = ["sign-http", "http1"] }
+aws-credential-types = { version = "=1.2.11", default-features = false }
+aws-smithy-runtime-api = { version = "=1.11.3", default-features = false, features = ["client"] }
+# Bounded STS XML reading. Already in the lock through the KDBX bridge.
+quick-xml = { version = "=0.41.0", default-features = false }
 
 [dev-dependencies]
 axum = { workspace = true }

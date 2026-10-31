@@ -33,7 +33,7 @@ function withAdvice(
   };
 }
 
-/** A registered OAuth application's servers a page cannot read are carried by the bridge (ADR 0217). */
+/** A registered OAuth application's servers a page cannot read are carried by the bridge (ADR 0218). */
 function withBridgeAdvice(
   providerId: string,
   method: NativeMethodDescriptor,

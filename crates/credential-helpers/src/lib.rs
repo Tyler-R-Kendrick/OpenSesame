@@ -166,9 +166,27 @@ impl DaemonClient {
         connection_id: &str,
         installation_id: Option<&str>,
     ) -> Result<MintedCredential, HelperError> {
+        self.mint_for(connection_id, installation_id, None)
+    }
+
+    /// [`DaemonClient::mint`] asking for a credential lifetime, in seconds
+    /// (the AWS mint honours it under its binding's cap, ADR 0217).
+    ///
+    /// # Errors
+    ///
+    /// As [`DaemonClient::mint`].
+    pub fn mint_for(
+        &self,
+        connection_id: &str,
+        installation_id: Option<&str>,
+        duration_seconds: Option<u32>,
+    ) -> Result<MintedCredential, HelperError> {
         let mut body = json!({"connection_id": connection_id});
         if let Some(installation_id) = installation_id {
             body["installation_id"] = json!(installation_id);
+        }
+        if let Some(duration_seconds) = duration_seconds {
+            body["duration_seconds"] = json!(duration_seconds);
         }
         let (status, response_body) = Self::post(self, "/v1/mint", &body)?;
         if status != 200 {

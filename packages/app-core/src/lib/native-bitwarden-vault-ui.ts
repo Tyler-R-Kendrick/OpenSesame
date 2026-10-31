@@ -1,4 +1,4 @@
-/** What the Bitwarden and Vaultwarden connection form draws (ADR 0217). */
+/** What the Bitwarden and Vaultwarden connection form draws (ADR 0218). */
 import { canonicalProviderId } from "./connector-catalog.js";
 import {
   CLIENT_ID,

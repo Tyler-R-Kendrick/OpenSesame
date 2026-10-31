@@ -1,4 +1,4 @@
-//! `POST /api/v1/connections/{id}/mint` (ADR 0049).
+//! `POST /api/v1/connections/{id}/mint` (ADR 0049; the AWS arm is ADR 0217).
 
 use axum::{
     extract::{Path, State},
@@ -18,6 +18,9 @@ use crate::app_state::AppState;
 pub struct MintBody {
     /// Numeric GitHub App installation ID (required for GitHub).
     pub installation_id: Option<String>,
+    /// The lifetime asked for, in seconds. An AWS mint honours it from 900 up
+    /// to its binding's cap and refuses anything outside; GitHub ignores it.
+    pub duration_seconds: Option<u32>,
     /// The process the daemon minted for, when a credential helper asked on
     /// its Unix socket (ADR 0138 §2). It authorizes nothing: the caller is
     /// still the one `authorize` resolved. It names who asked, in the receipt.
@@ -65,17 +68,21 @@ pub async fn mint(
         Ok(body) => body,
         Err(resp) => return resp,
     };
-    let actor = mint_actor(
-        caller_subject(&who).unwrap_or_else(|| "operator".into()),
-        body.on_behalf_of.as_ref(),
-    );
+    let principal = caller_subject(&who).unwrap_or_else(|| "operator".into());
+    let actor = mint_actor(principal.clone(), body.on_behalf_of.as_ref());
+    // The provider hears the principal; the receipt and event record the actor.
+    let caller = opensesame_connection_broker::MintCaller {
+        principal: &principal,
+        actor: &actor,
+    };
     match st
         .connection_broker
-        .mint_derived_token(
+        .mint_derived_token_for(
             &organization_id,
             &id,
-            &actor,
+            caller,
             body.installation_id.as_deref(),
+            body.duration_seconds,
         )
         .await
     {

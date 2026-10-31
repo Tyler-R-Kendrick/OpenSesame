@@ -17,7 +17,7 @@ export type BridgeRow = {
   readonly providerId: string;
   /** Hosts of the provider's API-key check. */
   readonly authorities: readonly string[];
-  /** Hosts of a registered OAuth application's token, resource and revocation endpoints (ADR 0217). */
+  /** Hosts of a registered OAuth application's token, resource and revocation endpoints (ADR 0218). */
   readonly oauth?: readonly string[];
   /** `*.suffix` families a person's own tenant may live at: a host is named only if it is one of these. */
   readonly tenants?: readonly string[];

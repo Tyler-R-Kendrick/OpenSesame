@@ -19,7 +19,7 @@ type TokenAnswer = {
   expiresAsText?: boolean;
 };
 
-/** A configured client for a provider whose preset names a contract of its own (ADR 0217). */
+/** A configured client for a provider whose preset names a contract of its own (ADR 0218). */
 async function setup(
   providerId: string,
   requested: readonly string[],

@@ -25,7 +25,7 @@ probes were taken from the audited origin in
 admit another, and an operator who configures a provider's CORS (a self-hosted
 instance, for example) changes the answer for their own origin only.
 
-## Your own OAuth application (ADR 0217)
+## Your own OAuth application (ADR 0218)
 
 For a provider that authorizes with a confidential client, register an application
 with it and use **Bring Your Own OAuth App**: the client ID, the client secret and

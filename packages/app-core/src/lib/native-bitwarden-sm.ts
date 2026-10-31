@@ -1,5 +1,5 @@
 /**
- * Bitwarden Secrets Manager from a browser (ADR 0217): a service account's own
+ * Bitwarden Secrets Manager from a browser (ADR 0218): a service account's own
  * access token, proved by the identity server's client-credentials login, whose
  * encrypted payload only that token can open. The token's last 16 bytes become
  * the key (HKDF over an HMAC, on Web Crypto) that opens the payload, which holds

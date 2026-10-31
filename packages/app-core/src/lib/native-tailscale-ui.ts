@@ -1,4 +1,4 @@
-/** What the Tailscale connection form draws (ADR 0217). */
+/** What the Tailscale connection form draws (ADR 0218). */
 import type { NativeKeyField, NativeKeyUi } from "./native-key-types.js";
 
 export const API_TOKEN = "api_token";

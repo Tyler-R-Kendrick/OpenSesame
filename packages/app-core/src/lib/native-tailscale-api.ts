@@ -1,4 +1,4 @@
-/** Tailscale's API calls behind the connection (ADR 0217): each a bounded request whose answer is read, not repeated. */
+/** Tailscale's API calls behind the connection (ADR 0218): each a bounded request whose answer is read, not repeated. */
 import {
   type BoundaryValue,
   isJsonObject,

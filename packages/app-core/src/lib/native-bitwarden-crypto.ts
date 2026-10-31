@@ -1,6 +1,6 @@
 /**
  * Bitwarden's client-side cryptography, on the Web Crypto API every browser
- * ships (ADR 0217): the `EncString` envelope (AES-256-CBC with an
+ * ships (ADR 0218): the `EncString` envelope (AES-256-CBC with an
  * HMAC-SHA256 over the IV and ciphertext, verified before anything is
  * decrypted), HKDF-Expand key stretching, the master-key derivations
  * (PBKDF2-SHA256 and Argon2id) and the Secrets Manager access-token key.

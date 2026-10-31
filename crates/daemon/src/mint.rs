@@ -57,6 +57,10 @@ pub struct MintRequest {
     /// through uninterpreted.
     #[serde(default)]
     pub installation_id: Option<String>,
+    /// The credential lifetime asked for, in seconds; an AWS mint honours it
+    /// under its binding's cap (ADR 0217). Passed through uninterpreted.
+    #[serde(default)]
+    pub duration_seconds: Option<u32>,
 }
 
 /// Who a mint is for, once admitted.
@@ -186,6 +190,9 @@ pub async fn mint_via_daemon(
     let mut body = json!({});
     if let Some(installation_id) = &req.installation_id {
         body["installation_id"] = json!(installation_id);
+    }
+    if let Some(duration_seconds) = req.duration_seconds {
+        body["duration_seconds"] = json!(duration_seconds);
     }
     if let Some(peer) = caller.on_behalf_of() {
         body["on_behalf_of"] = peer;

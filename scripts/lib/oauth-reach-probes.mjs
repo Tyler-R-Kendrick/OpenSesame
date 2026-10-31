@@ -1,5 +1,5 @@
 /**
- * The questions behind `spec/connectors/oauth-reach.json` (ADR 0217): for a
+ * The questions behind `spec/connectors/oauth-reach.json` (ADR 0218): for a
  * provider whose OAuth application is registered by the person (a confidential
  * client), can a page on the audited origin read the answer of its token,
  * resource and revocation endpoints? An endpoint a page can read is *direct*;

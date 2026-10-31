@@ -1,6 +1,6 @@
 /**
  * What a provider's own OAuth contract adds to the one configured-client flow
- * (ADR 0217): the parameters its authorization endpoint requires (Atlassian's
+ * (ADR 0218): the parameters its authorization endpoint requires (Atlassian's
  * `audience`, Notion's `owner`), how it separates scopes, which token types it
  * issues, and the exact request that reads the account behind a token (Notion's
  * version header, Shopify's token header, monday's GraphQL post). All of it
