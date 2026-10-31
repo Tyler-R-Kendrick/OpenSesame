@@ -40,7 +40,7 @@
     "@1password/sdk-core": "0.5.0",
     "@ag-ui/client": "1.0.3",
     "@ai-sdk/provider": "3.0.14",
-    "@azure/msal-browser": "5.26.0",
+    "@azure/msal-browser": "5.27.0",
     "@bitwarden/sdk-wasm": "0.1.0",
     "@bufbuild/protobuf": "2.16.0",
     "@cfworker/json-schema": "4.1.1",
