@@ -8,10 +8,11 @@ import { dirname, join } from "node:path";
  * names `<member>/node_modules/<name>` holds only under pnpm's isolated
  * layout; this holds under any node_modules layout: the member's own copy, a
  * hoisted copy at the root, or a copy nested under the member because the
- * root's does not satisfy it.
+ * root's does not satisfy it. `specifier` is what is resolved, for a package
+ * whose exports name subpaths only (`@opensesame/app-core/host.js`).
  */
-export function dependencyRoot(memberPackageJson, name) {
-  const entry = createRequire(memberPackageJson).resolve(name);
+export function dependencyRoot(memberPackageJson, name, specifier = name) {
+  const entry = createRequire(memberPackageJson).resolve(specifier);
   for (let dir = dirname(entry); dirname(dir) !== dir; dir = dirname(dir)) {
     const manifest = join(dir, "package.json");
     if (existsSync(manifest) && manifestName(manifest) === name) return dir;
