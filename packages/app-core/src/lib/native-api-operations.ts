@@ -304,6 +304,7 @@ export async function executeNativeApiRequest(
       revision: record.revision,
       fingerprint: record.configuration.fingerprint,
     });
+    transport.assertCurrent();
     return output;
   } catch (error) {
     if (error instanceof NativeApiError && error.code === "authorization")

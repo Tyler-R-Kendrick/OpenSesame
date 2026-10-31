@@ -60,13 +60,14 @@ export function windowChannel(target: Window = window): BridgeChannel {
   return {
     post: (message) => target.postMessage(message, target.location.origin),
     listen(handler) {
+      const remove = target.removeEventListener.bind(target);
       const hear = (event: MessageEvent) => {
         if (event.source !== target || event.origin !== target.location.origin)
           return;
         handler(event.data);
       };
       target.addEventListener("message", hear);
-      return () => target.removeEventListener("message", hear);
+      return () => remove("message", hear);
     },
   };
 }

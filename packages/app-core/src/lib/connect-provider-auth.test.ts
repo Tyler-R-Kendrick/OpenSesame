@@ -268,4 +268,30 @@ describe("generated provider authentication contracts", () => {
       ),
     ).toBe(true);
   });
+  it.each([401, 403, 429])(
+    "refuses reserved credential-refusal status %s as proof",
+    (status) => {
+      expect(
+        ProviderVerificationSchema.safeParse({
+          method: "GET",
+          url: "https://api.example.org/me",
+          accountField: null,
+          validStatuses: [status],
+        }).success,
+      ).toBe(false);
+    },
+  );
+  it("keeps documented not-found proof separate from body error predicates", () => {
+    const proof = {
+      method: "GET",
+      url: "https://api.example.org/me",
+      accountField: null,
+      validStatuses: [404],
+    };
+    expect(ProviderVerificationSchema.safeParse(proof).success).toBe(true);
+    expect(
+      ProviderVerificationSchema.safeParse({ ...proof, errorFields: ["error"] })
+        .success,
+    ).toBe(false);
+  });
 });

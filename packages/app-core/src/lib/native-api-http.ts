@@ -90,7 +90,12 @@ function answeredByStatus(
   if (refused) throw new NativeApiError(refused, response.status);
   if (response.redirected)
     throw new NativeApiError("response", response.status);
-  if (request.validStatuses?.includes(response.status)) return true;
+  if (
+    response.status >= 400 &&
+    response.status <= 499 &&
+    request.validStatuses?.includes(response.status)
+  )
+    return true;
   if (!response.ok) throw new NativeApiError("response", response.status);
   return false;
 }
@@ -107,21 +112,35 @@ export async function nativeApiHttp(
   const deadline = setTimeout(abort, 15_000);
   let response: Response | undefined;
   try {
-    const init: RequestInit = {
-      method: request.method,
-      headers: request.headers,
-      signal: controller.signal,
-      mode: "cors",
-      credentials: "omit",
-      redirect: "error",
-      cache: "no-store",
-      referrerPolicy: "no-referrer",
-    };
-    if (request.body !== undefined) init.body = request.body;
-    response = await transport.fetch(request.url, init);
-    transport.assertCurrent();
-    if (answeredByStatus(request, response)) return {};
-    const body = await reply(response, controller.signal);
+    let body: BoundaryValue;
+    try {
+      if (controller.signal.aborted) throw new NativeApiError("network");
+      const init: RequestInit = {
+        method: request.method,
+        headers: request.headers,
+        signal: controller.signal,
+        mode: "cors",
+        credentials: "omit",
+        redirect: "error",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+      };
+      if (request.body !== undefined) init.body = request.body;
+      response = await transport.fetch(request.url, init);
+      transport.assertCurrent();
+      if (controller.signal.aborted) throw new NativeApiError("network");
+      body = answeredByStatus(request, response)
+        ? {}
+        : await reply(response, controller.signal);
+    } finally {
+      try {
+        // Keep the original request deadline and cancellation live through cleanup.
+        await cancelUnreadResponse(response);
+      } finally {
+        clearTimeout(deadline);
+        request.signal?.removeEventListener("abort", abort);
+      }
+    }
     transport.assertCurrent();
     if (controller.signal.aborted) throw new NativeApiError("network");
     return body;
@@ -129,14 +148,5 @@ export async function nativeApiHttp(
     if (error instanceof NativeApiError) throw error;
     if (error instanceof EgressDenied) throw new NativeApiError("deployment");
     throw new NativeApiError("network");
-  } finally {
-    try {
-      // HTTP refusal and post-header withdrawal never enter the JSON reader.
-      // Close that original unread body before its request deadline retires.
-      await cancelUnreadResponse(response);
-    } finally {
-      clearTimeout(deadline);
-      request.signal?.removeEventListener("abort", abort);
-    }
   }
 }

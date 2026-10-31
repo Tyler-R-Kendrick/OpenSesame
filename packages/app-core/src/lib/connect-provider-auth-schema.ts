@@ -143,7 +143,8 @@ export const ProviderVerificationSchema = z
       verify.validStatuses.length === 0 ||
       (verify.accountField === null &&
         verify.success.length === 0 &&
-        verify.requiredFields.length === 0),
+        verify.requiredFields.length === 0 &&
+        verify.errorFields.length === 0),
     "a status proof reads no body",
   );
 

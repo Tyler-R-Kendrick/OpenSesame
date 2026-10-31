@@ -181,6 +181,7 @@ export async function verifyNativeOAuthResource(
       resourceTransport(record, grant, owner),
       { revision: record.revision, grant },
     );
+    assertNativeOAuthClientOwner(owner);
     return { view, body };
   }
   if (
@@ -215,5 +216,6 @@ export async function verifyNativeOAuthResource(
     },
     resourceTransport(record, grant, owner).assertCurrent,
   );
+  assertNativeOAuthClientOwner(owner);
   return { view, body };
 }

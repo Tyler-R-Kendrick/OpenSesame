@@ -128,6 +128,26 @@ describe("audited browser-only policy", () => {
         });
     }
   });
+  it("retains the nine reviewed Tailscale and Bitwarden endpoint observations", () => {
+    const endpoints: [string, string][] = [];
+    for (const rule of authored.rules)
+      if (
+        rule.method === "api-key" &&
+        ["tailscale", "bitwarden", "bitwarden-sm"].includes(rule.provider_id)
+      )
+        endpoints.push([rule.provider_id, rule.probe.url]);
+    expect(endpoints).toEqual([
+      ["tailscale", "https://api.tailscale.com/api/v2/tailnet/-/devices"],
+      ["bitwarden", "https://identity.bitwarden.com/connect/token"],
+      ["bitwarden", "https://api.bitwarden.com/sync"],
+      ["bitwarden", "https://identity.bitwarden.eu/connect/token"],
+      ["bitwarden", "https://api.bitwarden.eu/sync"],
+      ["bitwarden-sm", "https://identity.bitwarden.com/connect/token"],
+      ["bitwarden-sm", "https://api.bitwarden.com/secrets/sync"],
+      ["bitwarden-sm", "https://identity.bitwarden.eu/connect/token"],
+      ["bitwarden-sm", "https://api.bitwarden.eu/secrets/sync"],
+    ]);
+  });
   it("retains parameter-specific historical advice without denying finite choices", () => {
     for (const id of ["datadog", "typeform", "railway"]) {
       const method = connectPlan(id)?.methods.find(
