@@ -45,6 +45,7 @@ function mcpPreset(info: McpInfo, docsUrl: string | null): OauthPreset {
 }
 export function configuredNativeOAuthPreset(plan: ConnectPlan): {
   preset: OauthPreset;
+  resourceParameter?: "send" | "omit";
   protocol?: "mcp";
   endpoint?: string;
   transport?: "sse" | "streamable-http";
@@ -61,8 +62,14 @@ export function configuredNativeOAuthPreset(plan: ConnectPlan): {
       }
     : {};
   const oauth = plan.methods.find((entry) => entry.kind === "oauth");
+  // A provider's own OAuth contract is not RFC 8707: it names no `resource`
+  // parameter, so none is sent unless its preset says to (an MCP server's is).
   if (oauth?.kind === "oauth" && oauth.preset)
-    return { preset: oauth.preset, ...defaults };
+    return {
+      preset: oauth.preset,
+      resourceParameter: oauth.preset.resourceParameter ?? "omit",
+      ...defaults,
+    };
   if (!mcp) return null;
   return { preset: mcpPreset(mcp, plan.docsUrl), protocol: "mcp", ...defaults };
 }

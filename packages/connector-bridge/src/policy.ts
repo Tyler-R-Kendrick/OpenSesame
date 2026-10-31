@@ -15,7 +15,12 @@ import {
 
 export type BridgeRow = {
   readonly providerId: string;
+  /** Hosts of the provider's API-key check. */
   readonly authorities: readonly string[];
+  /** Hosts of a registered OAuth application's token, resource and revocation endpoints (ADR 0217). */
+  readonly oauth?: readonly string[];
+  /** `*.suffix` families a person's own tenant may live at: a host is named only if it is one of these. */
+  readonly tenants?: readonly string[];
 };
 export type BridgeTable = readonly BridgeRow[];
 
@@ -58,6 +63,7 @@ const FORBIDDEN = new Set([
   "via",
 ]);
 
+/** The API-key hosts of a provider. */
 export function authoritiesOf(
   table: BridgeTable,
   providerId: string,
@@ -65,9 +71,77 @@ export function authoritiesOf(
   return table.find((row) => row.providerId === providerId)?.authorities ?? [];
 }
 
-/** Every host the table names, once: what an extension may ever be asked to allow. */
+/** The literal hosts of a provider's registered OAuth application. */
+export function oauthAuthoritiesOf(
+  table: BridgeTable,
+  providerId: string,
+): readonly string[] {
+  return table.find((row) => row.providerId === providerId)?.oauth ?? [];
+}
+
+const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+/**
+ * Whether `host` is a tenant under a `*.suffix` family: at least one label in
+ * front of the suffix, each a plain DNS label. `evilokta.com` and
+ * `okta.com.evil.test` are not under `*.okta.com`, and neither is `okta.com`.
+ */
+export function underTenantFamily(host: string, pattern: string): boolean {
+  if (!pattern.startsWith("*.")) return false;
+  const suffix = pattern.slice(1);
+  if (!host.endsWith(suffix) || host.length <= suffix.length) return false;
+  return host
+    .slice(0, host.length - suffix.length)
+    .split(".")
+    .every((label) => LABEL.test(label));
+}
+
+function rowAllows(row: BridgeRow, host: string): boolean {
+  return (
+    row.authorities.includes(host) ||
+    (row.oauth?.includes(host) ?? false) ||
+    (row.tenants?.some((pattern) => underTenantFamily(host, pattern)) ?? false)
+  );
+}
+
+/** Whether the table lets this provider be called at this host. */
+export function providerAllowsHost(
+  table: BridgeTable,
+  providerId: string,
+  host: string,
+): boolean {
+  return table.some(
+    (row) => row.providerId === providerId && rowAllows(row, host),
+  );
+}
+
+/** The provider the table gives this host to, if any. */
+export function providerOfHost(
+  table: BridgeTable,
+  host: string,
+): string | null {
+  return table.find((row) => rowAllows(row, host))?.providerId ?? null;
+}
+
+/** Every provider the table lets be called at this host. */
+export function providersOfHost(table: BridgeTable, host: string): string[] {
+  return table
+    .filter((row) => rowAllows(row, host))
+    .map((row) => row.providerId);
+}
+
+/** Whether the table names this host at all: what an extension may ever be asked to allow. */
+export function isNamedHost(table: BridgeTable, host: string): boolean {
+  return providerOfHost(table, host) !== null;
+}
+
+/** Every literal host the table names, once. A tenant family names no host until a person does. */
 export function allAuthorities(table: BridgeTable): string[] {
-  return [...new Set(table.flatMap((row) => row.authorities))].sort();
+  return [
+    ...new Set(
+      table.flatMap((row) => [...row.authorities, ...(row.oauth ?? [])]),
+    ),
+  ].sort();
 }
 
 function cleanHeaders(
@@ -117,7 +191,7 @@ function checkAddress(
     url.hash
   )
     return { code: "bad_request" };
-  if (!authoritiesOf(table, request.providerId).includes(url.hostname))
+  if (!providerAllowsHost(table, request.providerId, url.hostname))
     return { code: "host_not_allowed" };
   if (!granted.has(url.hostname)) return { code: "not_granted" };
   return { url };

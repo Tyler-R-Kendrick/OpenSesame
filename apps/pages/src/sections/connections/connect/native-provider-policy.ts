@@ -1,4 +1,8 @@
 /** Browser admission follows the central audited route, including public site and token choices. */
+import {
+  BRIDGE_README_URL,
+  bridgeOAuthAdvice,
+} from "@opensesame/app-core/lib/native-bridge.js";
 import type { NativeBrowserPolicyDecision } from "@opensesame/app-core/lib/native-browser-policy.js";
 import { nativeConfigurationBrowserPolicy } from "@opensesame/app-core/lib/native-configuration-policy.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
@@ -29,10 +33,43 @@ function withAdvice(
   };
 }
 
+/** A registered OAuth application's servers a page cannot read are carried by the bridge (ADR 0217). */
+function withBridgeAdvice(
+  providerId: string,
+  method: NativeMethodDescriptor,
+): NativeMethodDescriptor {
+  if (method.id !== "oauth") return method;
+  const advice = bridgeOAuthAdvice(providerId);
+  if (!advice || method.instructions?.includes(advice.text)) return method;
+  return {
+    ...method,
+    instructions: method.instructions
+      ? `${method.instructions}\n\n${advice.text}`
+      : advice.text,
+    links: (method.links ?? []).some((link) => link.url === BRIDGE_README_URL)
+      ? method.links
+      : [
+          ...(method.links ?? []),
+          { label: "Connector bridge", url: BRIDGE_README_URL },
+        ],
+  };
+}
+
 export function nativePolicyMethod(
   providerId: string,
   method: NativeMethodDescriptor,
   parameters: Readonly<Record<string, string>> = {},
+): NativeMethodDescriptor {
+  return withBridgeAdvice(
+    providerId,
+    policyMethod(providerId, method, parameters),
+  );
+}
+
+function policyMethod(
+  providerId: string,
+  method: NativeMethodDescriptor,
+  parameters: Readonly<Record<string, string>>,
 ): NativeMethodDescriptor {
   if (method.unavailableKind === "policy") return method;
   const runtimeAvailable = method.runtimeAvailable ?? method.available;

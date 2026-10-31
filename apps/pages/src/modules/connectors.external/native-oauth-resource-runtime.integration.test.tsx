@@ -247,6 +247,8 @@ it.each([
   "mounted $id $auth form connects only after actual token/resource TLS",
   async ({ id, auth }) => {
     const f = await setup(id, auth);
+    // Box's own OAuth names no RFC 8707 `resource`: the form defaults to omitting it (ADR 0217).
+    if (id === "box") f.state.resourceParameter = "omit";
     const plan = connectPlan(id);
     if (!plan) throw new Error("Missing compiled native OAuth contract");
     const profile = nativeBrowserOAuthProfile(id);

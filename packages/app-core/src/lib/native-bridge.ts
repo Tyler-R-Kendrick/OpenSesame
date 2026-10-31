@@ -9,6 +9,9 @@ import {
   authoritiesOf,
   connectorBridgeTable,
   isBridgeHost,
+  isNamedHost,
+  oauthAuthoritiesOf,
+  providerOfHost,
 } from "@opensesame/connector-bridge";
 import type {
   BridgeFetchRequest,
@@ -89,10 +92,16 @@ export async function refreshNativeBridge(): Promise<BridgeSnapshot> {
   return snapshot;
 }
 
+/** The literal hosts a provider is carried at: its API-key check and its registered OAuth application (ADR 0217). */
 export function bridgeHostsFor(providerId: string): readonly string[] {
   // The app keeps the alias it was asked for; the table is the catalog's.
   const id = canonicalProviderId(providerId) ?? providerId;
-  return authoritiesOf(connectorBridgeTable, id);
+  return [
+    ...new Set([
+      ...authoritiesOf(connectorBridgeTable, id),
+      ...oauthAuthoritiesOf(connectorBridgeTable, id),
+    ]),
+  ];
 }
 
 /** Whether a provider is one a browser cannot reach by itself, so the bridge is its road. */
@@ -112,10 +121,7 @@ export function bridgeAdmits(providerId: string): boolean {
 export function bridgeCarries(url: URL): string | null {
   if (!snapshot.present || !snapshot.granted.includes(url.hostname))
     return null;
-  const row = connectorBridgeTable.find((entry) =>
-    entry.authorities.includes(url.hostname),
-  );
-  return row?.providerId ?? null;
+  return providerOfHost(connectorBridgeTable, url.hostname);
 }
 
 export type BridgeGuidance = {
@@ -123,6 +129,42 @@ export type BridgeGuidance = {
   /** The hosts a person should allow in the bridge. */
   hosts: readonly string[];
 };
+
+export type BridgeOAuthAdvice = {
+  /** What to tell a person who registers their own OAuth application with this provider. */
+  text: string;
+  /** The hosts the table names for it; a tenant family is shown as `*.suffix`. */
+  hosts: readonly string[];
+};
+
+const BRIDGE_README =
+  "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/browser-extension-bridge";
+export const BRIDGE_README_URL = BRIDGE_README;
+
+/**
+ * What a person registering their own OAuth application should know about the
+ * provider's servers (ADR 0217). `null` when a web page can read every endpoint
+ * the connection calls, so the bridge has nothing to carry.
+ */
+export function bridgeOAuthAdvice(
+  providerId: string,
+): BridgeOAuthAdvice | null {
+  const id = canonicalProviderId(providerId) ?? providerId;
+  const literal = oauthAuthoritiesOf(connectorBridgeTable, id);
+  const tenants =
+    connectorBridgeTable.find((row) => row.providerId === id)?.tenants ?? [];
+  if (literal.length === 0 && tenants.length === 0) return null;
+  const named = [...literal, ...tenants];
+  const where = tenants.length
+    ? literal.length
+      ? "at its own hosts and at your tenant"
+      : "at your own tenant"
+    : "at its own hosts";
+  return {
+    hosts: named,
+    text: `This provider's OAuth servers refuse web pages ${where}, so a page cannot read the token exchange or the account check there. With the optional connector bridge installed, switched on for this site and allowed for ${named.join(", ")}${tenants.length ? " (type your tenant host first and it appears in the bridge)" : ""}, those requests go through it. Your client secret stays sealed in your vault and is sent only to those hosts, and the bridge keeps nothing.`,
+  };
+}
 
 /** What a person has to do before the bridge can carry a provider; `null` when nothing is left to do. */
 export function bridgeGuidance(providerId: string): BridgeGuidance | null {
@@ -132,9 +174,21 @@ export function bridgeGuidance(providerId: string): BridgeGuidance | null {
 }
 
 /** Put the provider's hosts in the bridge's popup, ready to be allowed; the bridge allows nothing by being asked. */
-export async function askBridgeFor(providerId: string): Promise<void> {
+export async function askBridgeFor(
+  providerId: string,
+  typed: readonly string[] = [],
+): Promise<void> {
   const asked = client;
-  const hosts = bridgeHostsFor(providerId).filter(isBridgeHost);
+  // A host a person typed (their own tenant) is asked for only if the table gives it to this provider.
+  const id = canonicalProviderId(providerId) ?? providerId;
+  const tenants = typed.filter(
+    (host) =>
+      isNamedHost(connectorBridgeTable, host) &&
+      providerOfHost(connectorBridgeTable, host) === id,
+  );
+  const hosts = [
+    ...new Set([...bridgeHostsFor(providerId), ...tenants]),
+  ].filter(isBridgeHost);
   if (!asked || !snapshot.present || hosts.length === 0) return;
   try {
     await asked.need(hosts);

@@ -9,6 +9,7 @@ import { type FormEvent, useState } from "react";
 import { Link } from "react-router";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { useBridgeTenantAsk } from "../../../lib/use-native-bridge.js";
 import {
   NativeCancelSignIn,
   nativeConfigurationOwner,
@@ -326,6 +327,8 @@ function NativeFormCommit({
 
 export function NativeConnectorForm(props: Props) {
   const model = useNativeForm(props);
+  // A tenant host the person types is put in the bridge's popup (ADR 0217).
+  useBridgeTenantAsk(props.descriptor.providerId, model.values);
   const { descriptor } = props;
   const missing = model.method
     ? nativeMissingField(model.method.fields, model.values)

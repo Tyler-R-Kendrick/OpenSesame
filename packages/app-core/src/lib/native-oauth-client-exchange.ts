@@ -19,6 +19,11 @@ import {
   readNativeOAuthClientSecret,
 } from "./native-oauth-client-config.js";
 import {
+  issuedScopes,
+  nativeOAuthProviderContract,
+  tokenTypeAdmissible,
+} from "./native-oauth-client-contract.js";
+import {
   admissibleGrantScopes,
   offlineConsentValid,
 } from "./native-oauth-client-scopes.js";
@@ -39,15 +44,23 @@ const token = z
   .regex(/^[!-~]+$/);
 const Pair = z.object({ access_token: token, refresh_token: token.optional() });
 const Details = z.object({
-  token_type: z
-    .string()
-    .transform((value) => value.toLowerCase())
-    .pipe(z.literal("bearer")),
+  token_type: z.string().max(64).optional(),
+  // Providers answer a number of seconds, and some as a numeric string.
   expires_in: z
-    .number()
-    .finite()
-    .positive()
-    .max(365 * 86400)
+    .union([
+      z.number(),
+      z
+        .string()
+        .regex(/^\d{1,9}$/)
+        .transform(Number),
+    ])
+    .pipe(
+      z
+        .number()
+        .finite()
+        .positive()
+        .max(365 * 86400),
+    )
     .optional(),
   scope: z.string().max(32768).optional(),
 });
@@ -87,10 +100,11 @@ export function issued(
   const pair = Pair.safeParse(body);
   if (!pair.success) throw new NativeOAuthError("provider");
   const details = Details.safeParse(body);
+  const contract = nativeOAuthProviderContract(pending.providerId);
   const scopes = normalizeGoogleDriveAccountScopes(
     pending.providerId,
     details.success && details.data.scope !== undefined
-      ? [...new Set(details.data.scope.split(/\s+/).filter(Boolean))]
+      ? issuedScopes(details.data.scope)
       : null,
   );
   const validScopes =
@@ -128,6 +142,7 @@ export function issued(
       status >= 200 &&
       status < 300 &&
       details.success &&
+      tokenTypeAdmissible(contract, details.data.token_type) &&
       validScopes &&
       accountScopesValid &&
       offlineValid,
