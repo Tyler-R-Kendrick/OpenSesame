@@ -56,6 +56,13 @@ rejects a mismatch, so a behavioural change needs a version bump. Changes to
 local sessions, grants or popup transport also run
 `pnpm --filter @opensesame/pages verify:local-iam`.
 
+Dependency and bundler updates can change the published bytes too. When a
+locked update changes the hosted bundle, bump this package's patch version,
+commit the build inputs, and run the canonical builder. Keep existing versioned
+files and the frozen root `auth.js` unchanged; add the new artifact to the exact
+Biome override and update the shipped-artifact test's current import. Run
+`pnpm lint:artifacts` before publishing the release.
+
 
 ## Related
 
