@@ -227,11 +227,12 @@ function ownedApiTransport(
 }
 async function runOwnedApi<Result>(
   capture: () => NativeProviderTransport,
-  caller: AbortSignal,
+  caller: AbortSignal | undefined,
   call: (transport: NativeProviderTransport) => Promise<Result>,
 ) {
-  caller.throwIfAborted();
-  const transport = ownedApiTransport(capture(), caller);
+  caller?.throwIfAborted();
+  const original = capture();
+  const transport = caller ? ownedApiTransport(original, caller) : original;
   try {
     const result = await call(transport);
     transport.assertCurrent();
@@ -298,11 +299,9 @@ export function bindNativeApiRuntime(activation: Activation): void {
           : verifyNativeApiConnector(id, transport);
       },
       invoke: async (id, operation, input, signal) =>
-        signal === undefined
-          ? invokeApi(id, operation, input, authority.capture())
-          : runOwnedApi(authority.capture, signal, (transport) =>
-              invokeApi(id, operation, input, transport),
-            ),
+        runOwnedApi(authority.capture, signal, (transport) =>
+          invokeApi(id, operation, input, transport),
+        ),
       cleanup: {
         classification: (configuration) =>
           apiCleanup(authority.capture()).classification(configuration),

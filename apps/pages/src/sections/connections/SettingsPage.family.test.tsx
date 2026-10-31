@@ -48,12 +48,12 @@ function draw(route: string) {
  * label]; null where none opens. A model provider's form has a select of its
  * own named "API family" (the protocol), so the page's is found by its id.
  */
-function familyOptions() {
+function familyOptions(familyName: string) {
   const select = document.getElementById("connector-api-family");
   if (!select) throw new Error("the page draws no API family select");
-  expect(screen.getAllByRole("combobox", { name: "API family" })).toContain(
-    select,
-  );
+  expect(
+    screen.getAllByRole("combobox", { name: `${familyName} API` }),
+  ).toContain(select);
   return within(select)
     .getAllByRole("option")
     .map((option) => [
@@ -66,7 +66,7 @@ function familyOptions() {
 describe("a family tile's provider page", () => {
   it("offers AWS's other APIs on the page the AWS tile opens", () => {
     draw("aws");
-    expect(familyOptions()).toEqual(
+    expect(familyOptions("AWS")).toEqual(
       [
         "AWS Secrets Manager",
         "AWS KMS",
@@ -80,7 +80,7 @@ describe("a family tile's provider page", () => {
 
   it("offers GCP's other APIs on the page the GCP tile opens", () => {
     draw("gcp");
-    expect(familyOptions()).toEqual(
+    expect(familyOptions("GCP")).toEqual(
       [
         "Google Cloud Secret Manager",
         "Google Cloud KMS",
@@ -94,7 +94,7 @@ describe("a family tile's provider page", () => {
       for (const member of family.members) {
         if (!connectionRouteProvider(providers, member)) continue;
         draw(member);
-        for (const [page, label] of familyOptions())
+        for (const [page, label] of familyOptions(family.name))
           expect(page, `${family.id} page ${member}: ${label}`).toBe(label);
         cleanup();
       }

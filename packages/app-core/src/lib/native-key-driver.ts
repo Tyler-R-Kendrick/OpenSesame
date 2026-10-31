@@ -165,6 +165,7 @@ async function invokeKey<T extends NativeKeyTarget>(
     const { saved } = await withSaved(kit, id, true, transport, (target) =>
       kit.spec.prove(target, transport),
     );
+    transport.assertCurrent();
     return {
       label: `${kit.spec.ui(saved.configuration.providerId).name} access verified`,
       items: [],
@@ -173,6 +174,7 @@ async function invokeKey<T extends NativeKeyTarget>(
   const { value } = await withSaved(kit, id, true, transport, (target) =>
     found.run(target, transport, input),
   );
+  transport.assertCurrent();
   return value;
 }
 

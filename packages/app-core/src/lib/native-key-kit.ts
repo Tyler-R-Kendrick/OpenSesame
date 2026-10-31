@@ -61,10 +61,16 @@ export async function withSaved<T extends NativeKeyTarget, R>(
   transport: NativeProviderTransport,
   call: (target: T) => Promise<R>,
 ) {
+  transport.assertCurrent();
   const { saved, target } = await loadBound(kit, id, authorized);
+  transport.assertCurrent();
   try {
     const value = await call(target);
+    // A provider may decrypt locally after its last HTTP response. The
+    // original transport still owns the result and the final revision read.
+    transport.assertCurrent();
     await assertNativeConnectorRevision(id, nativeOAuthGuard(saved));
+    transport.assertCurrent();
     return { saved, value };
   } catch (error) {
     if (error instanceof NativeApiError && kit.refused(error))

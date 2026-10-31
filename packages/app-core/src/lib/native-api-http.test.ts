@@ -1,6 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { EgressDenied } from "./capabilities/egress.js";
 import { nativeApiHttp } from "./native-api-http.js";
+
+afterEach(() => vi.useRealTimers());
+
+function latch() {
+  let release = () => {};
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
 
 describe("bounded provider HTTP boundary", () => {
   const request = {
@@ -89,6 +99,118 @@ describe("bounded provider HTTP boundary", () => {
         nativeApiHttp(proving, answering(401)),
       ).rejects.toMatchObject({ code: "authorization" });
     });
+    it.each([
+      [401, "authorization"],
+      [403, "permission"],
+      [429, "rate-limit"],
+    ])(
+      "cannot override reserved refusal %s with a configured status",
+      async (status, code) => {
+        const refused = Number(status);
+        await expect(
+          nativeApiHttp(
+            { ...request, validStatuses: [refused] },
+            answering(refused),
+          ),
+        ).rejects.toMatchObject({ code, status: refused });
+      },
+    );
+    it("refuses a redirected status proof", async () => {
+      const response = Response.json({}, { status: 404 });
+      Object.defineProperty(response, "redirected", { value: true });
+      await expect(
+        nativeApiHttp(proving, {
+          fetch: vi.fn(async () => response),
+          assertCurrent: vi.fn(),
+        }),
+      ).rejects.toMatchObject({ code: "response", status: 404 });
+    });
+    it("does not use a configured 2xx status to bypass JSON validation", async () => {
+      await expect(
+        nativeApiHttp(
+          { ...request, validStatuses: [200] },
+          {
+            fetch: vi.fn(async () => new Response("invalid JSON")),
+            assertCurrent: vi.fn(),
+          },
+        ),
+      ).rejects.toMatchObject({ code: "response" });
+    });
+    it("does not send an already canceled status-proof request", async () => {
+      const controller = new AbortController();
+      controller.abort();
+      const transport = answering(404);
+      await expect(
+        nativeApiHttp({ ...proving, signal: controller.signal }, transport),
+      ).rejects.toMatchObject({ code: "network" });
+      expect(transport.fetch).not.toHaveBeenCalled();
+    });
+    it("refuses a late status proof when fetch ignored cancellation", async () => {
+      const controller = new AbortController();
+      await expect(
+        nativeApiHttp(
+          { ...proving, signal: controller.signal },
+          {
+            fetch: vi.fn(async () => {
+              controller.abort();
+              return new Response(null, { status: 404 });
+            }),
+            assertCurrent: vi.fn(),
+          },
+        ),
+      ).rejects.toMatchObject({ code: "network" });
+    });
+    it.each(["owner", "request", "deadline", "current"] as const)(
+      "retains %s custody through real unread-body cancellation",
+      async (reason) => {
+        if (reason === "deadline") vi.useFakeTimers();
+        const entered = latch();
+        const finish = latch();
+        const controller = new AbortController();
+        let current = true;
+        const response = new Response(
+          new ReadableStream({
+            cancel() {
+              entered.release();
+              return finish.promise;
+            },
+          }),
+          { status: 404 },
+        );
+        const outcome = nativeApiHttp(
+          { ...proving, signal: controller.signal },
+          {
+            fetch: vi.fn(async () => response),
+            assertCurrent() {
+              if (!current) throw new Error("private owner context");
+            },
+          },
+        );
+        const observed = (async () => {
+          try {
+            return { ok: true, value: await outcome };
+          } catch (error) {
+            return { ok: false, error };
+          }
+        })();
+        await entered.promise;
+        if (reason === "owner") current = false;
+        if (reason === "request") controller.abort();
+        if (reason === "deadline") await vi.advanceTimersByTimeAsync(15_001);
+        finish.release();
+        const result = await observed;
+        if (reason === "current")
+          expect(result).toEqual({ ok: true, value: {} });
+        else {
+          expect(result).toMatchObject({
+            ok: false,
+            error: { code: "network" },
+          });
+          if ("error" in result)
+            expect(String(result.error)).not.toContain("private owner context");
+        }
+      },
+    );
     it("refuses before it reads a proof, even from a request that names a refusal", async () => {
       // The schema refuses such a contract; this request is built by hand.
       for (const [status, code] of [

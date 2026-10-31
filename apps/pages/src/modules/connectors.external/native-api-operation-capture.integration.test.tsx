@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
+import * as apiResources from "@opensesame/app-core/lib/native-api-resources.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { loadNativeConnectorRecord } from "@opensesame/app-core/lib/native-connector-store.js";
 import {
@@ -120,6 +121,43 @@ function activate() {
 function controller() {
   return nativeConnectorController({ id: "algolia", refused: false });
 }
+it.each(["absent", "provided"])(
+  "fences the registered API result when a caller signal is %s",
+  async (caller) => {
+    const bound = activate();
+    await save();
+    const native = node();
+    const driver = nativeConnectorDriver("api-key", "algolia");
+    const saved = await driver.configure({ ...input, providerId: "algolia" });
+    const invoke = apiResources.invokeNativeApiResource;
+    let completed = false;
+    const spy = vi
+      .spyOn(apiResources, "invokeNativeApiResource")
+      .mockImplementation((...args) => {
+        const pending = invoke(...args);
+        return (
+          pending?.then((result) => {
+            expect(result.items[0]?.label).toBe("products");
+            completed = true;
+            bound.context.abort();
+            return result;
+          }) ?? null
+        );
+      });
+    try {
+      const signal =
+        caller === "provided" ? new AbortController().signal : undefined;
+      await expect(
+        driver.invoke(saved.connectionId, "provider.indices.read", {}, signal),
+      ).rejects.toThrow();
+      expect(completed).toBe(true);
+      expect(native.fetch).toHaveBeenCalledTimes(2);
+      expect(bound.context.egressCalls).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
+  },
+);
 it("refuses an already-aborted configuration owner before capturing a native route", async () => {
   const bound = activate();
   await save();

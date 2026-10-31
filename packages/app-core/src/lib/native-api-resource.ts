@@ -39,9 +39,15 @@ export function jsonResource(
       transport.assertCurrent();
       if (Object.keys(input).length)
         throw new Error(`${label} does not accept request fields`);
-      return resultSchema.parse(
-        await executeNativeApiRequest(id, definition, body, project, transport),
+      const result = await executeNativeApiRequest(
+        id,
+        definition,
+        body,
+        project,
+        transport,
       );
+      transport.assertCurrent();
+      return resultSchema.parse(result);
     },
   };
 }
