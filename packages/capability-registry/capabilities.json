@@ -6797,7 +6797,7 @@
     "excluded": {
       "cli": {
         "reason": "an operator writes the binding over the Host API once per connection; there is no terminal verb for it",
-        "adr": "0213-aws-sts-mint.md"
+        "adr": "0217-aws-sts-mint.md"
       },
       "pwa": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
@@ -6809,11 +6809,11 @@
       },
       "mcp_host": {
         "reason": "a binding decides which IAM role a stored AWS key assumes and how long the credential lasts; an agent that could write one could re-aim the key at a role of its choosing",
-        "adr": "0213-aws-sts-mint.md"
+        "adr": "0217-aws-sts-mint.md"
       },
       "mcp_client": {
         "reason": "a binding decides which IAM role a stored AWS key assumes and how long the credential lasts; an agent that could write one could re-aim the key at a role of its choosing",
-        "adr": "0213-aws-sts-mint.md"
+        "adr": "0217-aws-sts-mint.md"
       }
     }
   },

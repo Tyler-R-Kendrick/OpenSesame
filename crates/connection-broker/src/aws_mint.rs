@@ -1,4 +1,4 @@
-//! The broker's side of the AWS mint (ADR 0213): assume the bound role with
+//! The broker's side of the AWS mint (ADR 0217): assume the bound role with
 //! STS and hand back the temporary credential STS issued.
 //!
 //! The source key pair never leaves this path: it is never returned, logged or

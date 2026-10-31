@@ -1,7 +1,7 @@
 //! `opensesame-credential-process` — AWS `credential_process` over the daemon
 //! mint path (ADR 0049 §4). Mint mode only.
 //!
-//! The Host assumes the role bound to the connection with STS (ADR 0213) and
+//! The Host assumes the role bound to the connection with STS (ADR 0217) and
 //! the daemon passes STS's temporary credential back; this prints it in the
 //! `credential_process` JSON shape. A connection with no STS binding is
 //! `422 unmintable` and the binary exits non-zero, printing nothing.
@@ -74,7 +74,7 @@ pub fn main() {
         match &error {
             HelperError::Denied(422, _) => eprintln!(
                 "opensesame: unmintable: this aws connection has no STS binding to mint for \
-                 (ADR 0213: PUT /api/v1/connections/{{id}}/aws-sts-binding)"
+                 (ADR 0217: PUT /api/v1/connections/{{id}}/aws-sts-binding)"
             ),
             _ => eprintln!("opensesame: {error}"),
         }

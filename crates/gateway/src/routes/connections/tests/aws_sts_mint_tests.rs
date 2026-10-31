@@ -1,4 +1,4 @@
-//! The AWS mint through the Host API (ADR 0213): bind a role, mint through the
+//! The AWS mint through the Host API (ADR 0217): bind a role, mint through the
 //! real route, broker and invoke-through against a loopback STS that verifies
 //! `SigV4` with `aws-sigv4`, and prove the source credential appears nowhere a
 //! caller, an event, a receipt or a log line can see.

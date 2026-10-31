@@ -1,4 +1,4 @@
-//! Which deadlines one lifecycle pass reads from the mint register (ADR 0213).
+//! Which deadlines one lifecycle pass reads from the mint register (ADR 0217).
 
 use chrono::Duration;
 use opensesame_storage::Db;

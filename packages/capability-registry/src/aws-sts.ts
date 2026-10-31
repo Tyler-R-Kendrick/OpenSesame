@@ -1,10 +1,10 @@
 import { PAGES_HAS_NO_HOST } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
-const ADR_AWS_STS_MINT = "0213-aws-sts-mint.md";
+const ADR_AWS_STS_MINT = "0217-aws-sts-mint.md";
 
 /**
- * The STS binding on an aws-family Host connection (ADR 0213): which role a
+ * The STS binding on an aws-family Host connection (ADR 0217): which role a
  * mint assumes, in which region, for how long, under which session policy and
  * ExternalId. Operator configuration over the Host API; the mint it enables is
  * the existing `POST /connections/{id}/mint` (ADR 0049).

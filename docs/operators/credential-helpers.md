@@ -22,7 +22,7 @@ helper (git/docker/aws/kubectl)
   → POST /v1/mint  over the daemon's Unix socket
     → daemon forwards to POST /api/v1/connections/{id}/mint (operator_forward)
       → gateway mints a derived token (a GitHub App installation token, or
-        STS credentials for an aws connection's bound role, ADR 0213)
+        STS credentials for an aws connection's bound role, ADR 0217)
 ```
 
 The helpers send **no token**, and never read `OPENSESAME_OPERATOR_TOKEN`, so a
@@ -153,7 +153,7 @@ opensesame daemon helpers allow conn_…                  # once, with the opera
 The Host assumes an IAM role with STS and the helper prints STS's temporary
 credential in the `credential_process` shape (`Version`, `AccessKeyId`,
 `SecretAccessKey`, `SessionToken`, `Expiration`). The IAM key pair it signs
-with stays sealed in the Host (ADR 0213).
+with stays sealed in the Host (ADR 0217).
 
 **Configure a binding** (an operator or the connection's owner, administrator
 role). The connection is an `aws`, `aws-kms`, `aws-ps` or `aws-bedrock`

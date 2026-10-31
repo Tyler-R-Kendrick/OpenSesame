@@ -1,4 +1,4 @@
-//! The AWS mint arm (ADR 0213, amending ADR 0049 §3): the Host assumes an IAM
+//! The AWS mint arm (ADR 0217, amending ADR 0049 §3): the Host assumes an IAM
 //! role with STS and hands the caller the temporary credential STS issued.
 //!
 //! The source credential is an ordinary sealed aws-family connection (an IAM

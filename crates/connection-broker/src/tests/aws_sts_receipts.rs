@@ -1,4 +1,4 @@
-//! What a broker mint records (ADR 0213): the receipt event and the deadline.
+//! What a broker mint records (ADR 0217): the receipt event and the deadline.
 
 use super::aws_sts_binding::{aws_connection, input, AKID, EXTERNAL_ID, ROLE, SECRET};
 use super::*;

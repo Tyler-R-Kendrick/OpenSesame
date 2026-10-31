@@ -82,7 +82,7 @@ libc = { workspace = true }
 [dev-dependencies]
 opensesame-trusted-exec = { path = "../../crates/trusted-exec", features = ["testkit"] }
 # The AWS helper tests serialize the Host's real mint shape and run it against
-# the loopback STS stand-in (ADR 0213). The feature builds the stand-in and the
+# the loopback STS stand-in (ADR 0217). The feature builds the stand-in and the
 # test-only endpoint knob into the binary these tests start; a shipped build
 # never has either.
 opensesame-connection-broker = { path = "../../crates/connection-broker", features = ["sts-stand-in"] }

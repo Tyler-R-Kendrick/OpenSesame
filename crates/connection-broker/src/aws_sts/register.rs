@@ -1,4 +1,4 @@
-//! The mint register (ADR 0213, ADR 0074): what the lifecycle scanner needs to
+//! The mint register (ADR 0217, ADR 0074): what the lifecycle scanner needs to
 //! publish a minted credential's expiry, and no more — a grant id, the
 //! connection, the organization and the deadline — in plain columns, because
 //! collection never opens a seal. The mint's receipt, with the role and STS's

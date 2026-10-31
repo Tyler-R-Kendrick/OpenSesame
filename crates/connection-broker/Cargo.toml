@@ -10,7 +10,7 @@ name = "opensesame_connection_broker"
 path = "src/lib.rs"
 
 [features]
-# A loopback STS stand-in that verifies SigV4 (ADR 0213), for the gateway's
+# A loopback STS stand-in that verifies SigV4 (ADR 0217), for the gateway's
 # tests. Never enabled by a shipped build.
 sts-stand-in = []
 
@@ -53,7 +53,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
-# The AWS STS mint (ADR 0213): SigV4 request signing, pinned exactly, with the
+# The AWS STS mint (ADR 0217): SigV4 request signing, pinned exactly, with the
 # HTTP signer alone (no SigV4a, no event-stream signing; `http1` is the
 # `http` 1.x types its canonical request is built on, already in the tree).
 # The credential and identity types are named only to hand the signer its key.

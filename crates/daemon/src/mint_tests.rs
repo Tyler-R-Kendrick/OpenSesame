@@ -126,7 +126,7 @@ async fn a_successful_mint_passes_the_gateway_answer_through() {
     assert_eq!(calls[0]["installation_id"], "12345678");
 }
 
-/// An AWS mint (ADR 0213): the requested lifetime is forwarded, and the STS
+/// An AWS mint (ADR 0217): the requested lifetime is forwarded, and the STS
 /// credential's three parts come back exactly as the gateway sent them.
 #[tokio::test]
 async fn an_aws_mint_forwards_its_duration_and_passes_the_credential_through() {

@@ -58,7 +58,7 @@ pub struct MintRequest {
     #[serde(default)]
     pub installation_id: Option<String>,
     /// The credential lifetime asked for, in seconds; an AWS mint honours it
-    /// under its binding's cap (ADR 0213). Passed through uninterpreted.
+    /// under its binding's cap (ADR 0217). Passed through uninterpreted.
     #[serde(default)]
     pub duration_seconds: Option<u32>,
 }

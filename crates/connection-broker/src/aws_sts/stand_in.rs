@@ -1,4 +1,4 @@
-//! A local STS stand-in for tests (ADR 0213).
+//! A local STS stand-in for tests (ADR 0217).
 //!
 //! It answers on loopback HTTP, the way `BrokerConfig::with_aws_sts_endpoint`
 //! points a mint, and it checks what STS would check: it re-computes the `SigV4`

@@ -1,4 +1,4 @@
-//! `PUT | GET | DELETE /api/v1/connections/{id}/aws-sts-binding` (ADR 0213):
+//! `PUT | GET | DELETE /api/v1/connections/{id}/aws-sts-binding` (ADR 0217):
 //! the STS role an aws-family connection mints for, and the bounds every mint
 //! stays inside. Administrator-only, like the mint itself. Answers are
 //! value-blind: the `ExternalId` goes in and never comes back out.

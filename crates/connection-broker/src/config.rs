@@ -15,7 +15,7 @@ pub const ENV_PUBLIC_URL: &str = "OPENSESAME_PUBLIC_URL";
 pub const ENV_REDIRECT_ALLOWLIST: &str = "OPENSESAME_CONNECTION_REDIRECT_ALLOWLIST";
 /// Points every STS mint at a loopback stand-in. Read only by a build with the
 /// `sts-stand-in` feature (the tests' build, never a shipped one); the egress
-/// rule for such an endpoint admits loopback hosts alone (ADR 0213).
+/// rule for such an endpoint admits loopback hosts alone (ADR 0217).
 #[cfg(feature = "sts-stand-in")]
 pub const ENV_TEST_AWS_STS_ENDPOINT: &str = "OPENSESAME_TEST_AWS_STS_ENDPOINT";
 
@@ -41,7 +41,7 @@ pub struct BrokerConfig {
     detected_connections: BTreeMap<String, BTreeMap<String, String>>,
     /// Override for GitHub REST API (tests). Default `https://api.github.com`.
     github_api_base: Option<String>,
-    /// Override for the STS endpoint (tests, loopback only; ADR 0213). Never
+    /// Override for the STS endpoint (tests, loopback only; ADR 0217). Never
     /// read from the environment.
     aws_sts_endpoint: Option<String>,
 }

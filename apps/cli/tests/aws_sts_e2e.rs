@@ -1,4 +1,4 @@
-//! The AWS mint end to end (ADR 0213), every hop a real process: the
+//! The AWS mint end to end (ADR 0217), every hop a real process: the
 //! `opensesame host run` Host, `opensesame daemon run` over a Unix socket, and
 //! the `opensesame-credential-process` helper, with a loopback STS stand-in
 //! that verifies `SigV4` with `aws-sigv4` from the secret it was given.

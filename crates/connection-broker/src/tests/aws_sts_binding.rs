@@ -1,4 +1,4 @@
-//! STS bindings (ADR 0213): sealed whole, bound to their connection, refused
+//! STS bindings (ADR 0217): sealed whole, bound to their connection, refused
 //! outside the aws family.
 
 use super::*;

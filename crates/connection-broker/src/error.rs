@@ -59,7 +59,7 @@ pub enum BrokerError {
     /// ADR 0049: the provider has no derived-token mint path (yet).
     #[error("provider `{0}` cannot mint a derived credential")]
     Unmintable(String),
-    /// ADR 0213: STS refused or failed the AWS mint. The code is stable and
+    /// ADR 0217: STS refused or failed the AWS mint. The code is stable and
     /// the text is fixed; nothing from STS's answer is carried.
     #[error("aws sts mint failed: {0}")]
     AwsSts(crate::aws_sts::StsFailure),

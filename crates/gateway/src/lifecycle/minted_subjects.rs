@@ -1,4 +1,4 @@
-//! Minted AWS credentials as expiry subjects (ADR 0213, ADR 0074).
+//! Minted AWS credentials as expiry subjects (ADR 0217, ADR 0074).
 //!
 //! An STS credential the Host minted expires on STS's clock, and that deadline
 //! is published on the lifecycle feed like any other: from the mint register's

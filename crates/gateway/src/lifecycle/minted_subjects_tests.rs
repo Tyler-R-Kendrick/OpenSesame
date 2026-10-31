@@ -1,5 +1,5 @@
 //! A full pass of lapsed mints whose expiry was already published must not
-//! crowd a live mint out of collection (ADR 0213, ADR 0074).
+//! crowd a live mint out of collection (ADR 0217, ADR 0074).
 
 use chrono::{DateTime, Duration, Utc};
 use opensesame_connection_broker::aws_sts::register::{record_mint, MintDeadline};

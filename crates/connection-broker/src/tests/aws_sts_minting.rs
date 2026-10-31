@@ -1,4 +1,4 @@
-//! The AWS mint in the broker (ADR 0213): an unbound connection stays
+//! The AWS mint in the broker (ADR 0217): an unbound connection stays
 //! unmintable, and a bound one assumes its role through a `SigV4`-verified STS.
 
 use super::aws_sts_binding::{aws_connection, input, AKID, EXTERNAL_ID, ROLE, SECRET};

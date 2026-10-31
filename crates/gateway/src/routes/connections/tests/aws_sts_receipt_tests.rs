@@ -1,4 +1,4 @@
-//! What an AWS mint leaves behind (ADR 0213): a receipt event naming the grant
+//! What an AWS mint leaves behind (ADR 0217): a receipt event naming the grant
 //! and STS's request id, a log line with the same, none of them carrying the
 //! source credential or the minted secret, and a deadline on the lifecycle
 //! feed that lapses into `lifecycle.expiry.expired`.

@@ -170,7 +170,7 @@ impl DaemonClient {
     }
 
     /// [`DaemonClient::mint`] asking for a credential lifetime, in seconds
-    /// (the AWS mint honours it under its binding's cap, ADR 0213).
+    /// (the AWS mint honours it under its binding's cap, ADR 0217).
     ///
     /// # Errors
     ///

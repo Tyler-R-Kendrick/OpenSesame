@@ -1,4 +1,4 @@
-//! The STS binding an operator writes on an aws-family connection (ADR 0213),
+//! The STS binding an operator writes on an aws-family connection (ADR 0217),
 //! and its custody.
 //!
 //! The binding is sealed whole under the connection key with its own

@@ -1,4 +1,4 @@
-//! `opensesame-credential-process` against the AWS mint (ADR 0213): the
+//! `opensesame-credential-process` against the AWS mint (ADR 0217): the
 //! daemon's answer is the Host's real mint shape, serialized by the broker's
 //! own `DerivedMaterialization`, and the binary prints the `credential_process`
 //! JSON the AWS SDKs read — or nothing at all.

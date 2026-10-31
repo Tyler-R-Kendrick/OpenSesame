@@ -1,4 +1,4 @@
-//! What a mint leaves behind (ADR 0213): a value-blind receipt and a deadline.
+//! What a mint leaves behind (ADR 0217): a value-blind receipt and a deadline.
 //!
 //! The receipt — grant id, role, session name, source identity, duration,
 //! expiry, STS's request id, and who asked for whom — is the connection's

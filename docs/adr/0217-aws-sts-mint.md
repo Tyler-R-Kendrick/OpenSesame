@@ -1,4 +1,4 @@
-# ADR 0213 — The AWS mint: STS AssumeRole for a bound role
+# ADR 0217 — The AWS mint: STS AssumeRole for a bound role
 
 - **Status:** Accepted
 - **Date:** 2026-10-17

@@ -1331,7 +1331,7 @@ paths:
       - $ref: "#/components/parameters/ConnectionId"
       - $ref: "#/components/parameters/OperatorOrganization"
     put:
-      summary: Bind the STS role an aws-family connection mints for (ADR 0213)
+      summary: Bind the STS role an aws-family connection mints for (ADR 0217)
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       description: >-
         Owner or operator with the administrator role. The binding is sealed
@@ -1352,7 +1352,7 @@ paths:
         "403": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
     get:
-      summary: Read an aws-family connection's STS binding, value-blind (ADR 0213)
+      summary: Read an aws-family connection's STS binding, value-blind (ADR 0217)
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "200":
@@ -1363,7 +1363,7 @@ paths:
         "403": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
     delete:
-      summary: Remove an aws-family connection's STS binding (ADR 0213)
+      summary: Remove an aws-family connection's STS binding (ADR 0217)
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       responses:
         "204": { description: Removed; the connection is unmintable again }
@@ -5122,7 +5122,7 @@ components:
             `on_behalf_of=uid:<uid>,pid:<pid>` when the daemon minted for a
             local process.
         issued_at: { type: string, format: date-time }
-        access_key_id: { type: string, description: AWS mints only (ADR 0213). }
+        access_key_id: { type: string, description: AWS mints only (ADR 0217). }
         secret_access_key: { type: string, description: AWS mints only. }
         session_token: { type: string, description: AWS mints only; also derived_token. }
         receipt: { $ref: "#/components/schemas/AwsMintReceipt" }
