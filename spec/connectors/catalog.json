@@ -292,6 +292,45 @@
     },
     {
       "auth": {
+        "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "extra_authorize_params": [
+          ["access_type", "offline"],
+          ["prompt", "consent"]
+        ],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": "https://oauth2.googleapis.com/revoke",
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://oauth2.googleapis.com/token"
+      },
+      "category": "storage",
+      "display_name": "Google Drive",
+      "docs_url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+      "egress": {
+        "authorities": ["www.googleapis.com"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "google-drive",
+      "operations": ["account.read"],
+      "provenance_url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Identify the signed-in Google user",
+          "name": "openid",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read the account email address",
+          "name": "email",
+          "sensitive": false
+        }
+      ]
+    },
+    {
+      "auth": {
         "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
         "extra_authorize_params": [],
         "kind": "oauth2_authorization_code",
@@ -333,6 +372,54 @@
         {
           "default": false,
           "description": "Read all files the signed-in user can access",
+          "name": "Files.Read.All",
+          "sensitive": true
+        }
+      ]
+    },
+    {
+      "auth": {
+        "authorize_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        "extra_authorize_params": [],
+        "kind": "oauth2_authorization_code",
+        "revoke_url": null,
+        "supports_refresh": true,
+        "token_auth": "client_secret_post",
+        "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+      },
+      "category": "productivity",
+      "display_name": "Microsoft 365",
+      "docs_url": "https://learn.microsoft.com/graph/use-the-api",
+      "egress": {
+        "authorities": ["graph.microsoft.com"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "m365",
+      "operations": ["user.read", "drive.file.read"],
+      "provenance_url": "https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow",
+      "scopes": [
+        {
+          "default": true,
+          "description": "Identify the signed-in Microsoft user",
+          "name": "openid",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Keep access when the user is not present",
+          "name": "offline_access",
+          "sensitive": false
+        },
+        {
+          "default": true,
+          "description": "Read the signed-in user's profile",
+          "name": "User.Read",
+          "sensitive": false
+        },
+        {
+          "default": false,
+          "description": "Read files the signed-in user can access",
           "name": "Files.Read.All",
           "sensitive": true
         }
@@ -5749,6 +5836,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-10-27.1",
+  "revision": "2026-10-31.2",
   "schema_version": 1
 }

@@ -108,15 +108,19 @@ describe("a connector page that seals in the vault", () => {
 });
 
 describe("API family selection", () => {
-  for (const id of ["aws", "gcp", "cloudflare"]) {
+  for (const [id, family] of [
+    ["aws", "AWS"],
+    ["gcp", "GCP"],
+    ["cloudflare", "Cloudflare"],
+  ]) {
     it(`keeps the family selector on the ${id} configuration page`, () => {
       draw(id);
-      expect(screen.getByLabelText("API family")).toBeTruthy();
+      expect(screen.getByLabelText(`${family} API`)).toBeTruthy();
     });
   }
   it("keeps host-only Azure Keys outside the browser API family", () => {
     draw("azure-kms");
-    expect(screen.queryByLabelText("API family")).toBeNull();
+    expect(screen.queryByLabelText("Azure API")).toBeNull();
   });
 });
 
