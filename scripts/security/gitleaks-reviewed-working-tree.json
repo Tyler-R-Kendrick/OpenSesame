@@ -1536,18 +1536,10 @@
     "reason": "Patterned synthetic client secret in the held-WebCrypto/held-lock ownership regression; all provider HTTP is the injected fake fetch."
   },
   {
-    "path": "packages/app-core/src/lib/native-tailscale.test-support.ts",
-    "rule": "generic-api-key",
-    "line": 3,
-    "fileSha256": "e5a12a983b58db918c9b8de2dbc271248055e4f8114cd76fbace163fa41dbd07",
-    "matchSha256": "cf5f23bdf9d64a4aa9758ca85c4c27ba10fcbba527caa9c466087bac65182a78",
-    "reason": "Patterned synthetic Tailscale API token used only by the fixture transport and its recorded fake routes; no live credential."
-  },
-  {
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1134,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "eca435ea8692a22e49b3d4fed7f506c55e56b944e0a8cadbfd35131fac56c16a",
     "reason": "Public SHA256 source-review binding for packages/os-domain/src/crypto/claim-token.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1555,7 +1547,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1135,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "56871516b53d062c1404697eb26d13804482c84ee6b49acadf03c931ab2cd84d",
     "reason": "Public SHA256 source-review binding for packages/os-domain/src/__tests__/claim-token.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1563,7 +1555,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1136,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "a7cbc90cb133a750e15d2349c058406c5a17b35d4203c85e8ab10b1ab3b01664",
     "reason": "Public SHA256 source-review binding for packages/os-domain/src/__tests__/claim-token-extended.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1571,7 +1563,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1155,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "542d7d06e90cd5c28e0ddb077dbbc4a8f83f2bd12bad065df979989d88d07150",
     "reason": "Public SHA256 source-review binding for crates/provider-bitwarden/src/api.rs; exact digest of repository source, not an authentication credential."
   },
@@ -1579,7 +1571,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1201,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "84aaadb803b7e5e6257e3ab82bc1e998a9e09082698a320367f4b7b7a7e932c5",
     "reason": "Public SHA256 source-review binding for crates/bitwarden-server/src/auth.rs; exact digest of repository source, not an authentication credential."
   },
@@ -1587,7 +1579,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1210,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "cb05624d84f5ecfcdad0f9542c84cca04fba832d8ba8d842e2adf900129f9d57",
     "reason": "Public SHA256 source-review binding for crates/bitwarden-server/src/routes/auth_requests.rs; exact digest of repository source, not an authentication credential."
   },
@@ -1595,7 +1587,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1214,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "4bc417f132fda869dd35eb614a3155010a897ebdf20d1b116b629fedbff7fc67",
     "reason": "Public SHA256 source-review binding for crates/bitwarden-server/src/routes/credentials.rs; exact digest of repository source, not an authentication credential."
   },
@@ -1603,7 +1595,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1235,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "db4062f4bc3bdb55bf50fa98be1af13ea7611063283918ee7f2a2db6847b17cf",
     "reason": "Public SHA256 source-review binding for crates/bitwarden-server/src/routes/send_access.rs; exact digest of repository source, not an authentication credential."
   },
@@ -1611,7 +1603,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1241,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "4c0840d7593cdf28df18c65a7b0c439e78f4f7dd50750a813e3d2c38f6e116e6",
     "reason": "Public SHA256 source-review binding for crates/bitwarden-server/src/tokens.rs; exact digest of repository source, not an authentication credential."
   },
@@ -1619,7 +1611,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1315,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "34386d5892c652a9c94eb19d5e9f638ce3717a9a7e07ef5dbe48dfd46bf7ea80",
     "reason": "Public SHA256 source-review binding for packages/oauth-provider/src/__tests__/signing-keys.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1627,7 +1619,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1318,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "447cf5eb223530ddcce9d45f3d8c214c973bcbfeb2fd7f80c9764b86de1823e5",
     "reason": "Public SHA256 source-review binding for packages/oauth-provider/src/keys/dev-signing-key-provider.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1635,7 +1627,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1331,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "d219e14d3f91d7be876f7e18eb6568918c1e654f70f2fc401ed30d5448681aa0",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-iam-access.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1643,7 +1635,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1335,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "b252f8689c2d9dacbc0a2ca6ffe580bbf9c49a631df3877b6fb414f88d74ad61",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-credentials.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1651,7 +1643,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1341,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "156550eff19e815c05829cd4f1dfb9cc43407211ad1800ea2f330f5abfc3291b",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-passkeys.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1659,7 +1651,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1342,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "14a8911027a35b057a4d17bb50aacd3f177aad8db9ea7b76dddd868c839e07fc",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-passkey-authentication.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1667,7 +1659,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1343,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "0e3c84a5dadc789d3b4fea6deaad07d92df703bff4986d9e10f06011d61bda84",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-passkey-ceremony.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1675,7 +1667,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1344,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "c4869fdd9b595a6760d676dbf83adde758e9db7392e29e9f9945b606a87c70ce",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-passkey-prf.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1683,7 +1675,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1345,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "edae7662dc75cd6cf91b8aedff98e9dc72fee9b4b98764c6473bfddf8db4407f",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-passkey-prf-bytes.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1691,7 +1683,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1353,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "1e16d9572b86dee5075eb2aa467f229d736cea3403ef8752cc120c7e9009690f",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/device-identity-key.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1699,7 +1691,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1360,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "e4b8e73183b8ebbda2464c5f236096d834f4a90d505cf9b852b9e02f5f25742a",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault/store-primary-api.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1707,7 +1699,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1361,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "319ffe95dd7ec79d3dc483ead9abf96a39a791fdc124c94757e154f8b209062d",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault/store-second-step-api.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1715,7 +1707,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1374,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "c9b1d6bb05cdd642ecb1e961b56a85953274dc269e6c4fe79e1578c1d6ed4cfb",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault/store-device-key.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1723,7 +1715,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1376,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "ee3462367b88df1c5d4104a566cce0c810ec35f658a29e8d18df6572058f2110",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault/store-preferences-api.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1731,7 +1723,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1377,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "608e8c2149a2d6c085c9af593e6f3ca450587767647d1a98af6dbe69c4642178",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault/passkey-unlock-session.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1739,7 +1731,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1390,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "3f6d867b2d7af7e46c64100968546a5406210455e23364f68349beb6cc391012",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault/self-authenticator.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1747,7 +1739,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1396,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "4901e45bbe0b537cf9e27b67824d3475cf4664e2afce3ae23970e867bd59bcc6",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault/protection/manifest-auth.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1755,7 +1747,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1400,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "b62566bd79b1f88727c798c2859f17f5912de982f7f972f12768a6441a8c68d7",
     "reason": "Public SHA256 source-review binding for packages/auth-upstream/src/passkey-verification.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1763,7 +1755,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1401,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "97db48e23403b688c383f5cadc6d8b296d730f2ba57bac360b35508d292e9d9d",
     "reason": "Public SHA256 source-review binding for packages/auth-upstream/src/simplewebauthn.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1771,7 +1763,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1404,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "11caec3c47b20a80a50ff6440799d412c522bad23c138cb6461eac33c3e56997",
     "reason": "Public SHA256 source-review binding for packages/sdk-browser/src/webauthn.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1779,7 +1771,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1413,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "af642d82f30a0d9ecb57f6de2a0d9816b129035d757450048e3bd0e80f31620f",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault/store-passkey.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1787,7 +1779,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1418,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "ea7d10260afdd5b20fff7005fdfb856582d15c684ed95f4c23ad58b4f1d149be",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/trusted-unlock-access.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1795,7 +1787,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1420,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "61cf422e80dcb7e8521978542bbbb2dbf31954dc4f08df109b9205970111ba09",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-passkeys.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1803,7 +1795,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1421,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "d592085c8661898f3f16943dccdda8b89dd84ef0602e2bd05ed094291468ada5",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-passkey-prf-wipe.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1811,7 +1803,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1429,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "d550991b981d1e58f5cd49f17fc055e7a650e9ff708acf5b66cf36927feb848b",
     "reason": "Public SHA256 source-review binding for packages/auth-upstream/src/__tests__/webauthn.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1819,7 +1811,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1430,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "453d552a146b828d38c693c0481877455ffccad2f4add389953d915cb20dbb97",
     "reason": "Public SHA256 source-review binding for packages/sdk-browser/src/webauthn.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1827,7 +1819,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1431,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "60b3eb8a9a4e395cb8bb5f480604cb79426a41c78d87021fe0dc945fd6bb1158",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/local-authenticator.fixture.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1835,7 +1827,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1438,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "12b4105154a9b6055f795fff65cdd12af1743271ad21ffb476dc5e30d2ca63a8",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/trusted-unlock-access-commit.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1843,7 +1835,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1440,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "9a1feb41a94bb04f2f005d9490b967ff0bab2262bd3935a21ec65e0a92e90b48",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/trusted-unlock-access-legacy.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1851,7 +1843,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1443,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "ef4a7d81e230e4df237e1b4c8c036f3328a17be7dccf5a538930e8776f2b5082",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/deadman/authentication.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1859,7 +1851,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1445,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "7a58beef4e9f0d6f1702fd45deda508d60a1317b6a8652e0eecdaf5f6346fe57",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/deadman/keys.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1867,7 +1859,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1466,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "5fc93daa99fc212076963048416c2df49931deaa91cb3bdf6bc10c323726ec2b",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-key-kit.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1875,7 +1867,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1467,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "8936ea7d783fe19b0039d0e30f1fbd0a8bd0eb7f155df13b13fb7103e2343d9d",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-key-state.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1883,7 +1875,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1468,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "adbab7675e702f18c5ab9ee50d5b1945e287c5482361d640662247c2926aea13",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-key-driver.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1891,7 +1883,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1469,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "094019db8ab469efccd7a6cbbace6afd02c29ad829d510e290355c3194b9b66c",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-key-drivers.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1899,7 +1891,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1470,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "d6cea9d28fa0a81f5a1db08dca0bcaeb488a81de991d39ff1c25516cbfde53cf",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-key-http.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1907,7 +1899,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1471,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "f03293525d9c79ac5ccbb853e2f46fc1862b86e8dcfcadf52a9c13cfa3ffac4c",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-key-input.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1915,7 +1907,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1472,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "5a518785d9e84d1358c7ebffda4c0443a3b2e2ea50c6941cb7a21fa51d1d2e2c",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-key-types.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1923,7 +1915,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1476,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "b434e69da86fe14ae60b38a32ce6405d8eee0c2e52f448908c2a486bb16f323a",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-bitwarden-vault-api.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1931,7 +1923,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1479,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "89624689d6d6d8040fc9b15c3f75db7aa8d712e1d5a4e2e6a786c1da90db506c",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-tailscale-api.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1939,7 +1931,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1490,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "a72d5add218a677efe4c6923ada491dc19240f9abd25651cbaf1aa4811a9b5fd",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-session.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1947,7 +1939,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1492,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "395d240d56fcb6828cfe88063cddcbe979473ab4f57d6f3cb2bdc671b433d2c7",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-http.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1955,7 +1947,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1493,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "181951c2a5599894d9682e27c87293ccf479476142c2e10ff5f4b8e90c92d0c8",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-verify.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1963,7 +1955,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1494,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "9baba6ab7e02da017689492948e2f5a5f5b6d9505eed496b718aff3f9b0f4b3d",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api.test-support.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1971,7 +1963,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1501,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "d4392ab8a32317ce0ca92964214dbc0afec08ad5ea733a0752df96c88e035628",
     "reason": "Public SHA256 source-review binding for apps/pages/src/modules/connectors.external/native-api-runtime.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1979,7 +1971,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1507,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "66dcc0436b44d5d0363f1827e55b2e9fe7d3d623d35353ce22817a2036211127",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-key-lifetime.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1987,7 +1979,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1514,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "a83313f95a51b76059d2bef77e473b5df1161c203081972649eea1dae9a4fa58",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-http.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -1995,7 +1987,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1515,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "acf33efef50c5fb673903585a994bc850c3160c6842bcc587a1f8c17bc668e99",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-verify.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2003,7 +1995,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1525,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "1547f392f5fa2d5ddb38c7d174a1de6f34a5cf7e980458538ed6c7faa3cf87ba",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-azure-secrets.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2011,7 +2003,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1538,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "8c79156500433d51b358508fdf0e39f32e68e6da3449c7f796a4e03e09fb4c27",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-connectors.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2019,7 +2011,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1539,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "d063c8e53ab2904100e769b624684b199c9dd68daecf6df3845c629761ae3215",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-operations.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2027,7 +2019,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1540,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "a386bb0c563464632873f3c54621d41bbcac0b37e4b2b764fbf13d68cb65762d",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-resource.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2035,7 +2027,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1541,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "d926c5ecd271a7520a372ee159696cb5af2746236d5e62573370c09eac11566d",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-resources.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2043,7 +2035,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1542,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "8c33ba3a3079bee696013105a93aa0a4ad6a294ad77be7ac781e7d42181a2f89",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-proof.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2051,7 +2043,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1543,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "7947e1880514b33c555d95491fb654d4d5876b566fcd9004e3d0ca295708aba7",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-admission.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2059,7 +2051,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1544,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "3388fb84cd907bb833a246a5c66b3ca41c22f6aea99f2808d22205f9d91dbc4f",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-auth.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2067,7 +2059,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1545,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "b37913ebfda2809040f8faef05ffc732450342503d0cc70a25e054ae4da4e214",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-target.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2075,7 +2067,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1547,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "2c96a1e5da0f83e8812cd330bc2d6e8bbc6af2500d43a6418630db22517488a5",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-resource.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2083,7 +2075,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1548,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "3bb6e500a5990520bfa0b41d6584de39034c70da9972b9890eca7aa59c186353",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-resource-driver.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2091,7 +2083,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1549,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "c18d9e1fd64ddbfd51ce11f2fb5d7324ec5fda66b7ab98f8a53275e815d83837",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-resource-preset.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2099,7 +2091,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1550,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "3e05c164c9c94da1a086cc70e5acc05d89a85f6ed39a2796f51c41be68f05cce",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-client-config.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2107,7 +2099,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1551,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "2eddaa8647741f4a29f036c1c22e49b0b27804fa5d331c04ab1e4ca5888b7d3c",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-client-contract.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2115,7 +2107,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1552,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "e8b0688bb2dcd5d8bed7548c0266b9930d441cfd6d25dcc545d694ba9ca1d486",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-client-scopes.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2123,7 +2115,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1553,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "80a2768c2fefdb968a96bfd153484ef3fdf115bb807a6c3fb70eb4bade8764e0",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-client-exchange.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2131,7 +2123,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1554,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "051197e09ba166010965b331e96675d80d45cb90ced963b92b19e0bd1ce39079",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-client-update.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2139,7 +2131,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1555,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "75ab6d3b3804a15f047186b922c2db8ba98c2718fa060996cc08082991fde8bf",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-commit.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2147,7 +2139,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1556,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "b55d93cd2675310bc39c68548749fe07bddd00b3148593f48b56c5e7bca35e66",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-errors.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2155,7 +2147,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1557,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "3403c53d0ca269131ef6bf42c1b7bded3290fe5c6c2cc42be54b403fd63cc5d8",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-http.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2163,7 +2155,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1559,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "680b98401b4249d63a9c524ee4f6e914a8f8fe0b246c6b7aa781ca5a4fffc129",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault-credential-custody.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2171,7 +2163,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1563,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "674117a3123c0b14c54030cbc4ed317cae08fed75333fa80a0efd5b237dc813f",
     "reason": "Public SHA256 source-review binding for apps/pages/src/modules/connectors.external/native-oauth-resource-runtime.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2179,7 +2171,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1564,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "a2a65a07eb57bf90657d912edc8e028cae339a3ee90600a0ed9a572338ac3570",
     "reason": "Public SHA256 source-review binding for apps/pages/src/modules/connectors.external/native-oauth-runtime.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2187,7 +2179,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1567,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "304de1e6494f70a5bc005bef98cda8f9301e5681bd7bf206c4d4238c0403016c",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-operations.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2195,7 +2187,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1568,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "5a84064e66598bd0fcaa171de3211d23bdfe2a72b61989ecf222380bd2d55e36",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-admission.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2203,7 +2195,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1569,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "bb661876f8fe01f1f2f6b14518ddf7baddb74c7405692641ddc863073f308b61",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-auth.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2211,7 +2203,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1570,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "020c77811f6885d0810e19c409f16a611c55fdc59c8c144e0eda15a3a22d091e",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-target.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2219,7 +2211,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1571,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "435f1f943348b697fb8fc6a89450bbf7c03378112d46faa8be7eb9dbb4671aae",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-connectors.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2227,7 +2219,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1578,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "4ef22b4306e7d82a5974bf6e39bc5db8ffd25ecd6e81ec8bb09456938a28b26d",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-resource.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2235,7 +2227,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1580,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "69f3c68fab9b46ae64151a59074a39bcacf3b1547d346e88bad1224bca1b60ba",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-oauth-client.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2243,7 +2235,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1583,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "8cc40563d5e78cd568f886ce6b9623f99e938400f8d83bda0123c84e3256e38c",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/vault-credential-custody.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2251,7 +2243,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1587,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "546f14e75a73fabde0206a8e95a7d3612f4a491dfb345d5f42f3e461da2065bc",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/connect-provider-auth-schema.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2259,7 +2251,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1588,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "78b0558013718c8e106440091a1fc3a12cf767a3fe86f08e4a4f1562c86ca08c",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/connect-provider-auth.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2267,7 +2259,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1589,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "87766b86bb3b86e16d8290289e518356b1ce07714ec2d84c2c04c1f42e0841a0",
     "reason": "Public SHA256 source-review binding for packages/app-core/src/lib/native-api-fingerprint.test.ts; exact digest of repository source, not an authentication credential."
   },
@@ -2275,7 +2267,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1590,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "cbad8bfe899273886c535dc1e5c60d0f2467c37e037ea74905f94ef7ef23c40a",
     "reason": "Public SHA-256 source-review fingerprint; exact matrix entry and source blob reviewed under the reviewed local-vault and native-provider custody contracts."
   },
@@ -2283,7 +2275,7 @@
     "path": "tools/security/exposure-matrix.json",
     "rule": "generic-api-key",
     "line": 1611,
-    "fileSha256": "c4ed46ee3d189e55358027f14a1ee63b1bb90230f493d88fdfa891c3dec49fdd",
+    "fileSha256": "29dcdda3bbad947035e1134669cc8a8739ed077bbccfbb256783051dd04ad62c",
     "matchSha256": "57c2915df530674b8be3b8a37c001c63706e261eb95a7c38d3da8a6def45c538",
     "reason": "Public SHA-256 source-review fingerprint; exact matrix entry and source blob reviewed under the reviewed local-vault and native-provider custody contracts."
   }

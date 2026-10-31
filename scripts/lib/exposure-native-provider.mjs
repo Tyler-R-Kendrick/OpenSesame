@@ -39,6 +39,7 @@ export const NATIVE_PROVIDER_CONTRACT = Object.freeze({
       "native-tailscale-api",
       "native-tailscale-ui",
       "native-tailscale.test-support",
+      "fake-tailscale-key",
       "native-connector-transport",
       "native-connector-store",
       "native-connector-schema",

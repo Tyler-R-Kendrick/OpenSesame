@@ -1,22 +1,83 @@
 import { vi } from "vitest";
+import {
+  fakeTailscaleApiKey,
+  fakeTailscaleAuthKey,
+  fakeTailscaleClientId,
+  fakeTailscaleClientKey,
+  fakeTailscaleLeakMessage,
+} from "./fake-tailscale-key.js";
 
-export const TOKEN = "tskey-api-kABCDEF123456-secretsecretsecret";
-export const CLIENT_ID = "k123CNTRL";
-export const CLIENT_SECRET = "tskey-client-k123CNTRL-abcdefghijklmnop";
-export const ACCESS = "tskey-api-kOAUTH0-minted-access-token-0123456789";
+export type NativeTailscaleFixtures = {
+  apiToken: string;
+  accessToken: string;
+  clientId: string;
+  clientSecret: string;
+  authKey: string;
+  replacementClientSecret: string;
+  leakMessage: string;
+  token: (tailnet?: string) => {
+    providerId: string;
+    displayName: string;
+    parameters: { tailnet: string };
+    credentials: { api_token: string };
+  };
+  oauth: () => {
+    providerId: string;
+    displayName: string;
+    parameters: Record<string, never>;
+    credentials: { client_id: string; client_secret: string };
+  };
+  exchange: {
+    match: RegExp;
+    method: string;
+    body: {
+      access_token: string;
+      token_type: string;
+      expires_in: number;
+    };
+  };
+};
 
-export const token = (tailnet = "-") => ({
-  providerId: "tailscale",
-  displayName: "Tailscale",
-  parameters: { tailnet },
-  credentials: { api_token: TOKEN },
-});
-export const oauth = () => ({
-  providerId: "tailscale",
-  displayName: "Tailscale",
-  parameters: {},
-  credentials: { client_id: CLIENT_ID, client_secret: CLIENT_SECRET },
-});
+/** Fresh fake Tailscale credentials and route stubs for one test. */
+export function createNativeTailscaleFixtures(): NativeTailscaleFixtures {
+  const apiToken = fakeTailscaleApiKey();
+  const accessToken = fakeTailscaleApiKey();
+  const clientId = fakeTailscaleClientId();
+  const clientSecret = fakeTailscaleClientKey();
+  const authKey = fakeTailscaleAuthKey();
+  const replacementClientSecret = fakeTailscaleClientKey();
+  const leakMessage = fakeTailscaleLeakMessage(apiToken);
+  return {
+    apiToken,
+    accessToken,
+    clientId,
+    clientSecret,
+    authKey,
+    replacementClientSecret,
+    leakMessage,
+    token: (tailnet = "-") => ({
+      providerId: "tailscale",
+      displayName: "Tailscale",
+      parameters: { tailnet },
+      credentials: { api_token: apiToken },
+    }),
+    oauth: () => ({
+      providerId: "tailscale",
+      displayName: "Tailscale",
+      parameters: {},
+      credentials: { client_id: clientId, client_secret: clientSecret },
+    }),
+    exchange: {
+      match: /\/oauth\/token$/,
+      method: "POST",
+      body: {
+        access_token: accessToken,
+        token_type: "Bearer",
+        expires_in: 3600,
+      },
+    },
+  };
+}
 
 type Reply = {
   match: RegExp;
@@ -61,10 +122,4 @@ export const devices = {
       { id: "n6789", hostname: "phone", addresses: [], authorized: false },
     ],
   },
-};
-
-export const exchange = {
-  match: /\/oauth\/token$/,
-  method: "POST",
-  body: { access_token: ACCESS, token_type: "Bearer", expires_in: 3600 },
 };
