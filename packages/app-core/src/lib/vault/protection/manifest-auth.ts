@@ -3,7 +3,11 @@
  * excluding authB64. Mutable revision is included here, not in wrapper AAD.
  */
 
-import { type JsonValue, overlapCast, asBufferSource } from "@opensesame/os-domain";
+import {
+  type JsonValue,
+  asBufferSource,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   DOMAIN_MANIFEST_MAC,
   type RootProtectionManifest,
@@ -24,7 +28,7 @@ export async function deriveManifestMacKey(
 ): Promise<CryptoKey> {
   const base = await crypto.subtle.importKey(
     "raw",
-    overlapCast(rootKey),
+    asBufferSource(rootKey),
     "HKDF",
     false,
     ["deriveKey"],

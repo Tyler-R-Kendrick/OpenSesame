@@ -19,6 +19,7 @@ import {
   isJsonObject,
   isNumber,
   isString,
+  ownBytes,
 } from "@opensesame/os-domain";
 import {
   type BackupStore,
@@ -177,8 +178,8 @@ export class RunnerVault {
     this.now = options.now ?? Date.now;
     this.random =
       options.random ??
-      ((bytes) => {
-        const owned = new Uint8Array(bytes.length);
+      ((bytes: Uint8Array): Uint8Array => {
+        const owned = ownBytes(bytes);
         crypto.getRandomValues(owned);
         bytes.set(owned);
         return bytes;

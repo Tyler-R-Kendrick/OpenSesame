@@ -18,6 +18,7 @@
  * backup to acknowledge, and the answer is `backed_up: false`, so the executor
  * blocks before the submit.
  */
+import { asBufferSource } from "@opensesame/os-domain";
 import { b64, sha256Hex } from "./bytes";
 
 export const RECIPIENT_ALG = "RSA-OAEP-256";
@@ -146,7 +147,7 @@ export async function sealBackup(
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv, additionalData: aad(binding) },
+      { name: "AES-GCM", iv, additionalData: asBufferSource(aad(binding)) },
       dataKey,
       new TextEncoder().encode(secret),
     ),
@@ -188,7 +189,7 @@ export async function openBackup(
   const raw = await crypto.subtle.decrypt(
     WRAP,
     privateKey,
-    b64.from(envelope.wk),
+    asBufferSource(b64.from(envelope.wk)),
   );
   const dataKey = await crypto.subtle.importKey(
     "raw",
@@ -200,11 +201,13 @@ export async function openBackup(
   const plain = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
-      iv: b64.from(envelope.iv),
-      additionalData: aad({ handle: envelope.handle, origin: envelope.origin }),
+      iv: asBufferSource(b64.from(envelope.iv)),
+      additionalData: asBufferSource(
+        aad({ handle: envelope.handle, origin: envelope.origin }),
+      ),
     },
     dataKey,
-    b64.from(envelope.ct),
+    asBufferSource(b64.from(envelope.ct)),
   );
   return new TextDecoder("utf-8", { fatal: true }).decode(plain);
 }

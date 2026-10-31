@@ -11,10 +11,11 @@
 
 import {
   type JsonValue,
+  asBufferSource,
   isJsonObject,
   isNumber,
   isString,
- asBufferSource } from "@opensesame/os-domain";
+} from "@opensesame/os-domain";
 
 export const SHARE_TARGET_CACHE_PREFIX = "opensesame-share-target";
 export const SHARE_TARGET_PARAM = "share-target";
@@ -131,7 +132,11 @@ export async function sealShareTarget(
   );
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const cipher = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, asBufferSource(plain)),
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      asBufferSource(plain),
+    ),
   );
   const out = new Uint8Array(iv.length + cipher.length);
   out.set(iv);

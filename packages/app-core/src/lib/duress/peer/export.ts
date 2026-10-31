@@ -3,6 +3,7 @@
  * Uses @opensesame/qr for SVG encoding; refuses oversized payloads.
  */
 
+import { asBufferSource } from "@opensesame/os-domain";
 import { encodeQrSize, encodeQrSvg } from "@opensesame/qr";
 import {
   type JsonObject,
@@ -10,7 +11,6 @@ import {
   overlapCast,
 } from "../json-boundary.js";
 import type { PeerPairing } from "./pairing.js";
-import { asBufferSource } from "@opensesame/os-domain";
 
 type ExportedPeerPairingWire = Readonly<{
   peerRef: string;
@@ -75,7 +75,11 @@ export async function exportPeerPairing(
   const expiresAt = new Date(now + ttlMs).toISOString();
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv, additionalData: asBufferSource(exportAad(issuedAt, expiresAt)) },
+      {
+        name: "AES-GCM",
+        iv,
+        additionalData: asBufferSource(exportAad(issuedAt, expiresAt)),
+      },
       wrapKey,
       plaintext,
     ),
@@ -120,11 +124,13 @@ export async function importPeerPairing(
       await crypto.subtle.decrypt(
         {
           name: "AES-GCM",
-          iv: packed.slice(0, 12),
-          additionalData: asBufferSource(exportAad(blob.issuedAt, blob.expiresAt)),
+          iv: asBufferSource(packed.slice(0, 12)),
+          additionalData: asBufferSource(
+            exportAad(blob.issuedAt, blob.expiresAt),
+          ),
         },
         wrapKey,
-        packed.slice(12),
+        asBufferSource(packed.slice(12)),
       ),
     );
   } catch {

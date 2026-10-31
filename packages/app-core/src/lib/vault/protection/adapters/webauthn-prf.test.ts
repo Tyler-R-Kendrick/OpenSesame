@@ -1,4 +1,8 @@
-import { type BoundaryValue, overlapCast, ownBytes } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  overlapCast,
+  ownBytes,
+} from "@opensesame/os-domain";
 import { randomBytes } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -171,7 +175,7 @@ describe("PRF ceremony cancel and multi-cred selection", () => {
 
   it("asks the new credential for its PRF output when creation computed none", async () => {
     const created = ownBytes(randomBytes(16)).buffer;
-    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
+    const prfOutput: ArrayBuffer = ownBytes(randomBytes(32)).buffer;
     let seen: PublicKeyCredentialRequestOptions | undefined;
     stubCredentials({
       create: async () =>
@@ -225,7 +229,7 @@ describe("PRF ceremony cancel and multi-cred selection", () => {
         ),
       get: async () =>
         new TestPublicKeyCredential(ownBytes(randomBytes(16)).buffer, {
-          prf: { results: { first: overlapCast(randomBytes(32).buffer) } },
+          prf: { results: { first: ownBytes(randomBytes(32)).buffer } },
         }),
     });
     await expect(createPasskeyUnlockCeremony()).rejects.toMatchObject({
@@ -240,7 +244,7 @@ describe("PRF ceremony cancel and multi-cred selection", () => {
         selections.push(options.publicKey?.authenticatorSelection);
         return new TestPublicKeyCredential(
           ownBytes(randomBytes(16)).buffer,
-          { prf: { results: { first: overlapCast(randomBytes(32).buffer) } } },
+          { prf: { results: { first: ownBytes(randomBytes(32)).buffer } } },
           "webauthn.create",
         );
       },
@@ -285,7 +289,7 @@ describe("PRF ceremony cancel and multi-cred selection", () => {
     const rawB = randomBytes(16);
     const idA = btoa(String.fromCharCode(...rawA));
     const idB = btoa(String.fromCharCode(...rawB));
-    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
+    const prfOutput: ArrayBuffer = ownBytes(randomBytes(32)).buffer;
     let seenAllow = 0;
     stubCredentials({
       get: async (options) => {
@@ -312,7 +316,7 @@ describe("PRF ceremony cancel and multi-cred selection", () => {
     stubCredentials({
       get: async () =>
         new TestPublicKeyCredential(ownBytes(rawB).buffer, {
-          prf: { results: { first: overlapCast(randomBytes(32).buffer) } },
+          prf: { results: { first: ownBytes(randomBytes(32)).buffer } },
         }),
     });
     await expect(
@@ -335,7 +339,7 @@ describe("webauthnPrfCapabilities honesty", () => {
   });
 
   it("marks usable output only when results.first has length", async () => {
-    const first: ArrayBuffer = overlapCast(randomBytes(32).buffer);
+    const first: ArrayBuffer = ownBytes(randomBytes(32)).buffer;
     const report = await webauthnPrfCapabilities({
       hostname: "localhost",
       href: "http://localhost/",

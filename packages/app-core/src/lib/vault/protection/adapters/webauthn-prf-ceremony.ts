@@ -3,7 +3,7 @@
  * Failed ceremonies throw typed errors and never touch unlock wraps (KP-23).
  */
 
-import { overlapCast, asBufferSource } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64, randomBytes } from "@opensesame/vault-core";
 import {
   isPublicKeyCredential,
@@ -74,12 +74,12 @@ async function evaluatePrfAfterCreate(
   const id: BufferSource = new Uint8Array(credential.rawId);
   const assertion = await getPasskeyCredential({
     publicKey: {
-      challenge: overlapCast(randomBytes(32)),
+      challenge: asBufferSource(randomBytes(32)),
       rpId,
       allowCredentials: [{ type: "public-key", id }],
       userVerification: "required",
       timeout: 120_000,
-      extensions: overlapCast({ prf: { eval: { first: prfSalt } } }),
+      extensions: { prf: { eval: { first: asBufferSource(prfSalt) } } },
     },
     ...(signal ? { signal } : undefined),
   });
@@ -158,10 +158,10 @@ export async function createPasskeyUnlockCeremonyDefault(
   try {
     result = await requireCredentials().create({
       publicKey: {
-        challenge: overlapCast(randomBytes(32)),
+        challenge: asBufferSource(randomBytes(32)),
         rp: { id: rpId, name: "OpenSesame" },
         user: {
-          id: overlapCast(userId),
+          id: asBufferSource(userId),
           name: "vault-unlock",
           displayName: "OpenSesame vault unlock",
         },
@@ -171,9 +171,9 @@ export async function createPasskeyUnlockCeremonyDefault(
         ],
         authenticatorSelection: authenticatorSelectionFor(options.attachment),
         timeout: 120_000,
-        extensions: overlapCast({
-          prf: { eval: { first: prfSalt } },
-        }),
+        extensions: {
+          prf: { eval: { first: asBufferSource(prfSalt) } },
+        },
       },
       ...(signal ? { signal } : undefined),
     });
@@ -255,10 +255,10 @@ function buildPrfGetRequest(
       return { type: "public-key", id };
     },
   );
-  const evalByCredential: Record<string, { first: Uint8Array }> = {};
+  const evalByCredential: Record<string, { first: BufferSource }> = {};
   for (const row of allowed) {
     evalByCredential[toWebauthnBase64Url(row.credentialIdB64)] = {
-      first: b64ToBytes(row.prfSaltB64),
+      first: asBufferSource(b64ToBytes(row.prfSaltB64)),
     };
   }
   const single = allowed[0];
@@ -270,16 +270,16 @@ function buildPrfGetRequest(
   }
   const prfExtension =
     allowed.length === 1
-      ? { eval: { first: b64ToBytes(single.prfSaltB64) } }
+      ? { eval: { first: asBufferSource(b64ToBytes(single.prfSaltB64)) } }
       : { evalByCredential };
   return {
     publicKey: {
-      challenge: overlapCast(randomBytes(32)),
+      challenge: asBufferSource(randomBytes(32)),
       rpId,
       allowCredentials,
       userVerification: "required",
       timeout: 120_000,
-      extensions: overlapCast({ prf: prfExtension }),
+      extensions: { prf: prfExtension },
     },
     ...(signal ? { signal } : undefined),
   };

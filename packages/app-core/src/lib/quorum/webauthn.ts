@@ -14,7 +14,11 @@
 
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import type { BoundaryValue } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  asBufferSource,
+  ownBytes,
+} from "@opensesame/os-domain";
 import { z } from "zod";
 import {
   bytesEqual,
@@ -24,7 +28,6 @@ import {
   utf8Bytes,
 } from "./bytes.js";
 import type { AssertionProof, GuardianCredential } from "./types.js";
-import { asBufferSource } from "@opensesame/os-domain";
 
 const FLAG_UP = 0x01;
 const FLAG_UV = 0x04;
@@ -214,7 +217,7 @@ function checkAuthenticatorData(
       "the policy requires a PIN or biometric",
     );
   }
-  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const view = new DataView(ownBytes(data).buffer);
   const counter = view.getUint32(33, false);
   // A counter that stays at zero is how synced passkeys report; one that
   // moves must keep moving, or the credential may have been cloned.

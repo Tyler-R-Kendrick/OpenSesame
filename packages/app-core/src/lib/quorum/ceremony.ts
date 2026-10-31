@@ -11,7 +11,12 @@
  * caller and is the caller's to wipe: it is the key a share is wrapped under.
  */
 
-import { overlapCast, asBufferSource, ownBytes } from "@opensesame/os-domain";
+import {
+  asBufferSource,
+  bytesFromBufferSource,
+  overlapCast,
+  ownBytes,
+} from "@opensesame/os-domain";
 import { requireCredentials } from "../../ports.js";
 import {
   PrfCeremonyError,
@@ -67,17 +72,14 @@ export type Ceremony = Readonly<{
 }>;
 
 function bytesOf(source: BufferSource): Uint8Array {
-  return ArrayBuffer.isView(source)
-    ? new Uint8Array(
-        source.buffer,
-        source.byteOffset,
-        source.byteLength,
-      ).slice()
-    : new Uint8Array(source).slice();
+  return bytesFromBufferSource(source);
 }
 
 function allow(ids: readonly string[]): PublicKeyCredentialDescriptor[] {
-  return ids.map((id) => ({ type: "public-key", id: asBufferSource(fromB64url(id)) }));
+  return ids.map((id) => ({
+    type: "public-key",
+    id: asBufferSource(fromB64url(id)),
+  }));
 }
 
 /**
@@ -189,7 +191,9 @@ export function webauthnCeremony(
             residentKey: "discouraged",
           },
           attestation: "none",
-          extensions: { prf: { eval: { first: asBufferSource(input.prfInput) } } },
+          extensions: {
+            prf: { eval: { first: asBufferSource(input.prfInput) } },
+          },
         },
       });
       return readRegistered(created);
@@ -204,7 +208,9 @@ export function webauthnCeremony(
           : "preferred",
       };
       if (input.prfInput) {
-        publicKey.extensions = { prf: { eval: { first: asBufferSource(input.prfInput) } } };
+        publicKey.extensions = {
+          prf: { eval: { first: asBufferSource(input.prfInput) } },
+        };
       }
       const got = await container.get({ publicKey });
       return readAsserted(

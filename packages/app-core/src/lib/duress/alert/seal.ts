@@ -3,6 +3,7 @@
  * Never opens or requires the protected vault root (INV-04, INV-18).
  */
 
+import { asBufferSource } from "@opensesame/os-domain";
 import {
   type JsonObject,
   isJsonObject,
@@ -10,7 +11,6 @@ import {
   overlapCast,
 } from "../json-boundary.js";
 import { b64ToBytes, bytesToB64, utf8 } from "./bytes.js";
-import { asBufferSource } from "@opensesame/os-domain";
 
 const ALERT_PURPOSE = "opensesame/duress/alert-package/v1";
 const EVIDENCE_PURPOSE = "opensesame/duress/alert-evidence/v1";
@@ -69,7 +69,7 @@ export async function importAlertSealingKey(
   }
   const encryptKey = await crypto.subtle.importKey(
     "raw",
-    raw.slice(0, 32),
+    asBufferSource(raw.slice(0, 32)),
     { name: "AES-GCM" },
     false,
     ["encrypt", "decrypt"],
@@ -91,9 +91,13 @@ export async function importAlertSealingKey(
 }
 
 async function deriveMacRaw(seed: Uint8Array): Promise<Uint8Array> {
-  const base = await crypto.subtle.importKey("raw", asBufferSource(seed), "HKDF", false, [
-    "deriveBits",
-  ]);
+  const base = await crypto.subtle.importKey(
+    "raw",
+    asBufferSource(seed),
+    "HKDF",
+    false,
+    ["deriveBits"],
+  );
   return new Uint8Array(
     await crypto.subtle.deriveBits(
       {
@@ -180,7 +184,11 @@ async function encryptAlertBody(
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv, additionalData: asBufferSource(utf8(ALERT_PURPOSE)) },
+      {
+        name: "AES-GCM",
+        iv,
+        additionalData: asBufferSource(utf8(ALERT_PURPOSE)),
+      },
       encryptKey,
       asBufferSource(body),
     ),
@@ -259,7 +267,11 @@ export async function sealAlertPackage(input: {
     nonce,
   };
   const mac = new Uint8Array(
-    await crypto.subtle.sign("HMAC", macKey, asBufferSource(evidenceInput(unsigned))),
+    await crypto.subtle.sign(
+      "HMAC",
+      macKey,
+      asBufferSource(evidenceInput(unsigned)),
+    ),
   );
   return { ...unsigned, evidenceMacB64: bytesToB64(mac) };
 }
@@ -289,9 +301,13 @@ export async function decodeCiphertext(
   const ct = packed.slice(12);
   const plain = new Uint8Array(
     await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv, additionalData: asBufferSource(utf8(ALERT_PURPOSE)) },
+      {
+        name: "AES-GCM",
+        iv: asBufferSource(iv),
+        additionalData: asBufferSource(utf8(ALERT_PURPOSE)),
+      },
       encryptKey,
-      ct,
+      asBufferSource(ct),
     ),
   );
   const wire = JSON.parse(new TextDecoder().decode(plain));

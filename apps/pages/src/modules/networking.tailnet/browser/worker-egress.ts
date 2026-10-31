@@ -50,16 +50,6 @@ export function installWorkerEgress(
     value: approvedSocketClass(NativeSocket, decide),
   });
 }
-function socketData(
-  value: string | ArrayBufferLike | Blob | ArrayBufferView,
-): string | Blob | BufferSource {
-  if (typeof value === "string" || value instanceof Blob) return value;
-  if (value instanceof ArrayBuffer) return value;
-  const bytes = ArrayBuffer.isView(value)
-    ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
-    : new Uint8Array(value);
-  return ownBytes(bytes);
-}
 class ApprovedSocket extends EventTarget {
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
@@ -112,7 +102,23 @@ class ApprovedSocket extends EventTarget {
   send(value: string | ArrayBufferLike | Blob | ArrayBufferView): void {
     if (!this.socket || this.closed)
       throw new Error("Tailscale socket is not open.");
-    this.socket.send(socketData(value));
+    if (typeof value === "string") {
+      this.socket.send(value);
+      return;
+    }
+    if (value instanceof Blob) {
+      this.socket.send(value);
+      return;
+    }
+    if (value instanceof ArrayBuffer || value instanceof SharedArrayBuffer) {
+      this.socket.send(ownBytes(new Uint8Array(value)));
+      return;
+    }
+    this.socket.send(
+      ownBytes(
+        new Uint8Array(value.buffer, value.byteOffset, value.byteLength),
+      ),
+    );
   }
   close(code?: number, reason?: string): void {
     this.closed = true;
