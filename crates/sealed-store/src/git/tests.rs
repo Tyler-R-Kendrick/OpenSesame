@@ -185,6 +185,8 @@ fn the_push_token_never_reaches_the_persons_own_credential_helpers() {
         let mut cmd = authenticated_git_in(&lookup, Some(TOKEN)).unwrap();
         let mut child = cmd
             .args(["credential", verb])
+            // Only this private home's global helper participates in the fixture.
+            .current_dir(home.path())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

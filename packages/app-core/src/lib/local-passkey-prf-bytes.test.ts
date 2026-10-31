@@ -1,6 +1,7 @@
 import { runInNewContext } from "node:vm";
 import { overlapCast } from "@opensesame/os-domain";
 import { expect, it } from "vitest";
+import { resizableArrayBuffer } from "./__tests__/resizable-array-buffer.js";
 import { copyPrfBytes } from "./local-passkey-prf-bytes.js";
 
 it("copies exactly the real view without consulting spoofed metadata, slice or species", () => {
@@ -20,6 +21,21 @@ it("copies exactly the real view without consulting spoofed metadata, slice or s
     buffer: { value: unrelated },
     byteLength: { value: 0 },
     byteOffset: { value: 0 },
+    values: {
+      value: () => {
+        throw new Error("caller values used");
+      },
+    },
+    slice: {
+      value: () => {
+        throw new Error("caller slice used");
+      },
+    },
+    [Symbol.iterator]: {
+      value: () => {
+        throw new Error("caller iterator used");
+      },
+    },
   });
   const copied = copyPrfBytes(original);
   expect([...new Uint8Array(copied)]).toEqual([1, 2, 3, 4]);
@@ -38,8 +54,8 @@ it("copies cross-realm views but rejects shared, detached and invalid brands", (
   structuredClone(detached.buffer, { transfer: [detached.buffer] });
   expect(() => copyPrfBytes(detached)).toThrow();
   expect(() => copyPrfBytes(overlapCast(new Uint16Array([1])))).toThrow();
-  const resized = new ArrayBuffer(8, { maxByteLength: 16 });
-  const outOfBounds = new Uint8Array(resized, 2, 4);
+  const resized = resizableArrayBuffer(8, 16);
+  const outOfBounds = new Uint8Array(resized.buffer, 2, 4);
   resized.resize(0);
   expect(() => copyPrfBytes(outOfBounds)).toThrow();
 });

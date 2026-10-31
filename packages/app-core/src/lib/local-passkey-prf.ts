@@ -37,17 +37,18 @@ function viewBuffer(bytes: Uint8Array): ArrayBuffer {
   return copyPrfBytes(bytes);
 }
 
+const arrayBufferByteLength = Object.getOwnPropertyDescriptor(
+  ArrayBuffer.prototype,
+  "byteLength",
+)?.get;
+
 // WebAuthn owns the result until it returns it to us. A genuine, non-shared
 // ArrayBuffer is then consumed and wiped even when it is unusable for sign-in.
 function ownedPrfView(first: ArrayBuffer | null): Uint8Array | null {
   if (!first) return null;
   try {
-    const byteLength = Object.getOwnPropertyDescriptor(
-      ArrayBuffer.prototype,
-      "byteLength",
-    )?.get;
-    if (!byteLength) return null;
-    const length: number = Reflect.apply(byteLength, first, []);
+    if (!arrayBufferByteLength) return null;
+    const length: number = arrayBufferByteLength.call(first);
     return new Uint8Array(first, 0, length);
   } catch {
     return null;
@@ -66,16 +67,8 @@ function wipeOwnedPrf(
     // prefix. Wipe only surviving original bytes, then fail closed.
     if (ownedFirst) {
       try {
-        const byteLength = Object.getOwnPropertyDescriptor(
-          ArrayBuffer.prototype,
-          "byteLength",
-        )?.get;
-        if (byteLength) {
-          const currentLength: number = Reflect.apply(
-            byteLength,
-            ownedFirst,
-            [],
-          );
+        if (arrayBufferByteLength) {
+          const currentLength: number = arrayBufferByteLength.call(ownedFirst);
           new Uint8Array(
             ownedFirst,
             0,
