@@ -133,6 +133,16 @@ describe("whether a page can read an endpoint", () => {
     ).toBe(false);
   });
 
+  it("is not direct when the preflight itself fails, whatever headers it carries", () => {
+    const [token] = endpointsOf(preset);
+    const answer = observe(400, { "access-control-allow-origin": "*" });
+    const refused = observe(403, {
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "authorization",
+    });
+    expect(isDirect(token, answer, refused, ORIGIN)).toBe(false);
+  });
+
   it("is direct for a form post with no custom header on the real answer alone", () => {
     const post = endpointsOf({
       ...preset,

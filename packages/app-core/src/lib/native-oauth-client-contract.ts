@@ -36,6 +36,13 @@ const OTHER_TOKEN_TYPES = new Map<string, readonly string[]>([
   ["slack", ["bot", "user"]],
 ]);
 
+/**
+ * Authorization parameters a preset names that this flow cannot honor. Slack's
+ * `user_scope` asks for a second, user token (returned under `authed_user`)
+ * this flow neither keeps nor journals, so it is never requested.
+ */
+const UNMANAGED_PARAMETERS = new Set(["user_scope"]);
+
 /** A provider whose token answer carries no `token_type`: Shopify's offline access token. */
 const TOKEN_TYPE_OPTIONAL = new Set(["shopify"]);
 
@@ -48,7 +55,11 @@ export function nativeOAuthProviderContract(
   const preset = method?.kind === "oauth" ? method.preset : null;
   if (!preset) return PLAIN;
   return {
-    authorizationParams: preset.authorizationParams,
+    authorizationParams: Object.fromEntries(
+      Object.entries(preset.authorizationParams).filter(
+        ([name]) => !UNMANAGED_PARAMETERS.has(name),
+      ),
+    ),
     scopeSeparator: preset.scopeSeparator,
     verify: preset.verify,
     tokenTypes: ["bearer", ...(OTHER_TOKEN_TYPES.get(providerId) ?? [])],
@@ -65,9 +76,17 @@ export function tokenTypeAdmissible(
   return contract.tokenTypes.includes(tokenType.toLowerCase());
 }
 
-/** The scopes a token answer names: spaces always, and commas where the provider separates with them. */
-export function issuedScopes(scope: string): string[] {
-  return [...new Set(scope.split(/[\s,]+/).filter(Boolean))];
+/**
+ * The scopes a token answer names: separated by spaces, and by commas only
+ * where the provider's contract separates with them, since elsewhere a comma
+ * can be part of one scope's name.
+ */
+export function issuedScopes(
+  scope: string,
+  separator: NativeOAuthProviderContract["scopeSeparator"] = " ",
+): string[] {
+  const split = separator === "," ? /[\s,]+/ : /\s+/;
+  return [...new Set(scope.split(split).filter(Boolean))];
 }
 
 const escapeRegExp = (text: string) =>

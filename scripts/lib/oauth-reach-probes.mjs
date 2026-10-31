@@ -112,8 +112,11 @@ export function allowsHeaders(value, needed) {
 export function isDirect(endpoint, actual, preflight, origin) {
   if (!allowsOrigin(actual.allow_origin, origin)) return false;
   if (!needsPreflight(endpoint)) return true;
+  // A browser rejects a preflight that is not a success, whatever headers it carries.
   return (
     !!preflight &&
+    preflight.status >= 200 &&
+    preflight.status < 300 &&
     allowsOrigin(preflight.allow_origin, origin) &&
     allowsHeaders(preflight.allow_headers, preflightNeeds(endpoint))
   );

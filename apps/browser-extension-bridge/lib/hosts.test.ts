@@ -18,7 +18,7 @@ describe("the hosts a person may allow", () => {
       await book.ask(["api.plivo.com", "evil.test", "api.plivo.com"]),
     ).toEqual(["api.plivo.com"]);
     expect(fake.state.badge).toBe("1");
-    expect(JSON.parse(fake.store.get(PENDING_KEY) ?? "[]")).toEqual([
+    expect(JSON.parse(fake.asks.get(PENDING_KEY) ?? "[]")).toEqual([
       "api.plivo.com",
     ]);
   });
@@ -39,7 +39,7 @@ describe("the hosts a person may allow", () => {
     expect(await book.pending()).toEqual(["api.datadoghq.com"]);
     await book.reconcile();
     expect(fake.state.badge).toBe("1");
-    expect(JSON.parse(fake.store.get(PENDING_KEY) ?? "[]")).toEqual([
+    expect(JSON.parse(fake.asks.get(PENDING_KEY) ?? "[]")).toEqual([
       "api.datadoghq.com",
     ]);
   });
@@ -67,7 +67,7 @@ describe("the hosts a person may allow", () => {
     await book.ask(wide.slice(48, 64));
     await book.ask(wide.slice(64, 80));
     expect((await book.pending()).length).toBe(64);
-    fake.store.set(PENDING_KEY, "{");
+    fake.asks.set(PENDING_KEY, "{");
     expect(await book.pending()).toEqual([]);
   });
 
@@ -103,5 +103,20 @@ describe("the hosts a person may allow", () => {
     const fresh = createHostBook(fake.ports, table);
     await fresh.readyToSend();
     expect(fake.bare).toEqual(["api.datadoghq.eu"]);
+  });
+});
+
+describe("a tenant a page asked for (ADR 0217)", () => {
+  it("is kept in memory only, never in the extension's persistent storage", async () => {
+    const fake = fakePorts();
+    const book = createHostBook(fake.ports, [
+      { providerId: "okta", authorities: [], tenants: ["*.okta.com"] },
+    ]);
+    await book.ask(["acme.okta.com"]);
+    expect(JSON.parse(fake.asks.get(PENDING_KEY) ?? "[]")).toEqual([
+      "acme.okta.com",
+    ]);
+    expect(fake.store.has(PENDING_KEY)).toBe(false);
+    expect([...fake.store.values()].join()).not.toContain("acme.okta.com");
   });
 });

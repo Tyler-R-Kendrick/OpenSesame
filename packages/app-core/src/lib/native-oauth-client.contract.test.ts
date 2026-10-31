@@ -61,12 +61,12 @@ describe("the authorization request names what the provider's contract asks for"
     );
   });
 
-  it("separates Slack's scopes with commas and asks for its user scope", async () => {
+  it("separates Slack's scopes with commas and asks for no user token it would not keep", async () => {
     const f = await setup("slack", ["chat:write", "channels:read"]);
     expect(f.authorization.searchParams.get("scope")).toBe(
       "chat:write,channels:read",
     );
-    expect(f.authorization.searchParams.get("user_scope")).toBe("users:read");
+    expect(f.authorization.searchParams.has("user_scope")).toBe(false);
   });
 
   it("sends no scope at all for a provider that takes none (Notion)", async () => {

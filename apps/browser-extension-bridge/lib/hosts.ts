@@ -25,7 +25,7 @@ export function createHostBook(ports: BridgePorts, table: BridgeTable) {
   }
 
   async function readPending(): Promise<string[]> {
-    const raw = await ports.store.get(PENDING_KEY);
+    const raw = await ports.asks.get(PENDING_KEY);
     if (raw === undefined) return [];
     try {
       const parsed: BoundaryValue = JSON.parse(raw);
@@ -57,7 +57,7 @@ export function createHostBook(ports: BridgePorts, table: BridgeTable) {
       0,
       MAX_PENDING,
     );
-    await ports.store.set(PENDING_KEY, JSON.stringify(next));
+    await ports.asks.set(PENDING_KEY, JSON.stringify(next));
     await show();
     return pending();
   }
@@ -82,7 +82,7 @@ export function createHostBook(ports: BridgePorts, table: BridgeTable) {
 
   /** The browser's grant changed: retire the asks it answered. */
   async function reconcile(): Promise<void> {
-    await ports.store.set(PENDING_KEY, JSON.stringify(await pending()));
+    await ports.asks.set(PENDING_KEY, JSON.stringify(await pending()));
     await show();
     await readyToSend();
   }

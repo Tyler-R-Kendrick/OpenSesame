@@ -104,7 +104,7 @@ export function issued(
   const scopes = normalizeGoogleDriveAccountScopes(
     pending.providerId,
     details.success && details.data.scope !== undefined
-      ? issuedScopes(details.data.scope)
+      ? issuedScopes(details.data.scope, contract.scopeSeparator)
       : null,
   );
   const validScopes =

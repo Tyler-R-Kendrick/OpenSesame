@@ -72,10 +72,10 @@ things:
    up (ADR 0185 §8).
 5. **The provider's own contract, from its preset.** The authorization request
    adds the preset's required parameters (never one the flow already set), joins
-   scopes with the preset's separator and omits an empty `scope`. The token
+   scopes with the preset's separator and omits an empty `scope`. A parameter this flow cannot honor is not sent: Slack's `user_scope` asks for a second user token the flow would discard. The token
    answer is read as the provider gives it: bearer, Slack's `bot`/`user`, and no
    type at all only for Shopify; `expires_in` as a number or a numeric string;
-   scopes split on spaces and commas. The account check uses the preset's own
+   scopes split on spaces, and on commas only where the provider's contract separates with them. The account check uses the preset's own
    method, headers, body and token header, but only at the address the preset
    names (a `{placeholder}` stands for what a person typed). No `resource`
    parameter (RFC 8707) is sent for a provider's own OAuth unless chosen: it is
@@ -119,6 +119,8 @@ cryptography Bitwarden's clients do is Web Crypto:
   probes; a provider that changes its CORS policy moves the probe, not the code.
 - Reddit rejects a request without a unique `User-Agent`; a browser and the
   bridge cannot set one, so its answer is whatever Reddit gives a browser.
+- The bridge's list of hosts a page asked for is kept in memory only (`storage.session`), since a tenant host can name a person's own organization.
+- A bridged request already sent when the vault locks is still read when it lands, so a minted token can be sealed and cleaned up; nothing new starts.
 - `monday`'s GraphQL account check is a POST the preset names; other providers'
   resources are read with GET.
 - A provider with no preset (an MCP-only server) keeps the plain contract and a

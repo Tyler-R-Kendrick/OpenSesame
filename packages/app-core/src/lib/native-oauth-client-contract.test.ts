@@ -12,7 +12,6 @@ describe("the authorization request a provider's own contract asks for", () => {
     ["jira", { audience: "api.atlassian.com", prompt: "consent" }],
     ["notion", { owner: "user" }],
     ["reddit", { duration: "permanent" }],
-    ["slack", { user_scope: "users:read" }],
   ])(
     "%s names the parameters its authorization endpoint requires",
     (id, params) => {
@@ -21,6 +20,12 @@ describe("the authorization request a provider's own contract asks for", () => {
       );
     },
   );
+
+  it("never asks for the second, user token Slack's preset names, which this flow does not keep", () => {
+    expect(nativeOAuthProviderContract("slack").authorizationParams).toEqual(
+      {},
+    );
+  });
 
   it("separates scopes the way the provider does", () => {
     expect(nativeOAuthProviderContract("slack").scopeSeparator).toBe(",");
@@ -69,13 +74,15 @@ describe("the token types a provider issues", () => {
 });
 
 describe("the scopes a token answer names", () => {
-  it("splits on spaces and on commas, once each", () => {
+  it("splits on spaces, and on commas only where the provider separates with them", () => {
     expect(issuedScopes("read write read")).toEqual(["read", "write"]);
-    expect(issuedScopes("chat:write,channels:read")).toEqual([
+    expect(issuedScopes("chat:write,channels:read", ",")).toEqual([
       "chat:write",
       "channels:read",
     ]);
-    expect(issuedScopes("a, b  c")).toEqual(["a", "b", "c"]);
+    expect(issuedScopes("a, b  c", ",")).toEqual(["a", "b", "c"]);
+    // Elsewhere a comma can be part of one scope's name.
+    expect(issuedScopes("read,write other")).toEqual(["read,write", "other"]);
     expect(issuedScopes("")).toEqual([]);
   });
 });
