@@ -11,6 +11,7 @@ BATCH_LIMIT="${DEEPSEC_BATCH_LIMIT:-10}"
 AGENT="${DEEPSEC_AGENT:-grok}"
 MODEL="${DEEPSEC_GROK_MODEL:-grok-4.7}"
 CONCURRENCY="${DEEPSEC_CONCURRENCY:-2}"
+unset DEEPSEC_MAX_BATCHES
 MAX_BATCHES="${DEEPSEC_MAX_BATCHES:-0}"
 
 exec >>"$LOG" 2>&1
@@ -70,15 +71,16 @@ while true; do
   ec=$?
   set -e
   echo "=== batch $batch exit=$ec $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+  if quota_limited; then
+    echo "=== batch loop stop: quota after batch $batch pending=$(pending_count) ==="
+    exit 42
+  fi
   if [[ "$ec" -ne 0 ]]; then
-    if quota_limited; then
-      echo "=== batch loop stop: quota after process exit $ec pending=$(pending_count) ==="
-      exit 42
-    fi
-    tail -n 30 "$LOG" | grep -qiE 'usage limit|weekly limit|quota|429|403 credits' && {
+    if tail -n 40 "$LOG" | grep -qiE 'usage limit|weekly limit|quota|429|403 credits'; then
       echo "=== batch loop stop: quota pattern in log ==="
       exit 42
-    }
+    fi
+    echo "WARN: batch $batch process exited $ec — continuing with next batch"
   fi
   node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-file-locks.mjs" "$ROOT" 2>/dev/null || true
 done
