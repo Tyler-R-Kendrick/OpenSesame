@@ -279,3 +279,20 @@ it("refuses a secret ID that is not one before any request, and a secret answer 
     ),
   ).rejects.toThrow();
 });
+
+it("accepts the access token Bitwarden's own SDK documents, whose client secret is 30 characters", async () => {
+  const upstream =
+    "0.ec2c1d46-6a4b-4751-a310-af9601317f2d.C2IgxjjLF7qSshsbwe8JGcbM075YXw:X8vbvA0bduihIDe/qrzIQQ==";
+  // The token's shape is accepted; its key cannot open this fixture's payload, so the login's answer is refused after the request.
+  const fixture = routes(login());
+  await expect(
+    bitwardenSecretsKeyFlows.configure(
+      draft("us", upstream),
+      fixture.transport,
+    ),
+  ).rejects.toThrow();
+  expect(fixture.fetch).toHaveBeenCalledTimes(1);
+  expect(
+    new URLSearchParams(String(fixture.calls[0]?.init?.body)).get("client_id"),
+  ).toBe("ec2c1d46-6a4b-4751-a310-af9601317f2d");
+});

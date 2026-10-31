@@ -142,13 +142,13 @@ describe("keys", () => {
     );
   });
 
-  it("derives the PBKDF2 master key and login hash as Bitwarden's clients do", async () => {
+  it("derives the PBKDF2 master key and login hash from the password's raw UTF-8 bytes, as Bitwarden's clients do (only the email is trimmed and lower-cased)", async () => {
     const master = await masterKey("Pässword 1", " Me@Example.COM ", {
       kind: "pbkdf2",
       iterations: 5000,
     });
     const expected = pbkdf2Sync(
-      "Pässword 1".normalize("NFKD"),
+      "Pässword 1",
       "me@example.com",
       5000,
       32,
@@ -156,13 +156,23 @@ describe("keys", () => {
     );
     expect(Buffer.from(master)).toEqual(expected);
     expect(await loginHash(master, "Pässword 1")).toBe(
+      pbkdf2Sync(expected, "Pässword 1", 1, 32, "sha256").toString("base64"),
+    );
+  });
+
+  it("does not normalize the password: a composed and a decomposed spelling are different passwords", async () => {
+    const kdf = { kind: "pbkdf2", iterations: 5000 } as const;
+    const composed = await masterKey("Pässword", "me@example.com", kdf);
+    const decomposed = await masterKey("Pa\u0308ssword", "me@example.com", kdf);
+    expect(Buffer.from(composed)).not.toEqual(Buffer.from(decomposed));
+    expect(Buffer.from(composed)).toEqual(
       pbkdf2Sync(
-        expected,
-        "Pässword 1".normalize("NFKD"),
-        1,
+        Buffer.from("Pässword", "utf8"),
+        "me@example.com",
+        5000,
         32,
         "sha256",
-      ).toString("base64"),
+      ),
     );
   });
 

@@ -92,11 +92,19 @@ function tailscaleTarget(
   const tailnet = input.parameters.tailnet?.trim() || "-";
   if (!TAILNET.test(tailnet)) throw new Error("Enter a tailnet name, or -");
   const kept = saved?.privateState.credentials ?? {};
-  const pick = (name: string) =>
-    (input.credentials[name] || kept[name] || "").trim();
-  const token = pick(API_TOKEN);
-  const clientId = pick(CLIENT_ID);
-  const clientSecret = pick(CLIENT_SECRET);
+  // Supplying one kind of credential replaces the other kind: it is never
+  // restored beside it. An OAuth client's missing half may still be kept.
+  const bringsToken = Boolean(input.credentials[API_TOKEN]);
+  const bringsClient = Boolean(
+    input.credentials[CLIENT_ID] || input.credentials[CLIENT_SECRET],
+  );
+  const restoreToken = !bringsClient;
+  const restoreClient = !bringsToken;
+  const pick = (name: string, restore: boolean) =>
+    (input.credentials[name] || (restore ? kept[name] : "") || "").trim();
+  const token = pick(API_TOKEN, restoreToken);
+  const clientId = pick(CLIENT_ID, restoreClient);
+  const clientSecret = pick(CLIENT_SECRET, restoreClient);
   const credentials = tailscaleCredentials(token, clientId, clientSecret);
   safeProviderText(input.displayName, credentials);
   safeNativeConnectorIcon(input.icon ?? "", credentials);

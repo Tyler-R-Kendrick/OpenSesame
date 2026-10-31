@@ -21,6 +21,7 @@ const CLIENT_SECRET = "AbCdEf0123456789GhIjKlMn";
 const LOGIN_ID = "11111111-1111-4111-8111-111111111111";
 const NOTE_ID = "22222222-2222-4222-8222-222222222222";
 const KEYED_ID = "33333333-3333-4333-8333-333333333333";
+const LOWER_ID = "77777777-7777-4777-8777-777777777777";
 const ORG_ID = "44444444-4444-4444-8444-444444444444";
 const BEARER = "eyJhbGciOiJSUzI1NiJ9.vault-access-token-0123456789.signature";
 const enc = new TextEncoder();
@@ -43,6 +44,14 @@ beforeAll(async () => {
     encryptBytes(enc.encode(text), key);
   const itemKey = symmetricKey(itemKeyBytes);
   held.rows = [
+    {
+      id: LOWER_ID,
+      type: 1,
+      name: await seal("Lower"),
+      login: { password: await seal("lower-secret") },
+      organizationId: null,
+      deletedDate: null,
+    },
     {
       Id: LOGIN_ID,
       Type: 1,
@@ -135,7 +144,10 @@ const sync: Route = {
 };
 const cipher = (id: string): Route => ({
   match: new RegExp(`/ciphers/${id}$`),
-  body: () => held.rows.find((row) => "Id" in row && row.Id === id) ?? {},
+  body: () =>
+    held.rows.find(
+      (row) => ("Id" in row && row.Id === id) || ("id" in row && row.id === id),
+    ) ?? {},
 });
 
 it("logs in with the personal API key and opens the vault key with the master password that never leaves the device", async () => {
@@ -223,6 +235,7 @@ it("lists personal item names decrypted here, including an item with its own key
     listing.transport,
   );
   expect(result.items).toEqual([
+    { id: LOWER_ID, label: "Lower · login" },
     { id: LOGIN_ID, label: "GitHub · login" },
     { id: NOTE_ID, label: "Recovery codes · note" },
     { id: KEYED_ID, label: "Keyed item · login" },
@@ -317,4 +330,21 @@ it("reaches a Vaultwarden at the address given, over HTTPS only", async () => {
       routes(login()).transport,
     ),
   ).rejects.toThrow();
+});
+
+it("reads a login's password from a Vaultwarden answer that spells nested fields in lower case", async () => {
+  const saved = await bitwardenVaultKeyFlows.configure(
+    draft(),
+    routes(login()).transport,
+  );
+  const result = await bitwardenVaultKeyFlows.invoke(
+    saved.connectionId,
+    "provider.item.read",
+    { item: LOWER_ID },
+    routes(login(), cipher(LOWER_ID)).transport,
+  );
+  expect(result.items[0]).toMatchObject({
+    label: "Lower",
+    secretValue: "lower-secret",
+  });
 });

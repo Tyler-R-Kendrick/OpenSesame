@@ -150,7 +150,7 @@ export async function masterKey(
   kdf: MasterKdf,
 ): Promise<Uint8Array> {
   const salt = encoder.encode(email.trim().toLowerCase());
-  const secret = encoder.encode(password.normalize("NFKD"));
+  const secret = encoder.encode(password);
   const checked = boundedKdf(kdf);
   if (checked.kind === "pbkdf2") {
     const base = await crypto.subtle.importKey(
@@ -203,7 +203,7 @@ export async function loginHash(
         {
           name: "PBKDF2",
           hash: "SHA-256",
-          salt: own(encoder.encode(password.normalize("NFKD"))),
+          salt: own(encoder.encode(password)),
           iterations: 1,
         },
         base,

@@ -52,7 +52,7 @@ function pascal(
   return Object.fromEntries(
     Object.entries(row).map(([name, value]) => [
       name.charAt(0).toUpperCase() + name.slice(1),
-      value,
+      isJsonObject(value) ? pascal(value) : value,
     ]),
   );
 }

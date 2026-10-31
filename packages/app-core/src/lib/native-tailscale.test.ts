@@ -247,3 +247,55 @@ it("creates an auth key shown once, from the capabilities asked for, and never k
   await refused("", "91");
   await refused("", "1.5");
 });
+
+it("switches from an API token to an OAuth client, and back, without restoring the old kind beside the new", async () => {
+  const saved = await tailscaleKeyFlows.configure(
+    token(),
+    routes(devices).transport,
+  );
+  const toOAuth = await tailscaleKeyFlows.configure(
+    { ...oauth(), connectionId: saved.connectionId, revision: saved.revision },
+    routes(exchange, devices).transport,
+  );
+  const record = loadNativeConnectorRecord(toOAuth.connectionId);
+  expect(Object.keys(record?.privateState.credentials ?? {}).sort()).toEqual([
+    "client_id",
+    "client_secret",
+  ]);
+  const back = await tailscaleKeyFlows.configure(
+    {
+      ...token(),
+      connectionId: toOAuth.connectionId,
+      revision: toOAuth.revision,
+    },
+    routes(devices).transport,
+  );
+  expect(
+    Object.keys(
+      loadNativeConnectorRecord(back.connectionId)?.privateState.credentials ??
+        {},
+    ),
+  ).toEqual(["api_token"]);
+});
+
+it("keeps a saved OAuth client's ID when only its secret is replaced", async () => {
+  const saved = await tailscaleKeyFlows.configure(
+    oauth(),
+    routes(exchange, devices).transport,
+  );
+  const next = await tailscaleKeyFlows.configure(
+    {
+      ...oauth(),
+      credentials: {
+        client_secret: "tskey-client-k123CNTRL-replacementsecret",
+      },
+      connectionId: saved.connectionId,
+      revision: saved.revision,
+    },
+    routes(exchange, devices).transport,
+  );
+  const held = loadNativeConnectorRecord(next.connectionId)?.privateState
+    .credentials;
+  expect(held?.client_id).toBe("k123CNTRL");
+  expect(held?.client_secret).toBe("tskey-client-k123CNTRL-replacementsecret");
+});

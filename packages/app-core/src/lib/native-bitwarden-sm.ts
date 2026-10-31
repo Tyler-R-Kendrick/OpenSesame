@@ -55,7 +55,7 @@ type Site = keyof typeof SITES;
 const ACCESS_TOKEN = "access_token";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const TOKEN = new RegExp(
-  `^0\\.(${UUID})\\.([A-Za-z0-9]{32}):([A-Za-z0-9+/=_-]{22,44})$`,
+  `^0\\.(${UUID})\\.([A-Za-z0-9]{16,64}):([A-Za-z0-9+/=_-]{22,44})$`,
   "i",
 );
 const UUID_ONLY = new RegExp(`^${UUID}$`, "i");
