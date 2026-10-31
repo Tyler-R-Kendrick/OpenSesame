@@ -2,6 +2,7 @@ import { runInNewContext } from "node:vm";
 import { overlapCast } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { expect, it, vi } from "vitest";
+import { resizableArrayBuffer } from "./__tests__/resizable-array-buffer.js";
 import { applySignInPrf, installSignInPrfVault } from "./local-passkey-prf.js";
 import { resizableArrayBuffer } from "./resizable-array-buffer.test-support.js";
 

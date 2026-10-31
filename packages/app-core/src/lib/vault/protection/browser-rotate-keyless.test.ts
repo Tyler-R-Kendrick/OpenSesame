@@ -35,6 +35,22 @@ const HEADER_KEY = tombFileKey(PERSONAL_TOMB, HEADER_PATH);
 const BODY_KEY = tombFileKey(PERSONAL_TOMB, BODY_PATH);
 const OLD_PIN = "48291037";
 const NEW_PIN = "73920146";
+const stores: VaultStore[] = [];
+
+function newStore(): VaultStore {
+  const store = new VaultStore();
+  stores.push(store);
+  return store;
+}
+
+afterEach(async () => {
+  const owned = stores.splice(0);
+  try {
+    await Promise.all(owned.map((store) => store.flushPendingWrites()));
+  } finally {
+    for (const store of owned) store.lock();
+  }
+});
 
 type CeremonyFixture = {
   prfOutput: ArrayBuffer | null;
@@ -77,7 +93,7 @@ beforeEach(async () => {
 });
 
 async function passkeyVault(): Promise<VaultStore> {
-  const store = new VaultStore();
+  const store = newStore();
   await store.createWithPasskey();
   await store.protection.ensureProtectionProjected();
   return store;
@@ -102,7 +118,7 @@ describe("rotating the vault key of a vault with no master password", () => {
     ).not.toContain("password");
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlockWithPasskey();
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
@@ -120,22 +136,22 @@ describe("rotating the vault key of a vault with no master password", () => {
 
     ceremony.failCreate = null;
     ceremony.prfOutput = reusable;
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlockWithPasskey();
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
 
   it("re-keys a PIN vault under a new PIN, and the old one stops opening it", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.createWithPin(OLD_PIN);
     await store.protection.ensureProtectionProjected();
     await store.protection.rotateCompromisedRoot({ pin: NEW_PIN });
     expect(store.getSnapshot().header?.wrap).toBeUndefined();
     store.lock();
 
-    const stale = new VaultStore();
+    const stale = newStore();
     await expect(stale.unlockWithPin(OLD_PIN)).rejects.toThrow();
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlockWithPin(NEW_PIN);
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
@@ -164,7 +180,7 @@ describe("rotating the vault key of a vault with no master password", () => {
   });
 
   it("refuses a PIN rotation on a vault that holds a password, too", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create("correct horse battery staple");
     await store.protection.ensureProtectionProjected();
     const before = store.getSnapshot().header;
@@ -175,7 +191,7 @@ describe("rotating the vault key of a vault with no master password", () => {
   });
 
   it("refuses a passkey rotation on a vault that holds a password, which it would drop", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create("correct horse battery staple");
     await store.protection.ensureProtectionProjected();
     await expect(
@@ -186,7 +202,7 @@ describe("rotating the vault key of a vault with no master password", () => {
 
 describe("the files of a vault survive a rotation of its key", () => {
   it("opens a sealed settings file again after the vault is relocked", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.createWithPin(OLD_PIN);
     const bytes = new Uint8Array([7, 7, 7, 1, 2, 3]);
     await writeFile(PERSONAL_TOMB, "settings/probe", bytes);
@@ -196,14 +212,14 @@ describe("the files of a vault survive a rotation of its key", () => {
     expect(await readFile(PERSONAL_TOMB, "settings/probe")).toEqual(bytes);
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlockWithPin(NEW_PIN);
     expect(await readFile(PERSONAL_TOMB, "settings/probe")).toEqual(bytes);
   });
 
   it("opens them for a vault that proves its password, too", async () => {
     const password = "correct horse battery staple";
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(password);
     const bytes = new Uint8Array([9, 8, 7]);
     await writeFile(PERSONAL_TOMB, "settings/probe", bytes);
@@ -211,7 +227,7 @@ describe("the files of a vault survive a rotation of its key", () => {
     await store.protection.rotateCompromisedRoot({ password });
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(password);
     expect(await readFile(PERSONAL_TOMB, "settings/probe")).toEqual(bytes);
   });
@@ -232,7 +248,7 @@ describe("a rotation that fails part-way puts the vault back", () => {
   }
 
   async function pinVaultWithFile(bytes: Uint8Array): Promise<VaultStore> {
-    const store = new VaultStore();
+    const store = newStore();
     await store.createWithPin(OLD_PIN);
     await writeFile(PERSONAL_TOMB, "settings/probe", bytes);
     await store.protection.ensureProtectionProjected();
@@ -241,7 +257,7 @@ describe("a rotation that fails part-way puts the vault back", () => {
 
   async function stillOpensWithTheOldPin(bytes: Uint8Array): Promise<void> {
     vi.restoreAllMocks();
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlockWithPin(OLD_PIN);
     expect(reopened.getSnapshot().status).toBe("unlocked");
     expect(await readFile(PERSONAL_TOMB, "settings/probe")).toEqual(bytes);
