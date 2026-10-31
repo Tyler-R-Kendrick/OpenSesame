@@ -4,7 +4,7 @@
 use axum::{
     extract::{DefaultBodyLimit, Request, State},
     response::Response,
-    routing::{any, get, post},
+    routing::{any, get, post, put},
     Json, Router,
 };
 use serde_json::{json, Value};
@@ -13,9 +13,9 @@ use super::duress_routes::{duress_peer_envelope, duress_peer_health};
 use super::proxy_loopback::proxy_loopback;
 use super::{
     agent_capability, approve_claim, approve_device, cli_app_integration, discover, fill,
-    get_access_token, introspect_capability, invoke_through, list_sessions, mint, mint_capability,
-    operator_invoke_l1, plugin_routes, promote, revoke, tailnet_admin_routes, toolbar,
-    vault_drive_routes, App,
+    get_access_token, helper_mints, introspect_capability, invoke_through, list_sessions, mint,
+    mint_capability, operator_invoke_l1, plugin_routes, promote, revoke, tailnet_admin_routes,
+    toolbar, vault_drive_routes, App,
 };
 
 pub(super) async fn daemon_health() -> Json<Value> {
@@ -58,6 +58,11 @@ pub(super) fn router(state: App) -> Router {
         .route(
             "/v1/mint",
             post(mint::mint_via_daemon).layer(DefaultBodyLimit::max(mint::MAX_BODY_BYTES)),
+        )
+        .route("/v1/helper-mints", get(helper_mints::list))
+        .route(
+            "/v1/helper-mints/{connection_id}",
+            put(helper_mints::allow).delete(helper_mints::revoke),
         )
         .merge(cli_app_integration::routes(&state))
         .route("/v1/toolbar/status", get(toolbar::toolbar_status))

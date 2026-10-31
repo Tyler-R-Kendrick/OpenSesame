@@ -1,10 +1,9 @@
-//! `OpenSesame` host daemon — local session capabilities for WSL/devcontainers/toolbar/PWA.
-//! Evolved from credential-agent. Never dumps refresh tokens or `WebAuthn` material.
-//! Listens on TCP (`OPENSESAME_DAEMON_LISTEN`, `spec/config/endpoints.json`) and optionally Unix socket (`OPENSESAME_AGENT_SOCK`).
-//! Mutating routes require `OPENSESAME_OPERATOR_TOKEN` (`X-OpenSesame-Operator`) on every transport.
-//! Over the Unix socket the kernel-attested peer UID is only an extra restriction
-//! (`OPENSESAME_DAEMON_ALLOWED_UIDS`, default same-user), not operator authority. With `--features
-//! tailscale` a read-only tailnet listener authorizes callers by whois identity.
+//! `OpenSesame` host daemon — local session capabilities for WSL/devcontainers/toolbar/PWA; never
+//! dumps refresh tokens or `WebAuthn` material. TCP (`OPENSESAME_DAEMON_LISTEN`) and an optional Unix
+//! socket (`OPENSESAME_AGENT_SOCK`). Mutating routes require `OPENSESAME_OPERATOR_TOKEN` on every
+//! transport, except a helper's `/v1/mint` of an operator-allowed connection on the socket, which
+//! admits the attested peer (ADR 0138 §2); elsewhere the peer UID restricts, never authorizes. With
+//! `--features tailscale` a read-only tailnet listener authorizes callers by whois identity.
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
     extract::{connect_info::ConnectInfo, State},
@@ -33,6 +32,7 @@ mod discovery;
 mod duress_receiver;
 mod duress_routes;
 mod fill;
+mod helper_mints;
 mod invoke_through;
 mod keychain;
 mod listener;
@@ -82,14 +82,14 @@ struct App {
     /// UIDs whose processes may call operator routes over the Unix socket.
     allowed_uids: Vec<u32>,
     discover_limiter: Arc<ratelimit::TokenBucket>,
-    /// Promotion is mutating, so it spends from its own bucket rather than the
-    /// discovery one (ADR 0048 D4).
+    /// Promotion is mutating: its own bucket, not the discovery one (ADR 0048 D4).
     promote_limiter: Arc<ratelimit::TokenBucket>,
     /// Invoke-through brokers live upstream calls; its own strict bucket.
     invoke_limiter: Arc<ratelimit::TokenBucket>,
-    /// Helper-driven mints (git/docker per-operation) get a little more
-    /// headroom than the one-shot routes, still bounded.
+    /// Helper-driven mints get a little more headroom than one-shot routes, still bounded.
     mint_limiter: Arc<ratelimit::TokenBucket>,
+    /// The connections a helper may mint on the socket with no token (ADR 0138 §2).
+    helper_mints: Arc<helper_mints::HelperMints>,
     /// The invoke-through broker (ADR 0048 D6): static egress allowlist,
     /// https only. Tests substitute a loopback-permitting instance.
     invoker: Arc<opensesame_invoke_through::Invoker>,

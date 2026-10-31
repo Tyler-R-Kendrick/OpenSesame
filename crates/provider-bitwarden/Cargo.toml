@@ -6,10 +6,10 @@ license.workspace = true
 description = "Bitwarden/Vaultwarden consume-client (upstream credential source, ADR 0052)"
 
 [dependencies]
-aes = "0.8.4"
+aes = "0.9.2"
 argon2 = { workspace = true }
 base64 = { workspace = true }
-cbc = { version = "0.1.2", features = ["alloc", "block-padding"] }
+cbc = { version = "0.2.1", features = ["alloc", "block-padding"] }
 hkdf = { workspace = true }
 hmac = { workspace = true }
 pbkdf2 = { version = "0.12.2", default-features = false, features = ["hmac"] }
