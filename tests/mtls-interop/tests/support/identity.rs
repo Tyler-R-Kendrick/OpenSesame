@@ -14,6 +14,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context as _, Result};
+use opensesame_mtls_interop::node::tsx_cli;
 use opensesame_mtls_interop::proc::Child;
 use opensesame_mtls_interop::repo_root;
 
@@ -43,18 +44,13 @@ impl IdentityListener {
     /// time.
     pub fn start(spec: &IdentitySpec<'_>) -> Result<Self> {
         let root = repo_root();
-        let tsx = root.join("packages/control-plane/node_modules/.bin/tsx");
-        if !tsx.is_file() {
-            bail!(
-                "tsx is not installed at {} — the Identity harness cannot run",
-                tsx.display()
-            );
-        }
+        let tsx = tsx_cli(&root).context("the Identity harness cannot run")?;
         let script = root.join("tests/mtls-interop/harness/identity-listener.mts");
         let stdout_log = spec.log_dir.join("identity-listener.log");
-        let mut command = Command::new(&tsx);
+        let mut command = Command::new("node");
         command
             .current_dir(&root)
+            .arg(&tsx)
             .arg(&script)
             // The container's NODE_OPTIONS is invalid for a bare node; the
             // repository's own convention is to replace it outright.
