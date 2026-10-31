@@ -132,6 +132,7 @@
     "@types/node": "22.15.29",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@typescript/typescript6": "6.0.2",
     "@vitejs/plugin-react": "4.5.0",
     "@vitest/coverage-v8": "4.1.12",
     "better-auth": "1.7.14",
@@ -147,7 +148,7 @@
     "react-dom": "19.3.1",
     "react-router": "8.5.1",
     "turbo": "2.11.10",
-    "typescript": "5.8.3",
+    "typescript": "7.0.2",
     "vite": "6.4.5",
     "vitest": "4.1.12",
     "wxt": "0.20.19",
@@ -199,7 +200,8 @@
       "@azure/msal-node": "7.1.0",
       "zod": "4.6.6",
       "body-parser": "2.4.0",
-      "ip-address": "10.7.4"
+      "ip-address": "10.7.4",
+      "dts-bundle-generator>typescript": "6.0.3"
     },
     "patchedDependencies": {
       "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch",

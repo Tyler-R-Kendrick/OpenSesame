@@ -80,10 +80,10 @@ it.each([
     const observed = { entered: false, settled: false };
     let observedChild: ErrorOptions | undefined;
     const locks: import("../../ports.js").LockManagerLike = {
-      async request(
+      async request<T>(
         name: string,
-        _options: LockOptions | LockGrantedCallback,
-        callback?: LockGrantedCallback,
+        _options: LockOptions | LockGrantedCallback<T>,
+        callback?: LockGrantedCallback<T>,
       ) {
         if (!callback) throw new Error("Original callback delivery missing.");
         try {

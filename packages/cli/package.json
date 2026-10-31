@@ -49,10 +49,11 @@
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "@types/ws": "8.18.2",
+    "@typescript/typescript6": "6.0.2",
     "dts-bundle-generator": "9.5.1",
     "esbuild": "0.25.12",
     "tsx": "4.23.15",
-    "typescript": "5.8.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.12",
     "ws": "8.22.0"
   },
