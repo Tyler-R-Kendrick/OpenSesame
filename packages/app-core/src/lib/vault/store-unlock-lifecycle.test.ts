@@ -1,8 +1,8 @@
 import { parseTotp, totpCode } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import { kvGet } from "../kv.js";
+import * as trustedUnlock from "../trusted-unlock.js";
 import { vfsFlush } from "../vfs.js";
-import * as unlockMethods from "./unlock-methods.js";
 import {
   NEXT_PASSWORD,
   PASSWORD,
@@ -12,6 +12,7 @@ import {
 } from "./store-ops.fixture.js";
 import { enrollTotp } from "./store-totp.fixture.js";
 import { ATTEMPTS_KEY, WrongPasswordError } from "./store.js";
+import * as unlockMethods from "./unlock-methods.js";
 
 installStoreOperationsFixture();
 
@@ -56,22 +57,54 @@ describe("VaultStore TOTP challenge flow", () => {
     const { code } = await totpVault();
     const reopened = newStore();
     await reopened.unlock(PASSWORD);
+    let releaseVerification: () => void = () => {};
+    let markVerificationStarted: () => void = () => {};
+    const verificationStarted = new Promise<void>((resolve) => {
+      markVerificationStarted = resolve;
+    });
+    const verificationParked = new Promise<void>((resolve) => {
+      releaseVerification = resolve;
+    });
     const matchSpy = vi
       .spyOn(unlockMethods, "totpCodeMatches")
       .mockImplementation(async () => {
-        await new Promise((resolve) => {
-          setTimeout(resolve, 20);
-        });
+        markVerificationStarted();
+        await verificationParked;
         return true;
       });
-    const confirm = reopened.confirmTotp(code());
-    await new Promise((resolve) => {
-      setTimeout(resolve, 5);
-    });
-    reopened.cancelTotpChallenge();
-    await expect(confirm).rejects.toThrow(/no longer pending/);
-    expect(reopened.getSnapshot().status).toBe("locked");
-    matchSpy.mockRestore();
+    try {
+      const confirm = reopened.confirmTotp(await code());
+      await verificationStarted;
+      reopened.cancelTotpChallenge();
+      releaseVerification();
+      await expect(confirm).rejects.toThrow(/no longer pending/);
+      expect(reopened.isUnlocked()).toBe(false);
+      expect(reopened.getSnapshot().status).toBe("locked");
+      expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
+    } finally {
+      matchSpy.mockRestore();
+    }
+  });
+
+  it("does not activate when cancelTotpChallenge lands during second-step completion", async () => {
+    const { code } = await totpVault();
+    const reopened = newStore();
+    await reopened.unlock(PASSWORD);
+    const read = vi
+      .spyOn(trustedUnlock, "readTrustedUnlock")
+      .mockImplementation(async () => {
+        reopened.cancelTotpChallenge();
+        return null;
+      });
+    try {
+      await expect(reopened.confirmTotp(await code())).rejects.toThrow(
+        /no longer pending/,
+      );
+      expect(reopened.isUnlocked()).toBe(false);
+      expect(reopened.getSnapshot().status).toBe("locked");
+    } finally {
+      read.mockRestore();
+    }
   });
 
   it("demands a primary unlock before any code is checked", async () => {
