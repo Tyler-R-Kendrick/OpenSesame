@@ -41,7 +41,7 @@
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-cli": "workspace:*",
     "@opensesame/vault-core": "workspace:*",
-    "agent-browser": "0.39.4",
+    "agent-browser": "0.40.0",
     "zod": "4.6.6"
   },
   "devDependencies": {
