@@ -1,8 +1,9 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { startIdentityEndpoint } from "../../tests/mtls-interop/harness/browser-cert-endpoint.mjs";
 import { tsxCli } from "../../tests/mtls-interop/harness/tsx-cli.mjs";
 
 const roots = [];
@@ -38,6 +39,32 @@ function hoistedRepository() {
   return root;
 }
 
+/** Run Node's actual resolver without the test runner's global dependency path. */
+function identityEndpointFailure(repoRoot, env = process.env) {
+  const endpoint = new URL(
+    "../../tests/mtls-interop/harness/browser-cert-endpoint.mjs",
+    import.meta.url,
+  ).href;
+  const child = spawnSync(
+    process.execPath,
+    [
+      "--no-global-search-paths",
+      "--input-type=module",
+      "--eval",
+      `const { startIdentityEndpoint } = await import(process.argv[1]);
+       const repoRoot = process.argv[2];
+       await startIdentityEndpoint({ repoRoot, pki: {}, bindings: "", dir: repoRoot });`,
+      endpoint,
+      repoRoot,
+    ],
+    { cwd: repoRoot, env, encoding: "utf8", timeout: 5_000 },
+  );
+  expect(child.error).toBeUndefined();
+  expect(child.signal).toBeNull();
+  expect(child.status).toBe(1);
+  return child.stderr;
+}
+
 describe("the Identity endpoint's tsx", () => {
   it("is the CLI Node resolves from packages/control-plane", () => {
     const root = hoistedRepository();
@@ -46,28 +73,49 @@ describe("the Identity endpoint's tsx", () => {
     );
   });
 
-  it("is found under a hoisted layout, so the endpoint goes on to its script", async () => {
+  it("is found under a hoisted layout, so the endpoint goes on to its script", () => {
     const root = hoistedRepository();
-    await expect(
-      startIdentityEndpoint({
-        repoRoot: root,
-        pki: {},
-        bindings: "",
-        dir: root,
-      }),
-    ).rejects.toThrow(/missing harness/);
+    expect(identityEndpointFailure(root)).toMatch(/missing harness/);
   });
 
-  it("is refused with the reason when the workspace is not installed", async () => {
+  it("is refused with the reason when the workspace is not installed", () => {
     const root = hoistedRepository();
     fs.rmSync(path.join(root, "node_modules"), { recursive: true });
-    await expect(
-      startIdentityEndpoint({
-        repoRoot: root,
-        pki: {},
-        bindings: "",
-        dir: root,
-      }),
-    ).rejects.toThrow(/tsx does not resolve from packages\/control-plane/);
+    const failure = identityEndpointFailure(root);
+    expect(failure).toMatch(
+      /tsx does not resolve from packages\/control-plane/,
+    );
+    expect(failure).toContain("MODULE_NOT_FOUND");
+  });
+
+  it("isolates an uninstalled workspace from an available global tsx", () => {
+    const globalRoot = hoistedRepository();
+    const root = hoistedRepository();
+    fs.rmSync(path.join(root, "node_modules"), { recursive: true });
+    const env = {
+      ...process.env,
+      NODE_PATH: path.join(globalRoot, "node_modules"),
+    };
+    const cli = new URL(
+      "../../tests/mtls-interop/harness/tsx-cli.mjs",
+      import.meta.url,
+    );
+    const control = spawnSync(process.execPath, [fileURLToPath(cli), root], {
+      cwd: root,
+      env,
+      encoding: "utf8",
+      timeout: 5_000,
+    });
+    expect(control.error).toBeUndefined();
+    expect(control.signal).toBeNull();
+    expect(control.status).toBe(0);
+    expect(fs.realpathSync(control.stdout.trim())).toBe(
+      fs.realpathSync(path.join(globalRoot, "node_modules/tsx/dist/cli.mjs")),
+    );
+    const failure = identityEndpointFailure(root, env);
+    expect(failure).toMatch(
+      /tsx does not resolve from packages\/control-plane/,
+    );
+    expect(failure).toContain("MODULE_NOT_FOUND");
   });
 });
