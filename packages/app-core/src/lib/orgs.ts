@@ -73,6 +73,7 @@ export function subscribeOrgProfile(listener: () => void): () => void {
 let activeTomb: string | null = null;
 let cachedProfileId: string | null = null;
 let profileHydrated = false;
+let profileGeneration = 0;
 
 function readActiveProfileId(): string {
   return profileHydrated && cachedProfileId
@@ -81,6 +82,7 @@ function readActiveProfileId(): string {
 }
 
 function writeActiveProfileId(id: string): void {
+  profileGeneration++;
   cachedProfileId = id;
   profileHydrated = true;
   const tomb = activeTomb;
@@ -99,21 +101,31 @@ function writeActiveProfileId(id: string): void {
  * Fill the in-memory selection from the tomb's sealed config, after the
  * unlock-time migration has moved any legacy sessionStorage copy.
  */
-export async function hydrateOrgProfileFromVfs(tomb: string): Promise<void> {
+export async function hydrateOrgProfileFromVfs(
+  tomb: string,
+  check: () => void = () => {},
+): Promise<void> {
+  check();
+  const generation = ++profileGeneration;
   activeTomb = tomb;
+  let next: string | null;
   try {
     const bytes = await readFile(tomb, ORG_PROFILE_CONFIG_PATH);
     const id = new TextDecoder().decode(bytes).trim();
-    cachedProfileId = id.length > 0 ? id : null;
+    next = id.length > 0 ? id : null;
   } catch (error) {
     if (error instanceof VfsError && error.code === "locked") throw error;
-    cachedProfileId = null;
+    next = null;
   }
+  check();
+  if (generation !== profileGeneration || activeTomb !== tomb) return;
+  cachedProfileId = next;
   profileHydrated = true;
 }
 
 /** Lock: forget the decrypted selection and which tomb it belonged to. */
 export function discardOrgProfile(): void {
+  profileGeneration++;
   activeTomb = null;
   cachedProfileId = null;
   profileHydrated = false;

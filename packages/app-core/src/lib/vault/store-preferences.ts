@@ -23,26 +23,32 @@ export class StorePreferences {
     const prefs = this.prefs;
     return chain.then(() =>
       writePrefsJson(tomb, prefs).catch(async () => {
-        if (this.prefs !== prefs) return;
+        if (this.prefs !== prefs || currentTomb() !== tomb) return;
         const durable: Partial<VaultPrefs> = overlapCast(
           await readPrefsJson(currentTomb()).catch(() => ({})),
         );
+        if (this.prefs !== prefs || currentTomb() !== tomb) return;
         this.prefs = normalizeVaultPrefs(durable);
         changed();
       }),
     );
   }
 
-  async load(currentTomb: () => string): Promise<void> {
+  async load(
+    currentTomb: () => string,
+    check: () => void = () => {},
+  ): Promise<void> {
     try {
       const stored: Partial<VaultPrefs> = overlapCast(
         await readPrefsJson(currentTomb()),
       );
+      check();
       this.prefs = normalizeVaultPrefs(stored);
       if ((stored.prefsRevision ?? 0) < VAULT_PREFS_REVISION) {
         await writePrefsJson(currentTomb(), this.prefs).catch(() => undefined);
       }
     } catch (error) {
+      check();
       if (error instanceof VfsError && error.code === "locked") throw error;
     }
   }

@@ -12,10 +12,8 @@ import {
 import { host } from "../../host.js";
 import {
   noteVaultBodyPersisted,
-  noteVaultUnlocked,
   recordActivityEvent,
 } from "../activity-log.js";
-import { recordDeadmanAuthentication } from "../deadman/state.js";
 import { HONEY_VAULT_ITEMS } from "../duress/settings/modes/honey-vault.js";
 import {
   endEphemeralTomb,
@@ -30,12 +28,6 @@ import { mintHoneyToken, registerHoneyToken } from "../honey-tokens.js";
 import { kvDelete } from "../kv.js";
 import { lastVaultIsGuest, writeLastVaultId } from "../last-vault.js";
 import { isRetiredTrapLive } from "../retired-credentials/retention-v2.js";
-import {
-  type TrustedUnlockPolicy,
-  readTrustedUnlock,
-  trustedUnlockSeams,
-  trustedUnlockView,
-} from "../trusted-unlock.js";
 import type { TombWriteTurn } from "../vfs-write-order.js";
 import {
   BODY_PATH,
@@ -86,10 +78,9 @@ import {
 } from "./retired-login-operation.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
-import { rebindTombSeals, rekeyTomb } from "./seal-rebind.js";
+import { rekeyTomb } from "./seal-rebind.js";
 import {
   CodeSendGuard,
-  PendingChallenge,
   assertSecondStepPending,
   finishSecondStepUnlock,
 } from "./second-step-guard.js";
@@ -107,11 +98,9 @@ import { createStoreCredentialApi } from "./store-credential-api.js";
 import {
   type ApplyChange,
   type VaultBodyPort,
-  levelDeviceKey,
   makeBodyPort,
   registerBodyPort,
 } from "./store-device-key.js";
-import { sealMark } from "./store-fresh.js";
 import type { FreshBody } from "./store-fresh.js";
 import * as GuestMaterial from "./store-guest-material.js";
 import * as HeaderPublication from "./store-header-publication.js";
@@ -185,6 +174,10 @@ export {
 
 import { installVaultStoreBoot } from "./store-boot.js";
 import { type VaultState, bindGuestSessionStore } from "./store-state.js";
+import {
+  StoreUnlockSession,
+  type UnlockAttempt,
+} from "./store-unlock-session.js";
 export type { VaultState, VaultStatus } from "./store-state.js";
 
 import type {
@@ -222,11 +215,6 @@ export class VaultStore {
   #rawVaultKey: Uint8Array | null = null;
   /** Primary unwrap succeeded; waiting on optional TOTP before activating. */
   #pendingVaultKey: CryptoKey | null = null;
-  /** Primary and second steps passed; a trusted-contact quorum is still required. */
-  #pendingTrustedKey: CryptoKey | null = null;
-  #trustedPolicy: TrustedUnlockPolicy | null = null;
-  #trustedView: import("../trusted-unlock.js").TrustedUnlockView | null = null;
-  #trustedApproved = new Set<string>();
   /** A seed offered for enrollment; discarded unless a code confirms it. */
   #pendingTotpSecret: string | null = null;
   /** A code the Identity API sent and has not yet been asked about. */
@@ -284,10 +272,35 @@ export class VaultStore {
     trashItem: (id) => this.trashItem(id),
     cancelCodeEnrollment: () => this.cancelCodeEnrollment(),
   });
-  /** Expiry for a parked second step; cleared when the challenge ends. */
-  #pendingChallenge = new PendingChallenge();
-  /** Bumped on cancel/expiry so in-flight second-step confirms cannot open the vault. */
-  #secondStepEpoch = 0;
+  #unlockSession = new StoreUnlockSession({
+    scope: () => this.#scope,
+    original: () => this.#protectionOperation(),
+    close: () => this.lock({ recordLastVault: false }),
+    frozen: () => this.#refuseWhileFrozen(),
+    clearPending: () => {
+      this.#pendingVaultKey = null;
+    },
+    setKey: (key) => {
+      this.#vaultKey = key;
+    },
+    loadBody: (tomb, key) => loadVaultBody(tomb, key, this.#header),
+    setBody: (body, mark) => {
+      this.#body = body;
+      this.#sealMark = mark;
+      syncInstalledTypes(body.itemTypes);
+    },
+    bodyPort: () => this.#bodyPort(),
+    preferences: this.#preferences,
+    protection: () => this.#protection,
+    acquire: (tomb) => this.#acquireSessionLease(tomb),
+    commit: (lease) => this.#commitSessionLease(lease),
+    emit: () => this.#emit(),
+    completed: () => {
+      this.touch();
+      this.#armIdleTimer();
+      this.#emit();
+    },
+  });
   /** Per-challenge throttle for email/text code sends. */
   #sendGuard = new CodeSendGuard();
   /** Serializes body writes so overlapping mutations cannot land out of order. */
@@ -339,7 +352,11 @@ export class VaultStore {
 
   /** Re-read plaintext state after OPFS hydration fills the KV cache. */
   rehydrate(): void {
-    if (this.#vaultKey || this.#pendingVaultKey || this.#pendingTrustedKey)
+    if (
+      this.#vaultKey ||
+      this.#pendingVaultKey ||
+      this.#unlockSession.trustedKey
+    )
       return;
     // Reload opens the last authorized account's unlock — guest included. Its
     // header is read like any tomb's; `headerCarriesGate` keeps a wrap-less
@@ -437,7 +454,7 @@ export class VaultStore {
       body: this.#body,
       sessionRootDigest: () => this.#sessionRootDigest(),
       lockHandlers: [...this.#lockHandlers],
-      activateSession: (key) => this.#activateSession(key),
+      activateSession: (key) => this.#unlockSession.activate(key),
       assignScope: (next) => {
         this.#scope = next;
       },
@@ -480,7 +497,7 @@ export class VaultStore {
       body: this.#body,
       prefs: this.#preferences.prefs,
       attempts: readAttempts(this.#scope.attempts),
-      trustedUnlock: this.#trustedView,
+      trustedUnlock: this.#unlockSession.trustedView,
     });
   }
 
@@ -590,9 +607,15 @@ export class VaultStore {
 
   /** Point unlock at GUEST_TOMB without opening it; lock keeps the last guest. */
   prepareGuestUnlock(): void {
-    if (this.#vaultKey || this.#pendingVaultKey || this.#pendingTrustedKey) {
+    if (
+      this.#vaultKey ||
+      this.#pendingVaultKey ||
+      this.#unlockSession.trustedKey
+    ) {
       this.lock();
     } else {
+      this.#unlockSession.reset();
+      this.#zeroRaw();
       this.#protection.cancelPendingOps();
     }
     this.#scope = guestVaultScope();
@@ -712,34 +735,6 @@ export class VaultStore {
     this.#emit();
   }
 
-  #bumpSecondStepEpoch(): number {
-    this.#secondStepEpoch += 1;
-    return this.#secondStepEpoch;
-  }
-
-  #assertSecondStepEpoch(expected: number): void {
-    if (expected !== this.#secondStepEpoch) {
-      throw new WrongPasswordError("That second step is no longer pending.");
-    }
-  }
-
-  /**
-   * Cancel or expiry bumped the epoch after this completion captured it.
-   * Success returns without awaiting — an await would reopen the race.
-   */
-  #refuseStaleSecondStep(
-    captured: number | undefined,
-    lease: { tomb: string; release: () => Promise<void> } | null,
-  ): void {
-    if (captured === undefined || captured === this.#secondStepEpoch) return;
-    void this.#abandonSessionLease(lease);
-    this.#vaultKey = null;
-    lockTomb(this.#scope.tomb);
-    this.#zeroRaw();
-    this.#body = emptyBody();
-    throw new WrongPasswordError("That second step is no longer pending.");
-  }
-
   /** A frozen device refuses even a right credential, counts it, and zeroes the root. */
   #refuseWhileFrozen = frozenAuthenticationRefusal(
     () => this.#scope.tomb,
@@ -752,99 +747,16 @@ export class VaultStore {
     return loadVaultBody(this.#scope.tomb, vaultKey, this.#header);
   }
 
-  /**
-   * Primary and second steps passed. A trusted-contact policy, when one is
-   * stored, parks the key until enough local identities authenticate with a
-   * passkey. No body is exposed while it is parked.
-   */
-  async #requireTrustedUnlock(
-    vaultKey: CryptoKey,
-    secondStepEpoch?: number,
-  ): Promise<void> {
-    if (secondStepEpoch !== undefined) {
-      this.#assertSecondStepEpoch(secondStepEpoch);
-    }
-    this.#pendingVaultKey = null;
-    unlockTomb(this.#scope.tomb, vaultKey);
-    let policy: TrustedUnlockPolicy | null;
-    try {
-      policy = await readTrustedUnlock(this.#scope.tomb);
-      if (secondStepEpoch !== undefined) {
-        this.#assertSecondStepEpoch(secondStepEpoch);
-      }
-    } catch (error) {
-      lockTomb(this.#scope.tomb);
-      if (
-        secondStepEpoch !== undefined &&
-        secondStepEpoch !== this.#secondStepEpoch
-      ) {
-        this.#zeroRaw();
-      }
-      throw error;
-    }
-    if (!policy) {
-      try {
-        await this.#activateSession(vaultKey, secondStepEpoch);
-      } catch (error) {
-        if (this.#vaultKey === null) {
-          lockTomb(this.#scope.tomb);
-          if (secondStepEpoch !== undefined) this.#zeroRaw();
-        }
-        throw error;
-      }
-      return;
-    }
-    this.#pendingTrustedKey = vaultKey;
-    this.#trustedPolicy = policy;
-    this.#trustedApproved.clear();
-    this.#trustedView = await trustedUnlockView(this.#scope.tomb, policy, []);
-    this.#pendingChallenge.clear();
-    this.#emit();
+  #requireTrustedUnlock(key: CryptoKey, attempt: UnlockAttempt): Promise<void> {
+    return this.#unlockSession.requireTrusted(key, attempt);
   }
 
-  /** One member of the circle authenticated; the last needed one opens the vault. */
-  async confirmTrustedContact(principalId: string): Promise<void> {
-    const pending = this.#pendingTrustedKey;
-    const policy = this.#trustedPolicy;
-    if (!pending || !policy) {
-      throw new Error("No trusted-contact approval is waiting.");
-    }
-    if (!policy.memberIds.includes(principalId)) {
-      throw new Error("That identity is not a member of this circle.");
-    }
-    if (this.#trustedApproved.has(principalId)) return;
-    await trustedUnlockSeams.authenticate(this.#scope.tomb, principalId);
-    if (this.#pendingTrustedKey !== pending || this.#trustedPolicy !== policy) {
-      throw new Error("The trusted-contact challenge changed.");
-    }
-    this.#trustedApproved.add(principalId);
-    const approved = [...this.#trustedApproved];
-    if (approved.length >= policy.threshold) {
-      this.#pendingTrustedKey = null;
-      this.#trustedPolicy = null;
-      this.#trustedView = null;
-      this.#trustedApproved.clear();
-      await this.#activateSession(pending);
-      return;
-    }
-    this.#trustedView = await trustedUnlockView(
-      this.#scope.tomb,
-      policy,
-      approved,
-    );
-    this.#emit();
+  confirmTrustedContact(principalId: string): Promise<void> {
+    return this.#unlockSession.confirmTrusted(principalId);
   }
 
-  /** Drop a parked trusted-contact challenge and forget the key. */
   cancelTrustedUnlock(): void {
-    if (!this.#pendingTrustedKey) return;
-    this.#pendingTrustedKey = null;
-    this.#trustedPolicy = null;
-    this.#trustedView = null;
-    this.#trustedApproved.clear();
-    lockTomb(this.#scope.tomb);
-    this.#zeroRaw();
-    this.#emit();
+    this.#unlockSession.cancelTrusted();
   }
 
   /**
@@ -885,120 +797,67 @@ export class VaultStore {
     if (lease) void lease.release().catch(() => undefined);
   }
 
-  async #activateSession(
-    vaultKey: CryptoKey,
-    secondStepEpoch?: number,
-  ): Promise<void> {
-    if (secondStepEpoch !== undefined) {
-      this.#assertSecondStepEpoch(secondStepEpoch);
-    }
-    this.#refuseWhileFrozen();
-    const lease = await this.#acquireSessionLease(this.#scope.tomb);
-    this.#refuseStaleSecondStep(secondStepEpoch, lease);
-    this.#vaultKey = vaultKey;
-    this.#pendingVaultKey = null;
-    this.#pendingTrustedKey = null;
-    this.#trustedPolicy = null;
-    this.#trustedView = null;
-    this.#trustedApproved.clear();
-    this.#pendingChallenge.clear();
-    unlockTomb(this.#scope.tomb, vaultKey);
-    try {
-      await rebindTombSeals(this.#scope.tomb, vaultKey);
-      if (secondStepEpoch !== undefined) {
-        this.#assertSecondStepEpoch(secondStepEpoch);
-      }
-      // Phase C: seal legacy plaintext config into this tomb, hydrate modules, then prefs and body.
-      await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
-      if (secondStepEpoch !== undefined) {
-        this.#assertSecondStepEpoch(secondStepEpoch);
-      }
-      await this.#preferences.load(() => this.#scope.tomb);
-      this.#body = await this.#loadBody(vaultKey);
-      if (secondStepEpoch !== undefined) {
-        this.#assertSecondStepEpoch(secondStepEpoch);
-      }
-      this.#sealMark = sealMark(this.#scope.tomb);
-      syncInstalledTypes(this.#body.itemTypes);
-    } catch (error) {
-      await this.#abandonSessionLease(lease);
-      this.#vaultKey = null;
-      lockTomb(this.#scope.tomb);
-      this.#zeroRaw();
-      this.#body = emptyBody();
-      throw error;
-    }
-    await levelDeviceKey(this.#bodyPort());
-    this.#refuseStaleSecondStep(secondStepEpoch, lease);
-    await this.#protection.ensureProtectionProjected();
-    this.#refuseStaleSecondStep(secondStepEpoch, lease);
-    kvDelete(this.#scope.attempts);
-    writeLastVaultId(this.#scope.tomb);
-    this.#commitSessionLease(lease);
-    this.touch();
-    this.#armIdleTimer();
-    this.#emit();
-    noteVaultUnlocked();
-    await recordDeadmanAuthentication(this.#scope.tomb);
-  }
   /** After primary unwrap: either activate or park the key for a second step. */
-  async #afterPrimaryUnwrap(vaultKey: CryptoKey, miss?: string) {
+  async #afterPrimaryUnwrap(
+    vaultKey: CryptoKey,
+    miss?: string,
+    attempt: UnlockAttempt = this.#unlockSession.begin(),
+  ) {
+    attempt.check();
     this.#refuseWhileFrozen(miss);
     if (hasSecondStep(this.#header)) {
       this.#pendingVaultKey = vaultKey;
-      this.#bumpSecondStepEpoch();
+      this.#unlockSession.arm(attempt);
       const gate = this.#header?.unlocks?.totp;
-      // The vault is its own registered authenticator: supply the code from
-      // the sealed seed instead of asking (ADR 0113); failure falls back.
       if (gate?.selfItemId) {
-        const code = await heldTotpCode(gate, await this.#loadBody(vaultKey));
+        const body = await this.#loadBody(vaultKey);
+        attempt.check();
+        const code = await heldTotpCode(gate, body);
+        attempt.check();
         if (code !== null) {
           try {
             await this.confirmTotp(code);
             return;
           } catch {
-            // A code that fails anyway (skewed clock) falls back to asking.
+            // A failed self-code may ask again only while its original unlock lives.
+            attempt.check();
           }
         }
       }
       this.#sendGuard.reset();
-      const armedEpoch = this.#bumpSecondStepEpoch();
-      this.#pendingChallenge.arm(() => {
-        if (this.#pendingVaultKey === vaultKey) {
-          this.cancelTotpChallenge();
-          return;
-        }
-        // Completion nulls the parked key before its awaits. Expiry in that
-        // window must still refuse the in-flight unlock.
-        if (
-          this.#pendingVaultKey === null &&
-          this.#secondStepEpoch === armedEpoch
-        ) {
-          this.cancelTotpChallenge();
-        }
-      });
       this.#emit();
       return;
     }
-    await this.#requireTrustedUnlock(vaultKey);
+    await this.#requireTrustedUnlock(vaultKey, attempt);
   }
 
   async unlock(password: string): Promise<void> {
     this.#assertNotLockedOut();
+    const attempt = this.#unlockSession.begin();
     if (await this.#retiredPasswordLogin(password)) return;
+    attempt.check();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
-    const record = () => this.#recordFailedUnlock();
+    const record = () => {
+      attempt.check();
+      this.#recordFailedUnlock();
+    };
     await this.#openWithRaw(
       await unwrapPassword(this.#header, password, record),
+      undefined,
+      attempt,
     );
   }
 
   async unlockWithPin(pin: string): Promise<void> {
     this.#assertNotLockedOut();
+    const attempt = this.#unlockSession.begin();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
-    const record = () => this.#recordFailedUnlock();
+    const record = () => {
+      attempt.check();
+      this.#recordFailedUnlock();
+    };
     const raw = await unwrapPin(this.#header, pin, record);
-    await this.#openWithRaw(raw, PIN_MISS);
+    await this.#openWithRaw(raw, PIN_MISS, attempt);
   }
 
   async #retiredPasswordLogin(password: string): Promise<boolean> {
@@ -1123,9 +982,22 @@ export class VaultStore {
   }
 
   /** A primary secret opened the root: keep it, then park it or activate. */
-  async #openWithRaw(raw: Uint8Array, miss?: string): Promise<void> {
-    this.#stashRaw(raw);
-    await this.#afterPrimaryUnwrap(await importVaultKey(raw), miss);
+  async #openWithRaw(
+    raw: Uint8Array,
+    miss: string | undefined,
+    attempt: UnlockAttempt,
+  ): Promise<void> {
+    try {
+      attempt.check();
+      this.#unlockSession.retainPrimary(attempt);
+      this.#stashRaw(raw);
+      const key = await importVaultKey(raw);
+      attempt.check();
+      await this.#afterPrimaryUnwrap(key, miss, attempt);
+    } catch (error) {
+      raw.fill(0);
+      throw error;
+    }
   }
 
   probePasskeyCeremony = this.#primaryApi.probePasskeyCeremony;
@@ -1136,49 +1008,69 @@ export class VaultStore {
   unlockWithHeldProtectorRoot = this.#primaryApi.unlockWithHeldProtectorRoot;
 
   #passkeyUnlockHost() {
+    const attempt = this.#unlockSession.begin();
     return {
-      header: () => this.#header,
-      assertNotLockedOut: () => this.#assertNotLockedOut(),
-      recordFailedUnlock: () => this.#recordFailedUnlock(),
-      stashRaw: (raw: Uint8Array) => this.#stashRaw(raw),
-      afterPrimaryUnwrap: (vaultKey: CryptoKey, miss?: string) =>
-        this.#afterPrimaryUnwrap(vaultKey, miss),
+      header: () => {
+        attempt.check();
+        return this.#header;
+      },
+      assertNotLockedOut: () => {
+        attempt.check();
+        this.#assertNotLockedOut();
+      },
+      recordFailedUnlock: () => {
+        attempt.check();
+        this.#recordFailedUnlock();
+      },
+      stashRaw: (raw: Uint8Array) => {
+        try {
+          attempt.check();
+          this.#unlockSession.retainPrimary(attempt);
+          this.#stashRaw(raw);
+        } catch (error) {
+          raw.fill(0);
+          throw error;
+        }
+      },
+      afterPrimaryUnwrap: (key: CryptoKey, miss?: string) =>
+        this.#afterPrimaryUnwrap(key, miss, attempt),
     };
   }
 
   async confirmTotp(code: string): Promise<void> {
     this.#assertNotLockedOut();
     const pending = this.#pendingVaultKey;
-    const secondStepEpoch = this.#secondStepEpoch;
     const gate = this.#header?.unlocks?.totp;
     if (!pending || !gate) {
       throw new Error("Enter a primary unlock method first.");
     }
+    const attempt = this.#unlockSession.current();
+    const original = this.#protectionOperation();
     const secret = await openTotpSecret(pending, gate);
-    this.#assertSecondStepEpoch(secondStepEpoch);
+    attempt.check();
     const ok = await totpCodeMatches(secret, code, gate.digits, gate.period);
-    this.#assertSecondStepEpoch(secondStepEpoch);
+    attempt.check();
     if (!ok) {
       this.#recordFailedUnlock();
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
-      this.#requireTrustedUnlock(k, secondStepEpoch),
+      this.#requireTrustedUnlock(k, attempt),
     );
     // A gate with no registration yet gets one now (ADR 0113), unless a
     // trusted-contact challenge is holding the key before the vault opens.
-    if (!gate.selfItemId && !this.#pendingTrustedKey) {
-      await this.#registerSelfAuthenticator(gate);
+    if (
+      !gate.selfItemId &&
+      !this.#unlockSession.trustedKey &&
+      this.#vaultKey === pending &&
+      JSON.stringify(this.#header?.unlocks?.totp) === JSON.stringify(gate)
+    ) {
+      await this.#registerSelfAuthenticator(gate, original.context);
     }
   }
 
   cancelTotpChallenge(): void {
-    this.#bumpSecondStepEpoch();
-    this.#pendingChallenge.clear();
-    this.#pendingVaultKey = null;
-    this.#pendingCode = null;
-    this.#zeroRaw();
-    this.#emit();
+    this.#unlockSession.cancel();
   }
 
   /** Step 2 by email/text: send a code to the sealed address. */
@@ -1189,9 +1081,12 @@ export class VaultStore {
     if (!pending || !record) {
       throw new Error("Enter a primary unlock method first.");
     }
+    const attempt = this.#unlockSession.current();
     this.#sendGuard.assertCanSend();
     const to = await openText(pending, record.toWrap);
+    attempt.check();
     const sent = await sendCode(channel, to);
+    attempt.check();
     this.#sendGuard.noteSent();
     this.#pendingCode = sent;
     this.#emit();
@@ -1207,24 +1102,22 @@ export class VaultStore {
   async confirmRemoteCode(code: string): Promise<void> {
     this.#assertNotLockedOut();
     const pending = this.#pendingVaultKey;
-    const secondStepEpoch = this.#secondStepEpoch;
     const sent = this.#pendingCode;
     if (!pending || !sent) {
       throw new Error("Ask for a code first.");
     }
+    const attempt = this.#unlockSession.current();
     try {
       await verifyCode(sent.challengeId, code);
     } catch (error) {
-      if (secondStepEpoch !== this.#secondStepEpoch) {
-        throw new WrongPasswordError("That second step is no longer pending.");
-      }
+      attempt.check();
       this.#recordFailedUnlock();
       throw error;
     }
-    this.#assertSecondStepEpoch(secondStepEpoch);
+    attempt.check();
     this.#pendingCode = null;
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
-      this.#requireTrustedUnlock(k, secondStepEpoch),
+      this.#requireTrustedUnlock(k, attempt),
     );
   }
 
@@ -1237,16 +1130,20 @@ export class VaultStore {
     if (!pending || !header || !record) {
       throw new WrongPasswordError("That recovery code is not valid.");
     }
+    const attempt = this.#unlockSession.current();
     assertSecondStepPending(pending, this.#pendingVaultKey);
-    const codesWrap = await spendRecoveryCode(pending, record, code, () =>
-      this.#recordFailedUnlock(),
-    );
+    const codesWrap = await spendRecoveryCode(pending, record, code, () => {
+      attempt.check();
+      this.#recordFailedUnlock();
+    });
+    attempt.check();
     await this.#persistHeader({
       ...header,
       unlocks: { ...header.unlocks, recovery: { ...record, codesWrap } },
     });
     this.#pendingCode = null;
-    await this.#requireTrustedUnlock(pending);
+    attempt.check();
+    await this.#requireTrustedUnlock(pending, attempt);
   }
 
   async #persistHeader(
@@ -1346,16 +1243,22 @@ export class VaultStore {
   cancelTotpEnrollment = this.#secondStepApi.cancelTotpEnrollment;
 
   /** Point a gate at its self-authenticator registration (ADR 0113). */
-  async #registerSelfAuthenticator(gate: TotpGateRecord): Promise<void> {
+  async #registerSelfAuthenticator(
+    gate: TotpGateRecord,
+    check?: () => void,
+  ): Promise<void> {
     if (!this.#header || !this.#vaultKey) return;
+    const original = this.#protectionOperation(check);
     const next = await withSelfAuthenticatorRegistration(
       this.#vaultKey,
       gate,
       this.#header,
       this.#body,
     );
+    original.active();
     if (next.item) await this.saveItem(next.item);
-    await this.#persistHeader(next.header);
+    original.active();
+    await this.#persistHeader(next.header, original.context);
   }
 
   removeTotp = this.#secondStepApi.removeTotp;
@@ -1379,10 +1282,6 @@ export class VaultStore {
     this.#vaultKey = null;
     this.#zeroRaw();
     this.#pendingVaultKey = null;
-    this.#pendingTrustedKey = null;
-    this.#trustedPolicy = null;
-    this.#trustedView = null;
-    this.#trustedApproved.clear();
     this.#pendingTotpSecret = null;
     this.#pendingCode = null;
     this.#pendingCodeAddress = null;
@@ -1394,6 +1293,7 @@ export class VaultStore {
   onLock = this.#lockHandlers.subscribe;
 
   lock = (options?: { recordLastVault?: boolean }): void => {
+    this.#unlockSession.reset();
     this.#releaseSessionLease();
     this.#protection.cancelPendingOps();
     const retiredOrigin = this.#retiredSynthetic?.origin;
@@ -1427,7 +1327,6 @@ export class VaultStore {
       if (recordLastVault) writeLastVaultId(retiredOrigin.tomb);
     }
     this.#preferences.stop();
-    this.#pendingChallenge.clear();
     for (const handler of this.#lockHandlers) handler();
     emitVaultLock();
     if (wasUnlocked && !wasGuest) {

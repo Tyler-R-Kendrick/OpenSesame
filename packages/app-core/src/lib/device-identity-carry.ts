@@ -79,7 +79,7 @@ export type KeyCarryOutcome =
  * `held`: the caller already holds the tomb's identity lock (a merge writes
  * the body and levels the key in one step), so this does not take it again.
  */
-export type KeyCarryOptions = Readonly<{ held?: boolean }>;
+export type KeyCarryOptions = Readonly<{ held?: boolean; check?: () => void }>;
 
 const CHANGED_ID = "device-identity-changed";
 
@@ -119,35 +119,47 @@ export function noteDeviceIdentityChanged(cause: IdentityChange): void {
   setStatusNotice({ id: CHANGED_ID, tone: "info", ...NOTICES[cause] });
 }
 
-async function reconcileLocked(host: KeyCarryHost): Promise<KeyCarryOutcome> {
+async function reconcileLocked(
+  host: KeyCarryHost,
+  options: KeyCarryOptions,
+): Promise<KeyCarryOutcome> {
+  const check = options.check ?? (() => {});
+  check();
   let local: DeviceIdentityKeyRecord | null;
   try {
     local = await readStoredDeviceIdentityKey(host.tomb);
+    check();
   } catch {
+    check();
     return "kept";
   }
   const bounds = host.bounds();
   const vetted = await vetCarriedKey(host.field(), bounds);
+  check();
   if (vetted.kind === "future") return "kept";
   // Poison is no key: the body is treated as holding none.
   const carried = vetted.kind === "trusted" ? vetted.record : null;
   if (local === null) {
     if (carried === null) return "none";
-    await writeStoredDeviceIdentityKey(host.tomb, carried);
+    await writeStoredDeviceIdentityKey(host.tomb, carried, options.check);
+    check();
     return "adopted";
   }
   const mine = clampDeviceKeyTime(local, bounds);
   if (carried === null) {
     await host.publish(deviceKeyField(mine));
+    check();
     return "published";
   }
   if (mine.keyId === carried.keyId) return "same";
   if (winningDeviceKey(mine, carried) === carried) {
-    await writeStoredDeviceIdentityKey(host.tomb, carried);
+    await writeStoredDeviceIdentityKey(host.tomb, carried, options.check);
+    check();
     noteDeviceIdentityChanged("ranked");
     return "replaced";
   }
   await host.publish(deviceKeyField(mine));
+  check();
   return "published";
 }
 
@@ -158,6 +170,6 @@ export async function reconcileDeviceIdentityKey(
 ): Promise<KeyCarryOutcome> {
   if (!host.carries) return "skipped";
   return options.held
-    ? reconcileLocked(host)
-    : withDeviceIdentityFence(host.tomb, () => reconcileLocked(host));
+    ? reconcileLocked(host, options)
+    : withDeviceIdentityFence(host.tomb, () => reconcileLocked(host, options));
 }

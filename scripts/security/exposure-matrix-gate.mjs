@@ -22,6 +22,8 @@ export const CHECKER_SOURCES = Object.freeze([
   "scripts/security/exposure-matrix-gate.mjs",
   "scripts/lib/exposure-policy.mjs",
   "scripts/lib/exposure-contracts.mjs",
+  "scripts/lib/exposure-local-vault.mjs",
+  "scripts/lib/exposure-native-provider.mjs",
   "scripts/lib/exposure-rules.mjs",
   "scripts/lib/exposure-coverage.mjs",
   "scripts/lib/exposure-snapshot.mjs",

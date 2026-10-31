@@ -18,6 +18,13 @@ export type VfsSeams = {
    * each secret as its own file needs it to take the sealed body apart.
    */
   writeRaw: (key: string, value: string, vaultKey?: CryptoKey) => Promise<void>;
+  /** Explicit support for an original-owner assertion at durable and cache publication. */
+  writeRawGuarded?: (
+    key: string,
+    value: string,
+    beforeCommit: () => void,
+    vaultKey?: CryptoKey,
+  ) => Promise<void>;
   deleteRaw: (key: string) => Promise<void>;
   /** A file-per-secret store assembles the body here, before it is first read. */
   openBody?: (tomb: string, vaultKey: CryptoKey) => Promise<void>;
