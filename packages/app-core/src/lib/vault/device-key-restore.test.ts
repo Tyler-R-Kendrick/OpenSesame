@@ -45,6 +45,13 @@ const OTHER_PASSWORD = "fourteen ungulate carriage nail";
 const KEY_FILE = "config/device-identity-key";
 const TAKE = { adoptIdentity: true } as const;
 const carrier = { ...deviceKeyCarrier };
+const stores: VaultStore[] = [];
+
+function newStore(): VaultStore {
+  const store = new VaultStore();
+  stores.push(store);
+  return store;
+}
 
 /** The device forgets its vault and its key: a wiped browser, or a new phone. */
 function wipeDevice(): void {
@@ -62,7 +69,7 @@ function wipeDevice(): void {
 }
 
 async function newVault(password: string): Promise<VaultStore> {
-  const store = new VaultStore();
+  const store = newStore();
   await store.create(password);
   installDeviceKeyCarrier(() => bodyPortOf(store));
   return store;
@@ -99,11 +106,17 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await vfsFlush();
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-  Object.assign(deviceKeyCarrier, carrier);
-  clearNotices();
+  const owned = stores.splice(0);
+  try {
+    await Promise.all(owned.map((store) => store.flushPendingWrites()));
+  } finally {
+    for (const store of owned) store.lock();
+    await vfsFlush();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    Object.assign(deviceKeyCarrier, carrier);
+    clearNotices();
+  }
 });
 
 describe("an offline backup", () => {
@@ -329,7 +342,7 @@ describe("a restore that cannot finish", () => {
 
 describe("a guest", () => {
   it("keeps its key in its own tomb and carries none in a body", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     installDeviceKeyCarrier(() => bodyPortOf(store));
     await store.createGuest();
     const key = await ensureDeviceIdentityKey(GUEST_TOMB);
@@ -338,14 +351,14 @@ describe("a guest", () => {
   });
 
   it("starts the next guest with no key of the last one's", async () => {
-    const first = new VaultStore();
+    const first = newStore();
     installDeviceKeyCarrier(() => bodyPortOf(first));
     await first.createGuest();
     const before = await ensureDeviceIdentityKey(GUEST_TOMB);
     first.lock();
     forgetDeviceIdentityKeyInFlightForTests();
 
-    const second = new VaultStore();
+    const second = newStore();
     installDeviceKeyCarrier(() => bodyPortOf(second));
     await second.createGuest();
     // The earlier guest's sealed key is ciphertext under a dead key: it is

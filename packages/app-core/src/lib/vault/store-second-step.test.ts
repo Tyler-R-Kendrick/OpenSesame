@@ -23,6 +23,22 @@ import { ATTEMPTS_KEY, VaultStore } from "./store.js";
 import { randomTotpSecret } from "./unlock-methods.js";
 
 const PASSWORD = "correct horse battery staple";
+const stores: VaultStore[] = [];
+
+function newStore(): VaultStore {
+  const store = new VaultStore();
+  stores.push(store);
+  return store;
+}
+
+afterEach(async () => {
+  const owned = stores.splice(0);
+  try {
+    await Promise.all(owned.map((store) => store.flushPendingWrites()));
+  } finally {
+    for (const store of owned) store.lock();
+  }
+});
 
 /** The Identity API as a fake: one live code per challenge, spent on use. */
 function fakeIdentity() {
@@ -86,7 +102,7 @@ describe("second steps by email or text, and recovery codes", () => {
   });
 
   it("refuses to bind a code channel to a vault with no key", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.createGuest();
     await expect(
       store.beginCodeEnrollment("email", "tyler@example.com"),
@@ -95,7 +111,7 @@ describe("second steps by email or text, and recovery codes", () => {
   });
 
   it("turns an email code on only once the first code matches, and asks for one at unlock", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     const sent = await store.beginCodeEnrollment("email", "tyler@example.com");
     expect(sent.to).toBe("t•••@example.com");
@@ -114,7 +130,7 @@ describe("second steps by email or text, and recovery codes", () => {
     expect(await store.describeCodeChannel("email")).toBe("t•••@example.com");
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
     expect(reopened.getSnapshot().status).toBe("locked");
@@ -132,7 +148,7 @@ describe("second steps by email or text, and recovery codes", () => {
   });
 
   it("closes an unconfirmed enrollment on lock and on cancel", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     await store.beginCodeEnrollment("sms", "+14155550142");
     store.cancelCodeEnrollment();
@@ -148,7 +164,7 @@ describe("second steps by email or text, and recovery codes", () => {
   });
 
   it("makes recovery codes only beside a second step, and spends each once", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     await expect(store.generateRecoveryCodes()).rejects.toThrow(/second step/);
     await enrollTotp(store);
@@ -165,7 +181,7 @@ describe("second steps by email or text, and recovery codes", () => {
     await store.trashItem(selfId);
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
     await expect(reopened.redeemRecoveryCode("zzzz-zzzz")).rejects.toThrow(
@@ -181,7 +197,7 @@ describe("second steps by email or text, and recovery codes", () => {
     expect(after?.used.filter(Boolean)).toHaveLength(1);
     reopened.lock();
 
-    const again = new VaultStore();
+    const again = newStore();
     await again.unlock(PASSWORD);
     await expect(again.redeemRecoveryCode(codes[3] ?? "")).rejects.toThrow(
       WrongPasswordError,
@@ -191,7 +207,7 @@ describe("second steps by email or text, and recovery codes", () => {
   });
 
   it("drops the recovery codes with the last second step, and keeps them beside another", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     await enrollTotp(store);
     const sent = await store.beginCodeEnrollment("email", "tyler@example.com");
@@ -204,7 +220,7 @@ describe("second steps by email or text, and recovery codes", () => {
     expect(store.getSnapshot().header?.unlocks?.recovery).toBeUndefined();
     expect(store.getSnapshot().header?.unlocks?.email).toBeUndefined();
     store.lock();
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
     expect(reopened.getSnapshot().status).toBe("unlocked");
@@ -235,7 +251,7 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
   }
 
   it("registers a login entry for itself when the gate is enrolled", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     const secret = await enrollTotp(store);
     const item = selfItem(store);
@@ -248,7 +264,7 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
   });
 
   it("does not adopt a same-titled entry whose seed differs", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     const own = createItem("account", SELF_AUTHENTICATOR_TITLE);
     own.methods = [
@@ -267,19 +283,19 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
     expect(registered?.deletedAt).toBeNull();
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().status).toBe("unlocked");
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
   });
 
   it("supplies the code itself at unlock, asking nothing", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     await enrollTotp(store);
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().status).toBe("unlocked");
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
@@ -287,14 +303,14 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
   });
 
   it("asks for the code once the entry is trashed, and does not resurrect it", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     const secret = await enrollTotp(store);
     const selfId = selfItemId(store);
     await store.trashItem(selfId);
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
     await reopened.confirmTotp(await totpCode(parseTotp(secret)));
@@ -305,7 +321,7 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
   });
 
   it("supplies the code again once the entry is restored", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     await enrollTotp(store);
     const selfId = selfItemId(store);
@@ -313,14 +329,14 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
     await store.restoreItem(selfId);
     store.lock();
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().status).toBe("unlocked");
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
   });
 
   it("registers itself for a gate sealed before the marker existed", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     const secret = await enrollTotp(store);
     await store.trashItem(selfItemId(store));
@@ -342,7 +358,7 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
     }
     kvSet(tombFileKey(PERSONAL_TOMB, HEADER_PATH), JSON.stringify(header));
 
-    const reopened = new VaultStore();
+    const reopened = newStore();
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
     await reopened.confirmTotp(await totpCode(parseTotp(secret)));
@@ -355,7 +371,7 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
   });
 
   it("trashes the entry when the gate is removed", async () => {
-    const store = new VaultStore();
+    const store = newStore();
     await store.create(PASSWORD);
     await enrollTotp(store);
     const selfId = selfItemId(store);

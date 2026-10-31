@@ -7,7 +7,7 @@
 import { createItem } from "@opensesame/vault-core";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
-import { VaultStore } from "../vault/store.js";
+import type { VaultStore } from "../vault/store.js";
 import { BODY_PATH, PERSONAL_TOMB, tombFileKey, vfsSeams } from "../vfs.js";
 import { SecretFsUnavailable } from "./errors.js";
 import type { FilesHarness } from "./files.conformance.js";
@@ -28,8 +28,8 @@ import {
 
 function layoutCases(inProcess: InProcess): void {
   it("keeps each secret in a file of its own, named for it and its folder", () =>
-    inProcess(async (files) => {
-      const store = new VaultStore();
+    inProcess(async (files, _restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       const folder = await store.addFolder("work/aws");
       await store.saveItem(secret("Prod Deploy", MARKER, folder.id), folder);
@@ -69,8 +69,8 @@ function layoutCases(inProcess: InProcess): void {
     }));
 
   it("keeps no secret value in the clear anywhere in the directory", () =>
-    inProcess(async (files) => {
-      const store = new VaultStore();
+    inProcess(async (files, _restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       await store.saveItem(secret("wifi"));
       for (const path of await run(files.list(""))) {
@@ -81,8 +81,8 @@ function layoutCases(inProcess: InProcess): void {
     }));
 
   it("opens again in a new process with every secret as it was", () =>
-    inProcess(async (_files, restart) => {
-      const store = new VaultStore();
+    inProcess(async (_files, restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       const folder = await store.addFolder("home");
       await store.saveItem(secret("wifi", "pw-1", folder.id), folder);
@@ -99,8 +99,8 @@ function layoutCases(inProcess: InProcess): void {
 
 function editCases(inProcess: InProcess): void {
   it("rewrites only the secret that changed, and the manifest, in the process that made it and the next", () =>
-    inProcess(async (files, restart) => {
-      const store = new VaultStore();
+    inProcess(async (files, restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       await store.saveItems([secret("one", "1"), secret("two", "2")]);
       const touched = async (edit: VaultStore) => {
@@ -123,8 +123,8 @@ function editCases(inProcess: InProcess): void {
     }));
 
   it("moves a secret's file when it is renamed, and removes it when it is purged", () =>
-    inProcess(async (files) => {
-      const store = new VaultStore();
+    inProcess(async (files, _restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       const item = secret("old name");
       await store.saveItem(item);
@@ -138,8 +138,8 @@ function editCases(inProcess: InProcess): void {
     }));
 
   it("keeps two secrets of one name in two files", () =>
-    inProcess(async (files, restart) => {
-      const store = new VaultStore();
+    inProcess(async (files, restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       await store.saveItems([secret("same", "a"), secret("same", "b")]);
       expect(await run(files.list("personal/secrets"))).toHaveLength(2);
@@ -155,8 +155,8 @@ function editCases(inProcess: InProcess): void {
 
 function raceAndFailureCases(inProcess: InProcess): void {
   it("fails a save that lost a race, and keeps the winner's secrets", () =>
-    inProcess(async (files) => {
-      const store = new VaultStore();
+    inProcess(async (files, _restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       await store.saveItem(secret("a", "mine"));
       const manifest = (await run(files.read("personal/vault.json"))).bytes;
@@ -187,8 +187,8 @@ function raceAndFailureCases(inProcess: InProcess): void {
           ? Effect.fail(new SecretFsUnavailable({ path, reason: "down" }))
           : files.write(path, data, options),
     });
-    return inProcess(async (_files, restart) => {
-      const store = new VaultStore();
+    return inProcess(async (_files, restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       const item = secret("a", "v1");
       await store.saveItem(item);
@@ -212,8 +212,8 @@ function raceAndFailureCases(inProcess: InProcess): void {
 
 function lifecycleCases(inProcess: InProcess): void {
   it("moves a flat vault from before this layout onto files at its next save", () =>
-    inProcess(async (files, restart) => {
-      const store = new VaultStore();
+    inProcess(async (files, restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       await store.saveItem(secret("a", "kept"));
       // Rebuild what an older process left: one flat body and no documents.
@@ -242,8 +242,8 @@ function lifecycleCases(inProcess: InProcess): void {
     }));
 
   it("removes every secret's file when the vault is destroyed", () =>
-    inProcess(async (files) => {
-      const store = new VaultStore();
+    inProcess(async (files, _restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       await store.saveItems([secret("a"), secret("b")]);
       await store.destroy();
@@ -261,8 +261,8 @@ function lifecycleCases(inProcess: InProcess): void {
 
 function folderCases(inProcess: InProcess): void {
   it("makes a folder a directory, empty or not, and brings it back", () =>
-    inProcess(async (files, restart) => {
-      const store = new VaultStore();
+    inProcess(async (files, restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       const empty = await store.addFolder("clients/acme");
       const full = await store.addFolder("home");
@@ -281,8 +281,8 @@ function folderCases(inProcess: InProcess): void {
     }));
 
   it("moves a folder's directory and its secrets when it is renamed, and removes it when deleted", () =>
-    inProcess(async (files, restart) => {
-      const store = new VaultStore();
+    inProcess(async (files, restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       const folder = await store.addFolder("old");
       await store.saveItem(secret("wifi", "pw", folder.id), folder);
@@ -301,8 +301,8 @@ function folderCases(inProcess: InProcess): void {
     }));
 
   it("keeps two folders that spell one directory in two marker files", () =>
-    inProcess(async (files) => {
-      const store = new VaultStore();
+    inProcess(async (files, _restart, newStore) => {
+      const store = newStore();
       await store.create(PASSWORD);
       await store.addFolder("Work Stuff");
       await store.addFolder("Work-Stuff");
