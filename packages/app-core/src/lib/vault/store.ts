@@ -723,6 +723,23 @@ export class VaultStore {
     }
   }
 
+  /**
+   * Cancel or expiry bumped the epoch after this completion captured it.
+   * Success returns without awaiting — an await would reopen the race.
+   */
+  #refuseStaleSecondStep(
+    captured: number | undefined,
+    lease: { tomb: string; release: () => Promise<void> } | null,
+  ): void {
+    if (captured === undefined || captured === this.#secondStepEpoch) return;
+    void this.#abandonSessionLease(lease);
+    this.#vaultKey = null;
+    lockTomb(this.#scope.tomb);
+    this.#zeroRaw();
+    this.#body = emptyBody();
+    throw new WrongPasswordError("That second step is no longer pending.");
+  }
+
   /** A frozen device refuses even a right credential, counts it, and zeroes the root. */
   #refuseWhileFrozen = frozenAuthenticationRefusal(
     () => this.#scope.tomb,
@@ -752,12 +769,29 @@ export class VaultStore {
     let policy: TrustedUnlockPolicy | null;
     try {
       policy = await readTrustedUnlock(this.#scope.tomb);
+      if (secondStepEpoch !== undefined) {
+        this.#assertSecondStepEpoch(secondStepEpoch);
+      }
     } catch (error) {
       lockTomb(this.#scope.tomb);
+      if (
+        secondStepEpoch !== undefined &&
+        secondStepEpoch !== this.#secondStepEpoch
+      ) {
+        this.#zeroRaw();
+      }
       throw error;
     }
     if (!policy) {
-      await this.#activateSession(vaultKey, secondStepEpoch);
+      try {
+        await this.#activateSession(vaultKey, secondStepEpoch);
+      } catch (error) {
+        if (this.#vaultKey === null) {
+          lockTomb(this.#scope.tomb);
+          if (secondStepEpoch !== undefined) this.#zeroRaw();
+        }
+        throw error;
+      }
       return;
     }
     this.#pendingTrustedKey = vaultKey;
@@ -860,6 +894,7 @@ export class VaultStore {
     }
     this.#refuseWhileFrozen();
     const lease = await this.#acquireSessionLease(this.#scope.tomb);
+    this.#refuseStaleSecondStep(secondStepEpoch, lease);
     this.#vaultKey = vaultKey;
     this.#pendingVaultKey = null;
     this.#pendingTrustedKey = null;
@@ -894,7 +929,9 @@ export class VaultStore {
       throw error;
     }
     await levelDeviceKey(this.#bodyPort());
+    this.#refuseStaleSecondStep(secondStepEpoch, lease);
     await this.#protection.ensureProtectionProjected();
+    this.#refuseStaleSecondStep(secondStepEpoch, lease);
     kvDelete(this.#scope.attempts);
     writeLastVaultId(this.#scope.tomb);
     this.#commitSessionLease(lease);
@@ -925,8 +962,20 @@ export class VaultStore {
         }
       }
       this.#sendGuard.reset();
+      const armedEpoch = this.#bumpSecondStepEpoch();
       this.#pendingChallenge.arm(() => {
-        if (this.#pendingVaultKey === vaultKey) this.cancelTotpChallenge();
+        if (this.#pendingVaultKey === vaultKey) {
+          this.cancelTotpChallenge();
+          return;
+        }
+        // Completion nulls the parked key before its awaits. Expiry in that
+        // window must still refuse the in-flight unlock.
+        if (
+          this.#pendingVaultKey === null &&
+          this.#secondStepEpoch === armedEpoch
+        ) {
+          this.cancelTotpChallenge();
+        }
       });
       this.#emit();
       return;
@@ -1100,18 +1149,19 @@ export class VaultStore {
   async confirmTotp(code: string): Promise<void> {
     this.#assertNotLockedOut();
     const pending = this.#pendingVaultKey;
+    const secondStepEpoch = this.#secondStepEpoch;
     const gate = this.#header?.unlocks?.totp;
     if (!pending || !gate) {
       throw new Error("Enter a primary unlock method first.");
     }
-    const secondStepEpoch = this.#secondStepEpoch;
     const secret = await openTotpSecret(pending, gate);
+    this.#assertSecondStepEpoch(secondStepEpoch);
     const ok = await totpCodeMatches(secret, code, gate.digits, gate.period);
+    this.#assertSecondStepEpoch(secondStepEpoch);
     if (!ok) {
       this.#recordFailedUnlock();
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
-    this.#assertSecondStepEpoch(secondStepEpoch);
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
       this.#requireTrustedUnlock(k, secondStepEpoch),
     );
@@ -1157,19 +1207,22 @@ export class VaultStore {
   async confirmRemoteCode(code: string): Promise<void> {
     this.#assertNotLockedOut();
     const pending = this.#pendingVaultKey;
+    const secondStepEpoch = this.#secondStepEpoch;
     const sent = this.#pendingCode;
     if (!pending || !sent) {
       throw new Error("Ask for a code first.");
     }
-    const secondStepEpoch = this.#secondStepEpoch;
     try {
       await verifyCode(sent.challengeId, code);
     } catch (error) {
+      if (secondStepEpoch !== this.#secondStepEpoch) {
+        throw new WrongPasswordError("That second step is no longer pending.");
+      }
       this.#recordFailedUnlock();
       throw error;
     }
-    this.#pendingCode = null;
     this.#assertSecondStepEpoch(secondStepEpoch);
+    this.#pendingCode = null;
     await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
       this.#requireTrustedUnlock(k, secondStepEpoch),
     );
