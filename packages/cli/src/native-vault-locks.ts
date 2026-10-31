@@ -69,15 +69,15 @@ class NativeVaultLocks {
   }
   request = async <T>(
     name: string,
-    optionsOrCallback: LockOptions | LockGrantedCallback,
-    supplied?: LockGrantedCallback,
+    optionsOrCallback: LockOptions | LockGrantedCallback<T>,
+    supplied?: LockGrantedCallback<T>,
   ): Promise<T> => {
     this.check();
     const callbackOnly = isFunction(overlapCast(optionsOrCallback));
     const options: LockOptions = callbackOnly
       ? {}
       : overlapCast(optionsOrCallback);
-    const callback: LockGrantedCallback | undefined = callbackOnly
+    const callback: LockGrantedCallback<T> | undefined = callbackOnly
       ? overlapCast(optionsOrCallback)
       : supplied;
     if (!callback || options.steal)

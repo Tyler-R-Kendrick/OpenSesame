@@ -52,6 +52,7 @@ overrides:
   zod: 4.6.6
   body-parser: 2.4.0
   ip-address: 10.7.4
+  dts-bundle-generator>typescript: 6.0.3
 
 patchedDependencies:
   '@devicefarmer/adbkit@3.3.8':
@@ -110,6 +111,9 @@ importers:
       '@types/react-dom':
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
+      '@typescript/typescript6':
+        specifier: 6.0.2
+        version: 6.0.2
       '@vitejs/plugin-react':
         specifier: 4.5.0
         version: 4.5.0(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -327,7 +331,7 @@ importers:
         version: 5.16.1
       nostr-tools:
         specifier: 2.25.2
-        version: 2.25.2(typescript@7.0.2)
+        version: 2.25.2(@typescript/typescript6@6.0.2)
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -358,10 +362,10 @@ importers:
         version: 10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))
       '@storybook/addon-mcp':
         specifier: 10.6.5
-        version: 10.6.5(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)
+        version: 10.6.5(@typescript/typescript6@6.0.2)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))
       '@storybook/react-vite':
         specifier: 10.6.5
-        version: 10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rollup@4.67.2)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+        version: 10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@typescript/typescript6@6.0.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rollup@4.67.2)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
       '@tailscale/connect':
         specifier: 1.102.3-3-tb31d8a75a-g5e651e16f
         version: 1.102.3-3-tb31d8a75a-g5e651e16f
@@ -383,6 +387,9 @@ importers:
       '@types/ws':
         specifier: 8.18.2
         version: 8.18.2
+      '@typescript/native':
+        specifier: npm:typescript@7.0.2
+        version: typescript@7.0.2
       '@vitejs/plugin-react':
         specifier: 4.5.0
         version: 4.5.0(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -405,8 +412,8 @@ importers:
         specifier: 5.51.2
         version: 5.51.2
       typescript:
-        specifier: 7.0.2
-        version: 7.0.2
+        specifier: npm:@typescript/typescript6@6.0.2
+        version: '@typescript/typescript6@6.0.2'
       vite:
         specifier: 6.4.5
         version: 6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
@@ -1139,6 +1146,9 @@ importers:
       '@types/ws':
         specifier: 8.18.2
         version: 8.18.2
+      '@typescript/typescript6':
+        specifier: 6.0.2
+        version: 6.0.2
       dts-bundle-generator:
         specifier: 9.5.1
         version: 9.5.1
@@ -6281,6 +6291,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@typescript/typescript6@6.0.2':
+    resolution: {integrity: sha512-mbCddXd+jm7hfx7w2YU64/Av4/NqqeG3GoRZgxPcgoTxYjhrcfJRw9ULch71SS4G+Q3bOXFhRvPqjguN0Hyp5w==}
+    hasBin: true
+
   '@typespec/ts-http-runtime@0.3.9':
     resolution: {integrity: sha512-edSdeAqkdxBVzA1yL1LrLCml1YjyCVvPMtMqJpbF+6K609tHe8V6sQUzFQSGcYNhcuhOceZtjvN32+mpIth30A==}
     engines: {node: '>=22.0.0'}
@@ -10560,6 +10574,11 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   typescript@7.0.2:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
     engines: {node: '>=16.20.0'}
@@ -13574,13 +13593,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@joshwooding/vite-plugin-react-docgen-typescript@0.7.0(typescript@7.0.2)(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))':
+  '@joshwooding/vite-plugin-react-docgen-typescript@0.7.0(@typescript/typescript6@6.0.2)(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
       glob: 14.0.2
-      react-docgen-typescript: 2.4.0(typescript@7.0.2)
+      react-docgen-typescript: 2.4.0(@typescript/typescript6@6.0.2)
       vite: 6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
     optionalDependencies:
-      typescript: 7.0.2
+      typescript: '@typescript/typescript6@6.0.2'
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -14873,13 +14892,13 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react-dom'
 
-  '@storybook/addon-mcp@10.6.5(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)':
+  '@storybook/addon-mcp@10.6.5(@typescript/typescript6@6.0.2)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))':
     dependencies:
-      '@tmcp/adapter-valibot': 0.1.6(tmcp@1.20.0(typescript@7.0.2))(valibot@1.5.0(typescript@7.0.2))
-      '@tmcp/transport-http': 0.8.6(tmcp@1.20.0(typescript@7.0.2))
+      '@tmcp/adapter-valibot': 0.1.6(tmcp@1.20.0(@typescript/typescript6@6.0.2))(valibot@1.5.0(@typescript/typescript6@6.0.2))
+      '@tmcp/transport-http': 0.8.6(tmcp@1.20.0(@typescript/typescript6@6.0.2))
       storybook: 10.6.5(@types/react@19.3.0)(react@19.3.1)
-      tmcp: 1.20.0(typescript@7.0.2)
-      valibot: 1.5.0(typescript@7.0.2)
+      tmcp: 1.20.0(@typescript/typescript6@6.0.2)
+      valibot: 1.5.0(@typescript/typescript6@6.0.2)
     transitivePeerDependencies:
       - '@tmcp/auth'
       - typescript
@@ -14905,12 +14924,12 @@ snapshots:
       '@types/react': 19.3.0
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
-  '@storybook/react-vite@10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rollup@4.67.2)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))':
+  '@storybook/react-vite@10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@typescript/typescript6@6.0.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rollup@4.67.2)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))':
     dependencies:
-      '@joshwooding/vite-plugin-react-docgen-typescript': 0.7.0(typescript@7.0.2)(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+      '@joshwooding/vite-plugin-react-docgen-typescript': 0.7.0(@typescript/typescript6@6.0.2)(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
       '@rollup/pluginutils': 5.5.1(rollup@4.67.2)
       '@storybook/builder-vite': 10.6.5(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(vite@6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
-      '@storybook/react': 10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)
+      '@storybook/react': 10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@typescript/typescript6@6.0.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))
       empathic: 2.1.0
       magic-string: 1.4.3
       react: 19.3.1
@@ -14921,26 +14940,26 @@ snapshots:
       tsconfig-paths: 4.2.0
       vite: 6.4.5(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
     optionalDependencies:
-      typescript: 7.0.2
+      typescript: '@typescript/typescript6@6.0.2'
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
       - rollup
       - supports-color
 
-  '@storybook/react@10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))(typescript@7.0.2)':
+  '@storybook/react@10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(@typescript/typescript6@6.0.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))':
     dependencies:
       '@storybook/global': 5.0.0
       '@storybook/react-dom-shim': 10.6.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(storybook@10.6.5(@types/react@19.3.0)(react@19.3.1))
       react: 19.3.1
       react-docgen: 8.0.4
-      react-docgen-typescript: 2.4.0(typescript@7.0.2)
+      react-docgen-typescript: 2.4.0(@typescript/typescript6@6.0.2)
       react-dom: 19.3.1(react@19.3.1)
       storybook: 10.6.5(@types/react@19.3.0)(react@19.3.1)
     optionalDependencies:
       '@types/react': 19.3.0
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
-      typescript: 7.0.2
+      typescript: '@typescript/typescript6@6.0.2'
     transitivePeerDependencies:
       - supports-color
 
@@ -15046,22 +15065,22 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.2
 
-  '@tmcp/adapter-valibot@0.1.6(tmcp@1.20.0(typescript@7.0.2))(valibot@1.5.0(typescript@7.0.2))':
+  '@tmcp/adapter-valibot@0.1.6(tmcp@1.20.0(@typescript/typescript6@6.0.2))(valibot@1.5.0(@typescript/typescript6@6.0.2))':
     dependencies:
       '@standard-schema/spec': 1.1.0
-      '@valibot/to-json-schema': 1.8.0(valibot@1.5.0(typescript@7.0.2))
-      tmcp: 1.20.0(typescript@7.0.2)
-      valibot: 1.5.0(typescript@7.0.2)
+      '@valibot/to-json-schema': 1.8.0(valibot@1.5.0(@typescript/typescript6@6.0.2))
+      tmcp: 1.20.0(@typescript/typescript6@6.0.2)
+      valibot: 1.5.0(@typescript/typescript6@6.0.2)
 
-  '@tmcp/session-manager@0.2.2(tmcp@1.20.0(typescript@7.0.2))':
+  '@tmcp/session-manager@0.2.2(tmcp@1.20.0(@typescript/typescript6@6.0.2))':
     dependencies:
-      tmcp: 1.20.0(typescript@7.0.2)
+      tmcp: 1.20.0(@typescript/typescript6@6.0.2)
 
-  '@tmcp/transport-http@0.8.6(tmcp@1.20.0(typescript@7.0.2))':
+  '@tmcp/transport-http@0.8.6(tmcp@1.20.0(@typescript/typescript6@6.0.2))':
     dependencies:
-      '@tmcp/session-manager': 0.2.2(tmcp@1.20.0(typescript@7.0.2))
+      '@tmcp/session-manager': 0.2.2(tmcp@1.20.0(@typescript/typescript6@6.0.2))
       esm-env: 1.2.2
-      tmcp: 1.20.0(typescript@7.0.2)
+      tmcp: 1.20.0(@typescript/typescript6@6.0.2)
 
   '@tokenizer/inflate@0.4.1':
     dependencies:
@@ -15341,6 +15360,10 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
+  '@typescript/typescript6@6.0.2':
+    dependencies:
+      '@typescript/old': typescript@6.0.3
+
   '@typespec/ts-http-runtime@0.3.9':
     dependencies:
       http-proxy-agent: 7.0.2
@@ -15350,9 +15373,9 @@ snapshots:
       - supports-color
     optional: true
 
-  '@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@7.0.2))':
+  '@valibot/to-json-schema@1.8.0(valibot@1.5.0(@typescript/typescript6@6.0.2))':
     dependencies:
-      valibot: 1.5.0(typescript@7.0.2)
+      valibot: 1.5.0(@typescript/typescript6@6.0.2)
 
   '@vercel/cli-config@0.2.7':
     dependencies:
@@ -16476,7 +16499,7 @@ snapshots:
 
   dts-bundle-generator@9.5.1:
     dependencies:
-      typescript: 7.0.2
+      typescript: 6.0.3
       yargs: 17.7.3
 
   dunder-proto@1.0.1:
@@ -18268,7 +18291,7 @@ snapshots:
 
   normalize-path@3.0.0: {}
 
-  nostr-tools@2.25.2(typescript@7.0.2):
+  nostr-tools@2.25.2(@typescript/typescript6@6.0.2):
     dependencies:
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.0.1
@@ -18278,7 +18301,7 @@ snapshots:
       '@scure/bip39': 2.0.1
       nostr-wasm: 0.1.0
     optionalDependencies:
-      typescript: 7.0.2
+      typescript: '@typescript/typescript6@6.0.2'
 
   nostr-wasm@0.1.0: {}
 
@@ -19091,9 +19114,9 @@ snapshots:
       minimist: 1.2.8
       strip-json-comments: 2.0.1
 
-  react-docgen-typescript@2.4.0(typescript@7.0.2):
+  react-docgen-typescript@2.4.0(@typescript/typescript6@6.0.2):
     dependencies:
-      typescript: 7.0.2
+      typescript: '@typescript/typescript6@6.0.2'
 
   react-docgen@8.0.4:
     dependencies:
@@ -19943,13 +19966,13 @@ snapshots:
     dependencies:
       tldts-core: 6.1.86
 
-  tmcp@1.20.0(typescript@7.0.2):
+  tmcp@1.20.0(@typescript/typescript6@6.0.2):
     dependencies:
       '@standard-schema/spec': 1.1.0
       json-rpc-2.0: 1.8.1
       sqids: 0.3.0
       uri-template-matcher: 1.1.2
-      valibot: 1.5.0(typescript@7.0.2)
+      valibot: 1.5.0(@typescript/typescript6@6.0.2)
     transitivePeerDependencies:
       - typescript
 
@@ -20082,6 +20105,8 @@ snapshots:
       underscore: 1.13.8
 
   typedarray@0.0.6: {}
+
+  typescript@6.0.3: {}
 
   typescript@7.0.2:
     optionalDependencies:
@@ -20247,9 +20272,9 @@ snapshots:
 
   uuid@14.0.1: {}
 
-  valibot@1.5.0(typescript@7.0.2):
+  valibot@1.5.0(@typescript/typescript6@6.0.2):
     optionalDependencies:
-      typescript: 7.0.2
+      typescript: '@typescript/typescript6@6.0.2'
 
   vary@1.1.2: {}
 
