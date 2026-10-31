@@ -87,6 +87,12 @@ export const ProviderAuthenticationSchema = z.discriminatedUnion("kind", [
     })
     .strict(),
 ]);
+/**
+ * Unauthorized, forbidden, proxy authentication required, too many requests:
+ * each refuses a credential, so no contract may name one as its proof. The
+ * HTTP boundary refuses them first as well (`native-api-http.ts`).
+ */
+const REFUSAL_STATUSES: ReadonlySet<number> = new Set([401, 403, 407, 429]);
 export const ProviderVerificationSchema = z
   .object({
     method: z.enum(["GET", "POST"]),
@@ -112,8 +118,35 @@ export const ProviderVerificationSchema = z
       .default([]),
     requiredFields: z.array(fieldPath).default([]),
     errorFields: z.array(fieldPath).default([]),
+    /**
+     * Client errors the provider documents as proof the credential was
+     * accepted (Higgsfield's 404 for a request no account holds). Such an
+     * answer has no body to read, so nothing else may be read from it.
+     */
+    validStatuses: z
+      .array(
+        z
+          .number()
+          .int()
+          .min(400)
+          .max(499)
+          .refine(
+            (status) => !REFUSAL_STATUSES.has(status),
+            "401, 403, 407 and 429 refuse a credential; none of them proves one",
+          ),
+      )
+      .default([]),
   })
-  .strict();
+  .strict()
+  .refine(
+    (verify) =>
+      verify.validStatuses.length === 0 ||
+      (verify.accountField === null &&
+        verify.success.length === 0 &&
+        verify.requiredFields.length === 0 &&
+        verify.errorFields.length === 0),
+    "a status proof reads no body",
+  );
 
 export const ProviderCredentialVariantSchema = z
   .object({

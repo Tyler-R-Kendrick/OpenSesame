@@ -20,6 +20,7 @@ import {
   type LocalIdentity,
   type LocalIdentityKind,
 } from "./local-directory-types.js";
+import { type LocalIamAccess, readLocalIamFile } from "./local-iam-access.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";
 
@@ -96,10 +97,14 @@ function parseDirectory(value: BoundaryValue): LocalDirectory {
 /** Local records are not credentials, remote principals, or resource grants. */
 export async function readLocalDirectory(
   tomb: string,
+  access?: LocalIamAccess,
 ): Promise<LocalDirectory> {
-  await kvRefresh(tombFileKey(tomb, LOCAL_DIRECTORY_PATH), 1_048_576);
+  if (!access)
+    await kvRefresh(tombFileKey(tomb, LOCAL_DIRECTORY_PATH), 1_048_576);
   try {
-    const bytes = await readFile(tomb, LOCAL_DIRECTORY_PATH);
+    const bytes = access
+      ? await readLocalIamFile(access, tomb, LOCAL_DIRECTORY_PATH)
+      : await readFile(tomb, LOCAL_DIRECTORY_PATH);
     if (bytes.length > 512_000)
       throw new LocalDirectoryError(
         "The local directory exceeds its size limit. Restore a smaller valid backup.",
@@ -112,8 +117,9 @@ export async function readLocalDirectory(
     }
     // Ciphertext sealed under a destroyed guest key, not a parse failure.
     if (
-      error instanceof VaultCorruptError ||
-      (error instanceof VfsError && error.code === "corrupt")
+      !access &&
+      (error instanceof VaultCorruptError ||
+        (error instanceof VfsError && error.code === "corrupt"))
     ) {
       await vfsSeams.deleteRaw(tombFileKey(tomb, LOCAL_DIRECTORY_PATH));
       return { version: 2, revision: 0, entries: [], memberships: [] };

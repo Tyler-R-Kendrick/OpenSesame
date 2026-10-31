@@ -19,6 +19,7 @@ import {
 import { kvDeleteDurable, kvGet, kvSetDurable } from "../kv.js";
 import { VfsError } from "../vfs-error.js";
 import { deleteFile, readFile, writeFile } from "../vfs.js";
+import { recordAuthentication } from "./authentication.js";
 import { canonicalJson, signText, verifyText } from "./crypto.js";
 import {
   DEADMAN_CONFIG_PATH,
@@ -31,7 +32,6 @@ import {
   deleteDeadmanPackage,
   readDeadmanPackage,
 } from "./package.js";
-import { sendHeartbeat } from "./relay.js";
 
 const DAY_MS = 86_400_000;
 
@@ -201,8 +201,9 @@ export function readDeadmanState(tomb: string): DeadmanState | null {
 export async function writeDeadmanState(
   tomb: string,
   state: DeadmanState,
+  check?: () => void,
 ): Promise<void> {
-  await kvSetDurable(deadmanStateKey(tomb), JSON.stringify(state));
+  await kvSetDurable(deadmanStateKey(tomb), JSON.stringify(state), check);
 }
 
 export function parseDeadmanConfig(raw: string | null): DeadmanConfig | null {
@@ -336,46 +337,23 @@ export function deadmanReleaseOffered(tomb: string): boolean {
  * deadline backwards. A relay failure is deliberately not an unlock failure:
  * the owner is in, and the switch still has a local last-authenticated time.
  */
-export async function recordDeadmanAuthentication(tomb: string): Promise<void> {
-  try {
-    const state = readDeadmanState(tomb);
-    if (!state || !(await verifyDeadmanState(state))) return;
-    const config = await readDeadmanConfig(tomb);
-    if (
-      !config ||
-      config.id !== state.id ||
-      !(await deadmanKeyMatchesState(config.privateKeyJwk, state.publicKeyJwk))
-    )
-      return;
-    const now = deadmanSeams.now();
-    if (now <= state.lastAuthenticatedAt) return;
-    const next = await signDeadmanState(
-      {
-        ...state,
-        lastAuthenticatedAt: now,
-        sequence: state.sequence + 1,
-      },
-      config.privateKeyJwk,
-    );
-    await writeDeadmanState(tomb, next);
-    const heartbeat = {
-      v: 1 as const,
-      type: "opensesame.deadman.heartbeat" as const,
-      id: next.id,
-      at: now,
-      sequence: next.sequence,
-    };
-    const signature = await signText(
-      config.privateKeyJwk,
-      canonicalJson(heartbeat),
-    );
-    void sendHeartbeat(
-      { relayUrl: next.relayUrl, relayToken: config.relayToken },
-      { ...heartbeat, signature },
-    ).catch(() => undefined);
-  } catch {
-    // A deadman record is a convenience, never a condition of opening a vault.
-  }
+export function recordDeadmanAuthentication(
+  tomb: string,
+  check?: () => void,
+): Promise<void> {
+  return recordAuthentication(
+    tomb,
+    {
+      now: deadmanSeams.now,
+      read: readDeadmanState,
+      verify: verifyDeadmanState,
+      config: readDeadmanConfig,
+      matches: deadmanKeyMatchesState,
+      sign: signDeadmanState,
+      write: writeDeadmanState,
+    },
+    check,
+  );
 }
 
 export async function deleteDeadmanLocal(tomb: string): Promise<void> {

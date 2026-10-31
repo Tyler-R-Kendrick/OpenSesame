@@ -2460,9 +2460,7 @@
       "userinfo_endpoint": null,
       "token_endpoint_auth_method": "client_secret_post",
       "pkce": "none",
-      "authorization_params": {
-        "user_scope": "users:read"
-      },
+      "authorization_params": {},
       "scope_separator": ",",
       "scopes": [
         {
@@ -3392,9 +3390,7 @@
       "confidence": "medium",
       "notes": "Key scheme with the combined id:secret credential; one bounded read-only GET of the published API contract. No model runs, writes or token minting.",
       "sources": ["https://fal.ai/docs/model-endpoints/authentication"],
-      "template_params": [],
-      "display_name": "FAL.ai",
-      "category": "ai_model_provider"
+      "template_params": []
     },
     {
       "service": "higgsfield",
@@ -3403,30 +3399,40 @@
       "scheme": "Key",
       "basic": null,
       "key_prefix": null,
+      "auth": {
+        "kind": "header",
+        "header": "Authorization",
+        "value_template": "Key {key}:{key_secret}"
+      },
+      "additional_credentials": [
+        {
+          "name": "key_secret",
+          "label": "Key secret",
+          "placeholder": "",
+          "required": true,
+          "secret": true
+        }
+      ],
       "service_urls": ["https://api.higgsfield.ai"],
       "verify": {
-        "method": "POST",
-        "url": "https://api.higgsfield.ai/v1/models",
-        "headers": {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        "body": "{}",
+        "method": "GET",
+        "url": "https://api.higgsfield.ai/requests/00000000-0000-0000-0000-000000000000/status",
+        "headers": { "Accept": "application/json" },
         "account_field": null,
-        "required_fields": []
+        "valid_statuses": [404]
       },
-      "instructions": "Create an API credential in the Higgsfield Console and copy the key ID and secret. Paste them here joined with a colon (`key_id:key_secret`); they travel as an `Authorization: Key` header and only list the models your account can reach.",
+      "instructions": "Create an API credential in the Higgsfield Console. Enter its key ID as the API key and its secret as the key secret; they travel together as an `Authorization: Key` header. The check reads the status of a request no account holds: Higgsfield answers 404 when the credential is accepted and 401 when it is not. Nothing is generated or billed.",
       "docs_url": "https://docs.higgsfield.ai/docs/authentication",
       "probe_status": 401,
-      "confidence": "medium",
-      "notes": "Key scheme with the combined id:secret credential; one bounded read-only POST listing the account\u2019s models. No generation submissions.",
+      "confidence": "high",
+      "notes": "Key ID and secret as `Authorization: Key {key_id}:{key_secret}` (the legacy hf-api-key and hf-secret headers are not used). The only documented read is GET /requests/{request_id}/status: 401 for missing or invalid credentials, 404 for a request that does not exist or belongs to another account, so a fixed all-zero request id proves the pair by its 404 and reads no body. Documented paths carry no /v1 prefix and list no model catalogue. Higgsfield's documentation says not to call the API from browser code, and its API does not admit the audited origin (browser-policy.json).",
       "sources": [
-        "https://docs.higgsfield.ai/docs/authentication",
-        "https://docs.higgsfield.ai/docs/api-reference/overview"
+        "https://docs.higgsfield.ai/docs/authentication.md",
+        "https://docs.higgsfield.ai/docs/openapi.json",
+        "https://docs.higgsfield.ai/docs/api-reference/requests/get-request-status.md",
+        "https://docs.higgsfield.ai/docs/concepts/errors.md"
       ],
-      "template_params": [],
-      "display_name": "Higgsfield",
-      "category": "ai_model_provider"
+      "template_params": []
     },
     {
       "service": "linq",
@@ -3513,9 +3519,7 @@
           "required": true,
           "secret": false
         }
-      ],
-      "display_name": "Obsidian",
-      "category": "storage"
+      ]
     },
     {
       "service": "polar",
@@ -3541,9 +3545,7 @@
         "https://polar.sh/docs/integrate/oat",
         "https://github.com/polarsource/polar/blob/main/docs/openapi/2026-10.openapi.json"
       ],
-      "template_params": [],
-      "display_name": "Polar",
-      "category": "crm"
+      "template_params": []
     },
     {
       "service": "stripe",

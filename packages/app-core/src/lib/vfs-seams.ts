@@ -6,6 +6,12 @@ export type { VfsSeams } from "./vfs-seams-state.js";
 export const vfsSeams: VfsSeams = Object.assign(installed, {
   readRaw: kvGet,
   writeRaw: (key: string, value: string) => kvSetDurable(key, value),
+  writeRawGuarded: (
+    key: string,
+    value: string,
+    beforeCommit: () => void,
+    _vaultKey?: CryptoKey,
+  ) => kvSetDurable(key, value, beforeCommit),
   deleteRaw: kvDeleteDurable,
   refreshRaw: kvRefresh,
   seal: sealJson,

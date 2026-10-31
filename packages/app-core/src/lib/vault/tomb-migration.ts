@@ -190,16 +190,22 @@ const utf8 = new TextEncoder();
  */
 export async function hydrateAndMigrateTombOnUnlock(
   tomb: string,
+  check: () => void = () => {},
 ): Promise<void> {
+  check();
   await kvHydrate(tombSessionKeys(tomb));
+  check();
   await retireUnusedConnectionConfigs(tomb);
+  check();
 
   const marker = readMarker(tomb);
   if (!marker.config) {
     const legacyPrefs = vfsSeams.readRaw(scopedKey(LEGACY_PREFS_KEY, tomb));
     if (legacyPrefs !== null) {
       await writeFile(tomb, PREFS_CONFIG_PATH, utf8.encode(legacyPrefs));
+      check();
       await vfsSeams.deleteRaw(scopedKey(LEGACY_PREFS_KEY, tomb));
+      check();
     }
 
     const legacyRegistry = readLegacyIdpRegistry();
@@ -209,12 +215,14 @@ export async function hydrateAndMigrateTombOnUnlock(
         IDP_REGISTRY_CONFIG_PATH,
         utf8.encode(legacyRegistry),
       );
+      check();
       clearLegacyIdpRegistry();
     }
 
     // The projects list seals into this tomb's config; the plaintext
     // `projects.v1` shrinks to the boot pointer (the active tomb name).
-    await migrateProjectsToVfs(tomb);
+    await migrateProjectsToVfs(tomb, check);
+    check();
 
     const legacyProfile = readLegacyOrgProfile();
     if (legacyProfile !== null) {
@@ -223,19 +231,25 @@ export async function hydrateAndMigrateTombOnUnlock(
         ORG_PROFILE_CONFIG_PATH,
         utf8.encode(legacyProfile),
       );
+      check();
       clearLegacyOrgProfile();
     }
 
     // Phase B moved the body without a key, so it never reached the sealed
     // index — record it now that the index can be written.
     await ensureIndexed(tomb, BODY_PATH);
+    check();
 
     await writeMarker(tomb, { ...marker, config: true });
+    check();
   }
 
-  await hydrateIdpRegistryFromVfs(tomb);
-  await hydrateProjectsFromVfs(tomb);
-  await hydrateOrgProfileFromVfs(tomb);
+  await hydrateIdpRegistryFromVfs(tomb, check);
+  check();
+  await hydrateProjectsFromVfs(tomb, check);
+  check();
+  await hydrateOrgProfileFromVfs(tomb, check);
+  check();
 }
 
 /**

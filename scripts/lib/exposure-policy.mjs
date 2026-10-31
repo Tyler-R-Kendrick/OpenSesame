@@ -3,6 +3,8 @@ import { isJsonObject, isString } from "./json-boundary.mjs";
 export const POLICY_PATH = "tools/security/exposure-matrix.json";
 export const digestPattern = /^[a-f0-9]{64}$/u;
 import { CORE_CONTRACTS } from "./exposure-contracts.mjs";
+import { LOCAL_VAULT_CONTROLS } from "./exposure-local-vault.mjs";
+import { NATIVE_PROVIDER_CONTROLS } from "./exposure-native-provider.mjs";
 export const REQUIRED_SURFACES = Object.freeze(
   Object.fromEntries(
     Object.entries(CORE_CONTRACTS).map(([id, contract]) => [id, contract.kind]),
@@ -31,6 +33,8 @@ const ARTIFACTS = [
   "certificate-binding",
 ];
 const CONTROLS = [
+  ...LOCAL_VAULT_CONTROLS,
+  ...NATIVE_PROVIDER_CONTROLS,
   "mandatory-proof",
   "bearer-before-budget",
   "trusted-budget-source",
@@ -219,7 +223,14 @@ function requiredBoundaries(surfaces) {
   for (const [id, contract] of Object.entries(CORE_CONTRACTS)) {
     const row = surfaces.find((item) => item.id === id);
     if (!row) fail(`required boundary ${id} is absent`);
-    for (const field of ["kind", "observer", "area", "flow", "verification"]) {
+    for (const field of [
+      "kind",
+      "observer",
+      "area",
+      "flow",
+      "verification",
+      "enforcement",
+    ]) {
       if (contract[field] !== undefined && row[field] !== contract[field])
         fail(`required ${field} for ${id} cannot be weakened or detached`);
     }
@@ -227,6 +238,12 @@ function requiredBoundaries(surfaces) {
       if (!row.artifacts.includes(artifact))
         fail(`required artifact for ${id} cannot be hidden`);
     }
+    if (
+      contract.guarantees &&
+      (row.guarantees.length !== contract.guarantees.length ||
+        contract.guarantees.some((item) => !row.guarantees.includes(item)))
+    )
+      fail(`required guarantee limits for ${id} cannot be overstated`);
   }
 }
 

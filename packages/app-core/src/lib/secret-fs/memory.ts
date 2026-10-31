@@ -7,8 +7,10 @@
  */
 import { Effect } from "effect";
 import { SecretFsConflict, SecretFsNotFound } from "./errors.js";
+import { checkWriteOwner } from "./files-owner.js";
 import { checkPath, revisionOf } from "./files.js";
 import type { SecretFiles } from "./files.js";
+import type { WriteOptions } from "./files.js";
 
 export type MemorySecretFiles = SecretFiles & {
   /** What is stored now, for a test or a persistence hook to look at. */
@@ -29,7 +31,12 @@ export function makeMemorySecretFiles(
       return { bytes: bytes.slice(), revision: revisionOf(bytes) };
     });
 
-  const write: SecretFiles["write"] = (path, bytes, options) =>
+  const write = (
+    path: string,
+    bytes: Uint8Array,
+    options?: WriteOptions,
+    check?: () => void,
+  ) =>
     Effect.gen(function* () {
       yield* checkPath(path);
       const current = stored.get(path);
@@ -41,6 +48,7 @@ export function makeMemorySecretFiles(
           actual,
         });
       }
+      yield* checkWriteOwner(path, check);
       stored.set(path, bytes.slice());
       return revisionOf(bytes);
     });
@@ -65,6 +73,8 @@ export function makeMemorySecretFiles(
   return {
     read,
     write,
+    writeGuarded: (path, bytes, check, options) =>
+      write(path, bytes, options, check),
     remove,
     list,
     snapshot: () => new Map(stored),

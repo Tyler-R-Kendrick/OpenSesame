@@ -57,8 +57,9 @@ issuer binding. This applies to Auth0, Databricks, Okta, Shopify,
 Workday and, when configured, Obsidian. The relay does not send their tokens
 to those hosts. Connector setup and browser-local operation are unchanged;
 fixed provider targets and the existing provider-owned suffixes remain eligible
-for proof. Higgsfield verification also returns `verified: null` until its
-POST endpoint is documented as a safe credential proof; no request is sent.
+for proof. Higgsfield verification also returns `verified: null`: its key is
+a key ID and secret pair, which the single-key relay cannot supply, so no
+request is sent.
 A null verdict means proof is unavailable, not that a token failed.
 A connector using a recognized service ID and a different recognized provider
 ID as the prefix of its editable UID also receives a null verdict, even if both

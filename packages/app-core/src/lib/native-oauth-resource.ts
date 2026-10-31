@@ -17,6 +17,10 @@ import {
   nativeOAuthClientTarget,
   readNativeOAuthClientSecret,
 } from "./native-oauth-client-config.js";
+import {
+  nativeOAuthProviderContract,
+  nativeOAuthResourceRequest,
+} from "./native-oauth-client-contract.js";
 import { admissibleGrantScopes } from "./native-oauth-client-scopes.js";
 import { commitNativeOAuthGrant } from "./native-oauth-commit.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
@@ -102,16 +106,13 @@ async function readResource(
   assertNativeOAuthClientPolicy(record.configuration, owner);
   const transport = resourceTransport(record, grant, owner);
   try {
+    const read = nativeOAuthResourceRequest(
+      nativeOAuthProviderContract(record.configuration.providerId),
+      url,
+      grant.accessToken,
+    );
     const body = await nativeApiHttp(
-      {
-        url,
-        method: "GET",
-        headers: new Headers({
-          accept: "application/json",
-          authorization: `Bearer ${grant.accessToken}`,
-        }),
-        signal: transport.signal,
-      },
+      { url, ...read, signal: transport.signal },
       transport,
     );
     if (resourceFailed(body)) throw new NativeApiError("response", 200);
@@ -180,6 +181,7 @@ export async function verifyNativeOAuthResource(
       resourceTransport(record, grant, owner),
       { revision: record.revision, grant },
     );
+    assertNativeOAuthClientOwner(owner);
     return { view, body };
   }
   if (
@@ -214,5 +216,6 @@ export async function verifyNativeOAuthResource(
     },
     resourceTransport(record, grant, owner).assertCurrent,
   );
+  assertNativeOAuthClientOwner(owner);
   return { view, body };
 }

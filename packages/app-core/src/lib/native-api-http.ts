@@ -39,6 +39,8 @@ export type NativeApiHttpRequest = {
   headers: Headers;
   body?: string;
   signal?: AbortSignal;
+  /** Statuses the provider documents as proof; their body is never read. */
+  validStatuses?: readonly number[];
 };
 
 async function reply(
@@ -62,6 +64,42 @@ async function cancelUnreadResponse(
     await response.body?.cancel().catch(() => undefined);
 }
 
+/**
+ * The statuses that refuse a credential, and how each is reported. The
+ * contract schema refuses the same four as proofs
+ * (`connect-provider-auth-schema.ts`).
+ */
+const REFUSALS: ReadonlyMap<number, NativeApiError["code"]> = new Map([
+  [401, "authorization"],
+  [403, "permission"],
+  [407, "response"],
+  [429, "rate-limit"],
+]);
+
+/**
+ * True when the status alone is the answer: one the contract documents as
+ * proof. A refusal, a redirected answer or any other non-2xx throws; a 2xx
+ * answer is read.
+ */
+function answeredByStatus(
+  request: NativeApiHttpRequest,
+  response: Response,
+): boolean {
+  // Refusals come first, so no contract can turn one into a proof.
+  const refused = REFUSALS.get(response.status);
+  if (refused) throw new NativeApiError(refused, response.status);
+  if (response.redirected)
+    throw new NativeApiError("response", response.status);
+  if (
+    response.status >= 400 &&
+    response.status <= 499 &&
+    request.validStatuses?.includes(response.status)
+  )
+    return true;
+  if (!response.ok) throw new NativeApiError("response", response.status);
+  return false;
+}
+
 export async function nativeApiHttp(
   request: NativeApiHttpRequest,
   transport: NativeProviderTransport,
@@ -74,25 +112,35 @@ export async function nativeApiHttp(
   const deadline = setTimeout(abort, 15_000);
   let response: Response | undefined;
   try {
-    const init: RequestInit = {
-      method: request.method,
-      headers: request.headers,
-      signal: controller.signal,
-      mode: "cors",
-      credentials: "omit",
-      redirect: "error",
-      cache: "no-store",
-      referrerPolicy: "no-referrer",
-    };
-    if (request.body !== undefined) init.body = request.body;
-    response = await transport.fetch(request.url, init);
-    transport.assertCurrent();
-    if (response.status === 401) throw new NativeApiError("authorization", 401);
-    if (response.status === 403) throw new NativeApiError("permission", 403);
-    if (response.status === 429) throw new NativeApiError("rate-limit", 429);
-    if (!response.ok || response.redirected)
-      throw new NativeApiError("response", response.status);
-    const body = await reply(response, controller.signal);
+    let body: BoundaryValue;
+    try {
+      if (controller.signal.aborted) throw new NativeApiError("network");
+      const init: RequestInit = {
+        method: request.method,
+        headers: request.headers,
+        signal: controller.signal,
+        mode: "cors",
+        credentials: "omit",
+        redirect: "error",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+      };
+      if (request.body !== undefined) init.body = request.body;
+      response = await transport.fetch(request.url, init);
+      transport.assertCurrent();
+      if (controller.signal.aborted) throw new NativeApiError("network");
+      body = answeredByStatus(request, response)
+        ? {}
+        : await reply(response, controller.signal);
+    } finally {
+      try {
+        // Keep the original request deadline and cancellation live through cleanup.
+        await cancelUnreadResponse(response);
+      } finally {
+        clearTimeout(deadline);
+        request.signal?.removeEventListener("abort", abort);
+      }
+    }
     transport.assertCurrent();
     if (controller.signal.aborted) throw new NativeApiError("network");
     return body;
@@ -100,14 +148,5 @@ export async function nativeApiHttp(
     if (error instanceof NativeApiError) throw error;
     if (error instanceof EgressDenied) throw new NativeApiError("deployment");
     throw new NativeApiError("network");
-  } finally {
-    try {
-      // HTTP refusal and post-header withdrawal never enter the JSON reader.
-      // Close that original unread body before its request deadline retires.
-      await cancelUnreadResponse(response);
-    } finally {
-      clearTimeout(deadline);
-      request.signal?.removeEventListener("abort", abort);
-    }
   }
 }

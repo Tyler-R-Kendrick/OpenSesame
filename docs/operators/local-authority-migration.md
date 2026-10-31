@@ -108,8 +108,8 @@ Host project roles through the explicit native policy procedure in
 Retain original encrypted data and database backups during migration. Downgrading
 to a binary that lacks these checks is not a safe live rollback.
 
-The static-auth artifact in the integration tree (version 1.0.4 in
-`apps/pages/public/static-auth/manifest.json`) is a release candidate;
+The static-auth artifact selected by
+`apps/pages/public/static-auth/manifest.json` is a release candidate;
 its presence does not establish that it has been published or independently
 verified. Use the actual release manifest and immutable bytes when distributing
 an SDK, and record final gate results separately.

@@ -7,11 +7,13 @@ import { VitePWA } from "vite-plugin-pwa";
 import { configDefaults } from "vitest/config";
 import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-policy.ts";
 import { pwaManifest } from "./pwa-manifest.js";
+import { aiBrowserModels } from "./scripts/ai-browser-models.mjs";
 import { bundleChunk } from "./scripts/bundle-chunk.mjs";
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { kdbxNativeDOM } from "./scripts/kdbx-native-dom-plugin.mjs";
+import { dependencyRoot } from "./scripts/lib/dependency-root.mjs";
 import { writePrivateSnapshot } from "./scripts/lib/private-files.mjs";
 import { mcpBrowserValidator } from "./scripts/mcp-browser-validator.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
@@ -20,6 +22,7 @@ import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { samlBrowserCrypto } from "./scripts/saml-browser-crypto.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { sharedWorkerGraph } from "./scripts/shared-worker-graph.mjs";
+import { shellBuildMetadata } from "./scripts/shell-build-metadata-plugin.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 import {
   tailscaleWasmAssets,
@@ -59,13 +62,14 @@ const osDomainWallet = fileURLToPath(
  * app-core already depends on this copy. @scure/bip32 and nostr-tools pin
  * curves 2.0.1, which emits a second secp256k1 (Point, getPublicKey, sign
  * and verify with `prehash: false`, schnorr). One resolution keeps a single
- * copy. Those callers use the surface 2.4.0 still exports.
+ * copy. Those callers use the surface 2.4.0 still exports. The copy is the one
+ * app-core resolves, wherever the install placed it.
  */
-const nobleCurves = fileURLToPath(
-  new URL(
-    "../../packages/app-core/node_modules/@noble/curves",
-    import.meta.url,
+const nobleCurves = dependencyRoot(
+  fileURLToPath(
+    new URL("../../packages/app-core/package.json", import.meta.url),
   ),
+  "@noble/curves",
 );
 
 function redirectBareBase(
@@ -222,15 +226,15 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-        // Merge a chunk under 32 KB into one that every path loading it
-        // already loads. The precache gzips each file alone; a 32 KB floor
+        // Merge a chunk under 64 KB into one that every path loading it
+        // already loads. The precache gzips each file alone; a 64 KB floor
         // reduces that repeated compression overhead. A pure chunk still
         // folds into a neighbour at this floor. Pin a chunk that must keep its
         // name (`device-identity-host` below; web-push enrolment in
         // `capability-lazy-leaves.mjs`) so the bootstrap does not
         // static-import an optional module (ADR 0130 §4) and the device
         // walks can still import the host by file name.
-        experimentalMinChunkSize: 32_000,
+        experimentalMinChunkSize: 64_000,
         manualChunks: bundleChunk,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
@@ -271,7 +275,9 @@ export default defineConfig({
     },
   },
   plugins: [
+    shellBuildMetadata(),
     zodCsp(),
+    aiBrowserModels(fileURLToPath(new URL("../..", import.meta.url))),
     vercelOidcNamespace(fileURLToPath(new URL("../..", import.meta.url))),
     process.env.OPENSESAME_AI_COMPLETION_VERIFY === "1" && {
       name: "ai-completion-verifier-entry",

@@ -737,6 +737,37 @@
     }
   },
   {
+    "id": "helpers.mint_allowlist",
+    "title": "Allow, revoke or list the connections the credential helpers may mint on the daemon's socket",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame daemon helpers allow",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "the allowlist decides which connections a same-user process may mint with no token; an agent that could change it could widen its own reach",
+        "adr": "0138-self-issued-identity-one-native-host.md"
+      },
+      "mcp_client": {
+        "reason": "the allowlist decides which connections a same-user process may mint with no token; an agent that could change it could widen its own reach",
+        "adr": "0138-self-issued-identity-one-native-host.md"
+      }
+    }
+  },
+  {
     "id": "host.auth.doctor",
     "title": "Diagnose the local sign-in state",
     "plane": "host",
@@ -6748,6 +6779,41 @@
       "webmcp": {
         "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
         "adr": "0192-model-keys-and-token-exchange.md"
+      }
+    }
+  },
+  {
+    "id": "connections.aws_sts_binding",
+    "title": "Bind, read or remove the STS role an AWS connection mints for",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "an operator writes the binding over the Host API once per connection; there is no terminal verb for it",
+        "adr": "0217-aws-sts-mint.md"
+      },
+      "pwa": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "webmcp": {
+        "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
+        "adr": "0128-pages-without-host.md"
+      },
+      "mcp_host": {
+        "reason": "a binding decides which IAM role a stored AWS key assumes and how long the credential lasts; an agent that could write one could re-aim the key at a role of its choosing",
+        "adr": "0217-aws-sts-mint.md"
+      },
+      "mcp_client": {
+        "reason": "a binding decides which IAM role a stored AWS key assumes and how long the credential lasts; an agent that could write one could re-aim the key at a role of its choosing",
+        "adr": "0217-aws-sts-mint.md"
       }
     }
   },

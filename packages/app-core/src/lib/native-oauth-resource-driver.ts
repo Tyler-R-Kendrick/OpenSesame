@@ -90,7 +90,9 @@ function resourceOperations(
           original.settleCredentialMutation.bind(original);
       const owner = { ...capture, transport };
       assertNativeOAuthClientOwner(owner);
-      return await action(owner);
+      const result = await action(owner);
+      assertNativeOAuthClientOwner(owner);
+      return result;
     } finally {
       capture.close();
     }
@@ -159,6 +161,7 @@ export function createNativeOAuthResourceDriver(
         if (operation !== "provider.resource.read" || Object.keys(input).length)
           throw new NativeOAuthError("scope");
         const result = await verifyNativeOAuthResource(id, owner);
+        assertNativeOAuthClientOwner(owner);
         return {
           label: "Configured API resource read",
           items: [

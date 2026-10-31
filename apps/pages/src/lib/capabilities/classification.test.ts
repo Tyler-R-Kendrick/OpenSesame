@@ -250,10 +250,14 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     for (const path of [
       "src/lib/der.ts",
       "src/lib/local-directory.ts",
+      "src/lib/local-iam-access.ts",
+      "src/lib/local-passkey-authentication.ts",
       "src/lib/local-sessions.ts",
       "src/lib/local-share-reach.ts",
       "src/lib/local-groups.ts",
       "src/lib/connections.ts",
+      "src/lib/family-member-rows.test.ts",
+      "src/lib/integration-ai-labs.test.ts",
       "src/lib/tailscale/browser-node-port.ts",
       "src/lib/tailscale/browser-node-store.ts",
       "src/lib/secret-backends/local-vault-port.ts",
@@ -342,13 +346,17 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     );
   });
 
-  it("keeps SIOP social optional and limits the new ownership to exact files", () => {
+  it("keeps SIOP social optional and limits ownership to exact files", () => {
     expect(classify("src/lib/siop-social.ts")?.classification).toBe("optional");
     for (const path of [
       "src/lib/siop-social.test.ts",
       "src/lib/siop-social-helper.ts",
       "src/lib/local-groups.test.ts",
       "src/lib/local-groups-helper.ts",
+      "src/lib/local-iam-access-helper.ts",
+      "src/lib/local-passkey-authentication-helper.ts",
+      "src/lib/family-member-rows.ts",
+      "src/lib/integration-ai-labs-extra.test.ts",
     ])
       expect(classify(path), path).toBeNull();
   });

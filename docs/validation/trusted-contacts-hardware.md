@@ -14,6 +14,13 @@ page closes: *"Not exercised against physical hardware."*
 | Trusted-contact **vault unlock** | people created in the identity directory, real Chromium WebAuthn enrollment and assertions, 2-of-3 and 3-of-3 policies; one below the threshold stays locked, the threshold opens the vault | `pnpm --filter @opensesame/pages verify:trusted-unlock` |
 | The Settings screens | Pages tests and the local browser walk (keyboard, touch, tutorials) | see the screens' own gates |
 
+Trusted-contact vault unlock is a local application policy applied after the
+primary method unwraps the root. Before approval, private access is limited to
+the policy, directory, passkey records and verified assertion-counter updates;
+general vault files stay locked. Cryptographic share recovery is the separate
+SLIP-0039/HPKE protocol in the other rows. The local unlock policy does not
+provide offline threshold secrecy against someone who already holds the root.
+
 A CDP virtual authenticator runs Chromium's WebAuthn code (real `create` and
 `get`, real `clientDataJSON`, authenticator data, signatures, the PRF
 extension). It does **not** run a vendor's firmware, a platform's secure

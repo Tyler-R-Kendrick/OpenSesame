@@ -22,11 +22,25 @@ register(
 const {
   detectGrokCapHit,
   grokDeepTimeoutSec,
+  grokEnv,
   grokFileWallSec,
   grokInvestigateTimeoutSec,
   grokKillGraceMs,
   grokShallowTimeoutSec,
 } = await import("./grok-agent-prompt.ts");
+
+test("grokEnv strips pay-per-token keys so Grok Build subscription is used", () => {
+  process.env.XAI_API_KEY = "must-not-reach-grok-child";
+  process.env.GROK_CODE_XAI_API_KEY = "must-not-reach-grok-child";
+  process.env.GROK_DEPLOYMENT_KEY = "must-not-reach-grok-child";
+  const env = grokEnv();
+  assert.equal(env.XAI_API_KEY, undefined);
+  assert.equal(env.GROK_CODE_XAI_API_KEY, undefined);
+  assert.equal(env.GROK_DEPLOYMENT_KEY, undefined);
+  Reflect.deleteProperty(process.env, "XAI_API_KEY");
+  Reflect.deleteProperty(process.env, "GROK_CODE_XAI_API_KEY");
+  Reflect.deleteProperty(process.env, "GROK_DEPLOYMENT_KEY");
+});
 
 test("defaults align invoke timeout with the 2700s file wall", () => {
   assert.equal(grokFileWallSec(), 2700);

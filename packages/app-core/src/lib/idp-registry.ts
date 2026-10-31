@@ -218,7 +218,11 @@ export const idpRegistrySeams = {
  * again and nothing is lost. If a write or a lock happened while the sealed
  * read was in flight, that read is stale — the newer cache stays.
  */
-export async function hydrateIdpRegistryFromVfs(tomb: string): Promise<void> {
+export async function hydrateIdpRegistryFromVfs(
+  tomb: string,
+  check: () => void = () => {},
+): Promise<void> {
+  check();
   activeTomb = tomb;
   const generation = registryGeneration;
   let raw: string | null;
@@ -230,6 +234,7 @@ export async function hydrateIdpRegistryFromVfs(tomb: string): Promise<void> {
     raw = null;
   }
   // A write or a discard landed in the await window: its cache is newer.
+  check();
   if (registryGeneration !== generation || activeTomb !== tomb) return;
   cachedRaw = raw;
   hydrated = true;

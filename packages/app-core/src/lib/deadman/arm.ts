@@ -8,8 +8,8 @@
  */
 
 import type { VaultItem } from "@opensesame/vault-core";
-import { withVfsCrossTabLock } from "../vfs-cross-tab-lock.js";
 import { canonicalJson, generateSigningPair, signText } from "./crypto.js";
+import { withDeadmanTurn } from "./fence.js";
 import { DEADMAN_MAX_ITEMS, DEADMAN_MAX_TIMEOUT_DAYS } from "./keys.js";
 import {
   type DeadmanPackage,
@@ -193,26 +193,8 @@ export async function prepareDeadmanSwitch(
  * package and the public record. A failed write tells the relay to disarm so a
  * half-armed switch cannot fire for a package this device does not have.
  */
-const deadmanOperations = new Map<string, Promise<unknown>>();
-
-/** One arm/disarm at a time per vault: check-then-write must not interleave. */
-function serialize<T>(tomb: string, run: () => Promise<T>): Promise<T> {
-  const previous = deadmanOperations.get(tomb) ?? Promise.resolve();
-  const next = previous.then(run, run);
-  deadmanOperations.set(
-    tomb,
-    next.then(
-      () => undefined,
-      () => undefined,
-    ),
-  );
-  return next;
-}
-
 export function commitDeadmanSwitch(plan: DeadmanPlan): Promise<DeadmanState> {
-  return withVfsCrossTabLock(`opensesame:deadman:${plan.tomb}`, () =>
-    serialize(plan.tomb, () => commitDeadmanSwitchNow(plan)),
-  );
+  return withDeadmanTurn(plan.tomb, () => commitDeadmanSwitchNow(plan));
 }
 
 async function commitDeadmanSwitchNow(
@@ -295,9 +277,7 @@ async function commitDeadmanSwitchNow(
  * "off" would leave the relay still counting down and still able to notify.
  */
 export function disarmDeadmanSwitch(tomb: string): Promise<void> {
-  return withVfsCrossTabLock(`opensesame:deadman:${tomb}`, () =>
-    serialize(tomb, () => disarmDeadmanSwitchNow(tomb)),
-  );
+  return withDeadmanTurn(tomb, () => disarmDeadmanSwitchNow(tomb));
 }
 
 async function disarmDeadmanSwitchNow(tomb: string): Promise<void> {

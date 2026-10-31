@@ -37,6 +37,7 @@ const originPattern = (origin: string) => `${origin}/*`;
 export function browserPorts(): BridgePorts {
   return {
     store: keyValue(browser.storage.local),
+    asks: keyValue(browser.storage.session),
     extensionId: browser.runtime.id,
     hasHost: (host) =>
       browser.permissions.contains({ origins: [hostPattern(host)] }),

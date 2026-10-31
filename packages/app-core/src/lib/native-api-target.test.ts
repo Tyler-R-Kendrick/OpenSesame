@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NativeApiTarget } from "./native-api-target.js";
-import { providerUrl } from "./native-api-target.js";
+import { nativeApiFingerprint, providerUrl } from "./native-api-target.js";
 
 function target(
   parameters: NativeApiTarget["parameters"],
@@ -21,6 +21,7 @@ function target(
         success: [],
         requiredFields: [],
         errorFields: [],
+        validStatuses: [],
       },
       templateParams: [],
       additionalCredentials: [],
@@ -105,5 +106,31 @@ describe("providerUrl", () => {
       {},
     );
     expect(url.href).toBe("https://127.0.0.1:27124/v1/my%20org");
+  });
+});
+
+describe("retained verification fingerprints", () => {
+  it("preserves the historical fingerprint without a verification request", async () => {
+    const input = target({});
+    input.profile.verify = null;
+    await expect(nativeApiFingerprint(input)).resolves.toBe(
+      "13b320663235212895facb3e43af4776a9aa6f4d689199b63de4a6cb50575d88",
+    );
+  });
+  it("preserves the historical ordinary verification fingerprint", async () => {
+    await expect(nativeApiFingerprint(target({}))).resolves.toBe(
+      "9076c131fdd6335be98fe504e44c6e40044d17ebd5502e0080bca451c0750205",
+    );
+  });
+  it("binds each documented status proof to a distinct fingerprint", async () => {
+    const input = target({});
+    const verify = input.profile.verify;
+    if (!verify) throw new Error("Expected ordinary verification");
+    const ordinary = await nativeApiFingerprint(input);
+    verify.validStatuses = [404];
+    const missing = await nativeApiFingerprint(input);
+    verify.validStatuses = [409];
+    expect(await nativeApiFingerprint(input)).not.toBe(missing);
+    expect(missing).not.toBe(ordinary);
   });
 });

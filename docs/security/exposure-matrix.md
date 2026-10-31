@@ -33,6 +33,8 @@ has a different attack surface from a caller submitting guesses to a server.
 | One-use, expiry or revoke claims | Name the enforcing authority. Browser-local state cannot establish global consumption, trusted expiry or revocation of copied offline data. |
 | Secondary listener, development fallback or ingress credential | Classify exposure and fail closed under production safeguards. Ingress/TLS peer identity and custody of a leaf key do not confer end-client authorization or permission to export another credential. |
 | Untrusted migration metadata and filesystem or response-body authority | Treat source IDs as data, confine archive reads without following links, bound body/file intake before allocation, and pin credential-bearing requests to their configured origin. Operator-selected imports do not inherit public sign-in or Send budgets. |
+| Primary vault unlock material and pending local factors or contact approval | Bind every completion to its original owner and lifetime. Keep ordinary VFS access closed until configured factors and quorum complete; lend only bounded private IAM verification before approval. Cancel or lock synchronously revokes provisional custody. |
+| Admitted provider credentials and asynchronous secret results | Retain the original provider transport and connection revision through secret reads, local decryption and the final revision lock. Refuse publication after withdrawal even when a caller omits an optional abort signal. |
 
 Public certificates and private certificate keys are separate artifacts. A
 certificate-download surface does not imply private-key delivery. Inspect
@@ -63,6 +65,9 @@ and reviewed budget bounds cannot be weakened by editing only matrix entries.
 Every new online guess oracle also requires an explicitly reviewed owner and
 budget contract in the checker. A short code cannot inherit a permissive budget
 merely by choosing a new surface ID.
+Every custody surface likewise needs an explicit core custody contract. A new
+device-owner row cannot silently borrow the privileged import classification or
+the local vault activation controls.
 
 Record the release of each artifact accurately. A public ciphertext is safe when
 its key is genuinely withheld behind independent proof. For secret drops, the
@@ -75,6 +80,116 @@ custody classes. A stolen complete artifact may permit offline guesses despite
 local UI throttling. Record that residual risk explicitly; do not present
 frontend counters, local expiry or a server rate limit as protection against
 an observer who can verify guesses without that server.
+
+## Local vault activation
+
+`local-vault-activation` classifies the owner's local process: `custody`,
+`device-owner`, `client-only` verification and `advisory` enforcement. Its
+artifacts include ciphertext, the payload key, plaintext secrets and private
+keys held by an authorized unlocked session. Its lifecycle guarantees are
+empty. The checker rejects removing or relabeling this boundary, hiding those
+artifacts, changing its enforcement classification, or adding global guarantees.
+
+| Required control | Reviewed behavior |
+|---|---|
+| `original-owner-lifetime` | Primary, second-step and contact completions retain the original scope, session generation, cancellation signal and transport identity. A stale completion cannot adopt or close a newer session. |
+| `synchronous-provisional-revocation` | Cancel, expiry and lock clear owned provisional key/body/VFS custody immediately; cleanup releases only the original attempt's resources. Late decrypted project, org and IdP hydration cannot republish retired session state. |
+| `bounded-preapproval-iam` | An opaque, revocable handle reads only trusted policy, identity directory and identity credentials, with fixed size limits. Genuine WebAuthn verification may advance an existing assertion counter through a writer that checks the original owner before durable commit and cache publication. Unsupported transports refuse this write and policy enrollment; they cannot borrow the default KV writer. It opens no ordinary VFS, releases no root/key or ordinary file, and issues no consumable IAM sign-in evidence. |
+| `owned-single-flight-publication` | Activation and acquired leases have one owner. Duplicate/concurrent approvals cannot publish multiple activations or lose a lease; metadata, preferences, credential counters and device-key/body publication retain the original operation checks. Late authentication bookkeeping cannot overwrite newer deadman state, and late self-authenticator registration cannot restore a removed or replaced factor. |
+| `separate-ordinary-file-metadata-writes` | An already unlocked vault may reconcile its device identity through an explicit file-store writer. The original owner is checked at the backend commit and before mirror, index and registry publication. This metadata capability refuses BODY projection and does not provide the private IAM writer or a fresh authentication reader. Unsupported stores refuse guarded writes instead of borrowing another transport. |
+
+The mandatory source and regression inventory lives in
+[`exposure-local-vault.mjs`](../../scripts/lib/exposure-local-vault.mjs).
+It binds the store entrypoints and lifetime checks, primary and second-step
+helpers, private IAM readers and WebAuthn verifier, general VFS and KV write
+ordering, lease custody, metadata caches and device-key reconciliation. Deadman
+authentication binds its signed state, shared arm/disarm commit fence and write
+helpers; that bookkeeping does not classify relay release authority or establish
+global expiry. Shared
+package exports and factor/header integrity helpers are bound too. The genuine
+store regressions cover canceled or expired completions, newer-session survival,
+quorum before ordinary file access, real contact assertions, counter custody,
+lease cleanup, guarded file/index/registry commits and late cache/device-key,
+deadman and factor-registration results. Their controlled-completion
+fixture is also fingerprinted; naming a test alone cannot establish that proof.
+Discovery includes new modules under these named lanes and their nested helper
+directories. Every discovered local activation helper must bind to the mandatory
+local contract; another row in the same area cannot substitute for its controls.
+A new authentication road outside them requires extending discovery. File-backed
+stores retain ordinary unlock and identity adoption/replacement without contact
+quorum. Their separate ordinary metadata writer carries the same owner check
+through memory publication, directory rename and signed S3 request dispatch,
+including retry and success-recovery paths. Withdrawal cannot publish a stale
+mirror or start a later index/registry write. An already accepted physical or
+remote write is not rolled back. Private preapproval IAM and policy enrollment
+still require their own supported transport; an ordinary metadata capability
+cannot stand in for it.
+
+An unverified failed primary owns no root. Retiring that attempt preserves an
+already admitted native identity; once a primary root is retained, cancellation
+still synchronously clears its custody. Genuine OIDC admission regressions cover
+wrong PIN/password followed by legitimate unlock and explicit lock, using a real
+local vault and an independently signed TLS exchange. Device sync/restore tests
+retain separate per-device storage maps, with guarded writes asserting ownership
+immediately before publication into the same device map. Their real protocol,
+ceremony and device fixtures are bound as evidence support; this adds no OIDC,
+S3 or tailnet authority classification to the local custody row.
+
+The two private-IAM and WebAuthn helper paths are shared source infrastructure:
+core vault activation, Access approvals and local identity use them. Their
+classification rules and boundary regressions are bound too. Sharing these
+helpers grants no capability; optional sections and runtimes retain their
+existing owners and approval requirements.
+
+This is LOCAL process policy, not an offline cryptographic quorum. Someone with
+copied vault artifacts and the primary unlock material can bypass these browser
+checks and decrypt the artifacts. Local counters do not impose an offline guess
+budget, and local cancellation or expiry cannot revoke copied data. Source pins
+and these regressions also do not establish crash atomicity or cancellation of
+physical storage writes already accepted by a transport.
+
+## Native provider results
+
+`native-provider-custody` is a separate local `device-owner` custody boundary,
+with `client-only` verification, `advisory` enforcement and no global lifecycle
+guarantees. It covers provider ciphertext, symmetric payload keys and raw
+secrets held by an admitted local operation. It does not borrow the vault's
+preapproval IAM or contact-quorum classification.
+
+The mandatory contract in
+[`exposure-native-provider.mjs`](../../scripts/lib/exposure-native-provider.mjs)
+requires five controls: the original provider transport, the captured connection
+revision, admitted secret reads, and publication checks after both provider work
+and the final revision lock. HTTP completion alone is insufficient: local
+authenticated decryption can continue after the last response. The same fence
+applies to direct key-flow callers and the registered API driver when no optional
+abort signal is supplied.
+
+Provider status proofs retain the same refusal, redirect, deadline and owner
+checks as JSON responses. A documented status cannot accept authorization
+refusal or a rate limit, and its contract cannot also require body predicates.
+Publication follows unread-body cleanup while the original deadline remains
+live. The verification schema and its regressions are mandatory source bindings.
+
+Regressions use actual Bitwarden ciphertext and WebCrypto, hold item decryption
+or the final real Web Lock, withdraw the transport, and require refusal. A live
+operation must still return the actual decrypted value. Generic API and
+configured OAuth regressions also hold revision reads, physical metadata close
+and public result mapping. The registered API dispatch checks its captured
+transport after completion even when no caller signal is provided, covering
+custom resource helpers at the shared public boundary. Other bound tests cover
+provider families, connection revisions, private record admission and browser
+transport ownership. Discovery includes new named native key, Bitwarden,
+Tailscale, API resource, OAuth owner and bridge helpers; only the mandatory
+native row may classify them.
+
+This fence controls local result publication. It cannot revoke plaintext or
+credentials already copied by an authorized recipient, cancel a remote effect
+already accepted, or establish global expiry. Provider authentication and remote
+revocation remain separate authorities. Declared credential fields also remain
+provider-owned: Tailscale's registered client-credential mode admits its masked
+secret, while arbitrary labels, plaintext secret fields and editable fixed
+token endpoints remain refused by the form contract.
 
 ## What the check establishes
 
@@ -159,6 +274,9 @@ client-only code gates, absent shared admission, optional required proofs,
 unsupported lifecycle claims and unclassified listeners. Commented helper
 names, string literals, unused helpers and test-file names cannot count as an
 enforcing implementation.
+Local custody controls additionally need negative cases for unknown custody
+IDs, each missing control, boundary removal/relabeling, overstated lifecycle
+guarantees, binding theft, exact source drift and newly added named helpers.
 
 Snapshot tests must distinguish the index from the working tree: vulnerable
 staged source with a fixed working copy fails staged validation; fixed staged

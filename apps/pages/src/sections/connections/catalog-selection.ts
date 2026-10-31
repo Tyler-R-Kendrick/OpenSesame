@@ -138,7 +138,11 @@ function presentProviderIds(providers: readonly Provider[]): Set<string> {
   );
 }
 
-/** Featured browse rows; an actual provider with the same ID takes precedence. */
+/**
+ * Featured browse rows for family members with no catalog row (Google Drive,
+ * M365) and a stand-in for a family this build carries no row of; an actual
+ * provider with the same ID takes precedence.
+ */
 function featuredProviders(
   providers: readonly Provider[],
 ): readonly Provider[] {
@@ -165,54 +169,6 @@ function featuredProviders(
   const rows: Provider[] = [
     clone(google, "google-drive", "Google Drive", "storage"),
     clone(microsoft, "m365", "M365", "productivity"),
-    {
-      ...clone(base, "obsidian", "Obsidian", "storage"),
-      authKind: "api_key",
-      docsUrl: "https://help.obsidian.md/",
-      egress: {
-        scheme: "https",
-        authorities: ["127.0.0.1:27124"],
-        pathPrefixes: [],
-      },
-      operations: [],
-      scopes: [],
-    },
-    {
-      ...clone(base, "polar", "Polar", "crm"),
-      authKind: "api_key",
-      docsUrl: "https://docs.polar.sh/",
-      egress: {
-        scheme: "https",
-        authorities: ["api.polar.sh"],
-        pathPrefixes: [],
-      },
-      operations: [],
-      scopes: [],
-    },
-    {
-      ...clone(base, "higgsfield", "Higgsfield", "ai_model_provider"),
-      authKind: "api_key",
-      docsUrl: "https://docs.higgsfield.ai/",
-      egress: {
-        scheme: "https",
-        authorities: ["api.higgsfield.ai"],
-        pathPrefixes: [],
-      },
-      operations: [],
-      scopes: [],
-    },
-    {
-      ...clone(base, "fal-ai", "FAL.ai", "ai_model_provider"),
-      authKind: "api_key",
-      docsUrl: "https://docs.fal.ai/",
-      egress: {
-        scheme: "https",
-        authorities: ["fal.run", "queue.fal.run"],
-        pathPrefixes: [],
-      },
-      operations: [],
-      scopes: [],
-    },
   ];
   const categories: CatalogFamilyCategories = {
     microsoft: "productivity",

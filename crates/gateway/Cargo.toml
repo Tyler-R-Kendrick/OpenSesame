@@ -87,6 +87,8 @@ bitwarden-compat = ["dep:opensesame-bitwarden-server"]
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
+# The loopback STS stand-in that verifies SigV4 (ADR 0217).
+opensesame-connection-broker = { path = "../../crates/connection-broker", features = ["sts-stand-in"] }
 async-trait = { workspace = true }
 opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
 rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }

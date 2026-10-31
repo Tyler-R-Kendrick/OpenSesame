@@ -65,6 +65,8 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
         .build()?;
     let duress_peer = build_duress_peer_state()?;
     let state_dir = super::cli_app_integration::daemon_state_dir();
+    let helper_mints =
+        crate::helper_mints::HelperMints::open(state_dir.as_deref(), &operator_token);
 
     Ok((
         App {
@@ -79,6 +81,7 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
             promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
             invoke_limiter: Arc::new(ratelimit::TokenBucket::default()),
             mint_limiter: Arc::new(ratelimit::TokenBucket::new(4.0, 1.0)),
+            helper_mints: Arc::new(helper_mints),
             invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
             token_source_factory: cli_token_source_factory(),
             duress_peer,

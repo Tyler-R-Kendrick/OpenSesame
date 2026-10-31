@@ -128,7 +128,9 @@ async function buildFixture(partitionFacade, includeAI = true) {
     cacheDir: join(dir, "cache"),
     publicDir: false,
     logLevel: "silent",
-    resolve: { alias: { ai: sdkEntry } },
+    resolve: {
+      alias: { ai: sdkEntry, "zod/mini": require.resolve("zod/mini") },
+    },
     build: {
       write: false,
       target: "es2022",
@@ -173,7 +175,7 @@ function includedEvidence(result) {
   const ownedFacade = result.graph.chunks.find((chunk) =>
     chunk.modules.some((module) => module.id.endsWith(sourcePath)),
   );
-  assert(ownedFacade, "Zero-rendered facade must remain visible in the graph");
+  assert(ownedFacade, "Reviewed facade must remain visible in the graph");
   const credential = result.graph.chunks
     .flatMap((chunk) => chunk.modules)
     .find((module) =>

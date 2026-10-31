@@ -43,6 +43,8 @@ impl fmt::Debug for DerivedMaterialization {
             .field("subject", &self.subject)
             .field("actor", &self.actor)
             .field("issued_at", &self.issued_at)
+            .field("aws", &self.aws)
+            .field("receipt", &self.receipt)
             .finish()
     }
 }
@@ -103,12 +105,25 @@ mod tests {
             subject: "user:a".into(),
             actor: "agent:b".into(),
             issued_at: "2029-12-31T23:00:00Z".into(),
+            aws: Some(crate::aws_sts::AwsSessionCredentials {
+                access_key_id: "ASIADUMMYMARKER0123".into(),
+                secret_access_key: "vtok_dummy_marker_0123456789abcdef".into(),
+                session_token: "vtok_dummy_marker_session_token".into(),
+            }),
+            receipt: None,
         };
         let shown = format!("{derived:?}");
         assert!(
             shown.contains("[REDACTED]") && shown.contains("conn-1"),
             "{shown}"
         );
-        assert!(!shown.contains("ghs_derived-12345"), "{shown}");
+        for leaked in [
+            "ghs_derived-12345",
+            "ASIADUMMYMARKER0123",
+            "vtok_dummy_marker_0123456789abcdef",
+            "vtok_dummy_marker_session_token",
+        ] {
+            assert!(!shown.contains(leaked), "{leaked} in {shown}");
+        }
     }
 }

@@ -186,8 +186,10 @@ describe("ConnectionsSection gallery", () => {
       screen.getByRole("button", { name: /Clear search/i }),
     );
     // Featured rows and deduplicated API families also return after clearing.
+    // fal.ai, Higgsfield, Obsidian and Polar are catalog rows, which this
+    // fixture's catalog does not hold, so the page draws none of them.
     expect(Array.from(grid.children, (tile) => tile.id).join(" ")).toBe(
-      "catalog-aws catalog-azure-sm catalog-cloudflare catalog-fal-ai catalog-gcp catalog-github catalog-google catalog-higgsfield catalog-linear catalog-microsoft catalog-obsidian catalog-polar catalog-vercel",
+      "catalog-aws catalog-azure-sm catalog-cloudflare catalog-gcp catalog-github catalog-google catalog-linear catalog-microsoft catalog-vercel",
     );
   });
   it("does not report an unreachable Host as a notification", async () => {

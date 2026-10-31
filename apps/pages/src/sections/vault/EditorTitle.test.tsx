@@ -141,7 +141,34 @@ describe("the folder segment", () => {
     await userEvent.keyboard("per");
     await userEvent.tab();
     expect(folderField().value).toBe("Personal/");
+    expect(made).toHaveBeenCalledExactlyOnceWith(FOLDERS[2]);
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(submitted).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(nameField());
+    await userEvent.tab();
+    expect(document.activeElement).toBe(typeField());
+    expect(made).toHaveBeenCalledTimes(1);
+  });
+
+  it("completes a typed folder while Shift+Tab moves to the preceding control", async () => {
+    render(
+      <>
+        <button type="button">Before the title</button>
+        <Row />
+      </>,
+    );
+    await userEvent.click(folderField());
+    await userEvent.keyboard("per");
+    await userEvent.tab({ shift: true });
+    expect(folderField().value).toBe("Personal/");
+    expect(made).toHaveBeenCalledExactlyOnceWith(FOLDERS[2]);
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Before the title" }),
+    );
+    await userEvent.tab();
+    expect(document.activeElement).toBe(folderField());
+    expect(screen.queryByRole("listbox")).toBeNull();
   });
 
   it("puts back what was chosen when the text names no folder", async () => {
@@ -191,6 +218,8 @@ describe("the folder segment", () => {
     await userEvent.click(screen.getByRole("option", { name: "Personal/" }));
     expect(folderField().value).toBe("Personal/");
     expect(made).toHaveBeenCalledWith(FOLDERS[2]);
+    expect(document.activeElement).toBe(nameField());
+    expect(nameField().selectionStart).toBe("Account".length);
   });
 
   it("holds a typed query to the folder limit", async () => {
@@ -220,6 +249,25 @@ describe("the type segment", () => {
     await userEvent.click(document.body);
     expect(typeField().value).toBe(".secret");
     expect(typed).not.toHaveBeenCalled();
+  });
+
+  it("completes a typed extension while Tab advances to the following control", async () => {
+    render(
+      <>
+        <Row />
+        <button type="button">After the title</button>
+      </>,
+    );
+    await userEvent.click(typeField());
+    await userEvent.keyboard(".fi");
+    await userEvent.tab();
+    expect(typeField().value).toBe(".file");
+    expect(typed).toHaveBeenCalledExactlyOnceWith("file");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "After the title" }),
+    );
+    expect(submitted).not.toHaveBeenCalled();
   });
 
   it("hangs its list from the right edge, under the word it picks", async () => {

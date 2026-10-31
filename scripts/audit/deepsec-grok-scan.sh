@@ -25,16 +25,16 @@ pick_agent() {
     return 0
   fi
   export PATH="${HOME}/.local/bin:${PATH}"
-  if [[ -f "${HOME}/.kimi-code/credentials/kimi-code.json" ]] && command -v kimi >/dev/null 2>&1; then
-    echo "kimi"
-    return 0
-  fi
   if command -v grok >/dev/null 2>&1; then
     echo "grok"
     return 0
   fi
-  echo "deepsec-grok-scan: kimi (signed in) or grok required on PATH" >&2
+  echo "deepsec-grok-scan: Grok Build CLI (grok) required for subscription billing; set DEEPSEC_AGENT=kimi only if you intentionally use Kimi OAuth." >&2
   return 1
+}
+
+require_grok_subscription() {
+  bash "${ROOT}/scripts/audit/deepsec-grok-subscription-verify.sh"
 }
 
 kimi_auth_check() {
@@ -162,7 +162,12 @@ case "$PHASE" in
     run_scan
     ;;
   process)
+    require_grok_subscription
     ai_auth_check
+    if [[ "$AGENT" != "grok" ]]; then
+      echo "deepsec-grok-scan: DEEPSEC_AGENT must be grok for Grok Build subscription billing (got: $AGENT)" >&2
+      exit 1
+    fi
     run_process_area core "crates/core/" "${DEEPSEC_LIMIT:-}"
     run_process_area core-client "crates/client-core/" "${DEEPSEC_LIMIT:-}"
     run_process_area core-host "crates/host-core/" "${DEEPSEC_LIMIT:-}"
@@ -173,7 +178,12 @@ case "$PHASE" in
     run_process_area cli-ts "packages/cli/" "${DEEPSEC_LIMIT:-}"
     ;;
   revalidate)
+    require_grok_subscription
     ai_auth_check
+    if [[ "$AGENT" != "grok" ]]; then
+      echo "deepsec-grok-scan: DEEPSEC_AGENT must be grok for Grok Build subscription billing (got: $AGENT)" >&2
+      exit 1
+    fi
     run_revalidate
     ;;
   triage)

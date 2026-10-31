@@ -3,19 +3,35 @@
 //! The helper binaries (`git-credential-opensesame` and friends) are thin UDS
 //! clients with no credential handling of their own; this route is what they
 //! call. It forwards to the gateway's `POST /api/v1/connections/{id}/mint`
-//! via `operator_forward` — the operator token never leaves the loopback
-//! fence (`remote_host_api` denies a non-local `OPENSESAME_HOST_API`) — and
-//! passes the gateway's status and body through untouched.
+//! via `operator_forward` — the daemon's own operator token, which never
+//! leaves the loopback fence (`remote_host_api` denies a non-local
+//! `OPENSESAME_HOST_API`) — and passes the gateway's status and body through
+//! untouched.
 //!
-//! Auth is `require_operator` exactly like `/v1/discover`: the operator
-//! bearer token is required on every transport, and over the UDS the
-//! kernel-attested peer UID is an additional transport restriction.
+//! Auth depends on the transport (ADR 0138 §2, as amended). Over TCP the route
+//! is `require_operator`, exactly like `/v1/discover`. On the Unix socket the
+//! caller is first admitted by its kernel-attested peer credentials, the same
+//! check as the agent-capability exchange (`agent_capability::require_peer`):
+//! an `Origin` header is refused, an unattested peer is `503`, and a UID
+//! outside `allowed_uids` is `401` even with a valid operator token. Peer
+//! credentials say who asks, not what it should get, so a socket caller then
+//! needs either the operator token, which admits any connection as before, or
+//! a grant the operator made for helper minting (`helper_mints`, empty until
+//! `opensesame daemon helpers allow`): the connection and, for a GitHub App
+//! connection, the one installation named, matched exactly. Anything else is
+//! `403 helper_mint_not_allowed`. A helper therefore holds no bearer, and a process
+//! that answered at the socket path in the daemon's place would capture
+//! nothing that authorizes anything. Every other operator route still demands
+//! the token on the socket too.
 //!
 //! The mint response carries `derived_token` bytes — permitted only because
 //! it is a provider-minted, short-lived, revocable derived token on a
 //! connection whose owner opted into `materialization = derived_short_lived`
 //! (ADR 0049 §1/§2/§6). The daemon does not inspect, cache, or log it; the
-//! body crosses this route as opaque JSON.
+//! body crosses this route as opaque JSON. It forwards the socket peer as
+//! `on_behalf_of` (UID and pid), which the Host records as the actor of the
+//! mint, and logs a receipt line: the connection id, the gateway's status and
+//! the caller.
 
 use axum::{
     extract::{ConnectInfo, State},
@@ -26,7 +42,9 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::{operator_forward, rate_limited, require_operator, App, RateKey, UdsPeer};
+use crate::{
+    agent_capability, operator_forward, rate_limited, require_operator, App, RateKey, UdsPeer,
+};
 
 /// The request is two short strings; anything larger is junk.
 pub const MAX_BODY_BYTES: usize = 4 * 1024;
@@ -39,6 +57,105 @@ pub struct MintRequest {
     /// through uninterpreted.
     #[serde(default)]
     pub installation_id: Option<String>,
+    /// The credential lifetime asked for, in seconds; an AWS mint honours it
+    /// under its binding's cap (ADR 0217). Passed through uninterpreted.
+    #[serde(default)]
+    pub duration_seconds: Option<u32>,
+}
+
+/// Who a mint is for, once admitted.
+enum Caller {
+    /// A process on the Unix socket, by its kernel-attested credentials, and
+    /// whether it also presented the operator token.
+    Peer { uid: u32, pid: u32, operator: bool },
+    /// A TCP caller holding the operator token.
+    Operator,
+}
+
+impl Caller {
+    fn rate_key(&self) -> RateKey {
+        match self {
+            Self::Peer { uid, .. } => RateKey::Uid(*uid),
+            Self::Operator => RateKey::TcpOperator,
+        }
+    }
+
+    fn actor(&self) -> String {
+        match self {
+            Self::Peer {
+                uid,
+                pid,
+                operator: false,
+            } => format!("uid:{uid} pid:{pid}"),
+            Self::Peer {
+                uid,
+                pid,
+                operator: true,
+            } => format!("operator uid:{uid} pid:{pid}"),
+            Self::Operator => "operator".to_string(),
+        }
+    }
+
+    /// The process the Host mints for, when the daemon knows it: the Host
+    /// records it as the actor of the mint (ADR 0049 §5).
+    fn on_behalf_of(&self) -> Option<Value> {
+        match self {
+            Self::Peer { uid, pid, .. } => Some(json!({"uid": uid, "pid": pid})),
+            Self::Operator => None,
+        }
+    }
+}
+
+/// Admit the caller (ADR 0138 §2). Over TCP, the operator token. On the
+/// socket, the attested peer, and then either the operator token, which
+/// admits any connection as it always has, or no token at all, which admits
+/// only a connection the operator allowed for helper minting.
+#[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
+fn admit(
+    st: &App,
+    headers: &HeaderMap,
+    uds: &UdsPeer,
+    req: &MintRequest,
+) -> Result<Caller, Response> {
+    if uds.is_none() {
+        require_operator(st, headers, uds)?;
+        return Ok(Caller::Operator);
+    }
+    let uid = agent_capability::require_peer(st, headers, uds)?;
+    let pid = uds
+        .as_ref()
+        .and_then(|Extension(ConnectInfo(info))| info.0)
+        .map_or(0, |cred| cred.pid);
+    if opensesame_host_core::operator::token_from_headers(headers).is_some() {
+        // A token on the socket must be the operator's; a wrong one is 401,
+        // never a quiet fall back to the allowlist.
+        require_operator(st, headers, uds)?;
+        return Ok(Caller::Peer {
+            uid,
+            pid,
+            operator: true,
+        });
+    }
+    // The grant is the pair: a caller cannot pick another installation of
+    // the same GitHub App, which may be another account's repositories.
+    if !st
+        .helper_mints
+        .admits(&req.connection_id, req.installation_id.as_deref())
+    {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "helper_mint_not_allowed",
+                "hint": "the operator grants a connection, and its installation, with `opensesame daemon helpers allow`"
+            })),
+        )
+            .into_response());
+    }
+    Ok(Caller::Peer {
+        uid,
+        pid,
+        operator: false,
+    })
 }
 
 /// `POST /v1/mint` — forward to the gateway mint route, pass the answer back.
@@ -48,14 +165,11 @@ pub async fn mint_via_daemon(
     headers: HeaderMap,
     Json(req): Json<MintRequest>,
 ) -> Response {
-    if let Err(resp) = require_operator(&st, &headers, &uds) {
-        return resp;
-    }
-    let key = match uds.and_then(|Extension(ConnectInfo(info))| info.0) {
-        Some(cred) => RateKey::Uid(cred.uid),
-        None => RateKey::TcpOperator,
+    let caller = match admit(&st, &headers, &uds, &req) {
+        Ok(caller) => caller,
+        Err(resp) => return resp,
     };
-    if let Err(retry_after) = st.mint_limiter.check(key) {
+    if let Err(retry_after) = st.mint_limiter.check(caller.rate_key()) {
         return rate_limited(retry_after);
     }
     if !opensesame_host_core::http_security::is_safe_path_id(&req.connection_id) {
@@ -77,7 +191,13 @@ pub async fn mint_via_daemon(
     if let Some(installation_id) = &req.installation_id {
         body["installation_id"] = json!(installation_id);
     }
-    match forward.json(&body).send().await {
+    if let Some(duration_seconds) = req.duration_seconds {
+        body["duration_seconds"] = json!(duration_seconds);
+    }
+    if let Some(peer) = caller.on_behalf_of() {
+        body["on_behalf_of"] = peer;
+    }
+    let response = match forward.json(&body).send().await {
         Ok(upstream) => {
             let status =
                 StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
@@ -97,304 +217,17 @@ pub async fn mint_via_daemon(
             })),
         )
             .into_response(),
-    }
+    };
+    tracing::info!(
+        target: "opensesame.receipt",
+        connection_id = %req.connection_id,
+        status = response.status().as_u16(),
+        actor = %caller.actor(),
+        "mint.receipt"
+    );
+    response
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{router, tests::test_state};
-    use axum::body::{to_bytes, Body};
-    use axum::http::Request;
-    use axum::routing::post;
-    use axum::Router;
-    use std::sync::{Arc, Mutex};
-    use tower::ServiceExt;
-
-    fn request(body: &str, with_token: bool) -> Request<Body> {
-        let mut builder = Request::builder()
-            .method("POST")
-            .uri("/v1/mint")
-            .header("content-type", "application/json");
-        if with_token {
-            builder = builder.header("x-opensesame-operator", crate::test_operator_token());
-        }
-        builder.body(Body::from(body.to_string())).unwrap()
-    }
-
-    /// A stub gateway mint endpoint recording the forwarded body.
-    async fn spawn_gateway(status: StatusCode, body: Value) -> (String, Arc<Mutex<Vec<Value>>>) {
-        #[derive(Clone)]
-        struct Stub {
-            calls: Arc<Mutex<Vec<Value>>>,
-            status: StatusCode,
-            body: Value,
-        }
-        let calls = Arc::new(Mutex::new(Vec::new()));
-        let stub = Stub {
-            calls: calls.clone(),
-            status,
-            body,
-        };
-        let app = Router::new()
-            .route(
-                "/api/v1/connections/{id}/mint",
-                post(
-                    |State(stub): State<Stub>, Json(body): Json<Value>| async move {
-                        stub.calls.lock().unwrap().push(body);
-                        (stub.status, Json(stub.body.clone()))
-                    },
-                ),
-            )
-            .with_state(stub);
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        tokio::spawn(async move {
-            axum::serve(listener, app).await.unwrap();
-        });
-        (format!("http://127.0.0.1:{}", addr.port()), calls)
-    }
-
-    #[tokio::test]
-    async fn unauthenticated_callers_are_refused() {
-        let app = router(test_state("http://127.0.0.1:1"));
-        let res = app
-            .oneshot(request(r#"{"connection_id":"conn_stub"}"#, false))
-            .await
-            .unwrap();
-        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
-    }
-
-    #[tokio::test]
-    async fn unsafe_connection_ids_never_reach_the_gateway() {
-        for id in ["../admin", "a b", "x/../y", "short"] {
-            // Fresh state per id: the rate bucket is per-caller, not per-id.
-            let app = router(test_state("http://127.0.0.1:1"));
-            let body = format!(r#"{{"connection_id":"{id}"}}"#);
-            let res = app.oneshot(request(&body, true)).await.unwrap();
-            assert_eq!(res.status(), StatusCode::BAD_REQUEST, "{id}");
-            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
-            let json: Value = serde_json::from_slice(&bytes).unwrap();
-            assert_eq!(json["error"], "invalid_connection_id");
-        }
-    }
-
-    #[tokio::test]
-    async fn mint_is_rate_limited_on_its_own_bucket() {
-        let app = router(test_state("http://127.0.0.1:1"));
-        let first = app
-            .clone()
-            .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
-            .await
-            .unwrap();
-        // Auth and budget pass; the unreachable gateway answers 502.
-        assert_eq!(first.status(), StatusCode::BAD_GATEWAY);
-        let second = app
-            .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
-            .await
-            .unwrap();
-        assert_eq!(second.status(), StatusCode::TOO_MANY_REQUESTS);
-    }
-
-    #[tokio::test]
-    async fn a_successful_mint_passes_the_gateway_answer_through() {
-        let derived = json!({
-            "connection_id": "conn_stub",
-            "provider_id": "github",
-            "kind": "github_app_installation",
-            "derived_token": "ghs_derived-token",
-            "expires_at": "2026-08-20T03:00:00Z",
-            "subject": "user:alice",
-            "actor": "operator",
-            "issued_at": "2026-08-20T02:00:00Z",
-        });
-        let (gateway, calls) = spawn_gateway(StatusCode::OK, derived).await;
-        let app = router(test_state(&gateway));
-        let res = app
-            .oneshot(request(
-                r#"{"connection_id":"conn_stub","installation_id":"12345678"}"#,
-                true,
-            ))
-            .await
-            .unwrap();
-        assert_eq!(res.status(), StatusCode::OK);
-        let bytes = to_bytes(res.into_body(), 8192).await.unwrap();
-        let json: Value = serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(json["derived_token"], "ghs_derived-token");
-        assert_eq!(json["kind"], "github_app_installation");
-        let calls = calls.lock().unwrap();
-        assert_eq!(calls.len(), 1);
-        assert_eq!(calls[0]["installation_id"], "12345678");
-    }
-
-    #[tokio::test]
-    async fn unmintable_is_a_passthrough_not_a_rewrite() {
-        let (gateway, _) = spawn_gateway(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            json!({"error": "unmintable"}),
-        )
-        .await;
-        let app = router(test_state(&gateway));
-        let res = app
-            .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
-            .await
-            .unwrap();
-        assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
-        let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
-        let json: Value = serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(json["error"], "unmintable");
-    }
-
-    #[tokio::test]
-    async fn a_partitioned_gateway_is_502() {
-        let app = router(test_state("http://127.0.0.1:1"));
-        let res = app
-            .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
-            .await
-            .unwrap();
-        assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
-        let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
-        let json: Value = serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(json["error"], "host_api_unreachable");
-    }
-
-    /// Hard per-case deadline: a regression that hangs fails fast instead of
-    /// wedging the suite.
-    const CHAOS_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
-
-    #[tokio::test]
-    async fn chaos_reset_gateway_is_502_without_credential_material() {
-        use crate::tests::fault::{Fault, FaultListener};
-        tokio::time::timeout(CHAOS_DEADLINE, async {
-            let gateway = FaultListener::spawn(Fault::Reset).await;
-            let app = router(test_state(gateway.url()));
-            let res = app
-                .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
-                .await
-                .unwrap();
-            assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
-            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
-            let text = String::from_utf8(bytes.to_vec()).unwrap();
-            let json: Value = serde_json::from_str(&text).unwrap();
-            assert_eq!(json["error"], "host_api_unreachable");
-            assert!(gateway.connections() >= 1, "the gateway was never dialed");
-            // The operator token forwarded toward the gateway never echoes
-            // back, and no mint-shaped material is invented on failure.
-            assert!(!text.contains(crate::test_operator_token()), "{text}");
-            assert!(!text.contains("derived_token"), "{text}");
-        })
-        .await
-        .expect("chaos case exceeded its deadline");
-    }
-
-    #[tokio::test]
-    async fn chaos_stalled_gateway_is_502_within_the_client_timeout() {
-        use crate::tests::fault::{Fault, FaultListener};
-        tokio::time::timeout(CHAOS_DEADLINE, async {
-            let gateway = FaultListener::spawn(Fault::Stall).await;
-            let app = router(test_state(gateway.url()));
-            let res = app
-                .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
-                .await
-                .unwrap();
-            // The reqwest timeout (400 ms in test state) fires long before
-            // the deadline; the caller gets a failure, never a hang.
-            assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
-            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
-            let text = String::from_utf8(bytes.to_vec()).unwrap();
-            let json: Value = serde_json::from_str(&text).unwrap();
-            assert_eq!(json["error"], "host_api_unreachable");
-            assert!(gateway.connections() >= 1, "the gateway was never dialed");
-            assert!(!text.contains(crate::test_operator_token()), "{text}");
-            assert!(!text.contains("derived_token"), "{text}");
-        })
-        .await
-        .expect("chaos case exceeded its deadline");
-    }
-
-    #[cfg(test)]
-    mod characterization {
-        use super::*;
-
-        /// Snapshots of the `/v1/mint` wire shapes: the passthrough success
-        /// and the two failure classes the daemon itself authors.
-        ///
-        /// These do not assert the shapes are *right* — the tests above do
-        /// that. They pin what the route actually serializes, so a new field
-        /// has to be looked at and accepted rather than shipped unnoticed. On
-        /// this route that matters more than most: the success body is the one
-        /// daemon surface that carries credential material (`derived_token`,
-        /// ADR 0049 §6), so the pin redacts it — and the gateway-clock
-        /// timestamps — and keeps only the shape. A new key here is a
-        /// disclosure decision; read the diff.
-        #[tokio::test]
-        async fn mint_success_wire_shape_is_pinned() {
-            let derived = json!({
-                "connection_id": "conn_stub",
-                "provider_id": "github",
-                "kind": "github_app_installation",
-                "derived_token": "ghs_PLANTED-DERIVED-VALUE-MUST-BE-REDACTED",
-                "expires_at": "2026-08-20T03:00:00Z",
-                "subject": "user:alice",
-                "actor": "operator",
-                "issued_at": "2026-08-20T02:00:00Z",
-            });
-            let (gateway, _calls) = spawn_gateway(StatusCode::OK, derived).await;
-            let app = router(test_state(&gateway));
-            let res = app
-                .oneshot(request(
-                    r#"{"connection_id":"conn_stub","installation_id":"12345678"}"#,
-                    true,
-                ))
-                .await
-                .unwrap();
-            assert_eq!(res.status(), StatusCode::OK);
-            let bytes = to_bytes(res.into_body(), 8192).await.unwrap();
-            let body: Value = serde_json::from_slice(&bytes).unwrap();
-            // The derived token is credential material and the stamps are the
-            // gateway's clock: pin the shape, never the values (I1).
-            insta::assert_json_snapshot!(body, {
-                ".derived_token" => "[derived]",
-                ".expires_at" => "[expiry]",
-                ".issued_at" => "[issued]",
-            });
-        }
-
-        #[tokio::test]
-        async fn gateway_unreachable_wire_shape_is_pinned() {
-            let app = router(test_state("http://127.0.0.1:1"));
-            let res = app
-                .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
-                .await
-                .unwrap();
-            assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
-            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
-            let body: Value = serde_json::from_slice(&bytes).unwrap();
-            insta::assert_json_snapshot!(body);
-        }
-
-        /// The gateway's `materialization_denied` answer (403 from
-        /// `broker_error` on `BrokerError::MaterializationDenied`) passes
-        /// through untouched — the daemon authors nothing here.
-        #[tokio::test]
-        async fn materialization_denied_wire_shape_is_pinned() {
-            let (gateway, _calls) = spawn_gateway(
-                StatusCode::FORBIDDEN,
-                json!({
-                    "error": "materialization_denied",
-                    "hint": "connection policy denies materialization",
-                }),
-            )
-            .await;
-            let app = router(test_state(&gateway));
-            let res = app
-                .oneshot(request(r#"{"connection_id":"conn_stub"}"#, true))
-                .await
-                .unwrap();
-            assert_eq!(res.status(), StatusCode::FORBIDDEN);
-            let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
-            let body: Value = serde_json::from_slice(&bytes).unwrap();
-            insta::assert_json_snapshot!(body);
-        }
-    }
-}
+#[path = "mint_tests.rs"]
+mod tests;

@@ -170,7 +170,7 @@ describe("configured protocol controls", () => {
     expect(nativeAuthFieldViolations(methods, observed)).toEqual([]);
   });
 
-  it("rejects an injected client secret on every canonical non-OAuth method", () => {
+  it("admits only the registered client-credential method's secret", () => {
     for (const { id } of NATIVE_CANONICAL_PROVIDERS) {
       const methods = nativeAuthFieldMethods(id);
       for (const method of methods.filter((row) => row.id !== "oauth")) {
@@ -179,8 +179,40 @@ describe("configured protocol controls", () => {
         expect(
           nativeAuthFieldViolations(methods, observed),
           `${id}/${method.id}`,
+        ).toEqual(
+          id === "tailscale" && method.id === "api-key" ? [] : observed.inputs,
+        );
+        observed.inputs = [
+          input("Unregistered OAuth client secret", "password"),
+        ];
+        expect(
+          nativeAuthFieldViolations(methods, observed),
+          `${id}/${method.id}: unregistered control`,
         ).toEqual(observed.inputs);
       }
+    }
+  });
+
+  it("keeps Tailscale's fixed client-credential road masked and provider-owned", () => {
+    const methods = nativeAuthFieldMethods("tailscale");
+    const method = methods.find((row) => row.id === "api-key");
+    expect(method.fields).toContainEqual(
+      expect.objectContaining({
+        id: "client_secret",
+        label: "OAuth client secret",
+        secret: true,
+      }),
+    );
+    const observed = observe(method);
+    observed.inputs = [input("OAuth client secret", "password")];
+    expect(nativeAuthFieldViolations(methods, observed)).toEqual([]);
+    for (const control of [
+      input("OAuth client secret", "text"),
+      input("Token endpoint"),
+      input("Arbitrary Client secret", "password"),
+    ]) {
+      observed.inputs = [control];
+      expect(nativeAuthFieldViolations(methods, observed)).toEqual([control]);
     }
   });
 

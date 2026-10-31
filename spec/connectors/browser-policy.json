@@ -519,6 +519,24 @@
       }
     },
     {
+      "provider_id": "higgsfield",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Higgsfield does not admit this site to its API: the CORS preflight for its key check is answered HTTP 400 with no Access-Control-Allow-Origin header, and its documentation says not to call the API from browser code. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://docs.higgsfield.ai/docs/authentication.md"],
+      "probe": {
+        "url": "https://api.higgsfield.ai/requests/00000000-0000-0000-0000-000000000000/status",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY",
+        "allow_headers": "authorization",
+        "tls_verified": true,
+        "checked_at": "2026-10-31T04:23:00+00:00"
+      }
+    },
+    {
       "provider_id": "infisical",
       "method": "api-key",
       "parameters": {},
@@ -2128,6 +2146,168 @@
         "tls_verified": true,
         "checked_at": "2026-10-09T17:00:53Z",
         "stage": "resource-protocol-preflight"
+      }
+    },
+    {
+      "provider_id": "tailscale",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Tailscale's cloud API answers no Access-Control-Allow-Origin header to this site, so a page here cannot read the answer. Use the connector bridge.",
+      "evidence_urls": ["https://tailscale.com/api"],
+      "probe": {
+        "url": "https://api.tailscale.com/api/v2/tailnet/-/devices",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:25+00:00"
+      }
+    },
+    {
+      "provider_id": "bitwarden",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Bitwarden's identity and API servers answer no Access-Control-Allow-Origin header to this site, so a page here cannot read the answer. Use the connector bridge.",
+      "evidence_urls": ["https://bitwarden.com/help/bitwarden-apis/"],
+      "probe": {
+        "url": "https://identity.bitwarden.com/connect/token",
+        "method": "POST",
+        "request_header_names": ["content-type", "authorization"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:26+00:00"
+      }
+    },
+    {
+      "provider_id": "bitwarden",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Bitwarden's API server answers no Access-Control-Allow-Origin header to this site.",
+      "evidence_urls": ["https://bitwarden.com/help/bitwarden-apis/"],
+      "probe": {
+        "url": "https://api.bitwarden.com/sync",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:26+00:00"
+      }
+    },
+    {
+      "provider_id": "bitwarden",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Bitwarden EU's identity server answers no Access-Control-Allow-Origin header to this site.",
+      "evidence_urls": ["https://bitwarden.com/help/bitwarden-apis/"],
+      "probe": {
+        "url": "https://identity.bitwarden.eu/connect/token",
+        "method": "POST",
+        "request_header_names": ["content-type", "authorization"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:26+00:00"
+      }
+    },
+    {
+      "provider_id": "bitwarden",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Bitwarden EU's API server answers no Access-Control-Allow-Origin header to this site.",
+      "evidence_urls": ["https://bitwarden.com/help/bitwarden-apis/"],
+      "probe": {
+        "url": "https://api.bitwarden.eu/sync",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:27+00:00"
+      }
+    },
+    {
+      "provider_id": "bitwarden-sm",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Bitwarden's identity server answers no Access-Control-Allow-Origin header to this site.",
+      "evidence_urls": ["https://bitwarden.com/help/secrets-manager-overview/"],
+      "probe": {
+        "url": "https://identity.bitwarden.com/connect/token",
+        "method": "POST",
+        "request_header_names": ["content-type"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:27+00:00"
+      }
+    },
+    {
+      "provider_id": "bitwarden-sm",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Bitwarden's API server answers no Access-Control-Allow-Origin header to this site.",
+      "evidence_urls": ["https://bitwarden.com/help/secrets-manager-overview/"],
+      "probe": {
+        "url": "https://api.bitwarden.com/secrets/sync",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:27+00:00"
+      }
+    },
+    {
+      "provider_id": "bitwarden-sm",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Bitwarden EU's identity server answers no Access-Control-Allow-Origin header to this site.",
+      "evidence_urls": ["https://bitwarden.com/help/secrets-manager-overview/"],
+      "probe": {
+        "url": "https://identity.bitwarden.eu/connect/token",
+        "method": "POST",
+        "request_header_names": ["content-type"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:28+00:00"
+      }
+    },
+    {
+      "provider_id": "bitwarden-sm",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Bitwarden EU's API server answers no Access-Control-Allow-Origin header to this site.",
+      "evidence_urls": ["https://bitwarden.com/help/secrets-manager-overview/"],
+      "probe": {
+        "url": "https://api.bitwarden.eu/secrets/sync",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-31T01:17:28+00:00"
       }
     }
   ]

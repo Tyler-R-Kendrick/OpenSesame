@@ -17,9 +17,18 @@ export async function installFileBackedVfs(
   Object.assign(vfsSeams, adapter.seams);
   // This legacy adapter has no fresh physical refresh yet; never borrow the device KV transport.
   Reflect.deleteProperty(vfsSeams, "refreshRaw");
+  Reflect.deleteProperty(vfsSeams, "writeRawGuarded");
+  if (!adapter.seams.writeOwnedMetadata)
+    Reflect.deleteProperty(vfsSeams, "writeOwnedMetadata");
   return () => {
     vfsSeams.readRaw = previous.readRaw;
     vfsSeams.writeRaw = previous.writeRaw;
+    if (previous.writeRawGuarded)
+      vfsSeams.writeRawGuarded = previous.writeRawGuarded;
+    else Reflect.deleteProperty(vfsSeams, "writeRawGuarded");
+    if (previous.writeOwnedMetadata)
+      vfsSeams.writeOwnedMetadata = previous.writeOwnedMetadata;
+    else Reflect.deleteProperty(vfsSeams, "writeOwnedMetadata");
     vfsSeams.deleteRaw = previous.deleteRaw;
     if (previous.refreshRaw) vfsSeams.refreshRaw = previous.refreshRaw;
     else Reflect.deleteProperty(vfsSeams, "refreshRaw");
