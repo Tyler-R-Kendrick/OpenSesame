@@ -19,6 +19,7 @@ import {
   getIdentityConnectionRuntime,
   writeIdentityConnection,
 } from "./identity-connections-store.js";
+import { projectIdentityTrust } from "./identity-connections-trust.js";
 import {
   beginIdentityConnectionSignIn,
   identityConnectionDraft,
@@ -302,63 +303,53 @@ it("rolls back a sealed create when the public sign-in method cannot persist", a
   expect(listIdentityConnections()).toEqual([]);
   expect(signInMethods().providers).toEqual([]);
 });
-it("projects multiple brokered organizations and ordinary members can begin sign-in without owner API access", async () => {
+it("separate saved native organizations remain cold-bound and never fall back to an owner API or broker redirect", async () => {
+  const open = vi.fn(() => null);
+  configureHost(createTestHost({ page: { ...testPage(), open } }));
   const broker = "https://broker.example.com";
   vi.spyOn(deviceIdentitySeams, "remoteIdentityApi").mockReturnValue(broker);
   const client = enterprise.identityEnterpriseClient();
-  const orgs = ["one", "two"].map((slug) => ({
-    id: `org-${slug}`,
-    slug,
-    displayName: slug,
-    role: "owner",
-    owner: true,
-    secretStored: false,
-    upstream: {
-      ssoIssuer: "",
-      ssoClientId: "",
-      ssoClientSecret: "",
-      samlIssuer: "",
-      samlMetadataUrl: "",
-    },
-  }));
-  const list = vi.fn(async () => orgs);
+  const list = vi.fn(async () => {
+    throw new Error("Members cannot read owner configuration");
+  });
   vi.spyOn(enterprise, "identityEnterpriseClient").mockReturnValue({
     ...client,
     listOrganizations: list,
-    saveOidc: vi.fn(async () => "Saved"),
   });
   const saved = [];
-  for (const org of orgs) {
-    saved.push(
-      await saveIdentityConnection({
-        ...identityConnectionDraft("byo-identity"),
-        protocol: "oidc",
-        brokerUrl: broker,
-        organizationId: org.id,
-        issuer,
-        clientId: "organization-client",
-        clientSecret: "public synthetic organization fixture",
-      }),
-    );
+  for (const slug of ["one", "two"]) {
+    // Existing sealed rows are seeded through their ordinary storage/trust ports;
+    // Test/Save and real TLS primary sign-in run in identity-oidc-dispatch.test.ts.
+    const draft = {
+      ...identityConnectionDraft("byo-identity"),
+      protocol: "oidc" as const,
+      organizationId: `org-${slug}`,
+      issuer,
+      clientId: "organization-client",
+      clientSecret: "public synthetic organization fixture",
+    };
+    const connection = await writeIdentityConnection(draft);
+    await projectIdentityTrust(draft, connection.connectionId);
+    saved.push(connection);
   }
   memory.clear();
   for (const [key, value] of disk) memory.set(key, value);
-  expect(signInMethods().providers.map((idp) => idp.providerHint)).toEqual([
-    "org:one",
-    "org:two",
-  ]);
-  list.mockRejectedValue(new Error("Members cannot read owner configuration"));
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () =>
-      Response.json({
-        issuer: broker,
-        authorization_endpoint: `${broker}/authorize`,
-        token_endpoint: `${broker}/token`,
-        jwks_uri: `${broker}/jwks`,
-      }),
-    ),
+  expect(
+    signInMethods().providers.map((idp) => ({
+      native: idp.nativeIdentity,
+      issuer: idp.issuer,
+      connectionId: idp.connectionId,
+      hint: idp.providerHint,
+    })),
+  ).toEqual(
+    saved.map((connection) => ({
+      native: true,
+      issuer,
+      connectionId: connection.connectionId,
+      hint: undefined,
+    })),
   );
+  expect(saved[0]?.connectionId).not.toBe(saved[1]?.connectionId);
   memory.clear();
   const hydrate = vi
     .spyOn(kvSeams, "kvHydrate")
@@ -369,16 +360,21 @@ it("projects multiple brokered organizations and ordinary members can begin sign
       }
     });
   memory.set("settings.v1", disk.get("settings.v1") ?? "");
-  await beginIdentityConnectionSignIn(saved[1]?.connectionId ?? "");
-  expect(hydrate).toHaveBeenCalledWith(
-    expect.arrayContaining(["opensesame.self-hosted-connectors.v1"]),
+  vi.mocked(fetch).mockClear();
+  // The click must reserve its window before private hydration or Networking.
+  for (const connection of saved) {
+    await expect(
+      beginIdentityConnectionSignIn(connection.connectionId),
+    ).rejects.toThrow("Allow the identity sign-in window and try again");
+  }
+  expect(open.mock.calls).toEqual(
+    saved.map(() => ["about:blank", "_blank", "popup,width=600,height=720"]),
   );
-  const auth = new URL(navigation.at(-1) ?? "");
-  expect(auth.searchParams.get("login_hint_provider")).toBe("org:two");
-  expect(auth.searchParams.get("redirect_uri")).toBe(
-    "https://app.example.com/opensesame/callback",
-  );
-  expect(list).toHaveBeenCalledTimes(2);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(loadSession()).toBeNull();
+  expect(hydrate).not.toHaveBeenCalled();
+  expect(navigation).toEqual([]);
+  expect(list).not.toHaveBeenCalled();
 });
 
 it("rejects an off-origin returnTo before it can reach navigation", async () => {

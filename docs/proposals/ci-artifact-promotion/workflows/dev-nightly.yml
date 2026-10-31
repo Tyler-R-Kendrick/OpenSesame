@@ -1,0 +1,100 @@
+# PROPOSAL ONLY: not active; candidate.mjs and ci-dev-checks.yml do not exist yet.
+# candidate-build.yml is a companion reusable blueprint, not an installed helper.
+# candidate.mjs policy must fail unless this controller's implementation is
+# explicitly activated and its origin/retention/required-payload policy is valid.
+# select-integration outputs source_sha, source_ci_run_id, source_ci_run_attempt,
+# reuse (true|false), and the seven candidate fields below when reuse=true.
+# It accepts only successful push-main CI attempts in this repository, at a
+# captured cutoff, on main's ancestry. No arbitrary ref input or silent fallback.
+# Reuse requires an intact COMPLETE candidate for that same source and compatible
+# recipe; otherwise materialize Pages + both Linux kits once for this snapshot.
+# Source CI may be older on an unchanged main; fresh dev checks run nightly.
+# Any reused candidate must still match the current recipe and qualification policy.
+# "dev" is a qualification channel. An environment label creates no test host.
+name: Nightly dev qualification
+
+on:
+  schedule:
+    - cron: "17 0 * * *"
+      timezone: America/Chicago
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: candidate-dev
+  cancel-in-progress: false
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.select.outputs.source_sha }}
+      source_ci_run_id: ${{ steps.select.outputs.source_ci_run_id }}
+      source_ci_run_attempt: ${{ steps.select.outputs.source_ci_run_attempt }}
+      reuse: ${{ steps.select.outputs.reuse }}
+      candidate_id: ${{ steps.select.outputs.candidate_id }}
+      run_id: ${{ steps.select.outputs.run_id }}
+      run_attempt: ${{ steps.select.outputs.run_attempt }}
+      artifact_id: ${{ steps.select.outputs.artifact_id }}
+      artifact_digest: ${{ steps.select.outputs.artifact_digest }}
+      payload_digest: ${{ steps.select.outputs.payload_digest }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Require implemented and activated promotion policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/candidate.mjs policy --controller dev-nightly
+      - name: Freeze one integration source and optional complete artifact
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/release/candidate.mjs select-integration
+          --workflow .github/workflows/ci.yml
+          --reuse-complete --output "$GITHUB_OUTPUT"
+
+  build:
+    needs: select
+    if: ${{ needs.select.outputs.reuse == 'false' }}
+    uses: ./.github/workflows/candidate-build.yml
+    permissions:
+      actions: read
+      contents: read
+    with:
+      source_sha: ${{ needs.select.outputs.source_sha }}
+      source_ci_run_id: ${{ needs.select.outputs.source_ci_run_id }}
+      source_ci_run_attempt: ${{ needs.select.outputs.source_ci_run_attempt }}
+
+  qualify:
+    needs: [select, build]
+    # The only allowed skipped builder is an explicitly verified full reuse.
+    if: >-
+      ${{ always() && needs.select.result == 'success' &&
+          (needs.build.result == 'success' ||
+           (needs.build.result == 'skipped' && needs.select.outputs.reuse == 'true')) }}
+    uses: ./.github/workflows/ci-dev-checks.yml
+    with:
+      source_sha: ${{ needs.select.outputs.source_sha }}
+      candidate_id: ${{ needs.build.outputs.candidate_id || needs.select.outputs.candidate_id }}
+      run_id: ${{ needs.build.outputs.run_id || needs.select.outputs.run_id }}
+      run_attempt: ${{ needs.build.outputs.run_attempt || needs.select.outputs.run_attempt }}
+      artifact_id: ${{ needs.build.outputs.artifact_id || needs.select.outputs.artifact_id }}
+      artifact_digest: ${{ needs.build.outputs.artifact_digest || needs.select.outputs.artifact_digest }}
+      payload_digest: ${{ needs.build.outputs.payload_digest || needs.select.outputs.payload_digest }}
+      # Reusable verifies origin + exact files, then runs full dev tests against
+      # source_sha and the downloaded production payload. It does not rebuild it.
+      # Only after success does it upload a dev receipt (35-day retention) binding
+      # these fields plus this qualification run/attempt. No if:always success
+      # receipts. Consumers must also verify this workflow attempt succeeded.
+      receipt_retention_days: 35

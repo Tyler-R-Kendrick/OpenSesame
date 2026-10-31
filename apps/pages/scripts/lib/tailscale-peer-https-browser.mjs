@@ -5,6 +5,15 @@ import { visitBackendRoute } from "./secret-backend-browser.mjs";
 const stopped =
   "The Tailscale browser node stopped. Check network access and reconnect.";
 
+async function credentialReceipt(panel) {
+  // The SDK can report Running while its vault credential write is pending.
+  // The public header confirms its credential receipt after that write settles.
+  await panel
+    .page()
+    .locator("header.conn-settings__head")
+    .getByRole("img", { name: "Browser node connected", exact: true })
+    .waitFor({ timeout: 45_000 });
+}
 async function connect(panel) {
   await panel
     .getByRole("button", { name: "Connect browser node", exact: true })
@@ -12,6 +21,7 @@ async function connect(panel) {
   await panel
     .getByRole("img", { name: /^Connected: / })
     .waitFor({ timeout: 90_000 });
+  await credentialReceipt(panel);
 }
 async function disconnect(panel) {
   const button = panel.getByRole("button", {
@@ -42,58 +52,88 @@ function counts(proof) {
 }
 async function positive(panel, https, check, record, label) {
   const before = counts(https.trusted);
-  await panel
-    .getByLabel("Tailnet service URL", { exact: true })
-    .fill(https.url);
-  await panel
-    .getByRole("button", { name: "Test tailnet service", exact: true })
-    .click();
-  const text = JSON.stringify({
-    source: "real-native-tailscale-peer",
-    nonce: https.trusted.nonce,
-    path: "/proof",
-  });
-  await panel
-    .getByRole("img", {
-      name: `HTTP 200 · ${text.length} characters received through Tailscale`,
-      exact: true,
-    })
-    .waitFor({ timeout: 45_000 });
-  const after = counts(https.trusted);
-  const received = https.trusted.requests.at(-1);
-  check(
-    after.requests === before.requests + 1 &&
-      after.secure > before.secure &&
-      received?.method === "GET" &&
-      received.path === "/proof",
-    `${label}: explicit peer CA permits a real native HTTPS GET with exact proof length`,
-  );
-  record("peer-tls-proof", JSON.stringify({ label, before, after }));
+  try {
+    await panel
+      .getByLabel("Tailnet service URL", { exact: true })
+      .fill(https.url);
+    await credentialReceipt(panel);
+    await panel
+      .getByRole("button", { name: "Test tailnet service", exact: true })
+      .click();
+    const text = JSON.stringify({
+      source: "real-native-tailscale-peer",
+      nonce: https.trusted.nonce,
+      path: "/proof",
+    });
+    await panel
+      .getByRole("img", {
+        name: `HTTP 200 · ${text.length} characters received through Tailscale`,
+        exact: true,
+      })
+      .waitFor({ timeout: 45_000 });
+    const after = counts(https.trusted);
+    const received = https.trusted.requests.at(-1);
+    check(
+      after.requests === before.requests + 1 &&
+        after.secure > before.secure &&
+        received?.method === "GET" &&
+        received.path === "/proof",
+      `${label}: explicit peer CA permits a real native HTTPS GET with exact proof length`,
+    );
+    record("peer-tls-proof", JSON.stringify({ label, before, after }));
+  } catch (error) {
+    await failProof(panel, https.trusted, record, label, before, error);
+  }
 }
 async function negative(panel, url, proof, check, record, label) {
   const before = counts(proof);
-  await panel.getByLabel("Tailnet service URL", { exact: true }).fill(url);
-  await panel
-    .getByRole("button", { name: "Test tailnet service", exact: true })
-    .click();
-  await panel
-    .getByRole("img", { name: stopped, exact: true })
-    .waitFor({ timeout: 45_000 });
-  await expect
-    .poll(() => proof.stats.errors, { timeout: 45_000 })
-    .toBeGreaterThan(before.errors);
-  await expect(panel.getByRole("img", { name: /^HTTP 200 · / })).toHaveCount(0);
-  await expect(
-    panel.getByRole("button", { name: "Connect browser node", exact: true }),
-  ).toBeEnabled();
-  const after = counts(proof);
-  check(
-    after.connections > before.connections &&
-      after.errors > before.errors &&
-      after.requests === before.requests,
-    `${label}: actual TLS rejection receives zero HTTP and withdraws the original node`,
+  try {
+    await panel.getByLabel("Tailnet service URL", { exact: true }).fill(url);
+    await credentialReceipt(panel);
+    await panel
+      .getByRole("button", { name: "Test tailnet service", exact: true })
+      .click();
+    await panel
+      .getByRole("img", { name: stopped, exact: true })
+      .waitFor({ timeout: 45_000 });
+    await expect
+      .poll(() => proof.stats.errors, { timeout: 45_000 })
+      .toBeGreaterThan(before.errors);
+    await expect(panel.getByRole("img", { name: /^HTTP 200 · / })).toHaveCount(
+      0,
+    );
+    await expect(
+      panel.getByRole("button", { name: "Connect browser node", exact: true }),
+    ).toBeEnabled();
+    const after = counts(proof);
+    check(
+      after.connections > before.connections &&
+        after.errors > before.errors &&
+        after.requests === before.requests,
+      `${label}: actual TLS rejection receives zero HTTP and withdraws the original node`,
+    );
+    record("peer-tls-proof", JSON.stringify({ label, before, after }));
+  } catch (error) {
+    await failProof(panel, proof, record, label, before, error);
+  }
+}
+
+async function failProof(panel, proof, record, label, before, error) {
+  record(
+    "peer-tls-failure",
+    JSON.stringify({
+      label,
+      before,
+      after: counts(proof),
+      status: await panel
+        .getByRole("img")
+        .evaluateAll((nodes) =>
+          nodes.map((node) => node.getAttribute("aria-label")),
+        ),
+    }),
   );
-  record("peer-tls-proof", JSON.stringify({ label, before, after }));
+  const reason = error instanceof Error ? error.message : String(error);
+  throw new Error(`${label}: ${reason}`, { cause: error });
 }
 
 export async function exerciseTailscalePeerHTTPS({

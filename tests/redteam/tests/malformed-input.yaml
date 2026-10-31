@@ -5,11 +5,9 @@
 # reaches hostFetch/daemonFetch: the MCP SDK validates arguments against the
 # tool's zod schema before the handler runs at all, and returns a normal
 # (isError: true) tool result carrying the validation message rather than
-# throwing past the client. The exact error strings below were confirmed live
-# against @modelcontextprotocol/sdk 1.30.0 / zod 3.25.67 while building this
-# suite; if a future SDK/zod bump changes zod's message wording, loosen the
-# `contains` assertions to something like `type: field required` rather than
-# the full sentence.
+# throwing past the client. The exact messages below are checked live against
+# @modelcontextprotocol/sdk 1.32.0 / zod 4.6.6 by structural.pact.test.ts,
+# including the validation error code and absence of upstream requests.
 
 - description: "capabilities array over the 64-entry ceiling is a clean validation error, not a crash"
   vars:
@@ -25,9 +23,11 @@
     - type: javascript
       value: |
         const data = JSON.parse(output);
-        return data.calls[0].response.isError === true;
+        return data.calls[0].response.isError === true &&
+          data.upstreamRequests.length === 0 &&
+          JSON.stringify(data.calls[0].response).includes("MCP error -32602: Input validation error");
     - type: contains
-      value: "Array must contain at most 64 element(s) at capabilities"
+      value: "Too big: expected array to have <=64 items at capabilities"
     - type: not-contains
       value: "at Object."
 
@@ -46,9 +46,11 @@
     - type: javascript
       value: |
         const data = JSON.parse(output);
-        return data.calls[0].response.isError === true;
+        return data.calls[0].response.isError === true &&
+          data.upstreamRequests.length === 0 &&
+          JSON.stringify(data.calls[0].response).includes("MCP error -32602: Input validation error");
     - type: contains
-      value: "Number must be less than or equal to 86400 at ttl_seconds"
+      value: "Too big: expected number to be <=86400 at ttl_seconds"
 
 - description: "an empty capabilities array is a clean validation error (min 1 required)"
   vars:
@@ -64,9 +66,11 @@
     - type: javascript
       value: |
         const data = JSON.parse(output);
-        return data.calls[0].response.isError === true;
+        return data.calls[0].response.isError === true &&
+          data.upstreamRequests.length === 0 &&
+          JSON.stringify(data.calls[0].response).includes("MCP error -32602: Input validation error");
     - type: contains
-      value: "Array must contain at least 1 element(s) at capabilities"
+      value: "Too small: expected array to have >=1 items at capabilities"
 
 - description: "a wrong-typed capability field is a clean validation error, not a coercion or crash"
   vars:
@@ -82,9 +86,11 @@
     - type: javascript
       value: |
         const data = JSON.parse(output);
-        return data.calls[0].response.isError === true;
+        return data.calls[0].response.isError === true &&
+          data.upstreamRequests.length === 0 &&
+          JSON.stringify(data.calls[0].response).includes("MCP error -32602: Input validation error");
     - type: contains
-      value: "Expected string, received number at capabilities[0].action"
+      value: "Invalid input: expected string, received number at capabilities[0].action"
 
 - description: "malformed input does not leave the server in a bad state — the next well-formed call still works"
   vars:

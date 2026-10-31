@@ -47,10 +47,13 @@ export type ConnectorFixtureOptions = {
   echoToken?: boolean;
   inputSchema?: JsonObject;
   metadataFailure?: boolean;
+  liveMetadata?: JsonObject;
   onList?: () => Promise<void>;
   management?: boolean;
   deleteFailure?: boolean;
   onRegistration?: () => void;
+  requestedScopes?: string[];
+  token?: JsonObject;
 };
 async function oauthFixtureFetch(
   request: Request,
@@ -80,6 +83,8 @@ async function oauthFixtureFetch(
   return fixture(target, {
     registered,
     tokenFailure: options.tokenFailure,
+    live: options.liveMetadata,
+    token: options.token,
     onToken: options.onToken,
   }).ports.fetch(request);
 }
@@ -189,7 +194,7 @@ export async function mcpConnectorFixture(
     method: "mcp",
     parameters: {},
     credentials: {},
-    requestedScopes: { user: [] },
+    requestedScopes: { user: options.requestedScopes ?? [] },
     targetIds: {},
   };
   const saved = await configureNativeMcpConnector(draft);

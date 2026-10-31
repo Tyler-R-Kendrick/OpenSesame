@@ -82,32 +82,21 @@ describe("a retained MCP registration that did not seal", () => {
     expect(readNativeConnector(context.id)).toBeNull();
   });
 
-  it("ends a copy whose content the sealed record refuses on retry as a removable metadata refusal", async () => {
+  it("retains the obligation when a minted registration cannot be sealed", async () => {
     const context = await strandedRegistration();
     refuseSealedRegistration();
     await expect(
       retryRetainedNativeMcpRegistration(context.id),
     ).rejects.toMatchObject({ code: "metadata" });
-    expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
-      [],
-    );
-    await expect(
-      retryRetainedNativeMcpRegistration(context.id),
-    ).resolves.toBeUndefined();
-    expect(await removeNativeConnectorWithCleanup(context.id)).toBe(true);
-    expect(readNativeConnector(context.id)).toBeNull();
-  });
-
-  it("does not wedge removal when cleanup's own retry finds the content refused", async () => {
-    const context = await strandedRegistration();
-    refuseSealedRegistration();
+    expect(
+      requireNativeMcpRecord(context.id).privateState.recovery,
+    ).toHaveLength(1);
     await expect(removeNativeConnectorWithCleanup(context.id)).rejects.toThrow(
       "Provider cleanup failed",
     );
-    expect(requireNativeMcpRecord(context.id).privateState.recovery).toEqual(
-      [],
-    );
-    expect(await removeNativeConnectorWithCleanup(context.id)).toBe(true);
-    expect(readNativeConnector(context.id)).toBeNull();
+    expect(
+      requireNativeMcpRecord(context.id).privateState.recovery,
+    ).toHaveLength(1);
+    expect(readNativeConnector(context.id)).not.toBeNull();
   });
 });

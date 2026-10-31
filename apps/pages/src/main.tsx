@@ -1,4 +1,6 @@
-// Must stay first: installs the host the shared core reads (ADR 0133).
+// Seed schema configuration before the host's static dependencies construct schemas.
+import "@opensesame/app-core/lib/zod-jitless.js";
+// Installs the host the shared core reads (ADR 0133).
 import "./host/boot.js";
 import { onBrowserReset } from "@opensesame/app-core/lib/browser-reset-channel.js";
 import { captureLandingReset } from "@opensesame/app-core/lib/browser-reset-landing.js";

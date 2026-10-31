@@ -1,13 +1,17 @@
 /** Real connector protocols and encrypted KV, with typed provider HTTP fixtures. */
 import { configureHost } from "@opensesame/app-core/host.js";
 import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
-import { forgetAtRestKeyForTest } from "@opensesame/app-core/lib/at-rest/key.js";
+import {
+  atRestReady,
+  forgetAtRestKeyForTest,
+} from "@opensesame/app-core/lib/at-rest/key.js";
 import {
   DEVICE_CONNECTOR_KEYS,
   readDeviceRows,
 } from "@opensesame/app-core/lib/device-connector-records.js";
 import { makeOpfs } from "@opensesame/app-core/lib/duress/wipe/fake-opfs.test-support.js";
 import { kvForgetAll, kvHydrate } from "@opensesame/app-core/lib/kv.js";
+import { resetNativeConnectorDrivers } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { bindNativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
@@ -31,7 +35,9 @@ export function installConnectorIntegration(): void {
     await closeGenuineRuntimeFixture();
     kvForgetAll();
     forgetAtRestKeyForTest();
+    resetNativeConnectorDrivers();
     prepared = makeConnectorIntegration();
+    await atRestReady();
     vaultStore.loadActiveProjectScope();
     await vaultStore.create(connectorOwnerPassword);
   });

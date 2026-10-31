@@ -101,16 +101,22 @@ test("exact real source selection preserves assertion and original manifest byte
     after,
     before.map((line) => replacements.get(line) ?? line),
   );
-  assert.equal(after.filter((line, index) => line !== before[index]).length, 2);
+  assert.equal(
+    after.filter((line, index) => line !== before[index]).length,
+    pins.toolchainSelection.sumLines.length,
+  );
   const oldMod = await readFile(join(original, "go.mod"), "utf8");
   const newMod = await readFile(join(scope.output, "native.mod"), "utf8");
-  assert.equal(
-    newMod.replace(
-      pins.toolchainSelection.version,
-      pins.toolchainSelection.beforeVersion,
-    ),
-    oldMod,
-  );
+  let restored = newMod;
+  for (const entry of [
+    pins.toolchainSelection,
+    ...pins.toolchainSelection.dependencies,
+  ])
+    restored = restored.replace(
+      `${entry.module} ${entry.version}`,
+      `${entry.module} ${entry.beforeVersion}`,
+    );
+  assert.equal(restored, oldMod);
   assert.deepEqual(scope.commands, [
     { name: "select-native-toolchain", status: 0 },
   ]);
@@ -154,6 +160,27 @@ test("changed patch or unrelated dependency cannot be applied", async () => {
   scope.pins.toolchainSelection.module = "wrong";
   await assert.rejects(selectNativeToolchain(scope), /fixed dependency/);
   assert.equal(scope.commands.length, 0);
+});
+
+test("missing or out-of-scope dependency selections fail before writing module files", async () => {
+  for (const mutation of [
+    (scope) => scope.pins.toolchainSelection.dependencies.pop(),
+    (scope) => {
+      scope.pins.toolchainSelection.dependencies[0].module =
+        "unreviewed.example/module";
+    },
+  ]) {
+    const scope = await fixture();
+    mutation(scope);
+    await assert.rejects(
+      selectNativeToolchain(scope),
+      /reviewed fixed modules/,
+    );
+    await assert.rejects(readFile(join(scope.output, "native.mod")), {
+      code: "ENOENT",
+    });
+    assert.equal(scope.commands.length, 0);
+  }
 });
 
 test("existing owned module output is never overwritten", async () => {

@@ -1,5 +1,11 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { aiCompletionSeams } from "../ai-completion-observation.js";
+import {
+  nativeResponseBodySignal as aiResponseBodySignal,
+  bindNativeResponseLifetime,
+  finishNativeResponseBody as finishAiResponseBody,
+  hasNativeResponseLifetime,
+} from "../native-response-lifetime.js";
 import { aiConnectionBase } from "./configuration.js";
 import { aiConnectionHeaders, type aiInferenceRequest } from "./protocol.js";
 import { aiStreamBody } from "./stream-body.js";
@@ -9,31 +15,21 @@ import {
   type AiConnectionTransport,
 } from "./types.js";
 
-// A transport retires physical forwarding only after bounded EOF and native drain.
-// The original Response is retained unchanged; logical authority remains separate.
-const responseLifetimes = new WeakMap<
-  Response,
-  { signal: AbortSignal; retire?: () => void }
->();
-
 export function bindAiResponseLifetime(
   response: Response,
   retire: () => void,
   signal: AbortSignal,
 ) {
-  if (responseLifetimes.has(response))
+  if (hasNativeResponseLifetime(response))
     throw new AiConnectionError(
       "response",
       "The AI transport reused a live response.",
     );
-  responseLifetimes.set(response, { signal, retire });
+  bindNativeResponseLifetime(response, retire, signal);
 }
 
-function finishAiResponseBody(response: Response) {
-  const lifetime = responseLifetimes.get(response);
-  responseLifetimes.delete(response);
-  lifetime?.retire?.();
-}
+/** Keep existing AI consumers on the single neutral physical-response registry. */
+export { aiResponseBodySignal, finishAiResponseBody };
 
 export {
   type AiCompletionObservation,
@@ -149,8 +145,8 @@ export async function aiProtocolFetch(
     transport.assertCurrent();
     transport.signal.throwIfAborted();
     checkAiResponse(response);
-    if (!responseLifetimes.has(response))
-      responseLifetimes.set(response, { signal });
+    if (!hasNativeResponseLifetime(response))
+      bindNativeResponseLifetime(response, undefined, signal);
     aiCompletionSeams.observe?.({
       phase: "request",
       response,
@@ -180,7 +176,7 @@ export async function readAiJson(
   const body = aiStreamBody(
     response,
     check,
-    responseLifetimes.get(response)?.signal,
+    aiResponseBodySignal(response),
     () =>
       new AiConnectionError(
         "response",

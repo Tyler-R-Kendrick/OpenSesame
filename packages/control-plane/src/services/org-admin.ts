@@ -1,3 +1,7 @@
+import {
+  OrganizationIssuerApprovalError,
+  writeIssuerAdmittedOrganization,
+} from "./org-issuer-approval.js";
 /**
  * Owner-only organization mutations, each demanding an `OrgOwner` proof about
  * the exact organization it touches (ADR 0178).
@@ -12,7 +16,7 @@
  * route; only the write that needs the owner's authority lives here.
  */
 
-import type { Named } from "@gdp-ts/core";
+import { type Named, name } from "@gdp-ts/core";
 import type {
   OrgLdapConfig,
   OrganizationMembership,
@@ -20,6 +24,7 @@ import type {
 import type { AppContext } from "../context.js";
 import type { OrganizationId } from "../lib/ids.js";
 import type { OrgOwner } from "../proofs/org-owner.js";
+import { organizationIssuerUpdateAdmission } from "../proofs/organization-issuer-admission.js";
 
 type Org<O> = Named<O, OrganizationId>;
 type EmailDomains = AppContext["stores"]["orgFederation"]["emailDomains"];
@@ -99,7 +104,7 @@ export function revokeScimToken<A, O>(
   return ctx.stores.scim.tokens.revoke(org.value, tokenId);
 }
 
-export function writeOrganization<A, O>(
+export async function writeOrganization<A, O>(
   ctx: AppContext,
   org: Org<O>,
   _proof: OrgOwner<A, O>,
@@ -108,7 +113,17 @@ export function writeOrganization<A, O>(
   if (updated.id !== org.value) {
     throw new Error("organization row is for a different organization");
   }
-  return Promise.resolve(ctx.stores.organizations.set(org.value, updated));
+  const previous = await ctx.stores.organizations.get(org.value);
+  return name(updated, (row) => {
+    const verdict = organizationIssuerUpdateAdmission(
+      ctx.config,
+      org,
+      previous,
+      row,
+    );
+    if (!verdict.ok) throw new OrganizationIssuerApprovalError(verdict.message);
+    return writeIssuerAdmittedOrganization(ctx, org, row, verdict.proof);
+  });
 }
 
 export function writeOrganizationMembership<A, O>(

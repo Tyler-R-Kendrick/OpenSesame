@@ -26,17 +26,17 @@
   "dependencies": {
     "@opensesame/log-scrub": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
-    "drizzle-orm": "0.45.2",
-    "postgres": "3.4.7"
+    "drizzle-orm": "0.45.4",
+    "postgres": "3.4.9"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.2.17",
+    "@electric-sql/pglite": "0.5.12",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
-    "drizzle-kit": "0.31.10",
-    "tsx": "4.19.4",
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "license": "MIT",
   "repository": {

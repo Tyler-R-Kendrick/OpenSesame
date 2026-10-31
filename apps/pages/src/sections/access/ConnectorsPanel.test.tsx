@@ -10,6 +10,7 @@ import {
 } from "@opensesame/app-core/lib/connector-directory.js";
 import { kvDelete } from "@opensesame/app-core/lib/kv.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { signInLocalIdentity } from "@opensesame/app-core/lib/local-sessions.js";
 import { listPendingShares } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import {
   createLocalShare,
@@ -240,6 +241,7 @@ it("offers a new application and binds the connector to it", async () => {
 it("asks for approval before an agent is bound to a connector", async () => {
   const fixture = await seeded();
   await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  await signInLocalIdentity(fixture.tomb, fixture.personId);
   mount(fixture.tomb);
   await userEvent.click(
     await screen.findByRole("button", { name: "Add connector access" }),

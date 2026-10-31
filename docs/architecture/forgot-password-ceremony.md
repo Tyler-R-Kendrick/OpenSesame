@@ -101,11 +101,14 @@ acknowledgement-only outcomes and are not hooked.
 | 19 | `promote_candidate` | **no** | refused until sealed | |
 | 20 | close session; commit the budget; write the receipt | — | | |
 
-Nothing interrupts 16–17. A crash anywhere is **never resumed** (ADR 0159 §15):
-whether the submit reached the site is unknown, and the reset link is single-use,
-so the reaper parks the run, the candidate is kept, and the person starts a new
-one. Because step 14 precedes step 15, the worst outcome of a failed run is the
-status quo, not a lockout the run created.
+Nothing interrupts 16–17. For this legacy, unjournalized runner a crash anywhere
+is **never resumed** (ADR 0159 §15): whether the submit reached the site is
+unknown, and the reset link is single-use, so the reaper parks the run, the
+candidate is kept, and the person starts a new one. ADR 0213 amends this only for
+the new CUA runner's durable intent/outcome journal: completed checkpoints may be
+reused and safe steps retried, while an uncertain submit enters reconciliation
+and is never blindly replayed. Because step 14 precedes step 15, the worst
+outcome of a failed run is the status quo, not a lockout the run created.
 
 ### Session shape
 

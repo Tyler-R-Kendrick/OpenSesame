@@ -16,6 +16,8 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
+import { joinedTeam } from "./lib/live-joined.mjs";
+import { allowLoopbackDevelopment } from "./lib/local-network-permission.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -61,15 +63,10 @@ async function device(browser, options = {}) {
     ...options,
   });
   const sockets = [];
-  await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: ORIGIN,
-  });
-  const cdp = await made.context.newCDPSession(made.page);
-  await cdp.send("Browser.setPermission", {
-    permission: { name: "local-network-access" },
-    setting: "granted",
-    origin: ORIGIN,
-  });
+  await allowLoopbackDevelopment(made.page, ORIGIN, [
+    "clipboardReadWrite",
+    "clipboardSanitizedWrite",
+  ]);
   await made.context.addInitScript(WATCH_RTC);
   made.page.on("websocket", (socket) => sockets.push(socket.url()));
   return { ...made, sockets, origin: ORIGIN, dist: DIST };
@@ -85,8 +82,6 @@ async function configs(page) {
   );
 }
 
-const joined = (page) => page.getByRole("img", { name: "Joined Team" });
-
 bindWalk({
   check,
   setStep,
@@ -94,13 +89,14 @@ bindWalk({
   device,
   shot,
   configs,
-  joined,
+  joined: joinedTeam,
   launch,
   SECRET,
   ORIGIN,
   BASE,
   PHONE,
   PASSTHROUGH: [],
+  directAddresses: ["127.0.0.1"],
   NATS: null,
   NTFY: null,
 });

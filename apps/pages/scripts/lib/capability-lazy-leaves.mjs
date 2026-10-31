@@ -5,6 +5,31 @@
 
 const toPosix = (path) => path.replace(/\\/g, "/");
 
+/** Shared loader glue has no feature imports and must not pull another SDK. */
+export function commonJsRuntimeChunk(id) {
+  return [
+    "\0commonjsHelpers.js",
+    "\0commonjs-dynamic-modules",
+    "__vite-browser-external",
+    "\0__vite-browser-external?commonjs-proxy",
+  ].includes(id)
+    ? "commonjs-runtime"
+    : undefined;
+}
+
+/** Package-private CommonJS state must initialize with the NATS implementation. */
+export function natsCommonJsSource(id) {
+  if (!id.startsWith("\0")) return null;
+  const source = toPosix(id.slice(1)).replace(
+    /\?commonjs-(?:exports|module|es-import|proxy)$/,
+    "",
+  );
+  if (source.includes("?") || source === toPosix(id.slice(1))) return null;
+  return /\/node_modules\/(?:@nats-io\/|tweetnacl\/)/.test(source)
+    ? source
+    : null;
+}
+
 const ONEPASSWORD_SOURCE =
   /\/packages\/app-core\/src\/lib\/secret-backends\/onepassword-(?:sdk(?:-[a-z0-9-]+|\.worker)?|worker-[a-z0-9-]+)\.[jt]s$/;
 
@@ -43,6 +68,13 @@ const LAZY_LEAVES = [
   ],
   [
     "/packages/app-core/src/lib/secret-backends/",
+    "connectors.external",
+    "secret-backends",
+  ],
+  // The browser Credential Management adapter belongs to the same backend
+  // boundary. Otherwise the minimum chunk floor can merge it with NATS crypto.
+  [
+    "/packages/app-core/src/browser/secret-backend-credentials.ts",
     "connectors.external",
     "secret-backends",
   ],
@@ -88,6 +120,10 @@ const LAZY_LEAVES = [
   ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],
   ["/src/modules/sharing.live/carriers/nats", "sharing.live", "live-nats"],
   ["/node_modules/@nats-io/", "sharing.live", "live-nats"],
+  // NKeys' CommonJS signer has the same owner as its NATS caller. Leave
+  // virtual wrappers alone; the actual implementation must not coalesce
+  // into a connector's otherwise shared dependency chunk.
+  ["/node_modules/tweetnacl/", "sharing.live", "live-nats"],
   // A session's minted NATS credential (ADR 0167), reached only through
   // transport.ts's import() when a profile mints: it loads with the client.
   [
@@ -181,15 +217,21 @@ const LAZY_LEAVES = [
     "enterprise.directory-provisioning",
     "directory-signin-model",
   ],
-  // The model-key broker binding is a small pure leaf reached only by the
-  // connectors runtime and its panels. At the merge floor Rollup folds it
-  // into `main` when the surrounding chunks reshuffle (peer-trust landing),
-  // and the gate reads the fold as a static import of `connectors.external`
-  // from the bootstrap. Pin it to the capability's chunk (ADR 0192).
+  // Keep the shared broker binding separate from both its panels and runtime.
+  // Folding it into main makes the optional capability statically reachable;
+  // folding it into the runtime makes session-connections import that runtime
+  // before its own policy and tutorial constants have initialized.
   [
     "/packages/app-core/src/lib/model-keys/active",
     "connectors.external",
-    "cap-connectors.external",
+    "model-key-state",
+  ],
+  // Panels call these pure predicates before capability activation. Sharing
+  // their chunk with the activation runtime creates the same reverse edge.
+  [
+    "/src/modules/connectors.external/native-oauth-resource-runtime.ts",
+    "connectors.external",
+    "native-oauth-resource-runtime",
   ],
 ];
 

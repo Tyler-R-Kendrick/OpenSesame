@@ -82,6 +82,22 @@ function selectedProfile(
     throw new Error("Select a supported provider credential type");
   return { profile, variantId };
 }
+function publicInputValue(
+  field: NativeApiProfile["templateParams"][number],
+  supplied: Record<string, string>,
+) {
+  const value = supplied[field.name]?.trim() || field.choices?.[0]?.value || "";
+  if (field.required && !value) throw new Error(`Enter ${field.label}`);
+  if (
+    value &&
+    field.choices &&
+    !field.choices.some((choice) => choice.value === value)
+  )
+    throw new Error(`Select a supported ${field.label}`);
+  if (value.length > 256 || /[\r\n]/.test(value))
+    throw new Error("Enter valid provider parameters");
+  return value;
+}
 function publicInputs(
   profile: NativeApiProfile,
   supplied: Record<string, string>,
@@ -89,20 +105,8 @@ function publicInputs(
 ) {
   const parameters: Record<string, string> = {};
   if (variantId) parameters.credential_variant = variantId;
-  for (const field of profile.templateParams.filter((entry) => !entry.secret)) {
-    const value =
-      supplied[field.name]?.trim() || field.choices?.[0]?.value || "";
-    if (field.required && !value) throw new Error(`Enter ${field.label}`);
-    if (
-      value &&
-      field.choices &&
-      !field.choices.some((choice) => choice.value === value)
-    )
-      throw new Error(`Select a supported ${field.label}`);
-    if (value.length > 256 || /[\r\n]/.test(value))
-      throw new Error("Enter valid provider parameters");
-    parameters[field.name] = value;
-  }
+  for (const field of profile.templateParams.filter((entry) => !entry.secret))
+    parameters[field.name] = publicInputValue(field, supplied);
   return parameters;
 }
 
@@ -152,32 +156,58 @@ export function providerTemplate(
   });
 }
 
-export function providerUrl(
-  template: string,
-  target: NativeApiTarget,
-  credentials: Record<string, string>,
-): URL {
+/** A machine's own loopback address: the one place a non-standard port is the person's. */
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "::1" ||
+    /^127(?:\.[0-9]{1,3}){3}$/.test(host)
+  );
+}
+
+function assertTenantHosts(template: string, target: NativeApiTarget): void {
   const hostPart = template.slice("https://".length).split("/")[0] ?? "";
   for (const match of hostPart.matchAll(/\{([a-z_]+)\}/g)) {
     const name = match[1] ?? "";
     const value = target.parameters[name] ?? "";
     if (
       !target.classification.publicParameters.includes(name) ||
-      !/^[A-Za-z0-9.-]+$/.test(value) ||
+      !/^[A-Za-z0-9.-]+(?::[0-9]{1,5})?$/.test(value) ||
       value.startsWith(".") ||
       value.endsWith(".")
     )
       throw new Error("Enter a valid provider tenant host");
+    // A hostname-only contract keeps its hostname: a port belongs to the
+    // machine's own loopback endpoint and nowhere else (the 443 rule below
+    // still binds everything this check lets through).
+    const port = value.indexOf(":");
+    if (port >= 0 && !isLoopbackHost(value.slice(0, port)))
+      throw new Error("Enter a valid provider tenant host");
   }
+}
+
+export function providerUrl(
+  template: string,
+  target: NativeApiTarget,
+  credentials: Record<string, string>,
+): URL {
+  assertTenantHosts(template, target);
+  const [hostPart = ""] = template.slice("https://".length).split("/");
+  const hostFilled = template.replace(/\{([a-z_]+)\}/g, (whole, name) => {
+    if (!hostPart.includes(whole)) return whole;
+    return target.parameters[name] ?? "";
+  });
   const url = new URL(
-    providerTemplate(template, target.parameters, credentials, true),
+    providerTemplate(hostFilled, target.parameters, credentials, true),
   );
   if (
     url.protocol !== "https:" ||
     url.username ||
     url.password ||
     url.hash ||
-    (url.port && url.port !== "443")
+    (url.port && url.port !== "443" && !isLoopbackHost(url.hostname))
   )
     throw new Error("Provider requests require the compiled HTTPS target");
   return url;

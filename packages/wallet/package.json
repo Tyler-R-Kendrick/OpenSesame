@@ -16,6 +16,10 @@
     "./config": {
       "types": "./src/config.ts",
       "default": "./src/config.ts"
+    },
+    "./google-wallet-policy": {
+      "types": "./src/google-wallet-policy.ts",
+      "default": "./src/google-wallet-policy.ts"
     }
   },
   "scripts": {
@@ -24,12 +28,12 @@
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
-    "jose": "6.2.8"
+    "jose": "6.2.13"
   },
   "devDependencies": {
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "license": "MIT",
   "repository": {

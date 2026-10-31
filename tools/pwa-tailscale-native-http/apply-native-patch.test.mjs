@@ -20,7 +20,7 @@ import { nativePatchCommand } from "./apply-native-patch.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const before = "7275f792d406d3c386cc807937a45a4a7b699d42\n";
-const after = "186053ab2af2ef8fc43f3c1d1150216e89d4aff0\n";
+const after = "7ef7b403648ac3a9481a6e88e8b894eff50b0167\n";
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "native-patch-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -95,13 +95,14 @@ test(
     assert.notEqual(await run(f), 0); // Forward-only: never treat an already applied patch as success.
   },
 );
-test("all five reviewed patch invocations select the same Node helper; compiler commands stay original", () => {
+test("all reviewed patch invocations select the same Node helper; compiler commands stay original", () => {
   for (const name of [
     "native-toolchain.patch",
     "native-node.patch",
     "disable-logtail.patch",
     "native-peer-get.patch",
     "exit-route.patch",
+    "native-ssh.patch",
   ]) {
     const original = ["--batch", "--forward", "-p1", "-i", join(here, name)];
     const result = nativePatchCommand("patch", original);
@@ -123,6 +124,55 @@ test("all five reviewed patch invocations select the same Node helper; compiler 
     program: "/owned/compiler/bin/go",
     args: original,
   });
+});
+
+test("SSH patch requires its exact target, digest, preimage and postimage", async (t) => {
+  const f = await fixture(t);
+  const path = "cmd/tsconnect/wasm/wasm_js.go";
+  const tlsPath = "net/tlsdial/tlsdial.go";
+  const original = "original SSH predecessor\n";
+  const result = "verified SSH successor\n";
+  const patch = `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-${original}+${result}--- a/${tlsPath}\n+++ b/${tlsPath}\n@@ -1 +1 @@\n-${original}+${result}`;
+  f.pins.nativeSSH.tlsVerification = {
+    path: tlsPath,
+    beforeSha256: hash(original),
+    afterSha256: hash(result),
+  };
+  await mkdir(dirname(join(f.source, path)), { recursive: true });
+  await mkdir(dirname(join(f.source, tlsPath)), { recursive: true });
+  for (const mode of ["digest", "preimage", "postimage", "target"]) {
+    const input =
+      mode === "target"
+        ? patch.replaceAll(path, "cmd/tsconnect/wasm/other_js.go")
+        : patch;
+    const bytes = mode === "preimage" ? "stale\n" : original;
+    f.pins.nativeSSH.patch = {
+      ...f.pins.nativeSSH.patch,
+      sha256: mode === "digest" ? "0".repeat(64) : hash(input),
+      beforeSha256: hash(original),
+      afterSha256: mode === "postimage" ? "0".repeat(64) : hash(result),
+    };
+    await savePins(f);
+    await writeFile(join(f.tools, "native-ssh.patch"), input);
+    await writeFile(join(f.source, path), bytes);
+    await writeFile(join(f.source, tlsPath), original);
+    assert.notEqual(await run(f, "native-ssh.patch"), 0);
+    assert.equal(await readFile(join(f.source, path), "utf8"), bytes);
+  }
+  f.pins.nativeSSH.patch = {
+    ...f.pins.nativeSSH.patch,
+    sha256: hash(patch),
+    beforeSha256: hash(original),
+    afterSha256: hash(result),
+  };
+  await savePins(f);
+  await writeFile(join(f.tools, "native-ssh.patch"), patch);
+  await writeFile(join(f.source, path), original);
+  await writeFile(join(f.source, tlsPath), original);
+  assert.equal(await run(f, "native-ssh.patch"), 0);
+  assert.equal(await readFile(join(f.source, path), "utf8"), result);
+  assert.equal(await readFile(join(f.source, tlsPath), "utf8"), result);
+  assert.notEqual(await run(f, "native-ssh.patch"), 0);
 });
 test(
   "stale preimage and wrong postimage refuse without target writes",
@@ -195,6 +245,7 @@ test(
       "cmd/tsconnect/wasm/wasm_js.go",
       "net/tsdial/tsdial.go",
       "ipn/ipnlocal/node_backend.go",
+      "derp/derphttp/derphttp_client.go",
     ];
     const patch = paths
       .map((path) => `--- a/${path}\n+++ b/${path}\n@@ -1 +1 @@\n-old\n+new\n`)

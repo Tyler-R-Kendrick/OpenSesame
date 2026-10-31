@@ -87,15 +87,21 @@ it("canonical federation reads the native adapter session without deserializing 
   const state = fixture();
   expect(loadSession()).toBe(state.original);
 });
-it("canonical save refuses to serialize a native SAML session", () => {
-  const state = fixture();
-  const storedBefore = readFederationSessionJson();
-  const generation = federationSessionGeneration();
-  if (!state.original) throw new Error("fixture was not created");
-  expect(() => saveSession(state.original)).toThrow(/must remain/);
-  expect(readFederationSessionJson()).toBe(storedBefore);
-  expect(federationSessionGeneration()).toBe(generation);
-});
+it.each(["saml", "native-oidc", "ldap"])(
+  "canonical save refuses scalar serialization of %s evidence before any generation or storage change",
+  (format) => {
+    const state = fixture();
+    const storedBefore = readFederationSessionJson();
+    const generation = federationSessionGeneration();
+    if (!state.original) throw new Error("fixture was not created");
+    const untrusted = { ...state.original };
+    Object.defineProperty(untrusted, "assertionFormat", { value: format });
+    expect(() => saveSession(untrusted)).toThrow(/must remain/);
+    expect(readFederationSessionJson()).toBe(storedBefore);
+    expect(federationSessionGeneration()).toBe(generation);
+    expect(readNativeFederationSession()).toBe(state.original);
+  },
+);
 it("saving a different provider session retires the native identity before replacement", () => {
   fixture();
   const generation = federationSessionGeneration();
@@ -163,4 +169,32 @@ it("an original disposer cannot erase a new adapter installed reentrantly during
   replace = true;
   old();
   expect(readNativeFederationSession()).not.toBeNull();
+});
+
+it("returns the exact immutable generation allocated by this transition", () => {
+  const previous = federationSessionGeneration();
+  const published = advanceFederationSessionGeneration();
+  expect(published).not.toBe(previous);
+  expect(Object.isFrozen(published)).toBe(true);
+  expect(federationSessionGeneration()).toBe(published);
+});
+it("never returns a reentrant successor as the outer publication's owner", () => {
+  let reenter = false;
+  let clears = 0;
+  const dispose = bindNativeFederationSession({
+    read: () => null,
+    clear() {
+      clears++;
+      if (reenter) {
+        reenter = false;
+        advanceFederationSessionGeneration();
+      }
+    },
+  });
+  disposers.push(dispose);
+  reenter = true;
+  const published = advanceFederationSessionGeneration();
+  expect(clears).toBe(2);
+  expect(federationSessionGeneration()).not.toBe(published);
+  expect(Object.isFrozen(published)).toBe(true);
 });

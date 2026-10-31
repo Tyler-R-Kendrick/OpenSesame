@@ -36,6 +36,9 @@ export type NativeMcpOAuthPorts = {
   settleCredentialMutation?: typeof fetch;
   signal: AbortSignal;
   assertCurrent: () => void;
+  onRegistrationMode?: (mode: NativeMcpRegistrationMode) => void;
+  /** Seal an independently valid refresh token before reporting a malformed receipt. */
+  retainPartialRefresh?: (token: string) => Promise<void>;
 };
 
 function assertPublicClient(
@@ -72,8 +75,8 @@ function boundRegistrationReceipt(
 /**
  * Retain a minted registration. A "storage" refusal (the record encoded, the
  * durable write failed) keeps the copy and its obligation, so a retry seals
- * this registration rather than minting another. Any other refusal is final:
- * admission clears the obligation, so no retained copy wedges a later retry.
+ * this registration rather than minting another. Other refusals retain the
+ * obligation too, because the provider may have issued a registration.
  */
 async function retainOrRefuse(
   retain: (client: NativeMcpRegisteredClient) => Promise<void>,
@@ -125,6 +128,7 @@ export class NativeMcpPublicOAuth {
   ): Promise<NativeMcpRegisteredClient> {
     const metadata = await this.metadata();
     const registration = this.registrationMode ?? this.target.registration;
+    this.ports.onRegistrationMode?.(registration);
     let client: NativeMcpRegisteredClient;
     if (registration === "dcr") {
       const receipt: RegistrationCapture = {
@@ -236,6 +240,7 @@ export class NativeMcpPublicOAuth {
         ),
       this.fetcher,
       this.target.binding.issuer ?? "",
+      this.ports.retainPartialRefresh,
     );
   }
 
@@ -259,6 +264,7 @@ export class NativeMcpPublicOAuth {
         ),
       this.fetcher,
       this.target.binding.issuer ?? "",
+      this.ports.retainPartialRefresh,
     );
   }
 

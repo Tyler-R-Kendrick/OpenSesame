@@ -15,12 +15,12 @@
     "@opensesame/browser-at-rest": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-browser": "workspace:*",
-    "jose": "6.2.8"
+    "jose": "6.2.13"
   },
   "devDependencies": {
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "license": "MIT",
   "repository": {

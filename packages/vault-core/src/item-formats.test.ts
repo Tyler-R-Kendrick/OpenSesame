@@ -10,6 +10,7 @@ import {
   itemFormatCoverage,
   parseItemFormat,
 } from "./item-formats/index.js";
+import { testEcKey } from "./openssl/openssl-test-support.js";
 
 function source(seed = 1): (length: number) => Uint8Array {
   let state = seed >>> 0;
@@ -259,17 +260,13 @@ describe("item formats", () => {
       parseItemFormat("ssh-key", "ssh-ed25519 AAAATest synthetic@example.test"),
     ).toBeNull();
 
-    const ecKey = `-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIAC8vHdOMsQ99eQ9eixtmqBgpdov+LJyv28KBhqxlaGeoAoGCCqGSM49
-AwEHoUQDQgAEG2BFL/tYKhMA7S7cr9rR6WCQYB85reeqQdNlJ1rP1fEUVs0dauKS
-/BBNbn9jIKsSXdtEy8TFgk06A0eEHt8yhQ==
------END EC PRIVATE KEY-----`;
+    const ecKey = testEcKey(1)
+      .export({ type: "sec1", format: "pem" })
+      .toString();
     expect(parseItemFormat("ssh-key", ecKey)?.values.keyType).toBe("ecdsa");
-    const ecPkcs8 = `-----BEGIN PRIVATE KEY-----
-MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg7objlKy97Ij+kw3b
-DtnMYKm18tsYmOQZyYPYGq2yv5ShRANCAASyKrJl8n16A+eGS91yXA456GxcM1ML
-QEAG1weeDZ/+P9G4O651k8kEbWvsWG2R4whKWOgj9hRttyjuYsOcvQpN
------END PRIVATE KEY-----`;
+    const ecPkcs8 = testEcKey(2)
+      .export({ type: "pkcs8", format: "pem" })
+      .toString();
     expect(parseItemFormat("ssh-key", ecPkcs8)?.values.keyType).toBe("ecdsa");
     expect(
       parseItemFormat(

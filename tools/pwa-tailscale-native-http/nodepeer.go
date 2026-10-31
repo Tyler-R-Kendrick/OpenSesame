@@ -48,6 +48,7 @@ type nativePeerAuthority struct {
 	selected  tailcfg.StableNodeID
 	cancel    context.CancelFunc
 	witness   *nativePeerWitness
+	sshKeys   *nativeSSHHostKeys
 	withdrawn bool
 }
 
@@ -162,6 +163,15 @@ func (p *nativePeerAuthority) current(nm *netmap.NetworkMap, running bool, route
 			(self.Machine().IsZero() || self.Machine() == nm.MachineKey) && self.Key() != peer.Key() &&
 			self.ID() != peer.ID() && self.StableID() != peer.StableID() &&
 			nativePeerHostRoutes(self) && nativePeerHostRoutes(peer)
+	}
+	if valid && p.sshKeys != nil {
+		hostinfo := peer.Hostinfo()
+		if !hostinfo.Valid() {
+			valid = false
+		} else {
+			current, err := parseNativeSSHHostKeys(hostinfo.SSH_HostKeys().AsSlice())
+			valid = err == nil && p.sshKeys.equal(current)
+		}
 	}
 	if valid {
 		for _, prefix := range peer.Addresses().All() {

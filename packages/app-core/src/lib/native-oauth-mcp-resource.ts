@@ -21,6 +21,7 @@ import {
   nativeOAuthClientTarget,
   readNativeOAuthClientSecret,
 } from "./native-oauth-client-config.js";
+import { admissibleGrantScopes } from "./native-oauth-client-scopes.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
   nativeOAuthGuard,
@@ -48,6 +49,14 @@ function actualGrant(
     (grant.expiresAt !== null && grant.expiresAt <= Date.now())
   )
     throw new NativeOAuthError("expired");
+  if (
+    !admissibleGrantScopes(
+      record.configuration.providerId,
+      record.configuration.requestedScopes[grant.actor] ?? [],
+      grant.scopes,
+    )
+  )
+    throw new NativeOAuthError("scope");
   const saved = [
     record.privateState.grants.user,
     ...record.privateState.recovery

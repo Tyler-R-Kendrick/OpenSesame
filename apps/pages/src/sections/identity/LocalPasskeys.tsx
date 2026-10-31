@@ -5,6 +5,7 @@ import {
 } from "@opensesame/app-core/lib/local-credentials.js";
 import { LocalDirectoryError } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import { copyPrfBytes } from "@opensesame/app-core/lib/local-passkey-prf-bytes.js";
 import {
   type LocalPasskeyVaultOffer,
   viewBuffer,
@@ -137,12 +138,21 @@ function usePasskeyVaultOffer(
     setBusy(true);
     setError("");
     try {
-      const candidate = await store.protection.enrollHeldWebauthnPrf({
-        prfOutput: viewBuffer(offer.prfOutput),
-        prfSalt: offer.prfSalt,
-        credentialId: offer.credentialId,
-        userId: viewBuffer(offer.userId),
-      });
+      // Enrollment borrows this owned copy only until its promise settles.
+      const heldPrf = copyPrfBytes(offer.prfOutput);
+      let candidate: Awaited<
+        ReturnType<typeof store.protection.enrollHeldWebauthnPrf>
+      >;
+      try {
+        candidate = await store.protection.enrollHeldWebauthnPrf({
+          prfOutput: heldPrf,
+          prfSalt: offer.prfSalt,
+          credentialId: offer.credentialId,
+          userId: viewBuffer(offer.userId),
+        });
+      } finally {
+        new Uint8Array(heldPrf).fill(0);
+      }
       await store.protection.commitEnrollment(candidate.operationId);
       publishOffer(null);
       setUnlockChecked(false);

@@ -1,4 +1,4 @@
-import { xchacha20poly1305 } from "@noble/ciphers/chacha";
+import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
 import { b64urlToBytes, bytesToB64url } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {

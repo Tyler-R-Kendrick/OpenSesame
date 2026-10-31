@@ -60,8 +60,12 @@ choosing it stated where they choose.
 Beside `ChangePassword`, with its own fixed ordering (`run_forgot_password`) and
 the same discipline: every agent-facing verb hooked and its authority pinned
 (ADR 0159 §10), custody steps not hooked, the critical span between the
-candidate assertion and the submit never interrupted, runs never resumed after
-a crash (ADR 0159 §15).
+candidate assertion and the submit never interrupted. This ADR's original rule
+that runs are never resumed after a crash (ADR 0159 §15) is amended by
+[ADR 0213](0213-cua-password-reset-recipes.md) only around a local durable
+intent/outcome journal: completed checkpoints are reused, safe idempotent steps
+may resume, and an uncertain submit goes to reconciliation rather than replay.
+Unjournalized runs keep the original no-resume rule.
 
 The ordering, in the order it must run:
 

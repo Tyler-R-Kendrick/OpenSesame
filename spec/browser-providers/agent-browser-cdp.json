@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "id": "agent-browser-cdp",
+  "kind": "cdp",
+  "display_name": "Local Chrome / agent-browser",
+  "runtime_configuration": ["executable", "cdp_url"],
+  "confinement": "driver-enforced",
+  "custody": ["input", "reset-link"],
+  "recording": "not-requested",
+  "handoff": ["cdp-control-lease"],
+  "user_provided": true,
+  "conformance_required": true
+}

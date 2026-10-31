@@ -24,6 +24,7 @@ mod org_import;
 mod org_joining;
 mod org_member_status;
 mod org_members;
+mod org_share;
 mod organizations;
 mod policies;
 mod policy_rules;

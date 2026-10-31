@@ -11,6 +11,8 @@ export const WORDS = {
   pluginOff: "The autofill plugin is off on this computer",
   noPage: "This tab has no web page to fill",
   notPaired: "Not paired with this computer yet",
+  approval:
+    "On this computer, review the request with opensesame daemon fill requests, then run opensesame daemon fill authorize with its ID. Reopen this popup and retry Fill",
   noMatch: "No entry is stored for this exact origin",
   passkey: "This page offers a passkey. Use it instead",
   hidden: "The field is not visible, so nothing was filled",
@@ -128,5 +130,8 @@ export async function switchOnAndPair(session, popup) {
     await popup.evaluate(() => document.getElementById("code").textContent),
   );
   await popup.click("#pair");
-  await waitMark(popup, WORDS.ready);
+  await waitMark(
+    popup,
+    session.daemon.state.requireApproval ? WORDS.approval : WORDS.ready,
+  );
 }

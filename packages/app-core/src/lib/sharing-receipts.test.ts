@@ -372,16 +372,26 @@ it("keeps one refused receipt while the wrong-code count rises", async () => {
   });
   noteDropRefused(session.claimId);
   noteDropRefused(session.claimId);
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < 4; i += 1) {
     await expect(
       presentLocalDropClaim(session.bearerToken, "WRONG-CODE"),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ wire: "invalid_user_code" });
   }
+  const beforeLockout = await trails(tomb);
+  expect(beforeLockout).toContain("Refused · 4 wrong codes");
+  expect(beforeLockout).toContain('"count":4');
+  expect(beforeLockout).not.toContain("drop.locked_out");
+  await expect(
+    presentLocalDropClaim(session.bearerToken, "WRONG-CODE"),
+  ).rejects.toMatchObject({ wire: "too_many_attempts" });
+  await expect(
+    presentLocalDropClaim(session.bearerToken, session.userCode),
+  ).rejects.toMatchObject({ wire: "too_many_attempts" });
   const blob = await trails(tomb);
   expect(blob.match(/vault\.drop\.refused/gu)).toHaveLength(1);
   expect(blob.match(/access\.drop\.refused/gu)).toHaveLength(1);
   expect(blob.match(/access\.drop\.locked_out/gu)).toHaveLength(1);
-  expect(blob).toContain("Refused · 5 wrong codes");
-  expect(blob).toContain('"count":5');
+  expect(blob).toContain("Refused · 4 wrong codes");
+  expect(blob).toContain('"count":4');
   expect(blob).not.toContain(session.userCode);
 });

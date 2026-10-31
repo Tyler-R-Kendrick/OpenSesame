@@ -27,7 +27,7 @@
 //! like every certmgr route (the one place `resolve_caller` runs).
 
 use axum::extract::{DefaultBodyLimit, Path, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{Extensions, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{body::Bytes, Json, Router};
@@ -36,8 +36,6 @@ use opensesame_pki_core::types::ProfileDefaults;
 use opensesame_pki_core::PolicyRules;
 use opensesame_storage::seal_scopes;
 use opensesame_storage::{SealedCertificateMaterial, StoredCertificateProfile, StoredEstConfig};
-use opensesame_transport_security::PeerExtension;
-use serde::Deserialize;
 use serde_json::json;
 
 use super::est_enrollment;
@@ -50,6 +48,8 @@ use crate::middleware::auth::{resolve_caller, resolve_caller_organization};
 pub const MAX_CSR_BODY: usize = 384 * 1024;
 /// The sealing key id every EST secret is sealed under.
 pub(super) const KEY_ID: &str = "opensesame-connection-key:v1";
+/// The same minimum applies to newly supplied and previously stored credentials.
+pub(super) const MIN_PASSPHRASE_BYTES: usize = 16;
 
 /// EST protocol + operator config routes. Profile-scoped, session-free on the
 /// `.well-known` surface; the body limit is room for a PKCS#10 request with a
@@ -131,22 +131,9 @@ pub(crate) async fn authorized_profile(
 
 // —— operator surface: the profile's EST configuration ————————————————
 
-/// The operator's EST configuration document. Unknown fields are refused.
-#[derive(Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct EstConfigBody {
-    /// Bootstrap passphrase (sealed at rest under `est_passphrase`).
-    pub passphrase: Option<String>,
-    /// Operator-uploaded bootstrap CA chain (PEM) whose client certificates
-    /// may enroll. The EST listener's `client_trust` should name the same
-    /// chain: chain validation happens at the handshake, and the enrollment
-    /// layer pins which trust profile counts.
-    pub bootstrap_chain_pem: Option<String>,
-    /// When true a client certificate is mandatory: the passphrase alone must
-    /// never enroll.
-    #[serde(default)]
-    pub require_bootstrap: bool,
-}
+#[path = "est_config_policy.rs"]
+mod config_policy;
+pub use config_policy::EstConfigBody;
 
 /// Reads the profile's EST configuration (secret material redacted).
 pub async fn get_config(
@@ -171,7 +158,7 @@ pub async fn get_config(
             "profile_id": profile_id,
             "passphrase_set": false,
             "bootstrap_chain_set": false,
-            "require_bootstrap": false,
+            "require_bootstrap": true,
             "version": 0
         }))
         .into_response(),
@@ -191,6 +178,9 @@ pub async fn put_config(
         Ok(found) => found,
         Err(response) => return response,
     };
+    if let Err(response) = body.validate() {
+        return response;
+    }
     if let Some(chain) = &body.bootstrap_chain_pem {
         if opensesame_pki_core::bundle::certificates_der(chain).is_err() {
             return refuse(
@@ -246,7 +236,11 @@ pub async fn put_config(
                 .as_ref()
                 .and_then(|config| config.bootstrap_chain_pem.clone())
         }),
-        require_bootstrap: body.require_bootstrap,
+        require_bootstrap: body.require_bootstrap.unwrap_or_else(|| {
+            existing
+                .as_ref()
+                .is_none_or(|config| config.require_bootstrap)
+        }),
         version: existing.as_ref().map_or(1, |config| config.version),
         created_at: existing
             .as_ref()
@@ -298,10 +292,10 @@ pub async fn simple_enroll(
     State(st): State<AppState>,
     Path(profile_id): Path<String>,
     headers: HeaderMap,
-    peer: Option<axum::Extension<PeerExtension>>,
+    extensions: Extensions,
     body: Bytes,
 ) -> Response {
-    enroll(&st, &profile_id, &headers, peer, body, false).await
+    enroll(&st, &profile_id, &headers, extensions, body, false).await
 }
 
 /// `POST /.well-known/est/{profileId}/simplereenroll` — like `simpleenroll`,
@@ -311,17 +305,17 @@ pub async fn simple_reenroll(
     State(st): State<AppState>,
     Path(profile_id): Path<String>,
     headers: HeaderMap,
-    peer: Option<axum::Extension<PeerExtension>>,
+    extensions: Extensions,
     body: Bytes,
 ) -> Response {
-    enroll(&st, &profile_id, &headers, peer, body, true).await
+    enroll(&st, &profile_id, &headers, extensions, body, true).await
 }
 
 async fn enroll(
     st: &AppState,
     profile_id: &str,
     headers: &HeaderMap,
-    peer: Option<axum::Extension<PeerExtension>>,
+    extensions: Extensions,
     body: Bytes,
     reenroll: bool,
 ) -> Response {
@@ -329,9 +323,7 @@ async fn enroll(
         Ok(found) => found,
         Err(response) => return response,
     };
-    let peer = peer.map(|axum::Extension(peer)| peer);
-    if let Err(response) =
-        authenticate(st, headers, peer.as_ref(), &config, &profile, reenroll).await
+    if let Err(response) = authenticate(st, headers, &extensions, &config, &profile, reenroll).await
     {
         return response;
     }

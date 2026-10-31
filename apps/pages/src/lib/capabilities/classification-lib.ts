@@ -52,6 +52,7 @@ const SIGNIN_FILES = [
   "account",
   "identity",
   "federation",
+  "native-identity-admission",
   "federation-copy",
   "federation-callback",
   "federation-pending",
@@ -107,6 +108,7 @@ const LOCAL_IAM_FILES = [
   "local-pending-codes",
   "local-iam-lock-resets",
   "local-issuer-channel",
+  "local-pairwise-subject",
   "local-request",
   "local-request-authorization",
   "local-request-issuance",
@@ -327,6 +329,11 @@ export const LIB_RULES = [
   ),
   ...each(L, ["ambient-auth-seam"], (p) =>
     core(p, SIGNIN, "the ambient seam core federation calls through"),
+  ),
+  core(
+    `${L}password-reset/vault-ui-seam`,
+    "vault.passwords",
+    "rotation chrome seam ItemDetail calls through; ai.password-reset installs",
   ),
   // The generation fence is storage-only shared infrastructure: core native
   // identity lineage and optional ambient sign-in both stamp in-flight work

@@ -10,7 +10,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
+import { answerAddresses } from "./lib/live-join-addresses.mjs";
 import {
   WATCH_RTC,
   admitControl,
@@ -21,8 +22,11 @@ import {
   ownerAdmitsByHand,
   ownerEnters,
   peerStates,
+  setRoutes,
   startSession,
 } from "./lib/live-join-walk.mjs";
+import { joinedMarks, opensSharedItems } from "./lib/live-joined.mjs";
+import { allowLoopbackDevelopment } from "./lib/local-network-permission.mjs";
 import { PIN } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
@@ -64,15 +68,10 @@ async function device(browser) {
     dist: DIST,
     passthrough: [],
   });
-  await made.context.grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: ORIGIN,
-  });
-  const cdp = await made.context.newCDPSession(made.page);
-  await cdp.send("Browser.setPermission", {
-    permission: { name: "local-network-access" },
-    setting: "granted",
-    origin: ORIGIN,
-  });
+  await allowLoopbackDevelopment(made.page, ORIGIN, [
+    "clipboardReadWrite",
+    "clipboardSanitizedWrite",
+  ]);
   await made.context.addInitScript(WATCH_RTC);
   return made;
 }
@@ -119,7 +118,12 @@ async function beginOwner(browser) {
     secret: SECRET,
   });
   await openLive(owner.page);
+  await setRoutes(owner.page, { addresses: ["127.0.0.1"] });
   const started = await startSession(owner.page);
+  await started.panel
+    .locator("summary")
+    .filter({ hasText: /^Peer trust signal$/ })
+    .click();
   const copyKey = started.panel.getByRole("button", {
     name: "Copy peer trust signal",
   });
@@ -132,7 +136,7 @@ async function beginOwner(browser) {
 }
 
 async function readRequest(panel, request) {
-  await panel.getByLabel("A request code", { exact: true }).fill(request);
+  await panel.getByLabel("Paste a join request", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
 }
 
@@ -146,7 +150,6 @@ async function verifiedJoin(browser, session) {
     name: VERIFIED_NAME,
     peerTrust: session.signal,
   });
-  const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
   check(
     (await joiner.page.getByRole("img", { name: "Unverified" }).count()) === 0,
     "verified join is not marked unverified",
@@ -158,15 +161,27 @@ async function verifiedJoin(browser, session) {
     session.panel,
     request,
     VERIFIED_NAME,
-  );
-  const ownerSas = (
-    await session.panel.locator(".vault-row .live-sas").innerText()
-  ).trim();
-  check(
-    SAS.test(joinerSas) && joinerSas === ownerSas,
-    "verified join shows the same session SAS on both sides",
+    {
+      async beforeAdmit() {
+        await joiner.page.getByText("Security code", { exact: true }).click();
+        const joinerSas = (
+          await joiner.page.locator(".live-sas").innerText()
+        ).trim();
+        const ownerSas = (
+          await session.panel.locator(".vault-row .live-sas").innerText()
+        ).trim();
+        expect(joinerSas).toMatch(SAS);
+        expect(ownerSas).toBe(joinerSas);
+        check(
+          SAS.test(joinerSas) && joinerSas === ownerSas,
+          "verified join shows the same session SAS on both sides",
+        );
+      },
+    },
   );
   await joinerConnects(joiner.page, reply);
+  await answerAddresses(joiner.page);
+  await opensSharedItems(joiner.page);
   await joiner.page
     .getByRole("img", { name: "Joined Team" })
     .waitFor({ timeout: 45_000 });
@@ -202,7 +217,7 @@ async function crossedSignal(browser, source, target) {
       `crossed signal refused before a request (${words})`,
     );
     check(
-      (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+      (await joinedMarks(joiner.page).count()) === 0,
       "crossed signal does not join",
     );
     await shot(joiner.page, "mitm-joiner");
@@ -214,7 +229,7 @@ async function crossedSignal(browser, source, target) {
     .getByRole("img", { name: "Not a request code" })
     .waitFor({ timeout: 20_000 });
   check(
-    (await joiner.page.getByRole("img", { name: /^Joined / }).count()) === 0,
+    (await joinedMarks(joiner.page).count()) === 0,
     "a signal from the first session does not join the second",
   );
   await shot(target.page, "mitm-owner");
@@ -268,7 +283,7 @@ async function changedKey(browser, session) {
   await alarm.or(blocked).or(tray).first().waitFor({ timeout: 20_000 });
   check(
     (await page
-      .getByRole("button", { name: "Copy your request code" })
+      .getByRole("button", { name: "Copy your join request" })
       .count()) === 0,
     "changed key does not ask",
   );

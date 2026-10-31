@@ -20,28 +20,30 @@ describe("share ceremony on an item", () => {
     const user = userEvent.setup();
     render(<Ceremony item={makeSecret()} />);
 
-    const ttl = screen.getByRole("radiogroup", { name: "Opens for" });
+    const ttl = screen.getByRole("radiogroup", { name: "Suggested window" });
     expect(ttl.querySelectorAll("button")).toHaveLength(3);
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Keep a copy/ })).toBeNull();
-    expect(screen.getByText("Any browser with the link")).toBeTruthy();
+    expect(screen.getByText("Any browser with the link and code")).toBeTruthy();
     expect(screen.queryByText(/Only this browser can open/)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
 
     expect(
-      screen.getByText(/#token=osc_pdrop_.*&key=.*&pkt=ospd1\.packet/),
+      screen.getByText(/#token=osc_pdrop_.*&key=.*&pkt=ospd2\.packet/),
     ).toBeTruthy();
     expect(screen.getAllByText("ABCD-EFGH")).toHaveLength(1);
     expect(document.querySelector(".qr__shortcode")).toBeNull();
     expect(screen.queryByText("s3cr3t-value")).toBeNull();
     expect(screen.queryByText("Contains the password.")).toBeNull();
     const ready = screen.getByRole("region", { name: "Drop ready" });
-    expect(ready.textContent).toMatch(/Opens for\s*1 hour/);
+    expect(ready.textContent).toMatch(/Suggested window\s*1 hour/);
     expect(ready.textContent).toMatch(/Opens on\s*Any browser with the link/);
     expect(expiryRow()).not.toMatch(/left/);
-    expect(ready.querySelector("p.hint")).toBeNull();
+    expect(ready.querySelector("p.hint")?.textContent).toContain(
+      "It cannot be revoked.",
+    );
     expect(screen.queryByRole("link", { name: /drop record/i })).toBeNull();
     expect(store.saveItem).not.toHaveBeenCalled();
 
@@ -63,7 +65,9 @@ describe("share ceremony on an item", () => {
     expect(screen.queryByText("Drop ready")).toBeNull();
     await user.click(screen.getByRole("button", { name: "toggle" }));
     expect(screen.queryByText("Drop ready")).toBeNull();
-    expect(screen.getByRole("radiogroup", { name: "Opens for" })).toBeTruthy();
+    expect(
+      screen.getByRole("radiogroup", { name: "Suggested window" }),
+    ).toBeTruthy();
   });
 
   it("takes focus on the choice in force when it opens, and Cancel closes it", async () => {

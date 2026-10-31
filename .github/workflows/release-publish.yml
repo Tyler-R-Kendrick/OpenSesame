@@ -1,0 +1,265 @@
+# Only release-weekly.yml calls this after prerelease, mutation and security pass.
+# Every job revalidates identity/evidence. No source build is allowed here.
+# Release approval precedes draft/tag creation and native publication.
+# Native publication follows live Pages verification.
+name: Release publish
+'on':
+  workflow_call:
+    inputs:
+      source_sha:
+        required: true
+        type: string
+      candidate_id:
+        required: true
+        type: string
+      run_id:
+        required: true
+        type: string
+      run_attempt:
+        required: true
+        type: string
+      artifact_id:
+        required: true
+        type: string
+      artifact_digest:
+        required: true
+        type: string
+      payload_digest:
+        required: true
+        type: string
+      prerelease_receipt:
+        required: true
+        type: string
+      mutation_receipt:
+        required: true
+        type: string
+      security_receipt:
+        required: true
+        type: string
+permissions: {}
+concurrency:
+  group: opensesame-production-publication
+  cancel-in-progress: false
+env:
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  CANDIDATE_ID: ${{ inputs.candidate_id }}
+  CANDIDATE_RUN_ID: ${{ inputs.run_id }}
+  CANDIDATE_RUN_ATTEMPT: ${{ inputs.run_attempt }}
+  ARTIFACT_ID: ${{ inputs.artifact_id }}
+  ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+  PAYLOAD_DIGEST: ${{ inputs.payload_digest }}
+  PRERELEASE_RECEIPT: ${{ inputs.prerelease_receipt }}
+  MUTATION_RECEIPT: ${{ inputs.mutation_receipt }}
+  SECURITY_RECEIPT: ${{ inputs.security_receipt }}
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  admission:
+    name: Publication admission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
+    outputs:
+      promote: ${{ steps.qualified.outputs.promote }}
+    steps:
+    - name: Require the trusted main controller
+      run: '[ "$GITHUB_REF" = refs/heads/main ]'
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: .ci-control
+        persist-credentials: false
+        sparse-checkout: |-
+          .github/workflows
+          scripts/release
+          scripts/lib
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      with:
+        node-version: 22
+        package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
+    - name: Revalidate original build and every prerequisite receipt
+      id: qualified
+      run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
+  stage:
+    name: Stage release draft
+    needs: admission
+    if: needs.admission.outputs.promote == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Review the immutable candidate run before any tag or draft write.
+    environment:
+      name: release
+      url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ inputs.run_id }}"
+    permissions:
+      contents: write
+      actions: read
+      attestations: write
+      id-token: write
+    outputs:
+      draft_url: ${{ steps.draft.outputs.draft_url }}
+    steps:
+    - name: Require the trusted main controller
+      run: '[ "$GITHUB_REF" = refs/heads/main ]'
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: .ci-control
+        persist-credentials: false
+        sparse-checkout: |-
+          .github/workflows
+          scripts/release
+          scripts/lib
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      with:
+        node-version: 22
+        package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
+    - name: Revalidate original build and every prerequisite receipt
+      id: qualified
+      run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
+    - name: Stage the exact product bytes and current qualification evidence
+      run: node .ci-control/scripts/release/stage-release.mjs candidate candidate-evidence release-files
+    - name: Sign promotion evidence without claiming a new build
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: release-files/SHA256SUMS
+        predicate-type: https://opensesame.dev/attestations/release-promotion/v1
+        predicate-path: release-files/promotion.json
+    - name: Require the protected publication credential
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+      run: test -n "$GH_TOKEN"
+    - name: Create or resume the owned draft with exactly the allowed assets
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+      id: draft
+      run: node .ci-control/scripts/release/publish-release.mjs prepare release-files
+  pages:
+    name: Promote exact Pages bytes
+    needs:
+    - stage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
+      pages: write
+      id-token: write
+    env:
+      PAGES_ARTIFACT: pages-${{ inputs.candidate_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+    - name: Require the trusted main controller
+      run: '[ "$GITHUB_REF" = refs/heads/main ]'
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: .ci-control
+        persist-credentials: false
+        sparse-checkout: |-
+          .github/workflows
+          scripts/release
+          scripts/lib
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      with:
+        node-version: 22
+        package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
+    - name: Revalidate original build and every prerequisite receipt
+      id: qualified
+      run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
+    - name: Require the unchanged release tag and expand the existing Pages archive
+      env:
+        PAGES_ARCHIVE: ${{ steps.qualified.outputs.pages_archive }}
+      run: |-
+        node --input-type=module - <<'JS'
+        import { readFileSync } from 'node:fs';
+        import { ReleaseApi, assertSource } from './.ci-control/scripts/release/publish-assets.mjs';
+        const manifest = JSON.parse(readFileSync('candidate/candidate.json'));
+        await assertSource(new ReleaseApi(process.env.GITHUB_REPOSITORY, process.env.GH_TOKEN), manifest, { tagRequired: true });
+        JS
+        python3 .ci-control/scripts/release/archive-safe.py tar "$PAGES_ARCHIVE" site
+        mkdir hosting
+        gzip -dc "$PAGES_ARCHIVE" > hosting/artifact.tar
+    - name: Upload the original tar in the Pages hosting transport
+      id: hosting
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ env.PAGES_ARTIFACT }}
+        path: hosting/artifact.tar
+        if-no-files-found: error
+        retention-days: 7
+    - name: Fail if the hosting upload differs before deploying
+      env:
+        HOSTING_ID: ${{ steps.hosting.outputs.artifact-id }}
+        HOSTING_DIGEST: ${{ steps.hosting.outputs.artifact-digest }}
+      run: |-
+        node --input-type=module - <<'JS'
+        import { readdirSync } from 'node:fs';
+        import { downloadArtifact } from './.ci-control/scripts/release/artifact-transfer.mjs';
+        await downloadArtifact({ repository: process.env.GITHUB_REPOSITORY, token: process.env.GH_TOKEN,
+          artifactId: process.env.HOSTING_ID, artifactDigest: process.env.HOSTING_DIGEST,
+          runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+          expectedName: process.env.PAGES_ARTIFACT, destination: 'hosting-checked' });
+        if (JSON.stringify(readdirSync('hosting-checked')) !== '["artifact.tar"]') throw new Error('Unexpected Pages transport inventory');
+        JS
+        cmp hosting/artifact.tar hosting-checked/artifact.tar
+    - name: Recheck release protection immediately before deployment
+      run: node .ci-control/scripts/release/release-environment.mjs
+    - name: Deploy the verified original Pages artifact
+      id: deployment
+      uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
+      with:
+        artifact_name: ${{ env.PAGES_ARTIFACT }}
+    - name: Verify every served candidate file after deployment
+      env:
+        PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+      run: node .ci-control/scripts/release/verify-site.mjs site "$PAGES_URL" "$SOURCE_SHA"
+  publish:
+    name: Release publication gate
+    needs:
+    - stage
+    - pages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: release
+      url: ${{ needs.stage.outputs.draft_url }}
+    permissions:
+      contents: write
+      actions: read
+      attestations: read
+    steps:
+    - name: Require the trusted main controller
+      run: '[ "$GITHUB_REF" = refs/heads/main ]'
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      with:
+        ref: ${{ github.workflow_sha }}
+        path: .ci-control
+        persist-credentials: false
+        sparse-checkout: |-
+          .github/workflows
+          scripts/release
+          scripts/lib
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      with:
+        node-version: 22
+        package-manager-cache: false
+    - name: Require existing owner-approved release environment protection
+      run: node .ci-control/scripts/release/release-environment.mjs
+    - name: Revalidate original build and every prerequisite receipt
+      id: qualified
+      run: node .ci-control/scripts/release/candidate.mjs verify-promotion --directory candidate --output "$GITHUB_OUTPUT"
+    - name: Stage the exact product bytes and current qualification evidence
+      run: node .ci-control/scripts/release/stage-release.mjs candidate candidate-evidence release-files
+    - name: Publish only after complete assets and live Pages passed
+      run: node .ci-control/scripts/release/publish-release.mjs publish release-files

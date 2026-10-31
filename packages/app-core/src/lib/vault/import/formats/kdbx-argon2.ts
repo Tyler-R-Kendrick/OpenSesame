@@ -8,11 +8,10 @@
  * Every KDF parameter arrives from the database header, so whoever wrote the
  * file chose them, and kdbxweb validates only their lower bounds. They are
  * capped before hash-wasm sees them: KeePassXC's own defaults are 64 MiB of
- * memory, 3 iterations and 4 lanes, so a header past the bounds below
- * describes no real database, and computing one would allocate gigabytes of
- * WASM memory or block the tab on its iterations before the password could
- * even be checked — the tab lock-up the pipeline's own size guard exists to
- * prevent.
+ * memory, 3 iterations and 4 lanes. Higher work factors can be legitimate,
+ * but this interactive importer refuses them rather than letting a file
+ * request unbounded work. The combined budget matters even when each
+ * individual parameter fits.
  */
 
 export class KdbxImportError extends Error {
@@ -22,9 +21,10 @@ export class KdbxImportError extends Error {
   }
 }
 
-const MAX_ARGON2_MEMORY_KIB = 1024 * 1024;
-const MAX_ARGON2_ITERATIONS = 1000;
-const MAX_ARGON2_PARALLELISM = 16;
+const MAX_ARGON2_MEMORY_KIB = 64 * 1024;
+const MAX_ARGON2_ITERATIONS = 10;
+const MAX_ARGON2_PARALLELISM = 4;
+const MAX_ARGON2_WORK_KIB = MAX_ARGON2_MEMORY_KIB * 3;
 
 type Argon2Options = Parameters<typeof import("hash-wasm").argon2d>[0] & {
   outputType: "binary";
@@ -62,12 +62,18 @@ export function cappedArgon2Impl(
       );
     }
     if (
+      ![memory, iterations, parallelism, length].every(
+        (value) => Number.isSafeInteger(value) && value > 0,
+      ) ||
+      length !== 32 ||
+      memory < 8 * parallelism ||
       memory > MAX_ARGON2_MEMORY_KIB ||
       iterations > MAX_ARGON2_ITERATIONS ||
-      parallelism > MAX_ARGON2_PARALLELISM
+      parallelism > MAX_ARGON2_PARALLELISM ||
+      memory * iterations > MAX_ARGON2_WORK_KIB
     ) {
       throw new KdbxImportError(
-        "This database's Argon2 parameters are implausibly large, and computing them would exhaust this tab before the password could even be checked. Open it in KeePassXC and lower the key derivation parameters.",
+        "This database's Argon2 parameters exceed this importer's supported work budget. Open it in KeePassXC and save a copy using at most 64 MiB of memory, 3 iterations and 4 lanes before importing.",
       );
     }
     const argon2 = type === argon2idType ? hashWasm.argon2id : hashWasm.argon2d;

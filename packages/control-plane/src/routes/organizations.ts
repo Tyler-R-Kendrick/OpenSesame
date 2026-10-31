@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
+import { name } from "@gdp-ts/core";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   AddOrganizationMemberRequestSchema,
   ChangeOrganizationMemberRoleRequestSchema,
   CreateOrganizationRequestSchema,
   JoinOrganizationTenantRequestSchema,
-  type OrganizationAuthMethod,
   OrganizationMembershipResponseSchema,
   OrganizationResponseSchema,
   OrganizationTenantResponseSchema,
@@ -19,9 +19,11 @@ import type {
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { secureServiceEndpoint } from "../deployment-mode.js";
+import { organizationId } from "../lib/ids.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { organizationIssuerAdmission } from "../proofs/organization-issuer-admission.js";
 import { serializeKeyed } from "../serialize.js";
 import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
@@ -30,15 +32,18 @@ import {
   writeOrganization,
   writeOrganizationMembership,
 } from "../services/org-admin.js";
+import {
+  OrganizationIssuerApprovalError,
+  issuerClaimed,
+  verifyAdmittedOrganizationAssertion,
+} from "../services/org-issuer-approval.js";
 import { createOrganization } from "../services/verified-admin.js";
 import { getUsage } from "../state.js";
-import {
-  OrgAssertionError,
-  type VerifiedOrgIdToken,
-  originAudiences,
-  verifyOrgIdToken,
-} from "./org-assertion.js";
+import { OrgAssertionError, type VerifiedOrgIdToken } from "./org-assertion.js";
+import { issuerForMethod, tenantAuthMethods } from "./org-auth-methods.js";
+export { usesNativeSaml, tenantAuthMethods } from "./org-auth-methods.js";
 import { normalizeEmailDomain } from "./org-domains.js";
+import { organizationIssuerErrorHandler } from "./org-issuer-errors.js";
 import {
   issuerConfigurationError,
   samlConfigurationError,
@@ -63,28 +68,7 @@ export {
 export type { JitJoinInput, JitJoinResult } from "./organization-membership.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
-
-/** A tenant issuer may name exactly one organization. */
-async function issuerClaimed(
-  ctx: AppContext,
-  issuer: string | undefined,
-  exceptOrganizationId?: string,
-): Promise<boolean> {
-  if (!issuer) return false;
-  const owner = await ctx.stores.organizations.findByIssuer(issuer);
-  return owner !== undefined && owner.id !== exceptOrganizationId;
-}
-
-/**
- * How stale an organization assertion may be at the join route (ADR 0055).
- *
- * The browser leg deliberately sends no nonce — the code + PKCE exchange binds
- * it — so replay is fenced by three other things instead: the audience must be
- * one of our own surfaces, the subject is bound to the caller, and the token
- * must be minutes old. Ten minutes is the same window the interactive
- * federated round-trip gets.
- */
-const JOIN_MAX_TOKEN_AGE_SECONDS = 600;
+organizationRoutes.onError(organizationIssuerErrorHandler);
 
 /**
  * The member routes have never read the organization's state, only the
@@ -267,41 +251,6 @@ function toResponse(org: Organization, role: OrganizationRole) {
   });
 }
 
-/** True when the tenant configured a real SAML IdP rather than a broker. */
-export function usesNativeSaml(org: Organization): boolean {
-  return Boolean(org.samlMetadataUrl || org.samlMetadataXml);
-}
-
-/**
- * The sign-in methods a tenant offers, as the public tenant endpoint and the
- * hosted login page both render them.
- *
- * The two SAML shapes are deliberately distinguishable (ADR 0056): with
- * metadata configured the method is native SAML and runs entirely server-side
- * through the hosted login page, so no browser-side issuer is offered at all.
- * Without metadata `samlIssuer` keeps its ADR 0016 meaning — the OIDC issuer
- * of a SAML-brokering Keycloak — and stays a normal brokered redirect.
- */
-export async function tenantAuthMethods(
-  ctx: AppContext,
-  org: Organization,
-): Promise<OrganizationAuthMethod[]> {
-  const methods: OrganizationAuthMethod[] = [];
-  if (org.ssoIssuer) {
-    methods.push({ kind: "sso", label: "SSO", issuer: org.ssoIssuer });
-  }
-  if (usesNativeSaml(org)) {
-    methods.push({ kind: "saml", label: "SAML", native: true });
-  } else if (org.samlIssuer) {
-    methods.push({ kind: "saml", label: "SAML", issuer: org.samlIssuer });
-  }
-  // The LDAP leg itself belongs to the login page (a first-party username and
-  // password form); this is the advertisement that the tenant has one.
-  const ldap = await ctx.stores.orgFederation.ldapConfigs.get(org.id);
-  if (ldap) methods.push({ kind: "ldap", label: "Directory" });
-  return methods;
-}
-
 async function orgBySlug(
   ctx: AppContext,
   slug: string,
@@ -311,22 +260,6 @@ async function orgBySlug(
     return undefined;
   }
   return org;
-}
-
-/**
- * The OIDC issuer an id_token join may be asserted against.
- *
- * Native SAML has none — its assertions arrive at the ACS as signed XML, not
- * as a bearer id_token — and neither does LDAP, so both answer `undefined` and
- * the route refuses the method rather than verifying against an entityID.
- */
-function issuerForMethod(
-  org: Organization,
-  method: "sso" | "saml" | "ldap",
-): string | undefined {
-  if (method === "sso") return org.ssoIssuer;
-  if (method === "ldap") return undefined;
-  return usesNativeSaml(org) ? undefined : org.samlIssuer;
 }
 
 function membershipResponse(membership: OrganizationMembership) {
@@ -671,11 +604,26 @@ organizationRoutes.post(
 
     let assertion: VerifiedOrgIdToken;
     try {
-      assertion = await verifyOrgIdToken(parsed.data.idToken, issuer, {
-        expectedAudiences: originAudiences(ctx.config),
-        maxTokenAgeSec: JOIN_MAX_TOKEN_AGE_SECONDS,
-        blockPrivateIssuerHosts: !ctx.config.allowDevDefaults,
-      });
+      assertion = await name(
+        organizationId(org.id),
+        { ssoIssuer: issuer },
+        (tenant, configuration) => {
+          const verdict = organizationIssuerAdmission(
+            ctx.config,
+            tenant,
+            configuration,
+          );
+          if (!verdict.ok)
+            throw new OrganizationIssuerApprovalError(verdict.message);
+          return verifyAdmittedOrganizationAssertion(
+            ctx,
+            tenant,
+            configuration,
+            verdict.proof,
+            parsed.data.idToken,
+          );
+        },
+      );
     } catch (error) {
       if (error instanceof OrgAssertionError) {
         const status = error.code === "upstream_unavailable" ? 502 : 401;

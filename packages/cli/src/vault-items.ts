@@ -77,7 +77,7 @@ async function openStore(deps: VaultItemDependencies): Promise<Store> {
   return vaultStore;
 }
 
-async function ensureVault(
+export async function ensureVault(
   store: Store,
   deps: VaultItemDependencies,
   createIfEmpty: boolean,

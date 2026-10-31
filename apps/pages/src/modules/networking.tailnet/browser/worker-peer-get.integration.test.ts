@@ -58,10 +58,17 @@ function createClient() {
   };
 }
 let client: ReturnType<typeof createClient>;
+let grants: MessageChannel;
 const loader = vi.fn<typeof loadBrowserNode>();
+const approved = "http://100.64.0.1:8080/proof";
 function send(message: ReturnType<typeof WorkerMessage.parse>) {
-  driver.receive(new MessageEvent("message", { data: message }));
+  driver.command(new MessageEvent("message", { data: message }));
 }
+/** The controller's end of the port the original `start` transferred. */
+function grant(id: number, url: string) {
+  grants.port1.postMessage({ kind: "get", id, url });
+}
+const forget = () => new Promise((resolve) => setTimeout(resolve, 20));
 function response(): NativeResponse {
   return {
     status: 200,
@@ -81,7 +88,13 @@ async function load() {
     load: loader,
     egress: vi.fn(),
   });
-  send({ kind: "start", config });
+  grants = new MessageChannel();
+  driver.receive(
+    new MessageEvent("message", {
+      data: { kind: "start", config },
+      ports: [grants.port2],
+    }),
+  );
   await vi.waitFor(() => expect(client.run).toHaveBeenCalledTimes(1));
 }
 beforeEach(() => {
@@ -96,11 +109,50 @@ beforeEach(() => {
 afterEach(async () => {
   send({ kind: "closeHTTP" });
   await settle();
+  grants.port1.close();
   vi.unstubAllGlobals();
 });
+it("refuses a peer GET posted on the Worker's own channel, which any holder of the Worker reaches", async () => {
+  await load();
+  driver.receive(
+    new MessageEvent("message", {
+      data: { kind: "get", id: 9, url: approved },
+    }),
+  );
+  await forget();
+  expect(client.nativePeerGET.nativeHTTP).not.toHaveBeenCalled();
+  expect(client.nativeHTTP.nativeHTTP).not.toHaveBeenCalled();
+  expect(sent).toEqual([]);
+  grant(1, approved);
+  await vi.waitFor(() => expect(held.size).toBe(1));
+  held.get(1)?.resolve(response());
+  await vi.waitFor(() =>
+    expect(sent).toEqual([{ kind: "get", id: 1, status: 200, text: "A" }]),
+  );
+  expect(client.nativePeerGET.nativeHTTP).toHaveBeenCalledTimes(1);
+});
+
+it("keeps the grant port the original start transferred", async () => {
+  await load();
+  const forged = new MessageChannel();
+  driver.receive(
+    new MessageEvent("message", {
+      data: { kind: "start", config },
+      ports: [forged.port2],
+    }),
+  );
+  forged.port1.postMessage({ kind: "get", id: 2, url: approved });
+  await forget();
+  forged.port1.close();
+  expect(client.nativePeerGET.nativeHTTP).not.toHaveBeenCalled();
+  grant(1, approved);
+  await vi.waitFor(() => expect(held.size).toBe(1));
+  expect(client.nativePeerGET.nativeHTTP).toHaveBeenCalledTimes(1);
+});
+
 it("refuses a peer GET that redirects away from the approved URL", async () => {
   await load();
-  send({ kind: "get", id: 9, url: "http://100.64.0.1:8080/proof" });
+  grant(9, approved);
   await vi.waitFor(() => expect(held.size).toBe(1));
   [...held.values()][0].resolve({
     ...response(),
@@ -112,7 +164,7 @@ it("refuses a peer GET that redirects away from the approved URL", async () => {
 
 it("refuses a peer GET whose final URL differs from the approved URL", async () => {
   await load();
-  send({ kind: "get", id: 10, url: "http://100.64.0.1:8080/proof" });
+  grant(10, approved);
   await vi.waitFor(() => expect(held.size).toBe(1));
   [...held.values()][0].resolve({
     ...response(),
@@ -124,11 +176,12 @@ it("refuses a peer GET whose final URL differs from the approved URL", async () 
 
 it("refuses a peer GET with credentials or a non-HTTP scheme before egress", async () => {
   await load();
-  send({ kind: "get", id: 11, url: "http://user:secret@100.64.0.1:8080/" });
-  send({ kind: "get", id: 12, url: "file:///etc/passwd" });
-  await settle();
+  grant(11, "http://user:secret@100.64.0.1:8080/");
+  grant(12, "file:///etc/passwd");
+  await vi.waitFor(() =>
+    expect(sent).toEqual([{ kind: "error" }, { kind: "error" }]),
+  );
   expect(client.nativeHTTP.nativeHTTP).not.toHaveBeenCalled();
   expect(client.fetch).not.toHaveBeenCalled();
   expect(client.nativePeerGET.nativeHTTP).not.toHaveBeenCalled();
-  expect(sent).toEqual([{ kind: "error" }, { kind: "error" }]);
 });

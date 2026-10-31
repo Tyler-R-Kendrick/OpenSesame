@@ -1,3 +1,9 @@
+/** One configurable identity road, composed by partner presets and the BYO surface. */
+import {
+  beginSavedNativeOidc,
+  captureOidcConfiguration,
+  saveConfiguredNativeOidc,
+} from "../browser/identity-oidc-dispatch.js";
 import {
   beginSavedNativeSaml,
   captureSamlConfiguration,
@@ -48,6 +54,7 @@ import {
   projectIdentityTrust,
 } from "./identity-connections-trust.js";
 import { requireValidIdentityConnection } from "./identity-connections-validation.js";
+import { isNativeOidcConfiguration } from "./identity-oidc-config.js";
 import type { OrgSignInOrganization } from "./org-signin.js";
 import { type OperatorIdp, signInMethods } from "./settings.js";
 export { readInitialIdentityDraft } from "./identity-connections-trust.js";
@@ -149,6 +156,8 @@ export async function testIdentityConnection(
   input: IdentityConnectionDraft,
   existingId?: string,
 ): Promise<IdentityConnectionTest> {
+  const oidc =
+    input.protocol === "oidc" ? captureOidcConfiguration(existingId) : null;
   const saml =
     input.protocol === "saml"
       ? captureSamlConfiguration(input.samlMetadataUrl, existingId)
@@ -159,6 +168,8 @@ export async function testIdentityConnection(
       existingId,
     );
     requireValidIdentityConnection(draft);
+    if (oidc && isNativeOidcConfiguration(draft))
+      return await oidc.check(draft);
     if (saml) {
       const result = await saml.check(draft);
       saml.assertCurrent();
@@ -179,6 +190,7 @@ export async function testIdentityConnection(
     return testIdentityOidc(draft.issuer);
   } finally {
     await saml?.release();
+    await oidc?.release();
   }
 }
 
@@ -199,6 +211,8 @@ export async function saveIdentityConnection(
   input: IdentityConnectionDraft,
   existingId?: string,
 ): Promise<Connection> {
+  const oidc =
+    input.protocol === "oidc" ? captureOidcConfiguration(existingId) : null;
   const saml =
     input.protocol === "saml"
       ? captureSamlConfiguration(input.samlMetadataUrl, existingId)
@@ -211,8 +225,10 @@ export async function saveIdentityConnection(
     requireValidIdentityConnection(draft);
     if (existingId && !readIdentityConnection(existingId))
       throw new Error("Saved identity connection not found");
-    if (saml) return await saveConfiguredNativeSaml(draft, existingId, saml);
     const legacy = captureLegacyIdentityMigration(draft, existingId);
+    if (saml) return await saveConfiguredNativeSaml(draft, existingId, saml);
+    if (oidc && isNativeOidcConfiguration(draft))
+      return await saveConfiguredNativeOidc(draft, existingId, oidc, legacy);
     assertIdentityTrustAvailable(draft, existingId ?? "", legacy);
     const previous = existingId
       ? getIdentityConnectionRuntime(existingId)
@@ -234,6 +250,7 @@ export async function saveIdentityConnection(
     return deviceConnection(connection.connectionId) ?? connection;
   } finally {
     await saml?.release();
+    await oidc?.release();
   }
 }
 
@@ -241,16 +258,31 @@ export type IdentityConnectionSignInOptions = {
   returnTo?: string;
   credentials?: IdentityConnectionCredentials;
 };
-/** The saved configuration, never the current form draft, chooses the authentication target. */
-export async function beginIdentityConnectionSignIn(
-  connectionId: string,
-  options: IdentityConnectionSignInOptions = {},
-): Promise<void> {
+function configuredIdentityReturnTo(
+  options: IdentityConnectionSignInOptions,
+): string | undefined {
   const returnTo = options.returnTo
     ? assertSafeReturnTo(options.returnTo, pageOrigin(), env().BASE_URL || "/")
     : undefined;
   if (options.returnTo && !returnTo)
     throw new Error("That return address is not part of this app.");
+  return returnTo;
+}
+/** The saved configuration, never the current form draft, chooses the authentication target. */
+export async function beginIdentityConnectionSignIn(
+  connectionId: string,
+  options: IdentityConnectionSignInOptions = {},
+): Promise<void> {
+  const returnTo = configuredIdentityReturnTo(options);
+  if (
+    signInMethods().providers.some(
+      (provider) =>
+        provider.connectionId === connectionId &&
+        provider.protocol === "oidc" &&
+        provider.nativeIdentity === true,
+    )
+  )
+    return beginSavedNativeOidc(connectionId);
   if (
     signInMethods().providers.some(
       (provider) =>
@@ -262,6 +294,10 @@ export async function beginIdentityConnectionSignIn(
   const draft = getIdentityConnectionRuntime(connectionId);
   if (!draft) throw new Error("Saved identity connection not found");
   requireValidIdentityConnection(draft);
+  if (isNativeOidcConfiguration(draft))
+    throw new Error(
+      "Re-save this identity connection to enable its native sign-in method",
+    );
   if (identityConnectionUsesBroker(draft)) {
     assertBroker(draft.brokerUrl);
     if (!draft.organizationSlug)

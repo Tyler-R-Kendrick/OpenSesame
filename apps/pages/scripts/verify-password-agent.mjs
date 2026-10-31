@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+import { emulateFilePickers } from "./lib/file-pickers.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { openSettingsCategory } from "./lib/pages-journey.mjs";
 import {
@@ -42,6 +43,9 @@ try {
         hasTouch: width < 600,
       },
     });
+    // Accept the native save picker while retaining the app's write/close
+    // path and the real export bytes checked by the password workflows.
+    await emulateFilePickers(context);
     await page.goto(`${origin}${base}`);
     await doorGuest(page).click();
     await page
@@ -49,7 +53,7 @@ try {
       .locator("visible=true")
       .first()
       .waitFor();
-    await openSettingsCategory(page, "Vaults");
+    await openSettingsCategory(page, "Item types");
     const switchOn = async (pack) => {
       const control = page.getByRole("switch", { name: pack, exact: true });
       if ((await control.getAttribute("aria-checked")) === "false")
@@ -80,7 +84,7 @@ try {
       history.pushState(null, "", route);
       window.dispatchEvent(new PopStateEvent("popstate"));
     }, `${base}vault`);
-    await openSettingsCategory(page, "Vaults");
+    await openSettingsCategory(page, "Item types");
     await page.waitForFunction(() => {
       const found = document.querySelector(
         '[role="switch"][aria-label="API key"]',

@@ -33,6 +33,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { testLockManager } from "../../test-support/lock-manager.js";
 import { LocalIdentitySession } from "./LocalIdentitySession.js";
 import { LocalMemberOrganizations } from "./LocalMemberOrganizations.js";
 
@@ -80,7 +81,6 @@ beforeEach(async () => {
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
   tomb = `member-orgs-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
@@ -88,16 +88,7 @@ beforeEach(async () => {
       create: (options: CredentialCreationOptions) => device.create(options),
       get: (options: CredentialRequestOptions) => device.get(options),
     },
-    locks: {
-      request: <T,>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: testLockManager,
   });
   for (const name of ["Owner", "Admin", "Member", "Outsider"])
     await create("person", name);

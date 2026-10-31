@@ -17,6 +17,7 @@ const reasons = new Set([
   "spawn",
   "timeout",
   "resource",
+  "descendant",
   "SIGINT",
   "SIGTERM",
 ]);
@@ -28,6 +29,7 @@ const codes = new Set([
   "ENOEXEC",
   "ENOMEM",
   "EAGAIN",
+  "NATIVE_GROUP_DRAIN",
 ]);
 const innerLogs = [
   "exit-feature-repeat",
@@ -36,8 +38,12 @@ const innerLogs = [
   "baseline-repeat",
   "baseline",
   "native-http-host-test",
+  "native-node-host-test",
+  "native-derp-host-test",
+  "derp-host-results",
   "disable-remote-logtail",
   "native-node-patch",
+  "native-ssh-patch",
   "select-native-toolchain",
   "extract-compiler",
   "extract-source",

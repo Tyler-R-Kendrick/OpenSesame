@@ -10,6 +10,7 @@ import { mintVaultKey } from "@opensesame/vault-core";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { installTestLocks } from "../../test-support/lock-manager.js";
 import { LocalRequestsPanel } from "./LocalRequestsPanel.js";
 import { renderAccess as render } from "./workspace-test-support.js";
 
@@ -20,19 +21,7 @@ beforeEach(async () => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   tomb = `requests-ui-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
-  vi.stubGlobal("navigator", {
-    locks: {
-      request: <T,>(_name: string, action: () => Promise<T>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
-  });
+  installTestLocks();
 });
 afterEach(() => {
   cleanup();

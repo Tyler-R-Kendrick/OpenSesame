@@ -13,6 +13,10 @@
   not yet run on GitHub: what it builds is checked locally and by the tests
   named below, the release itself only by its first tag.
 
+> [ADR 0214](0214-trunk-ci-artifact-promotion.md) replaces the original tag-triggered
+> rebuild/publication with nightly candidates and weekly promotion. This ADR
+> continues to specify kit layout and bridge trust.
+
 ## Context
 
 Until now OpenSesame shipped a container image (`publish-containers.yml`) and

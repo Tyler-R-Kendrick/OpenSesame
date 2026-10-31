@@ -1,9 +1,11 @@
 /** @vitest-environment jsdom */
+import { generateKeyPairSync } from "node:crypto";
 import { listDeviceConnections } from "@opensesame/app-core/lib/device-connectors.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { expect, it } from "vitest";
+import { bindNativeCatalogConfigurationRuntime } from "../../modules/connectors.external/native-catalog-configuration-runtime.js";
 import { ConnectedPanel } from "./ConnectedPanel.js";
 import { NeedsAttention } from "./NeedsAttention.js";
 import {
@@ -113,6 +115,45 @@ it("lists a real verified API-key connection once and removes it from Connected 
   expect(
     screen.getByText("Enable External connectors to verify this connection"),
   ).toBeTruthy();
+});
+it("labels a locally verified wallet configuration without claiming provider access", async () => {
+  const fixture = connectorIntegration();
+  const secret = generateKeyPairSync("rsa", { modulusLength: 2048 })
+    .privateKey.export({ type: "pkcs8", format: "pem" })
+    .toString();
+  bindNativeCatalogConfigurationRuntime(fixture.activation);
+  const saved = await nativeConnectorDriver(
+    "native-local",
+    "google-wallet",
+  ).configure({
+    providerId: "google-wallet",
+    method: "native-local",
+    displayName: "Local Google Wallet",
+    parameters: {
+      issuer_id: "1234567890",
+      class_id: "1234567890.synthetic.class",
+      service_account_email: "synthetic@example.invalid",
+    },
+    credentials: { service_account_key: secret },
+    requestedScopes: {},
+    targetIds: {},
+  });
+  expect(saved.status).toBe("connected");
+  const rows = draw();
+  expect(connectedPanel().getByText("Local Google Wallet")).toBeTruthy();
+  expect(
+    connectedPanel().getByRole("img", { name: "Configured" }),
+  ).toBeTruthy();
+  expect(connectedPanel().queryByRole("img", { name: "Connected" })).toBeNull();
+  expect(
+    connectedPanel().getByText(
+      "Configuration verified locally; provider access was not checked.",
+    ),
+  ).toBeTruthy();
+  expect(connectedPageItems([], rows).map((row) => row.id)).toEqual([
+    saved.connectionId,
+  ]);
+  expect(fixture.requests).toHaveLength(0);
 });
 it("keeps legacy and Linear pending listing behavior unchanged", () => {
   const legacy = makeConnection({

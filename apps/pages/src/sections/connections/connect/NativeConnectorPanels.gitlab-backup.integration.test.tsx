@@ -48,6 +48,10 @@ declareConnectionsTutorial();
 let fixture: Awaited<ReturnType<typeof nativeGitlabBackupFixture>>;
 let activation: ReturnType<typeof createActivation>;
 let connectionId: string | undefined;
+// Exercise real PIN custody at the production KDF floor. Short-PIN work-factor
+// scaling is covered by pin-kdf and unlock-factor-pin-crypto tests.
+const sourcePin = "8361947250816394";
+const destinationPin = "6839152740968253";
 const parameters = {
   backup_project: "owned-group/sealed-vault",
   backup_branch: "backup/encrypted",
@@ -163,7 +167,7 @@ async function targetVault() {
   const project = await createProject(`GitLab restore ${crypto.randomUUID()}`);
   await setActiveProject(project.id);
   vaultStore.loadActiveProjectScope();
-  await vaultStore.createWithPin("68391527");
+  await vaultStore.createWithPin(destinationPin);
   const kept = createItem("note", "Keep destination note");
   await vaultStore.saveItem(kept);
   const identity = await ensureDeviceIdentityKey(vaultStore.getSnapshot().tomb);
@@ -172,13 +176,13 @@ async function targetVault() {
   return { kept, identity };
 }
 it("configures, cold reloads, backs up and restores through shared forms into a different PIN vault", async () => {
-  await vaultStore.enrollPin("83619472");
+  await vaultStore.enrollPin(sourcePin);
   await vaultStore.removePassword();
   const source = createItem("secret", "Mounted GitLab source");
   source.value = "mounted-gitlab-ciphertext-canary";
   await vaultStore.saveItem(source);
   await configureTarget();
-  await coldReload("83619472");
+  await coldReload(sourcePin);
   expect(screen.getByLabelText("Backup branch (optional)")).toHaveProperty(
     "value",
     parameters.backup_branch,
@@ -195,7 +199,7 @@ it("configures, cold reloads, backs up and restores through shared forms into a 
     target: { value: id },
   });
   fireEvent.change(screen.getByLabelText("Backup password or PIN"), {
-    target: { value: "83619472" },
+    target: { value: sourcePin },
   });
   fireEvent.submit(screen.getByRole("form", { name: "Restore vault backup" }));
   expect(screen.getByLabelText("Backup password or PIN")).toHaveProperty(
@@ -218,8 +222,8 @@ it("configures, cold reloads, backs up and restores through shared forms into a 
   await vaultStore.flushPendingWrites();
   await vfsFlush();
   vaultStore.lock();
-  await expect(vaultStore.unlockWithPin("83619472")).rejects.toThrow();
-  await vaultStore.unlockWithPin("68391527");
+  await expect(vaultStore.unlockWithPin(sourcePin)).rejects.toThrow();
+  await vaultStore.unlockWithPin(destinationPin);
   expect(
     vaultStore
       .getSnapshot()

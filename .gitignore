@@ -32,6 +32,8 @@ test-results/
 .output/
 .wxt/
 package-lock.json
+!.cursor/tools/package-lock.json
+__pycache__/
 # deepsec workspace secrets/local state (config+INFO stay tracked under .deepsec/.gitignore rules)
 .deepsec/.env*
 .deepsec/.vercel/
@@ -47,15 +49,65 @@ package-lock.json
 mutants.out/
 mutants.out.old/
 
-# local Claude Code permission posture (personal, not shared)
-.claude/settings.local.json
-
-# Impeccable platform executables are downloaded by the version-pinned launcher.
-.agents/skills/impeccable/scripts/bin/
-.claude/skills/impeccable/scripts/bin/
-
-# Ephemeral Claude agent worktrees (live sandboxes, never repo content)
-.claude/worktrees/
+# Agent harness roots are ignored by default: installed skills, generated
+# mirrors, local settings, and runtime state are install output, restored by
+# scripts/dev/install-agent-skills.sh (devcontainer post-create) from
+# skills-lock.json. Only the repo-built adapters whitelisted below are
+# tracked. First-party skills live in skills/ (tracked); their 8
+# .agents/skills aliases are whitelisted so discovery works from a clone.
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/install-anti-slop
+!.agents/skills/local-debug-session
+!.agents/skills/opensesame-apis
+!.agents/skills/opensesame-chrome-extension
+!.agents/skills/opensesame-clis
+!.agents/skills/opensesame-mcps
+!.agents/skills/security-review
+!.agents/skills/visual-evidence
+.claude/*
+!.claude/README.md
+!.claude/settings.json
+!.claude/hooks/
+!.claude/hooks/**
+# impeccable also installs into .github (Copilot) roots: install output too.
+.github/skills/
+.github/agents/
+.github/hooks/
+# Other agent roots installers may create (OpenClaw etc.): never source here.
+/agent/
+# skills/ holds first-party source only; ignore installer-written entries
+# (the skills CLI "universal" target) so they can never be staged.
+skills/*
+!skills/README.md
+!skills/profiles.json
+!skills/install-anti-slop/
+!skills/local-debug-session/
+!skills/opensesame-apis/
+!skills/opensesame-chrome-extension/
+!skills/opensesame-clis/
+!skills/opensesame-mcps/
+!skills/security-review/
+!skills/visual-evidence/
+.codex/*
+!.codex/config.toml
+!.codex/hooks.json
+.grok/*
+!.grok/config.toml
+!.grok/workflows/
+!.grok/workflows/**
+.cursor/*
+!.cursor/Dockerfile
+!.cursor/cloud-path.sh
+!.cursor/environment.json
+!.cursor/install.sh
+!.cursor/kimi-code.md
+!.cursor/mcp.json
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/tools/
+!.cursor/tools/**
 
 # impeccable-ignore-start
 # Ephemeral output, runtime state, and per-dev overrides.
@@ -153,3 +205,13 @@ apps/pages/dist-iwa/
 /docs/design/canvases/pwa-install/*.dc.html
 /docs/design/canvases/setup-next-steps/*.dc.html
 /docs/design/canvases/shared-sessions/*.dc.html
+
+# Re-assert secret ignores AFTER the harness whitelists above: later
+# patterns win in git, so the !** whitelists would otherwise un-ignore
+# credential files dropped inside whitelisted trees.
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+!**/fixtures/**/*.pem

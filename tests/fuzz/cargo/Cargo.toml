@@ -14,8 +14,9 @@ arbitrary = { version = "1.4.2", features = ["derive"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-uuid = { version = "1.17.0", features = ["serde"] }
-jsonwebtoken = { version = "10.4.0", default-features = false, features = ["use_pem", "aws_lc_rs"] }
+# UUID 1.27+ requires a newer Rust toolchain.
+uuid = { version = ">=1.17.0, <1.27.0", features = ["serde"] }
+jsonwebtoken = { version = "11.1.0", default-features = false, features = ["use_pem", "aws_lc_rs"] }
 
 opensesame-domain = { path = "../../../crates/domain" }
 opensesame-grants = { path = "../../../crates/grants" }
@@ -389,3 +390,8 @@ path = "fuzz_targets/transport_callout_envelope.rs"
 test = false
 doc = false
 bench = false
+
+# RUSTSEC-2026-0374: upstream consumer migrations replace unmaintained basic-toml
+# with maintained toml; immutable pins until those fixes reach crates.io.
+[patch.crates-io]
+i18n-config = { git = "https://github.com/kellpossible/cargo-i18n", rev = "2ce7b1dfe9a8cc224288bf50cbc2a67a6de863c4" }

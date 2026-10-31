@@ -40,8 +40,52 @@ export function assertOidcOrganization(value: OidcOrganization): void {
     throw new Error("Invalid configured OIDC organization binding");
 }
 
+export type OidcTransport = "auto" | "native" | "browser";
+export type OidcTokenAuthentication =
+  | "auto"
+  | "none"
+  | "client_secret_basic"
+  | "client_secret_post";
+export type OidcEndpointOverrides = Readonly<{
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
+  jwksUri: string;
+}>;
+export type OidcClientOptions = Readonly<{
+  oidcAuthorizationEndpoint?: string;
+  oidcTokenEndpoint?: string;
+  jwksUri?: string;
+  oidcTokenAuthentication?: OidcTokenAuthentication;
+}>;
+export function configuredOidcClientOptions(draft: OidcClientOptions) {
+  return Object.freeze({
+    endpoints: Object.freeze({
+      authorizationEndpoint: draft.oidcAuthorizationEndpoint ?? "",
+      tokenEndpoint: draft.oidcTokenEndpoint ?? "",
+      jwksUri: draft.jwksUri ?? "",
+    }),
+    authentication: draft.oidcTokenAuthentication ?? "auto",
+  });
+}
+
+export type ConfiguredOidc = Readonly<{
+  issuer: string;
+  clientId: string;
+  clientSecret: string;
+  scope: string;
+  organization: OidcOrganization | null;
+  endpoints?: OidcEndpointOverrides;
+  authentication?: OidcTokenAuthentication;
+}>;
+
 export const OIDC_NATIVE_FIELDS = {
   oidcClientType: z.enum(["public", "confidential"]).default("public"),
+  oidcTransport: z.enum(["auto", "native", "browser"]).default("auto"),
+  oidcAuthorizationEndpoint: z.string().max(2048).default(""),
+  oidcTokenEndpoint: z.string().max(2048).default(""),
+  oidcTokenAuthentication: z
+    .enum(["auto", "none", "client_secret_basic", "client_secret_post"])
+    .default("auto"),
   oidcOrganizationParameter: z.string().max(64).default("organization"),
   oidcOrganizationClaim: z.string().max(128).default("org_id"),
 };
@@ -67,16 +111,38 @@ export function isNativeOidcConfiguration(
     clientSecret: string;
     oidcClientType?: "public" | "confidential";
     organizationId: string;
+    oidcTransport?: OidcTransport;
+    oidcAuthorizationEndpoint?: string;
+    oidcTokenEndpoint?: string;
+    oidcTokenAuthentication?: OidcTokenAuthentication;
   }>,
 ): boolean {
   return (
     draft.protocol === "oidc" &&
     Boolean(
-      draft.oidcClientType === "confidential" ||
+      draft.oidcTransport === "native" ||
+        draft.oidcTransport === "browser" ||
+        draft.oidcAuthorizationEndpoint ||
+        draft.oidcTokenEndpoint ||
+        (draft.oidcTokenAuthentication &&
+          draft.oidcTokenAuthentication !== "auto") ||
+        draft.oidcClientType === "confidential" ||
         draft.clientSecret ||
         draft.organizationId,
     )
   );
+}
+/** Client protocol options do not imply a network route. Auto preserves confidential-client routing. */
+export function usesNativeOidcTransport(
+  draft: Readonly<{
+    oidcTransport?: OidcTransport;
+    oidcClientType?: "public" | "confidential";
+    clientSecret: string;
+  }>,
+): boolean {
+  if (draft.oidcTransport === "browser") return false;
+  if (draft.oidcTransport === "native") return true;
+  return draft.oidcClientType === "confidential" || Boolean(draft.clientSecret);
 }
 export function nativeOidcConfigurationProblems(
   draft: OrganizationFields,
@@ -102,4 +168,4 @@ export function nativeOidcCallbackUri(origin: string, base: string): string {
   return new URL("auth/native-connector.html", root).href;
 }
 export const NATIVE_OIDC_SETUP =
-  "Register this app's native callback URI with your identity provider. Use authorization code with S256 PKCE; confidential clients need an advertised client_secret_basic or client_secret_post method. The saved secret stays write-only on this device. An organization binding must match the provider's signed ID-token claim. Save configuration, then sign in to verify your account; your original vault still uses its normal unlock.";
+  "Register this app's callback URI with your identity provider. Use authorization code with S256 PKCE; confidential clients need an advertised client_secret_basic or client_secret_post method. Public clients use browser HTTPS when the provider permits CORS. Choose the Tailscale browser node for a configured native/private-CA route. Default routing retains that route for confidential clients; browser HTTPS can be selected explicitly. The saved secret stays write-only on this device. An organization binding must match the provider's signed ID-token claim. Save configuration, then sign in to verify your account; your original vault still uses its normal unlock.";

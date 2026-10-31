@@ -47,6 +47,9 @@ export const BUNDLED_CATALOG_IDS: readonly string[] = [
   ...CLOUD_CREDENTIAL_PROVIDER_IDS,
   ...WALLET_PROVIDER_IDS,
   ...WALLET_ISSUER_PROVIDER_IDS,
+  "vercel-sandbox",
+  "e2b",
+  "browserbase-cdp",
 ];
 
 let bundledIds: ReadonlySet<string> | null = null;

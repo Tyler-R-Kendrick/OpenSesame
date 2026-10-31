@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { zodJitless } from "../zod-jitless.js";
+
+// This codec constructs the dedicated worker's first schemas, before its entry runs.
+zodJitless();
 
 const Id = z.string().uuid();
 const SecretBody = z

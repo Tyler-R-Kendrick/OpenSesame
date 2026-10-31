@@ -175,6 +175,11 @@ export const VAULT_LIB_RULES = [
     "ai.password-reset",
     "reset mailboxes as vault items, their JMAP reader and the ledger of messages acted on; the item editor reads only ../password-reset-mail",
   ),
+  optional(
+    "src/lib/password-reset-integrations",
+    "ai.password-reset",
+    "reset runtime and model suggestions from the one shared provider catalog",
+  ),
 ];
 
 export const TUTORIAL_RULES = [

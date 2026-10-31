@@ -6,6 +6,7 @@
  */
 
 import path from "node:path";
+import { crashResourceRecorder } from "./browser-resource-diagnostics.mjs";
 import {
   BROWSER_ICE_FAILED,
   allowFor,
@@ -19,6 +20,16 @@ import {
   probeChannels,
 } from "./live-join-walk.mjs";
 import { released } from "./live-sockets.mjs";
+
+function watchCrash(page, engine, record) {
+  page.on(
+    "crash",
+    crashResourceRecorder(
+      record,
+      (crashed) => `${engine} ${crashed.url().slice(0, 200)}`,
+    ),
+  );
+}
 
 /**
  * The page helpers for one run. `named()` says which pair is walking now, so
@@ -58,9 +69,7 @@ export function livePages({ harness, origin, dist, out, passthrough, named }) {
     });
     // A crashed page answers nothing, and the wait that was on it reads as a
     // control that never appeared: say it crashed, where, and in what engine.
-    made.page.on("crash", (page) =>
-      harness.record("PAGE-CRASH", `${engine} ${page.url().slice(0, 200)}`),
-    );
+    watchCrash(made.page, engine, harness.record);
     made.page.on("console", (message) => {
       const text = message.text().slice(0, 400);
       if (message.type() !== "error") {

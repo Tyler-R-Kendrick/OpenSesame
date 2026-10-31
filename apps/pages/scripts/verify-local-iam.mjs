@@ -49,7 +49,7 @@ async function journey(width, agentMode = false) {
   await approveConsent(page, popup, width, agentMode);
   try {
     await expect(page.locator("output")).toHaveText(
-      `Signed in locally: ${agentMode ? identities.agent : identities.person}`,
+      /^Signed in locally: [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
       { timeout: 30_000 },
     );
   } catch (error) {
@@ -59,6 +59,9 @@ async function journey(width, agentMode = false) {
     );
     throw error;
   }
+  const firstSubject = await page.locator("output").textContent();
+  expect(firstSubject).not.toContain(identities.person);
+  expect(firstSubject).not.toContain(identities.agent);
   await tabTo(page, page.getByRole("button", { name: "Check session" }));
   await page.keyboard.press("Enter");
   await expect(page.locator("output")).toHaveText("Session active", {
@@ -96,6 +99,7 @@ async function journey(width, agentMode = false) {
     updated.credentials,
     width,
     agentMode,
+    firstSubject,
   );
   await context.close();
   console.log(
@@ -109,6 +113,7 @@ async function assertClockRollbackRefusal(
   credentials,
   width,
   agentMode,
+  firstSubject,
 ) {
   const { popup } = await openConsent(
     page,
@@ -118,7 +123,10 @@ async function assertClockRollbackRefusal(
     agentMode,
   );
   await approveConsent(page, popup, width, agentMode);
-  await expect(page.locator("output")).toHaveText(/^Signed in locally: local_/);
+  await expect(page.locator("output")).toHaveText(
+    /^Signed in locally: [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
+  await expect(page.locator("output")).toHaveText(firstSubject);
   await context.clock.setFixedTime(new Date("2026-09-09T00:00:00Z"));
   await tabTo(page, page.getByRole("button", { name: "Check session" }));
   await page.keyboard.press("Enter");

@@ -48,8 +48,15 @@ function put(value: JsonValue, parts: string[], next: JsonValue): JsonValue {
 
 function verificationReply(target: VerifyTarget): JsonValue {
   let reply = accountReplyFor(target.accountField, CONFORMANCE_ACCOUNT);
-  for (const field of target.requiredFields ?? [])
+  for (const field of target.requiredFields ?? []) {
+    // The account leaf already proves its parent exists; preserve that object.
+    if (
+      target.accountField === field ||
+      target.accountField?.startsWith(`${field}.`)
+    )
+      continue;
     reply = put(reply, field.split("."), CONFORMANCE_ACCOUNT);
+  }
   for (const condition of target.success ?? [])
     reply = put(reply, condition.field.split("."), condition.equals);
   return reply;

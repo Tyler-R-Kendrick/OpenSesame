@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "status": "approved",
+  "sourceCommit": "ee880c5054965ca748ba799d3fa557780783494f",
+  "approval": {
+    "by": "Tyler-R-Kendrick",
+    "reference": "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2318#issuecomment-6532056511"
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "ee2e3c394547841b5924f1c72bf1e34cf11990bdf36dbbac8cb955f5e980df27"
+    },
+    {
+      "path": "code-desktop.png",
+      "sha256": "4004c1196868d72d79fe47dcd03abb55a4254f360c694fd6e28d40bacf665ef7"
+    },
+    {
+      "path": "code-phone.png",
+      "sha256": "51238cd1987fb36bf16b13217d915fe598641a7b905e19c0dae2bd9b7c4d4fdf"
+    },
+    {
+      "path": "sent-desktop.png",
+      "sha256": "f3257601e1fce2a4c0403b3d1df062ddcd749928a648768ebff8db2c60e8a723"
+    },
+    {
+      "path": "sent-phone.png",
+      "sha256": "43f6cdf6480885f68a374aef2d6761e711bd907bc3797ed4dc199e4cb28983e0"
+    },
+    {
+      "path": "share-form-desktop.png",
+      "sha256": "e18b265a0be750dd749a03aa0fbe20817e382eddeae2592bcf8082801544b00e"
+    },
+    {
+      "path": "share-form-phone.png",
+      "sha256": "85c6c04b9e64f5a5b70115742f02b8e2c1d5ab01c6233057406403b7b61783c3"
+    }
+  ]
+}

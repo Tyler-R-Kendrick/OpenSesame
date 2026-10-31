@@ -1,6 +1,6 @@
 /** Actual existing sealed origin storage DATA. No vault Root or owner permit is issued. */
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { host } from "../host.js";
 import { originFiles } from "../ports.js";
 import { atRestSettled } from "./at-rest/key.js";

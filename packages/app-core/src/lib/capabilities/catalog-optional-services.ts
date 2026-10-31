@@ -21,6 +21,9 @@ export const WEB_PUSH_ENROLMENT_PURPOSE =
 /** The browser node's explicit connection and peer requests share their declared purpose. */
 export const TAILSCALE_BROWSER_NODE_PURPOSE =
   "the Tailscale control server and encrypted relays for the browser node the person connects";
+/** Explicit native identity HTTPS uses its own Networking approval. */
+export const TAILSCALE_IDENTITY_HTTP_PURPOSE =
+  "the configured identity provider HTTPS endpoints through an explicitly enrolled memory-only browser node";
 export const TAILSCALE_BROWSER_PEER_PURPOSE =
   "the tailnet service the person opens through their browser node";
 
@@ -75,7 +78,11 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     {
       // The login item types: a mailbox is chosen on the account editor.
       dependencies: ["vault.derived-records"],
-      operationIds: ["password_reset.mailboxes.manage"],
+      operationIds: [
+        "password_reset.mailboxes.manage",
+        "password_reset.cua.run",
+        "password_reset.cua.configure",
+      ],
       egress: [
         {
           class: "external-service",
@@ -214,6 +221,11 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         {
           class: "external-service",
           purpose: TAILSCALE_BROWSER_NODE_PURPOSE,
+          automatic: false,
+        },
+        {
+          class: "external-service",
+          purpose: TAILSCALE_IDENTITY_HTTP_PURPOSE,
           automatic: false,
         },
         {

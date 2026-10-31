@@ -65,11 +65,7 @@ export const activitySeams = {
 };
 
 function isCategory(value: BoundaryValue): value is ActivityCategory {
-  if (!isString(value)) return false;
-  for (const category of ACTIVITY_CATEGORIES) {
-    if (category === value) return true;
-  }
-  return false;
+  return ACTIVITY_CATEGORIES.some((category) => category === value);
 }
 
 function isOutcome(value: BoundaryValue): value is ActivityOutcome {

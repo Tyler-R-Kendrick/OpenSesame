@@ -22,6 +22,13 @@
  * ever reads what the environment supplies.
  */
 
+import {
+  GOOGLE_WALLET_CONFIGURATION_POLICY as POLICY,
+  googleWalletPemParts,
+  googleWalletPublicFailure,
+  normalizeGoogleWalletPem,
+} from "./google-wallet-policy.js";
+
 /** Environment variable names, in the repository's `OPENSESAME_` namespace. */
 export const GOOGLE_WALLET_ENV = {
   issuerId: "OPENSESAME_WALLET_GOOGLE_ISSUER_ID",
@@ -74,19 +81,6 @@ function read(env: WalletEnvSource, name: string): string {
 }
 
 /**
- * Normalize a PEM that travelled through an environment variable.
- *
- * A PKCS#8 key is multi-line and most secret stores, `.env` loaders, and
- * container orchestrators either preserve the newlines or replace them with the
- * two characters `\` and `n`. Accepting both is not laxity: the alternative is
- * an operator silently pasting the escaped form, the key failing to import, and
- * the resulting error pointing at signing rather than at configuration.
- */
-function normalizePem(raw: string): string {
-  return raw.includes("-----BEGIN") ? raw.replace(/\\n/gu, "\n") : raw;
-}
-
-/**
  * Compose the fully qualified class id.
  *
  * Google class ids are `{issuerId}.{suffix}` and operators reliably supply
@@ -96,8 +90,8 @@ function normalizePem(raw: string): string {
  * belonging to somebody else.
  */
 function qualifyClassId(issuerId: string, raw: string): string {
-  const dot = raw.indexOf(".");
-  if (dot < 0) return `${issuerId}.${raw}`;
+  const dot = raw.indexOf(POLICY.walletClass.issuerSeparator);
+  if (dot < 0) return `${issuerId}${POLICY.walletClass.issuerSeparator}${raw}`;
   const prefix = raw.slice(0, dot);
   if (prefix !== issuerId) {
     throw new WalletConfigError(
@@ -204,7 +198,10 @@ export function parseGoogleWalletConfig(
   // Google issuer ids are numeric. Checking that here turns "somebody pasted
   // the class id into the issuer slot" into a startup error rather than a
   // rejected save link that a human discovers at the door.
-  if (!/^\d{6,32}$/u.test(issuerId)) {
+  if (
+    googleWalletPublicFailure(issuerId, "placeholder", "x@example.test") ===
+    "issuer_id"
+  ) {
     throw new WalletConfigError(
       `${GOOGLE_WALLET_ENV.issuerId} must be the numeric Google-assigned issuer id.`,
       [GOOGLE_WALLET_ENV.issuerId],
@@ -213,8 +210,10 @@ export function parseGoogleWalletConfig(
 
   const classSuffixSource = read(env, GOOGLE_WALLET_ENV.classId);
   const classId = qualifyClassId(issuerId, classSuffixSource);
-  const suffix = classId.slice(issuerId.length + 1);
-  if (!/^[A-Za-z0-9._-]+$/u.test(suffix)) {
+  if (
+    googleWalletPublicFailure(issuerId, classId, "x@example.test") ===
+    "class_id"
+  ) {
     throw new WalletConfigError(
       `${GOOGLE_WALLET_ENV.classId} suffix may only contain letters, digits, ".", "_" and "-".`,
       [GOOGLE_WALLET_ENV.classId],
@@ -226,8 +225,8 @@ export function parseGoogleWalletConfig(
     GOOGLE_WALLET_ENV.serviceAccountEmail,
   ).toLowerCase();
   if (
-    serviceAccountEmail.length > 320 ||
-    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(serviceAccountEmail)
+    googleWalletPublicFailure(issuerId, classId, serviceAccountEmail) ===
+    "service_account_email"
   ) {
     throw new WalletConfigError(
       `${GOOGLE_WALLET_ENV.serviceAccountEmail} must be the service account's client email address.`,
@@ -235,9 +234,9 @@ export function parseGoogleWalletConfig(
     );
   }
 
-  const serviceAccountKeyPem = normalizePem(
-    read(env, GOOGLE_WALLET_ENV.serviceAccountKeyPem),
-  );
+  const rawKey = read(env, GOOGLE_WALLET_ENV.serviceAccountKeyPem);
+  const keyParts = googleWalletPemParts(rawKey);
+  const serviceAccountKeyPem = normalizeGoogleWalletPem(rawKey);
   if (/-----BEGIN RSA PRIVATE KEY-----/u.test(serviceAccountKeyPem)) {
     // gitleaks:allow -- PEM delimiter validation, not private key material
     // PKCS#1. Google's own service-account JSON ships PKCS#8, so seeing this
@@ -248,7 +247,7 @@ export function parseGoogleWalletConfig(
       [GOOGLE_WALLET_ENV.serviceAccountKeyPem],
     );
   }
-  if (!/^-----BEGIN PRIVATE KEY-----/u.test(serviceAccountKeyPem)) {
+  if (!keyParts) {
     throw new WalletConfigError(
       `${GOOGLE_WALLET_ENV.serviceAccountKeyPem} must be a PKCS#8 PEM private key.`,
       [GOOGLE_WALLET_ENV.serviceAccountKeyPem],

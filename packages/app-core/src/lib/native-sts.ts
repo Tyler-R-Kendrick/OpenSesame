@@ -5,8 +5,8 @@
  * and says whose key it is. A person may also ask for short-lived credentials;
  * they are shown once and never kept.
  */
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { canonicalize } from "@opensesame/os-domain";
 import { EgressDenied } from "./capabilities/egress.js";
 import { canonicalProviderId } from "./connector-catalog.js";

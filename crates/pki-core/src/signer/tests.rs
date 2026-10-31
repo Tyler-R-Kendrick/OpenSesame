@@ -200,10 +200,10 @@ fn rsa_private_pkcs8_rejects_missing_or_non_null_algorithm_parameters() {
     let key = keys::generate(KeyAlgorithm::Rsa2048).unwrap();
     let pem = key.private_key_pkcs8_pem();
     let (_, document) = pkcs8::SecretDocument::from_pem(&pem).unwrap();
-    let mut info: pkcs8::PrivateKeyInfo<'_> = document.decode_msg().unwrap();
+    let mut info: pkcs8::PrivateKeyInfoRef<'_> = document.decode_msg().unwrap();
     for parameters in [
         None,
-        Some(der::asn1::AnyRef::new(der::Tag::OctetString, &[]).unwrap()),
+        Some(pkcs8::der::asn1::AnyRef::new(pkcs8::der::Tag::OctetString, &[]).unwrap()),
     ] {
         info.algorithm.parameters = parameters;
         let malformed = pkcs8::SecretDocument::encode_msg(&info).unwrap();
@@ -215,4 +215,90 @@ fn rsa_private_pkcs8_rejects_missing_or_non_null_algorithm_parameters() {
             Err(PkiError::InvalidPem)
         ));
     }
+}
+
+// RFC 6979 Appendix A.2.5, P-256/SHA-256 "sample". Its high-S value is
+// deliberately retained: existing X.509 ECDSA signatures need not be low-S.
+#[test]
+fn verifies_existing_rfc6979_high_s_der_signature() {
+    let public_key = hex::decode(concat!(
+        "3059301306072a8648ce3d020106082a8648ce3d03010703420004",
+        "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6",
+        "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299"
+    ))
+    .unwrap();
+    let signature = hex::decode(concat!(
+        "3046022100",
+        "efd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716",
+        "022100",
+        "f7cb1c942d657c41d436c7a1b6e29f65f3e900dbb9aff4064dc4ab2f843acda8"
+    ))
+    .unwrap();
+    verify(
+        SignatureAlgorithm::Sha256Ecdsa,
+        &public_key,
+        b"sample",
+        &signature,
+    )
+    .unwrap();
+    assert_eq!(
+        verify(
+            SignatureAlgorithm::Sha256Ecdsa,
+            &public_key,
+            b"tampered",
+            &signature
+        ),
+        Err(PkiError::SignatureInvalid)
+    );
+}
+
+#[test]
+fn ed25519_pkcs8_round_trip_and_invalid_inputs_fail_closed() {
+    let original = keys::generate(KeyAlgorithm::Ed25519).unwrap();
+    let pem = original.private_key_pkcs8_pem();
+    let reloaded = keys::from_pkcs8_pem(&pem, KeyAlgorithm::Ed25519).unwrap();
+    assert_eq!(reloaded.public_key_der(), original.public_key_der());
+    let signer = SealedKeySigner::new(&reloaded).unwrap();
+    let public = signer.public_key_der();
+    let signature = signer.sign(b"authorize this").unwrap();
+    verify(
+        SignatureAlgorithm::Ed25519,
+        &public,
+        b"authorize this",
+        &signature,
+    )
+    .unwrap();
+    assert_eq!(
+        verify(
+            SignatureAlgorithm::Ed25519,
+            &public,
+            b"tampered",
+            &signature
+        ),
+        Err(PkiError::SignatureInvalid)
+    );
+    let mut corrupted = signature.clone();
+    corrupted[0] ^= 1;
+    assert_eq!(
+        verify(
+            SignatureAlgorithm::Ed25519,
+            &public,
+            b"authorize this",
+            &corrupted
+        ),
+        Err(PkiError::SignatureInvalid)
+    );
+    assert_eq!(
+        verify(
+            SignatureAlgorithm::Ed25519,
+            b"not SPKI",
+            b"authorize this",
+            &signature
+        ),
+        Err(PkiError::InvalidDer)
+    );
+    assert!(matches!(
+        keys::from_pkcs8_pem("not PKCS8", KeyAlgorithm::Ed25519),
+        Err(PkiError::InvalidPem)
+    ));
 }

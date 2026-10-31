@@ -44,6 +44,10 @@ function certificate() {
         "/CN=localhost",
         "-addext",
         "subjectAltName=IP:127.0.0.1,IP:127.0.0.2",
+        "-addext",
+        "basicConstraints=critical,CA:TRUE",
+        "-addext",
+        "keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign,cRLSign",
         "-keyout",
         key,
         "-out",
@@ -80,6 +84,8 @@ type OracleState = {
   jwksBase: string;
   authorization: URL | null;
   onRequest: ((path: string) => void) | null;
+  beforeResponse: ((path: string) => Promise<void>) | null;
+  closed: string[];
   requests: Exchange[];
   errors: unknown[];
 };
@@ -145,6 +151,7 @@ async function receive(
   state: OracleState,
   method: string,
 ) {
+  request.socket.once("close", () => state.closed.push(request.url ?? ""));
   try {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
@@ -156,6 +163,7 @@ async function receive(
       host: request.headers.host ?? "",
     });
     state.onRequest?.(request.url ?? "");
+    await state.beforeResponse?.(request.url ?? "");
     response.setHeader("content-type", "application/json");
     if (request.url === "/issuer/.well-known/openid-configuration") {
       expect(request.method).toBe("GET");
@@ -202,6 +210,8 @@ export async function tlsOracle(
     jwksBase: "",
     authorization: null,
     onRequest: null,
+    beforeResponse: null,
+    closed: [],
     requests: [],
     errors: [],
   };
@@ -235,6 +245,11 @@ export async function tlsOracle(
     assertCurrent: () => lifetime.signal.throwIfAborted(),
   };
   return {
+    operatorCA: tls.cert.toString(),
+    closed: state.closed,
+    beforeResponse: (callback: ((path: string) => Promise<void>) | null) => {
+      state.beforeResponse = callback;
+    },
     config,
     errors: state.errors,
     requests: state.requests,

@@ -1,20 +1,29 @@
 {
   "name": "OpenSesame",
-  "image": "mcr.microsoft.com/devcontainers/rust:1-1.88-bookworm",
-  "features": {},
+  "image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm@sha256:fc57fb865035c5395e85246c8842b071ced6e7cde727b3c98abbcc794eaf4759",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1@sha256:8c0de46939b61958041700ee89e3493f3b2e4131a06dc46b4d9423427d06e5f6": {
+      "version": "22",
+      "installYarnUsingApt": false
+    }
+  },
   "containerEnv": {
     "DEVCONTAINER": "1",
-    "OPENSESAME_HOST_API": "http://host.docker.internal:8787",
-    "OPENSESAME_ISSUER": "http://host.docker.internal:8788",
-    "OPENSESAME_AGENT_SOCK": "/tmp/opensesame-agent.sock",
-    "OPENSESAME_AGENT_URL": "http://host.docker.internal:18790",
-    "OPENSESAME_DAEMON_API": "http://host.docker.internal:18790",
+    "COREPACK_HOME": "/home/vscode/.cache/node/corepack",
     "CARGO_TARGET_DIR": "/home/vscode/.cache/packages/cargo-target"
   },
   "forwardPorts": [8787, 8788, 18790],
-  "postCreateCommand": "corepack enable && corepack prepare pnpm@9.15.0 --activate && bash scripts/dev/install-dependencies.sh",
+  "onCreateCommand": "rustup show active-toolchain || cargo --version",
+  "updateContentCommand": "mkdir -p \"$HOME/.local/bin\" && corepack enable --install-directory \"$HOME/.local/bin\" && corepack prepare pnpm@9.15.0 --activate && bash scripts/dev/install-dependencies.sh",
+  "postCreateCommand": "bash scripts/dev/setup-hooks.sh",
+  "postStartCommand": "bash scripts/dev/install-agent-skills.sh",
   "customizations": {
     "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer@0.4.3100",
+        "tamasfe.even-better-toml@0.21.2",
+        "biomejs.biome@2026.10.241124"
+      ],
       "settings": {
         "terminal.integrated.env.linux": {
           "DEVCONTAINER": "1"
@@ -24,6 +33,6 @@
   },
   "remoteUser": "vscode",
   "mounts": [
-    "source=${localEnv:HOME}/.opensesame-agent,target=/tmp/opensesame-host-agent,type=bind,optional=true"
+    "source=opensesame-pnpm-store-${localWorkspaceFolderBasename},target=/home/vscode/.local/share/pnpm/store,type=volume"
   ]
 }

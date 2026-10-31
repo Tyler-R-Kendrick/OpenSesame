@@ -376,6 +376,22 @@
     }
   },
   {
+    "id": "password_reset.cua.run",
+    "title": "Run and reconcile an approved CUA password reset",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/live/device-reset-broker.ts:DeviceResetBroker"
+    }
+  },
+  {
+    "id": "password_reset.cua.configure",
+    "title": "Configure and validate the CUA browser runtime and model",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/settings"
+    }
+  },
+  {
     "id": "identity.interaction.approve",
     "title": "Approve a cross-device interaction",
     "plane": "identity",

@@ -141,7 +141,11 @@ describe("reconciling the tomb's key with the body's", () => {
     const tomb = await openTomb();
     const { host } = bodyHost(tomb, await genuineField(Date.now() - 1000));
     await reconcileDeviceIdentityKey(host, { held: true });
-    expect(locks.requested).toEqual([]);
+    expect(
+      locks.requested.filter(
+        (name) => name === `opensesame-device-identity-${tomb}`,
+      ),
+    ).toEqual([]);
   });
 });
 

@@ -28,6 +28,9 @@
     its browser trust boundary. A shared-origin demo remains restricted; endpoint
     configuration cannot turn a path into origin isolation. DPoP does not stop
     malicious JavaScript already executing at an approved origin.
+14. **Combined exposure vs individual artifacts** — review what the same observer
+    can obtain across routes and modules. The [exposure matrix](exposure-matrix.md)
+    forbids unsafe combinations and binds the declared controls to reviewed source.
 
 Implementation and checkpoint evidence:
 [Host authority review](audits/2026-09-08-host-authority.md). Pending verification

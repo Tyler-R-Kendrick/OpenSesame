@@ -80,8 +80,12 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    `toHaveScreenshot` snapshot mechanism — we need exact, stable output
    filenames to diff against the pre-existing `tests/visual-contract/baselines/*.png`
    baselines ourselves) and pixel-compares it via `src/compare.ts`
-   (`pixelmatch` + `pngjs`, `threshold: 0.1`). A screen fails past a **1.5%**
-   mismatch budget measured against all pixels, or past a **5%** budget
+   (`pixelmatch` + `pngjs`, `threshold: 0.1`). Pixelmatch 8 uses a different
+   color metric, so the comparator also runs the approved v7 metric and uses
+   the larger mismatch count and its diff image. This keeps the existing gate
+   until an intentional review calibrates the new metric against real captures.
+   A screen fails past a **1.5%** mismatch budget measured against all pixels,
+   or past a **5%** budget
    measured against its content pixels (those that are not the baseline's
    dominant background colour in either image), whichever trips first.
 4. Always writes `output/<name>-captured.png`; on failure also writes
@@ -242,6 +246,20 @@ removed master-password fields. A normal comparison against the connector
 branch then passed all six screens with Chrome for Testing 153.0.8010.12,
 `VISUAL_UPDATE` unset. Pixel/content thresholds, dimensions, fonts and
 comparison code remain unchanged.
+
+**2026-10-26.** Five fixtures were deliberately refreshed after the complete
+repository gate exposed stale references: both front-door and PIN-seal screens,
+plus the desktop vault list. Separate production builds of main `427d8921c`
+and the CI follow-up `8edaccd78`, walked through the unchanged enrollment journey
+with Chromium 151.0.7922.173, produced pixel-identical captures for all six
+screens. Each old baseline and actual capture was opened and reviewed.
+The existing UI already has the Release Notes title and version/Latest panels,
+stacked PIN fields, lower desktop seal card and centered dial from `2da62c518`,
+and the unified session header from `7a3d98ef1`. The old fixtures predate those
+layouts. The mobile vault-list reference remains within both comparison budgets
+and was retained. Local captures also match the failed hosted Chrome 155
+captures within the existing budgets. No application UI, threshold, font,
+viewport, enrollment assertion or comparison logic changed.
 
 ## What the orchestrator should do next
 

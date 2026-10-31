@@ -21,6 +21,7 @@ import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconCheck, IconTerminal, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { ResetRequests } from "./ResetRequests.js";
 import { useLandOnChange } from "./live-focus.js";
 import { formatRemaining, useRemaining } from "./live-hooks.js";
 import { DEVICE_DURATIONS, Pick } from "./live-host-form-parts.js";
@@ -197,9 +198,12 @@ export function DeviceRequests({
       ? section.current?.querySelector('[aria-label^="Revoke"]')
       : document.getElementById("live-request"),
   );
-  if (!host.devices || (pending.length === 0 && grants.length === 0))
+  if (
+    (!host.devices || (pending.length === 0 && grants.length === 0)) &&
+    !host.resets
+  )
     return null;
-  const offered = host.devices.offered();
+  const offered = host.devices?.offered() ?? [];
   return (
     <div ref={section} className="setup__stack">
       {pending.map((one) => (
@@ -208,6 +212,7 @@ export function DeviceRequests({
       {grants.map((grant) => (
         <GrantRow key={grant.id} host={host} grant={grant} offered={offered} />
       ))}
+      <ResetRequests host={host} />
     </div>
   );
 }

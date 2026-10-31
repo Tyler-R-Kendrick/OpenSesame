@@ -133,23 +133,67 @@ function crateName(text) {
   return header.match(/^name\s*=\s*"([^"]+)"/m)?.[1] ?? null;
 }
 
-function crateDeps(text) {
-  const matches = text.matchAll(
-    /^\s*(opensesame-[\w-]+)\s*(?:\.workspace\s*)?=/gm,
+/** Cargo permits renamed dependencies inline, dotted, and in per-target tables. */
+function dependencyDeclarations(text, workspace = false) {
+  const sections = [...text.matchAll(/^\s*\[([^\n]+)\]\s*(?:#[^\n]*)?$/gm)];
+  const table = workspace
+    ? /^workspace\.dependencies(?:\.(["']?[\w-]+["']?))?$/
+    : /^(?:target\..+\.)?(?:dev-|build-)?dependencies(?:\.(["']?[\w-]+["']?))?$/;
+  const declarations = [];
+  for (const [index, section] of sections.entries()) {
+    const match = table.exec(section[1]);
+    if (!match) continue;
+    const body = text.slice(
+      section.index + section[0].length,
+      sections[index + 1]?.index ?? text.length,
+    );
+    if (match[1]) {
+      declarations.push([match[1].replaceAll(/["']/g, ""), body]);
+      continue;
+    }
+    const entries = body.matchAll(
+      /^[ \t]*(["']?[\w-]+["']?)(?:\.(workspace|package|path))?[ \t]*=[ \t]*(\{[^}]*\}|[^\r\n]*)/gm,
+    );
+    for (const entry of entries) {
+      declarations.push([
+        entry[1].replaceAll(/["']/g, ""),
+        entry[2] ? `${entry[2]} = ${entry[3]}` : entry[3],
+      ]);
+    }
+  }
+  return declarations;
+}
+
+function dependencyName(alias, value, workspaceNames) {
+  const renamed = value.match(/\bpackage\s*=\s*["']([^"']+)["']/)?.[1];
+  if (renamed) return renamed;
+  if (/\bworkspace\s*=\s*true\b/.test(value)) {
+    return workspaceNames.get(alias) ?? alias;
+  }
+  return alias;
+}
+
+function crateDeps(text, workspaceNames) {
+  return dependencyDeclarations(text).map(([alias, value]) =>
+    dependencyName(alias, value, workspaceNames),
   );
-  return [...matches].map((match) => match[1]);
 }
 
 /** @returns {{name: string, dir: string, deps: string[]}[]} */
 export function loadCrateNodes(root) {
   const nodes = [];
+  const workspaceNames = new Map();
+  const workspace = readFileSync(join(root, "Cargo.toml"), "utf8");
+  for (const [alias, value] of dependencyDeclarations(workspace, true)) {
+    workspaceNames.set(alias, dependencyName(alias, value, workspaceNames));
+  }
   for (const dir of memberDirs(root)) {
     const file = join(root, dir, "Cargo.toml");
     if (!existsSync(file)) continue;
     const text = readFileSync(file, "utf8");
     const name = crateName(text);
     if (!name || !NAME_OK.test(name)) continue;
-    nodes.push({ name, dir, deps: crateDeps(text) });
+    nodes.push({ name, dir, deps: crateDeps(text, workspaceNames) });
   }
   return nodes;
 }

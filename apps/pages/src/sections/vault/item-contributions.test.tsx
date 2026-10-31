@@ -57,14 +57,18 @@ describe("what the vault's item pages draw from other capabilities", () => {
       </>,
     );
     // Closed, it draws nothing: the key lives in the item's toolbar.
-    expect(screen.queryByRole("heading", { name: "Share once" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: /^Share (once|a copy)$/ }),
+    ).toBeNull();
     rerender(
       <MemoryRouter>
         <SecretShares item={secret} open onClose={() => {}} />
         <DropForm />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("heading", { name: "Share once" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: /^Share (once|a copy)$/ }),
+    ).toBeTruthy();
     expect(screen.queryByDisplayValue("Deploy token")).toBeNull();
     revoke();
   });

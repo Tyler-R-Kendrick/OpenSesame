@@ -1,0 +1,33 @@
+{
+  "ruleId": "go/disabled-certificate-check",
+  "rule": {
+    "id": "go/disabled-certificate-check",
+    "index": 19,
+    "toolComponent": {
+      "index": 1
+    }
+  },
+  "message": {
+    "text": "InsecureSkipVerify should not be used in production code."
+  },
+  "locations": [
+    {
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": ".codeql-native/source/net/tlsdial/tlsdial.go",
+          "uriBaseId": "%SRCROOT%",
+          "index": 0
+        },
+        "region": {
+          "startLine": 257,
+          "startColumn": 2,
+          "endColumn": 29
+        }
+      }
+    }
+  ],
+  "partialFingerprints": {
+    "primaryLocationLineHash": "b66824f35748f6f1:1",
+    "primaryLocationStartColumnFingerprint": "0"
+  }
+}

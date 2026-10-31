@@ -29,8 +29,15 @@ Commands:
   project create --temporary [--name <name>]
   claim poll <claimId> --token <osc_clm_…>   (or OPENSESAME_CLAIM_TOKEN)
   agent init --anonymous [--name <name>]
+  password-reset configure|run|resume|reconcile --config <file>
+                               Approved recipe, agent vault and live human grants
   host health [--host <url>]   Host API (:8787) via api-client
   host discover [--host <url>] Host PRM / readiness discovery
+  password-reset run|resume|reconcile --config <file>
+                               [--run-id <id> --item <id> --origin <url>
+                                --recipe <file> --grant <file> --host <url>
+                                --runtime <adapter-file> --model <id>]
+                               Durable reset; pepper is read from the terminal only
   vault verify <file>          Open a vault export or offline backup
                                (master password from the terminal only)
   vault ls <file>              List that file: path and kind, never values

@@ -223,7 +223,7 @@ describe("createDrop without remote Identity API", () => {
     expect(created.link).toContain("/claim#token=osc_pdrop_");
     expect(created.link).toContain("&key=");
     expect(created.link).toContain("&pkt=");
-    expect(created.userCode).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    expect(created.userCode).toMatch(/^[A-Z0-9]{4}(?:-[A-Z0-9]{4}){3}$/);
     expect(identityFetch).not.toHaveBeenCalled();
 
     const params = new URLSearchParams(new URL(created.link).hash.slice(1));

@@ -11,6 +11,7 @@ import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import {
   NativeCancelSignIn,
+  nativeConfigurationOwner,
   useNativeSignInUiLifetime,
 } from "./NativeCancelSignIn.js";
 import { NativeConnectorFields } from "./NativeConnectorFields.js";
@@ -97,6 +98,12 @@ function nativeFormReady(
   );
 }
 
+function savedFlashText(name: string, methodId: string): string {
+  return methodId === "native-local"
+    ? `${name} configuration validated locally and saved on this device. Provider access was not checked.`
+    : `${name} access verified and saved on this device.`;
+}
+
 function useNativeForm(props: Props) {
   const { descriptor, controller, view, onChanged, onFlash } = props;
   const { lifetime, busy, setBusyOwner, failure, setFailure } =
@@ -142,6 +149,7 @@ function useNativeForm(props: Props) {
       const signIn = nativeSignInRequired(method, view);
       const next = await (signIn ? controller.connect : controller.configure)({
         method: method.id,
+        owner: nativeConfigurationOwner(attempt),
         displayName: name.trim(),
         icon: image.icon,
         parameters: nativeFieldValues(method.fields, values, false),
@@ -156,7 +164,7 @@ function useNativeForm(props: Props) {
         setValues(nativeFieldValues(method.fields, values, false));
         onFlash({
           tone: "ok",
-          text: `${descriptor.name} access verified and saved on this device.`,
+          text: savedFlashText(descriptor.name, method.id),
         });
       } else {
         onFlash({

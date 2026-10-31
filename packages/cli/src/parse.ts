@@ -11,6 +11,10 @@ import {
   parseVaultRetired,
 } from "./parse-vault-retired.js";
 import { parseVaultSync } from "./parse-vault-sync.js";
+import {
+  type PasswordResetCommand,
+  parsePasswordReset,
+} from "./password-reset-parse.js";
 import { type SessionCommand, parseSession } from "./session-parse.js";
 
 export const GlobalFlagsSchema = z.object({
@@ -26,6 +30,7 @@ export type ParsedCommand =
   | CanaryCliCommand
   | RetiredCliCommand
   | ParityCommand
+  | PasswordResetCommand
   | SessionCommand
   | { name: "help" }
   | {
@@ -185,6 +190,7 @@ export function parseArgs(argv: string[]): ParsedCommand {
   }
 
   if (cmd === "security") return parseSecurity(args, flags);
+  if (cmd === "password-reset") return parsePasswordReset(args, flags);
   if (cmd === "vault") return parseVault(args, flags);
   // session [<link>] list | invoke <connection> <operation>  (ADR 0196)
   if (cmd === "session") return parseSession(args, flags);

@@ -17,14 +17,14 @@
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/wallet-policy": "workspace:*",
-    "@x402/core": "2.26.0",
-    "@x402/evm": "2.26.0",
-    "viem": "2.21.0"
+    "@x402/core": "2.28.0",
+    "@x402/evm": "2.28.0",
+    "viem": "2.57.12"
   },
   "devDependencies": {
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "license": "MIT",
   "repository": {

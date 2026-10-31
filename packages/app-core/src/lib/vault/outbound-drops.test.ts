@@ -18,6 +18,10 @@ import {
   revokeOutboundDropById,
   seedOutboundDropForTests,
 } from "./outbound-drops.js";
+import {
+  createPortableDropSession,
+  openPortableDropBundle,
+} from "./portable-drop.js";
 
 const TOMB_A = "tomb/vault-a";
 const TOMB_B = "tomb/vault-b";
@@ -74,6 +78,55 @@ describe("outbound drop sender ledger", () => {
     expect(outboundDropBearerForTests(session.claimId)).toBe(
       session.bearerToken,
     );
+  });
+
+  it("does not claim a portable link was revoked when its sender row is present", async () => {
+    const manifest = { kind: "secret-drop", ciphertext: "fixture" };
+    const session = await createPortableDropSession(
+      manifest,
+      600_000,
+      "https://example.test/claim",
+    );
+    recordOutboundDrop({ ...session, name: "portable" });
+    await expect(revokeOutboundDropById(session.claimId, TOMB_A)).resolves.toBe(
+      "missing",
+    );
+    expect(listOutboundDrops(TOMB_A)[0]?.state).toBe("pending");
+    await expect(
+      openPortableDropBundle(
+        session.pkt,
+        session.bearerToken,
+        session.userCode,
+      ),
+    ).resolves.toEqual(manifest);
+  });
+
+  it("does not substitute a local ledger update for a missing hosted claim", async () => {
+    recordOutboundDrop({
+      claimId: "remote-claim",
+      bearerToken: "osc_clm_remote-claim.secret",
+      name: "remote",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    await expect(revokeOutboundDropById("remote-claim", TOMB_A)).resolves.toBe(
+      "missing",
+    );
+    expect(listOutboundDrops(TOMB_A)[0]?.state).toBe("pending");
+  });
+
+  it("does not retain unconfirmed revocation claims from older clients", () => {
+    seedOutboundDropForTests({
+      claimId: "legacy-remote",
+      bearerToken: "osc_clm_legacy-remote.secret",
+      name: "legacy remote",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      createdAt: new Date().toISOString(),
+      state: "revoked",
+      vaultItemId: null,
+      sourceItemId: null,
+      tomb: TOMB_A,
+    });
+    expect(listOutboundDrops(TOMB_A)[0]?.state).toBe("pending");
   });
 
   it("scopes the ledger to the sealing vault", async () => {

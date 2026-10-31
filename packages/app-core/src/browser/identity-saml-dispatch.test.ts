@@ -3,9 +3,16 @@ import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import { fenceLocalSignOut } from "../lib/ambient-auth/generation.js";
-import { readNativeFederationSession } from "../lib/federation-native-session.js";
+import {
+  advanceFederationSessionGeneration,
+  federationSessionGeneration,
+  readNativeFederationSession,
+} from "../lib/federation-native-session.js";
+import { readFederationSessionJson } from "../lib/federation-session-store.js";
+import { clearSession, saveSession } from "../lib/federation.js";
 import { identityConnectionDraft } from "../lib/identity-connections-presets.js";
 import { writeIdentityConnection } from "../lib/identity-connections-store.js";
+import * as nativeOwner from "../lib/identity-native-owner.js";
 import { kvFlush, kvForgetAll, kvSeams } from "../lib/kv.js";
 import {
   type NativeProviderTransport,
@@ -20,7 +27,10 @@ import { vaultStore } from "../lib/vault/store.js";
 import { vfsFlush } from "../lib/vfs.js";
 import { createMemoryStorage } from "../memory-storage.js";
 import { createTestHost } from "../test-host.js";
-import { beginSavedNativeSaml } from "./identity-saml-dispatch.js";
+import {
+  beginSavedNativeSaml,
+  captureSamlConfiguration,
+} from "./identity-saml-dispatch.js";
 import * as popupPort from "./native-auth-session.js";
 import {
   configuredSamlOracle,
@@ -254,3 +264,83 @@ it("refuses an activation replaced after metadata while the genuinely signed pro
     await tls.close();
   }
 });
+
+/** The hook observes an actual configured owner's release after independent XML signature verification. */
+async function signedSessionRetirementHook(onRelease: () => void) {
+  const capture = nativeOwner.captureNativeIdentityOwner;
+  let armed = false;
+  vi.spyOn(nativeOwner, "captureNativeIdentityOwner").mockImplementation(
+    (...args) => {
+      const owner = capture(...args);
+      owner.signal.addEventListener(
+        "abort",
+        () => {
+          if (!armed) return;
+          armed = false;
+          onRelease();
+        },
+        { once: true },
+      );
+      return owner;
+    },
+  );
+  const { id } = await saved();
+  popup([]);
+  oracle.install([]);
+  await beginSavedNativeSaml(id);
+  expect(readNativeFederationSession()?.assertionFormat).toBe("saml");
+  return () => {
+    armed = true;
+  };
+}
+const successorMetadata = () => ({
+  issuer: "https://shoo.dev",
+  upstreamId: "shoo",
+  idToken: "opaque-successor-metadata",
+  assertionFormat: "opaque" as const,
+  pairwiseSub: "newer-subject",
+  audience: "origin:successor",
+  jwksUri: "https://shoo.dev/keys",
+  expiresAt: Date.now() + 60000,
+});
+it("explicit logout preserves newer metadata published by genuine native session cleanup", async () => {
+  const successor = successorMetadata();
+  let published = federationSessionGeneration();
+  const arm = await signedSessionRetirementHook(() => {
+    published = saveSession(successor);
+  });
+  arm();
+  expect(clearSession()).toBeUndefined();
+  expect(federationSessionGeneration()).toBe(published);
+  expect(readFederationSessionJson()).toBe(JSON.stringify(successor));
+  expect(readNativeFederationSession()).toBeNull();
+});
+
+it.each(["generation", "metadata"])(
+  "configuration retirement rejects genuine cleanup successor %s without borrowing it",
+  async (kind) => {
+    const successor = successorMetadata();
+    let published = federationSessionGeneration();
+    const arm = await signedSessionRetirementHook(() => {
+      published =
+        kind === "metadata"
+          ? saveSession(successor)
+          : advanceFederationSessionGeneration();
+    });
+    const configuration = captureSamlConfiguration("");
+    try {
+      arm();
+      expect(() => configuration.clearOwnSession()).toThrow(
+        /superseded|authority changed/,
+      );
+      expect(federationSessionGeneration()).toBe(published);
+      expect(readFederationSessionJson()).toBe(
+        kind === "metadata" ? JSON.stringify(successor) : null,
+      );
+      expect(() => configuration.assertActor()).toThrow(/authority changed/);
+      expect(readNativeFederationSession()).toBeNull();
+    } finally {
+      await configuration.release();
+    }
+  },
+);

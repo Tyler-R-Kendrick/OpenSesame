@@ -122,8 +122,12 @@ describe("sign-in WebAuthn PRF", () => {
     if (!person) throw new Error("No person");
     await enrollLocalPasskey(vaultStore.activeTomb(), person.id);
     const prf = usablePrf();
+    const enroll = vi.spyOn(vaultStore.protection, "enrollHeldWebauthnPrf");
     try {
       await authenticateLocalPasskey(vaultStore.activeTomb(), person.id);
+      const heldPrf = enroll.mock.calls[0]?.[0].prfOutput;
+      if (!heldPrf) throw new Error("Held PRF was not passed to enrollment");
+      expect(new Uint8Array(heldPrf).every((byte) => byte === 0)).toBe(true);
       expect(
         vaultStore.protection
           .listProtectors()
@@ -142,7 +146,7 @@ describe("sign-in WebAuthn PRF", () => {
       expect(
         prf.outputs.every((output) => output.every((byte) => byte === 0)),
       ).toBe(true);
-      const enroll = vi.spyOn(vaultStore.protection, "enrollHeldWebauthnPrf");
+      enroll.mockClear();
       const commit = vi.spyOn(vaultStore.protection, "commitEnrollment");
       const keys = await readLocalPasskeys(vaultStore.activeTomb());
       const otherTomb = `${vaultStore.activeTomb()}-other`;

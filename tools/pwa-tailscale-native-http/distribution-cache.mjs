@@ -61,6 +61,8 @@ export async function assertNativeSourceInputs(here, expectedSourceSha256) {
     ...(source.peerGET
       ? [source.peerGET.patch, source.peerGET.stagingHelper]
       : []),
+    source.nativeSSH.patch,
+    source.nativeSSH.stagingHelper,
     ...source.composition.files,
     { path: "exit-route.patch", sha256: source.patch.sha256 },
   ];

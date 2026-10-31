@@ -99,7 +99,7 @@ the surrogate, and not in your shell, where it is not set. A tool that reads
 environment. Printed from inside a run:
 
 ```text
-VERCEL_TOKEN=osr_7858feac80e8045b207766c3d8238854
+VERCEL_TOKEN=<run-scoped surrogate>
 HTTPS_PROXY=http://opensesame:<run secret>@127.0.0.1:<port>      (also HTTP_PROXY, https_proxy, http_proxy)
 SSL_CERT_FILE=<config dir>/plugin-state/surrogate-proxy/runs/<run id>/ca.pem
                                                                   (also NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE,

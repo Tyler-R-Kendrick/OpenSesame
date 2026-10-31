@@ -1,11 +1,11 @@
 #!/bin/sh
-# pre-push — runs local verification before code leaves the machine.
+# pre-push — static checks before code leaves the machine; tests qualify CD.
 # Installed via `pnpm setup:hooks` (see scripts/dev/setup-hooks.sh).
 #
 # Mode is controlled by OPENSESAME_PREPUSH:
-#   off  -> skip entirely
-#   fast -> anti-slop + typecheck + tests (default when unset)
-#   full -> pnpm verify
+#   off  -> skip optional checks; exposure policy remains mandatory
+#   fast -> lint, static quality and typecheck (default when unset)
+#   full -> pnpm verify, including tests (explicit local opt-in)
 set -e
 
 # See .githooks/pre-commit for why this is cleared defensively.
@@ -19,8 +19,20 @@ mode="${OPENSESAME_PREPUSH:-fast}"
 echo "pre-push: mode=$mode (set with: export OPENSESAME_PREPUSH=off|fast|full)"
 
 case "$mode" in
+  off|fast|full) ;;
+  *)
+    echo "pre-push: unknown OPENSESAME_PREPUSH value '$mode' (expected off|fast|full)" >&2
+    exit 1
+    ;;
+esac
+
+# The exposure invariant is mandatory, including when optional checks are off.
+# Git supplies the actual pushed refs on stdin; a different branch is not HEAD.
+node scripts/security/exposure-matrix-gate.mjs --push-refs
+
+case "$mode" in
   off)
-    echo "pre-push: OPENSESAME_PREPUSH=off, skipping checks"
+    echo "pre-push: OPENSESAME_PREPUSH=off, skipping optional checks"
     exit 0
     ;;
   fast|full)
@@ -30,7 +42,24 @@ case "$mode" in
     if [ "$mode" = "full" ]; then
       pnpm verify
     else
-      pnpm lint:anti-slop && pnpm test:anti-slop && pnpm typecheck && pnpm test
+      # The aggregate lint/quality aliases include test suites. Keep static
+      # checks explicit here so ordinary pushes never start those suites.
+      node scripts/quality/lint-changed.mjs
+      node apps/pages/scripts/build-static-auth.mjs --check
+      pnpm lint:anti-slop
+      pnpm quality:gate
+      pnpm quality:log-hygiene
+      pnpm quality:packages
+      pnpm quality:app-core
+      pnpm typecheck
+
+      # Commits made outside the local pre-commit hook still receive Rust
+      # linting before push. Include working changes, as the static TS checks do.
+      changed_files=$(git diff --name-only "${LINT_SINCE:-origin/main}...HEAD" && git diff --name-only HEAD)
+      rust_lint_files=$(printf '%s\n' "$changed_files" | grep -E '(^|/)(Cargo\.toml|Cargo\.lock|clippy\.toml|rustfmt\.toml|rust-toolchain(\.toml)?)$|\.rs$|^\.cargo/|^scripts/audit/clippy-gate\.sh$' || true)
+      if [ -n "$rust_lint_files" ]; then
+        pnpm audit:clippy
+      fi
     fi
     ;;
   *)

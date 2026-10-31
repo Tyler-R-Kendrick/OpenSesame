@@ -6,6 +6,10 @@ import type { NativeGrant } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import {
+  isGoogleDriveAccountScopeSet,
+  normalizeGoogleDriveAccountScopes,
+} from "./native-google-drive-account.js";
+import {
   type NativeOAuthClientOwner,
   assertNativeOAuthClientOwner,
   assertNativeOAuthClientPolicy,
@@ -14,6 +18,10 @@ import {
   nativeOAuthClientTarget,
   readNativeOAuthClientSecret,
 } from "./native-oauth-client-config.js";
+import {
+  admissibleGrantScopes,
+  offlineConsentValid,
+} from "./native-oauth-client-scopes.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import { nativeOAuthHttp } from "./native-oauth-http.js";
 import {
@@ -71,7 +79,7 @@ function authenticatedTransport(
     transport.settleCredentialMutation = wrap(base.settleCredentialMutation);
   return transport;
 }
-function issued(
+export function issued(
   body: BoundaryValue,
   status: number,
   pending: Awaited<ReturnType<typeof claimNativeOAuthPending>>["pending"],
@@ -79,13 +87,19 @@ function issued(
   const pair = Pair.safeParse(body);
   if (!pair.success) throw new NativeOAuthError("provider");
   const details = Details.safeParse(body);
-  const scopes =
+  const scopes = normalizeGoogleDriveAccountScopes(
+    pending.providerId,
     details.success && details.data.scope !== undefined
       ? [...new Set(details.data.scope.split(/\s+/).filter(Boolean))]
-      : null;
+      : null,
+  );
   const validScopes =
     scopes === null ||
     (scopes.length <= 256 && scopes.every((scope) => scope.length <= 512));
+  const accountScopesValid = isGoogleDriveAccountScopeSet(
+    pending.providerId,
+    scopes,
+  );
   const grant: NativeGrant = {
     kind: "oauth",
     providerId: pending.providerId,
@@ -103,9 +117,20 @@ function issued(
         : null,
     scopes: validScopes ? scopes : null,
   };
+  const offlineValid = offlineConsentValid(
+    pending.scopes,
+    scopes,
+    pair.data.refresh_token,
+  );
   return {
     grant,
-    valid: status >= 200 && status < 300 && details.success && validScopes,
+    valid:
+      status >= 200 &&
+      status < 300 &&
+      details.success &&
+      validScopes &&
+      accountScopesValid &&
+      offlineValid,
   };
 }
 function exchangeForm(
@@ -232,13 +257,18 @@ export async function exchangeNativeOAuthClient(
     );
     await recordDefinitiveRejection(claim, response);
     const receipt = issued(response.body, response.status, pending);
+    const scopeValid = admissibleGrantScopes(
+      pending.providerId,
+      pending.scopes,
+      receipt.grant.scopes,
+    );
     await journalNativeOAuthGrant(
       id,
       claim.obligation.id,
       receipt.grant,
       nativeOAuthClientClassification,
       {
-        protocol_valid: String(receipt.valid),
+        protocol_valid: String(receipt.valid && scopeValid),
         requested_scopes: JSON.stringify(pending.scopes),
       },
     );
@@ -252,11 +282,7 @@ export async function exchangeNativeOAuthClient(
     if (readNativeOAuthClientSecret(id, owner) !== secret)
       throw new NativeOAuthError("expired");
     if (!receipt.valid) throw new NativeOAuthError("provider");
-    if (
-      receipt.grant.scopes &&
-      pending.scopes.some((scope) => !receipt.grant.scopes?.includes(scope))
-    )
-      throw new NativeOAuthError("scope");
+    if (!scopeValid) throw new NativeOAuthError("scope");
     return { connectionId: id, intentId: claim.obligation.id };
   } finally {
     release();

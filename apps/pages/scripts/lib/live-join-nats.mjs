@@ -33,6 +33,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { opensSharedItems } from "./live-joined.mjs";
 import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
@@ -133,7 +134,7 @@ function checkLink(link, server, label) {
   check(
     allow.length === 2 &&
       allow.every((subject) => subject.startsWith("opensesame.live.")) &&
-      // The start form's default: a session of an hour.
+      // This walk explicitly chooses a session of one hour.
       Math.abs(claims.exp - (Date.now() / 1000 + 60 * 60)) < 120,
     `${label}: scoped to the session's subjects, expiring with it (${allow.join(", ")})`,
   );
@@ -197,6 +198,10 @@ export async function natsSession(browser, owner, binary, mode) {
     const carrier = { kind: "nats", url: server.url, mint: server.mint };
     if (mode === "always") carrier.session = "always";
     await setRoutes(owner.page, { carriers: [carrier] });
+    await owner.page
+      .getByRole("dialog", { name: "Share personal", exact: true })
+      .getByLabel("For", { exact: true })
+      .selectOption("60");
     const { panel, code, link } = await startSession(owner.page);
     await panel
       .getByRole("img", { name: /^Carrying codes: / })
@@ -209,10 +214,17 @@ export async function natsSession(browser, owner, binary, mode) {
       dist: owner.dist,
       init: mode === "fallback" ? [[NO_ROUTE]] : [],
     });
-    await joinerAsks(joiner.page, { link, code, name: JOINER, routes: true });
+    await joinerAsks(joiner.page, {
+      link,
+      code,
+      name: JOINER,
+      routes: true,
+      automatic: true,
+    });
     const admit = admitControl(panel, JOINER);
     await admit.waitFor({ timeout: 30_000 });
     await admit.click();
+    await opensSharedItems(joiner.page, 60_000);
     await joined(joiner.page).waitFor({ timeout: 60_000 });
     await joiner.page
       .getByRole("button", { name: "Reveal GitHub Value" })

@@ -136,6 +136,19 @@ export async function buildProfile({
     expectAbsent,
   });
   console.error(table);
+  if (report.ok)
+    execFileSync(
+      process.execPath,
+      [
+        "--experimental-vm-modules",
+        join(here, "verify-schema-csp.mjs"),
+        outDir,
+      ],
+      {
+        stdio: ["ignore", "ignore", "pipe"],
+        timeout: 15000,
+      },
+    );
   // `measurements.json` ships inside the build, so it stays small and stable:
   // the sizes plus a tally, never the violation list. The full report (every
   // module -> capability -> chunk -> entry edge) lands beside the directory,

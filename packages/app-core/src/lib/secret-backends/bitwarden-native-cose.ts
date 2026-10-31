@@ -1,5 +1,5 @@
 import { type CBORType, decodeCBOR, encodeCBOR } from "@levischuck/tiny-cbor";
-import { sha256 } from "@noble/hashes/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { z } from "zod";
 
 export type BitwardenCborMap = Map<string | number, CBORType>;

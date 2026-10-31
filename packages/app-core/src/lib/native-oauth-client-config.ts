@@ -9,6 +9,7 @@ import type {
 } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
+import { assertGoogleDriveAccountContract } from "./native-google-drive-account.js";
 import { validateNativeMcpBinding } from "./native-mcp-target.js";
 import { saveNativeOAuthClientConfiguration } from "./native-oauth-client-update.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
@@ -160,6 +161,7 @@ export function assertNativeOAuthClientPolicy(
     tokenEndpoint: target.token_endpoint,
     resourceEndpoint: target.resource ?? "",
   });
+  assertGoogleDriveAccountContract(configuration);
   assertNativeOAuthClientOwner(owner);
   return target;
 }

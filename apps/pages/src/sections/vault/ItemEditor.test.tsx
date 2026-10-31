@@ -8,10 +8,9 @@ import {
   createItem,
   passwordMethod,
 } from "@opensesame/vault-core";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
-import { MemoryRouter, Route, Routes } from "react-router";
 import {
   afterAll,
   afterEach,
@@ -39,27 +38,15 @@ Object.assign(vaultHooksSeams, {
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 import { expectInTray } from "../../components/tray.test-support.js";
-import { ItemEditor } from "./ItemEditor.js";
 import {
   type AccountSeed,
   makeAccount as makeAccountBase,
 } from "./account.test-support.js";
-
-/** The editor at `path`, new or edit, with a catch-all for where saving goes. */
-function renderEditor(path = "/vault/new/account") {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/vault/new/:kind?" element={<ItemEditor mode="new" />} />
-        <Route
-          path="/vault/:itemId/edit"
-          element={<ItemEditor mode="edit" />}
-        />
-        <Route path="*" element={<div>navigated away</div>} />
-      </Routes>
-    </MemoryRouter>,
-  );
-}
+import {
+  inputByLabel,
+  renderEditor,
+  renderMissingEditor,
+} from "./item-editor-render.test-support.js";
 
 function makeAccount(overrides: AccountSeed = {}): AccountItem {
   return makeAccountBase({
@@ -69,14 +56,6 @@ function makeAccount(overrides: AccountSeed = {}): AccountItem {
     passwordChangedAt: "2026-08-01T00:00:00Z",
     ...overrides,
   });
-}
-
-function inputByLabel(label: string | RegExp): HTMLInputElement {
-  const element = screen.getByLabelText(label);
-  if (!(element instanceof HTMLInputElement)) {
-    throw new Error(`expected input for ${String(label)}`);
-  }
-  return element;
 }
 
 function passwordOf(item: VaultItem): PasswordMethod {
@@ -239,8 +218,23 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-  it("saves a generated password with no site as the all-domains rule", async () => {
+  it("keeps a generated password unbound when no site was chosen", async () => {
     renderEditor();
+    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(savedItem()).toMatchObject({
+      kind: "account",
+      uris: [],
+    });
+  });
+  it("saves an all-domains wildcard only when explicitly chosen", async () => {
+    renderEditor();
+    await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
+    await userEvent.type(screen.getByLabelText("Address 1"), "*");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Match rule 1"),
+      "wildcard",
+    );
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect(savedItem()).toMatchObject({
@@ -248,8 +242,15 @@ describe("ItemEditor", () => {
       uris: [{ uri: "*", match: "wildcard" }],
     });
   });
-  it("starts with an all-domains wildcard and saves its removal", async () => {
+  it("adds an explicit all-domains wildcard and saves its removal", async () => {
     renderEditor();
+    expect(screen.queryByLabelText("Address 1")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
+    await userEvent.type(screen.getByLabelText("Address 1"), "*");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Match rule 1"),
+      "wildcard",
+    );
     expect(inputByLabel("Address 1").value).toBe("*");
     expect(screen.getByLabelText("Match rule 1")).toHaveProperty(
       "value",
@@ -283,16 +284,7 @@ describe("ItemEditor", () => {
   });
 
   it("says there is nothing to edit for a missing item", () => {
-    render(
-      <MemoryRouter initialEntries={["/vault/itm_gone/edit"]}>
-        <Routes>
-          <Route
-            path="/vault/:itemId/edit"
-            element={<ItemEditor mode="edit" />}
-          />
-        </Routes>
-      </MemoryRouter>,
-    );
+    renderMissingEditor();
     expect(screen.getByText("Nothing to edit")).toBeTruthy();
   });
 

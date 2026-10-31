@@ -131,8 +131,14 @@ export async function fixture() {
     load: vi.fn().mockResolvedValue(client),
     egress: vi.fn(),
   });
+  // `start` carries the one port; every later command rides it.
+  const ports = new MessageChannel();
   const send = (data: ReturnType<typeof WorkerMessage.parse>) => {
-    worker.receive(new MessageEvent("message", { data }));
+    if (data.kind === "start")
+      worker.receive(
+        new MessageEvent("message", { data, ports: [ports.port2] }),
+      );
+    else worker.command(new MessageEvent("message", { data }));
   };
 
   send({ kind: "start", config: configuration() });
@@ -163,6 +169,7 @@ export async function fixture() {
     },
     close() {
       send({ kind: "closeHTTP" });
+      ports.port1.close();
       for (const gate of [...opened.values(), ...buffered.values()])
         gate.reject(new Error("Owned fixture teardown"));
       for (const item of credits)

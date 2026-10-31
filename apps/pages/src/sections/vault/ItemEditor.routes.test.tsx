@@ -207,8 +207,15 @@ describe("vault editor route types", () => {
     expect(screen.queryByLabelText("Notes")).toBeNull();
     expect(screen.getByRole("button", { name: "Add notes" })).toBeTruthy();
   });
-  it("places the default wildcard website before username and offers pattern modes", async () => {
+  it("adds an explicit wildcard website before username and offers pattern modes", async () => {
     open("/vault/new/login");
+    expect(screen.queryByLabelText("Address 1")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
+    await userEvent.type(screen.getByLabelText("Address 1"), "*");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Match rule 1"),
+      "wildcard",
+    );
     const address = screen.getByLabelText("Address 1");
     expect(address).toHaveProperty("value", "*");
     expect(screen.getByLabelText("Match rule 1")).toHaveProperty(

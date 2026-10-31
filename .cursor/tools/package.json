@@ -1,0 +1,10 @@
+{
+  "name": "opensesame-cloud-tools",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Integrity-locked development tools for the Cursor cloud image",
+  "dependencies": {
+    "@moonshot-ai/kimi-code": "2.1.1",
+    "node-pty": "1.1.0"
+  }
+}

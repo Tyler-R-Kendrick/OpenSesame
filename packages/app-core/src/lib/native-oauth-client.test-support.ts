@@ -56,6 +56,7 @@ type FixtureState = {
   challenge: string;
   redirectUri: string;
   resource: string;
+  resourceParameter?: "send" | "omit";
   hold: boolean;
   wrongClient: boolean;
   invalidDetails: boolean;
@@ -78,7 +79,9 @@ function validCode(form: URLSearchParams, state: FixtureState): boolean {
     form.get("grant_type") === "authorization_code" &&
     form.get("code") === "one-use-code" &&
     form.get("redirect_uri") === state.redirectUri &&
-    form.get("resource") === state.resource &&
+    (state.resourceParameter === "omit"
+      ? !form.has("resource")
+      : form.get("resource") === state.resource) &&
     createHash("sha256")
       .update(form.get("code_verifier") ?? "")
       .digest("base64url") === state.challenge

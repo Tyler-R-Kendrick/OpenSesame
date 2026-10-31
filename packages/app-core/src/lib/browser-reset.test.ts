@@ -296,7 +296,9 @@ describe("resetBrowser: other tabs and this tab's own writes", () => {
     const hub = broadcastHub();
     const { onBrowserReset } = await import("./browser-reset-channel.js");
     quiet();
-    configureHost(createTestHost({ ...NO_PORTS, broadcast: hub.open }));
+    configureHost(
+      createTestHost({ ...NO_PORTS, broadcast: hub.open, locks: undefined }),
+    );
     const heard = vi.fn(() =>
       // Halted before the handler runs: the reload never races a write.
       expect(kvSetDurable("x", "1")).rejects.toThrow(/reset/),

@@ -29,6 +29,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { startDaemonStub } from "./daemon-stub.mjs";
 import { startSites } from "./sites.mjs";
+import { readyWorker } from "./worker.mjs";
 
 const PACKAGE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -77,7 +78,11 @@ function stage(workdir, standing) {
 /**
  * @param {{ standing?: boolean, entries?: (origin: (host: string) => string) => object[] }} [options]
  */
-export async function startSession({ standing = true, entries } = {}) {
+export async function startSession({
+  standing = true,
+  entries,
+  requireApproval = false,
+} = {}) {
   const workdir = mkdtempSync(path.join(tmpdir(), "opensesame-autofill-e2e-"));
   const sites = await startSites();
   const secret = `pw-${crypto.randomUUID()}`;
@@ -90,7 +95,7 @@ export async function startSession({ standing = true, entries } = {}) {
       secret,
     },
   ];
-  const daemon = await startDaemonStub({ entries: stored });
+  const daemon = await startDaemonStub({ entries: stored, requireApproval });
   const extension = stage(workdir, standing);
   const profile = path.join(workdir, "profile");
   let context;
@@ -114,10 +119,7 @@ export async function startSession({ standing = true, entries } = {}) {
   }
   const consoles = [];
   context.on("console", (message) => consoles.push(message.text()));
-  const worker = async () => {
-    const [known] = context.serviceWorkers();
-    return known ?? context.waitForEvent("serviceworker");
-  };
+  const worker = () => readyWorker(context);
   const id = new URL((await worker()).url()).host;
   return {
     context,

@@ -23,9 +23,14 @@ export type IdentityConnectionPanelProps = {
   online: boolean;
   onFlash: (flash: Flash) => void;
   onChanged: () => void;
+  initialOidcTransport?: IdentityConnectionDraft["oidcTransport"];
 };
 
-function useIdentityDraft(provider: Provider, connection: Connection | null) {
+function useIdentityDraft(
+  provider: Provider,
+  connection: Connection | null,
+  initialOidcTransport?: IdentityConnectionDraft["oidcTransport"],
+) {
   const [saved, setSaved] = useState(() =>
     currentIdentityConnection(provider.id, connection),
   );
@@ -36,6 +41,9 @@ function useIdentityDraft(provider: Provider, connection: Connection | null) {
     );
     return {
       ...initial,
+      oidcTransport: saved
+        ? initial.oidcTransport
+        : (initialOidcTransport ?? initial.oidcTransport),
       brokerUrl: initial.brokerUrl || dependencies.readSignInService(),
     };
   });
@@ -210,7 +218,11 @@ function useIdentityAuthentication(
 }
 
 export function useIdentityConnection(props: IdentityConnectionPanelProps) {
-  const editor = useIdentityDraft(props.provider, props.connection);
+  const editor = useIdentityDraft(
+    props.provider,
+    props.connection,
+    props.initialOidcTransport,
+  );
   const status = useIdentityStatus(props.onFlash);
   const authentication = useIdentityAuthentication(editor, status, props);
   return {

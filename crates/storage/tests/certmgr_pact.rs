@@ -303,10 +303,10 @@ fn pact_migrations_are_append_only_and_end_with_0040() {
             "0054_web_login_recipe_signing",
             "0055_agent_hook_approvers",
             "0056_outbox_customer_binding",
+            "0057_est_passphrase_budget",
+            "0058_bitwarden_attempt_budgets",
+            "0059_est_source_budgets",
         ]
     );
-    assert_eq!(
-        versions.last().copied(),
-        Some("0056_outbox_customer_binding")
-    );
+    assert_eq!(versions.last().copied(), Some("0059_est_source_budgets"));
 }

@@ -25,6 +25,7 @@ use super::credentials::text;
 use super::folders::list_json;
 use super::identity::normalize_email;
 use crate::auth::Authed;
+use crate::budget_subject::BudgetSubject;
 use crate::error::{ApiError, ApiResult};
 use crate::wire::account::date;
 use crate::wire::cipher::{is_enc_string, normalize};
@@ -149,13 +150,6 @@ async fn create(
     let (Some(public_key), Some(identifier), Some(code)) = (public_key, identifier, code) else {
         return Err(ApiError::bad_request("The request is incomplete."));
     };
-    // Every address is charged the same, whether or not it has an account, so
-    // the answer to "too many" says nothing about who does. The count is its
-    // own: failed passwords neither spend it nor are blocked by it.
-    if server.sign_in_requests.blocked(&email) {
-        return Err(ApiError::too_many_requests());
-    }
-    server.sign_in_requests.record_failure(&email);
     let user = server.db.bitwarden_user_by_email(&email).await?;
     let request = BitwardenAuthRequest {
         id: uuid::Uuid::new_v4().to_string(),
@@ -173,11 +167,20 @@ async fn create(
     };
     if let Some(user) = &user {
         if !server
+            .sign_in_requests
+            .reserve(&BudgetSubject::SignInRequest(user))
+            .await?
+        {
+            // Match an unknown address without allocating or notifying. A
+            // creation-status difference must not become an account oracle.
+            return Ok(Json(request_json(&server, &request)));
+        }
+        if !server
             .db
             .bitwarden_add_auth_request(&request, window_start(), MAX_PENDING)
             .await?
         {
-            return Err(ApiError::too_many_requests());
+            return Ok(Json(request_json(&server, &request)));
         }
         server.hub.sign_in_requested(&user.id, &request.id);
     }
@@ -283,23 +286,22 @@ async fn response(
     Path(id): Path<String>,
     Query(query): Query<CodeQuery>,
 ) -> ApiResult<Json<Value>> {
-    let limit = format!("auth-request:{id}");
-    if server.sign_in_failures.blocked(&limit) {
-        return Err(ApiError::too_many_requests());
-    }
-    match server
+    // A nonexistent request contains no secret to guess and must not allocate
+    // a bucket an unauthenticated caller can use to displace account fences.
+    let request = server
         .db
         .bitwarden_auth_request(&id, window_start())
         .await?
-    {
-        Some(request) if code_matches(&request, &query.code) => {
-            Ok(Json(request_json(&server, &request)))
-        }
-        _ => {
-            server.sign_in_failures.record_failure(&limit);
-            Err(ApiError::not_found())
-        }
+        .ok_or_else(ApiError::not_found)?;
+    let limit = BudgetSubject::AuthRequest(&request);
+    if !server.sign_in_failures.reserve(&limit).await? {
+        return Err(ApiError::too_many_requests());
     }
+    if !code_matches(&request, &query.code) {
+        return Err(ApiError::not_found());
+    }
+    server.sign_in_failures.clear(&limit).await?;
+    Ok(Json(request_json(&server, &request)))
 }
 
 /// Whether `code` spends an approved request of `user`: the password grant

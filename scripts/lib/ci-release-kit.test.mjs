@@ -25,191 +25,234 @@ const { parse } = createRequire(
 )("yaml");
 
 const root = repoRootFromHere();
-const workflow = ".github/workflows/release-kit.yml";
+const workflow = ".github/workflows/candidate-build.yml";
 const yaml = readFileSync(join(root, workflow), "utf8");
+const producer = parse(yaml);
+const publisherText = readFileSync(
+  join(root, ".github/workflows/release-publish.yml"),
+  "utf8",
+);
+const publisher = parse(publisherText);
 const script = join(root, "scripts/release/kit-archive.sh");
 const guide = readFileSync(join(root, "docs/operators/release-kit.md"), "utf8");
 const TEST_BUILD = "opensesame-surrogate-proxy-TEST-upstream-override";
 
-/** A GitHub Actions expression, as it is written in the workflow. */
-const expression = (body) => `\${{ ${body} }}`;
-
-/** The text of one job, from its key to the next job's. */
-function job(name) {
-  const start = yaml.indexOf(`\n  ${name}:\n`);
-  expect(start, `no job ${name}`).toBeGreaterThan(-1);
-  const rest = yaml.slice(start + 1);
-  const next = rest.slice(1).search(/\n {2}[a-z][\w-]*:\n/);
-  return next === -1 ? rest : rest.slice(0, next + 1);
-}
-
-/** The script of every `run:` step of every job, as the YAML parser reads it. */
 function runScripts(text) {
   return Object.values(parse(text).jobs).flatMap((definition) =>
     (definition.steps ?? []).flatMap((step) => {
-      const script = readString(step.run);
-      return script === undefined ? [] : [script];
+      const body = readString(step.run);
+      return body === undefined ? [] : [body];
     }),
   );
 }
 
-// The structural gate counts each describe callback as one function of at most
-// 100 lines, so the suite is several describes of the same name.
-describe("release kit workflow", () => {
-  it("runs on a v* tag, or by hand as a dry run, with no token by default", () => {
-    expect(yaml).toMatch(
-      /^on:\n {2}push:\n {4}tags: \["v\*"\]\n {2}workflow_dispatch:\n/m,
+const jobScripts = (definition) =>
+  (definition.steps ?? []).map((step) => step.run ?? "").join("\n");
+
+describe("candidate producer workflow", () => {
+  it("builds only selected snapshots and requires exact successful fast-CI evidence", () => {
+    expect(Object.keys(producer.on).sort()).toEqual([
+      "workflow_call",
+      "workflow_dispatch",
+    ]);
+    expect(Object.keys(producer.on.workflow_call.inputs).sort()).toEqual([
+      "source_ci_run_attempt",
+      "source_ci_run_id",
+      "source_sha",
+    ]);
+    const resolve = jobScripts(producer.jobs.resolve);
+    expect(resolve).toContain('[ "$GITHUB_REF" = refs/heads/main ]');
+    expect(resolve).toContain(
+      'git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main',
     );
-    expect(yaml).toMatch(/^permissions: \{\}$/m);
-    expect(yaml).not.toMatch(/secrets\./);
+    expect(resolve).toContain("'head_branch': 'main', 'event': 'push'");
+    expect(resolve).toContain("'status': 'completed', 'conclusion': 'success'");
+    expect(
+      producer.jobs.resolve.steps.some(
+        (step) => step.with?.["fetch-depth"] === 0,
+      ),
+    ).toBe(true);
   });
 
-  it("gives write only to the jobs that attest and publish, and only on a tag", () => {
-    for (const name of ["bridge", "build", "checksums"]) {
-      expect(job(name)).toMatch(/permissions:\n {6}contents: read\n/);
-      expect(job(name)).not.toMatch(/: write/);
-    }
-    expect(job("attest")).toContain("id-token: write");
-    expect(job("attest")).toContain("attestations: write");
-    expect(job("attest")).not.toContain("contents: write");
-    expect(job("publish")).toContain("contents: write");
-    for (const name of ["attest", "publish"]) {
-      expect(job(name)).toContain("if: github.event_name == 'push'");
+  it("separates trusted control code from selected application source", () => {
+    for (const name of ["bridge", "pages", "native"]) {
+      const checkouts = producer.jobs[name].steps.filter((step) =>
+        step.uses?.startsWith("actions/checkout@"),
+      );
+      expect(
+        checkouts.find((step) => step.with.path === ".ci-control").with.ref,
+      ).toBe("${{ github.workflow_sha }}");
+      expect(checkouts.find((step) => step.with.path === "src").with.ref).toBe(
+        "${{ needs.resolve.outputs.source_sha }}",
+      );
     }
   });
 
-  it("builds the shipped binaries, then the test plugin under its own name", () => {
-    const build = job("build");
-    const shipped = build.indexOf(
-      "cp target/release/opensesame-surrogate-proxy bins/opensesame-surrogate-proxy\n",
-    );
-    const test = build.indexOf("--features upstream-override");
-    expect(shipped).toBeGreaterThan(-1);
-    expect(test).toBeGreaterThan(shipped);
-    expect(build).toContain(
-      `cp target/release/opensesame-surrogate-proxy bins/${TEST_BUILD}`,
-    );
+  it("copies shipped proxy bytes before building the separately named TEST variant", () => {
+    const build = jobScripts(producer.jobs.native);
+    expect(
+      build.indexOf(
+        "cp target/release/opensesame-surrogate-proxy bins/opensesame-surrogate-proxy\n",
+      ),
+    ).toBeLessThan(build.indexOf("--features upstream-override"));
+    expect(build).toContain(`bins/${TEST_BUILD}`);
     expect(build).toContain(
       "--locked --release -p opensesame-cli --bin opensesame",
     );
-    expect(build).toContain(
-      "aarch64-unknown-linux-gnu, runner: ubuntu-24.04-arm",
-    );
-  });
-});
-
-describe("release kit workflow", () => {
-  it("checks the tag first, so a tag on any other commit builds nothing", () => {
-    const tag = job("tag");
-    expect(tag).toMatch(/permissions:\n {6}contents: read\n/);
-    // Every branch's history, so origin/main is there to compare with.
-    expect(tag).toContain("fetch-depth: 0");
-    expect(tag).toContain(
-      'scripts/release/tag-check.sh verify "$TAG" "$EVENT_SHA"',
-    );
-    expect(tag).toContain('scripts/release/tag-check.sh commit "$EVENT_SHA"');
-    expect(tag).toContain(`sha: ${expression("steps.check.outputs.sha")}`);
-    for (const name of ["bridge", "build"]) {
-      expect(job(name), name).toMatch(/needs: .*\btag\b/);
-    }
-    // The comparison lives in that one job and one script, not in the later ones.
-    expect(yaml.match(/merge-base/g) ?? []).toEqual([]);
-    expect(job("checksums")).not.toContain("fetch-depth");
-    // The tree each job builds is the commit that was checked.
-    expect(job("build")).toContain(
-      `VERIFIED_SHA: ${expression("needs.tag.outputs.sha")}`,
-    );
-    expect(job("build")).toContain(
-      '[ "$(git rev-parse HEAD)" = "$VERIFIED_SHA" ]',
-    );
+    expect(
+      producer.jobs.native.strategy.matrix.include
+        .map((item) => item.target)
+        .sort(),
+    ).toEqual(["aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"]);
+    expect(build).toContain("smoke-kit.sh");
   });
 
-  it("never compares the raw GITHUB_SHA, which can be an annotated tag's object", () => {
-    // Only the event's value is handed to tag-check.sh, which peels it.
-    expect(yaml).not.toMatch(/\$\{?GITHUB_SHA\b/);
-    expect(yaml).toContain(`EVENT_SHA: ${expression("github.sha")}`);
-    expect(job("publish")).toContain(
-      `VERIFIED_SHA: ${expression("needs.tag.outputs.sha")}`,
-    );
-  });
-
-  it("publishes a draft, at the verified commit, only while the tag still names it", () => {
-    const publish = job("publish");
-    const order = [
-      "tag_unmoved\n",
-      'gh release create "$TAG" dist/* --draft --verify-tag --target "$VERIFIED_SHA"',
-      "tag_unmoved\n          gh release edit",
-      'gh release edit "$TAG" --draft=false',
-    ].map((text) => publish.indexOf(text));
-    for (const at of order) expect(at).toBeGreaterThan(-1);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
-    expect(publish).toMatch(/needs: \[tag, checksums, attest\]/);
-  });
-
-  it("asks a reviewer before it publishes, when the owner has set one", () => {
-    expect(job("publish")).toMatch(/environment:\n {6}name: release\n/);
-    expect(guide).toContain("Settings › Environments › release");
-  });
-});
-
-describe("release kit workflow", () => {
-  it("attests every file, and SHA256SUMS too, with a pinned action", () => {
-    const attest = job("attest");
-    expect(attest).toMatch(
-      /uses: actions\/attest-build-provenance@[a-f0-9]{40} # v\d/,
-    );
-    expect(attest).toContain("subject-checksums: dist/SHA256SUMS");
-    // SHA256SUMS cannot list itself: its own statement, from its own step.
-    expect(attest).toContain("subject-path: dist/SHA256SUMS");
-    expect(attest.match(/attest-build-provenance@/g)).toHaveLength(2);
-  });
-
-  it("tells a downloader to check who signed it and from which tag", () => {
-    const verify =
-      "--signer-workflow Tyler-R-Kendrick/OpenSesame/.github/workflows/release-kit.yml";
-    expect(guide).toContain(verify);
-    expect(guide).toContain("--source-ref refs/tags/");
-    // The same words in the release notes and the comment above the attest job.
-    expect(yaml).toContain(
-      "--signer-workflow $GH_REPO/.github/workflows/release-kit.yml",
-    );
-    expect(yaml).toContain("--source-ref refs/tags/$TAG");
-    expect(yaml).toContain(verify);
-    expect(yaml).toContain("--source-ref refs/tags/<tag>");
-  });
-
-  it("has no unpinned action, no pull_request_target and no expression in a script", () => {
-    for (const [, action] of yaml.matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)) {
-      expect(action).toMatch(/^[\w./-]+@[a-f0-9]{40}$/);
-    }
-    expect(yaml).not.toContain("pull_request_target");
-    const scripts = runScripts(yaml);
-    expect(scripts.length).toBeGreaterThan(10);
-    for (const body of scripts) expect(body).not.toContain("${{");
-  });
-
-  it("builds nothing that names this runner's checkout, and says what it cannot remap", () => {
-    expect(job("build")).toContain(
-      "--remap-path-prefix=$GITHUB_WORKSPACE=/opensesame",
-    );
-    // CARGO_MANIFEST_DIR is expanded by the compiler before the remap sees it.
-    expect(yaml).toContain("except the compiled-in");
-    expect(yaml).not.toContain("so the binaries do not name");
-    expect(guide.replace(/\s+/g, " ")).toContain("except the compiled-in");
-    expect(guide).not.toContain("paths remapped.");
-  });
-
-  it("is a TypeScript-area workflow that starts no browser gate", () => {
-    expect(areasForPaths([workflow])).toEqual({
-      typescript: true,
-      bundle: false,
-      rust: false,
-      mtls: false,
-      push: false,
+  it("signs all exact payloads before making the candidate available", () => {
+    const final = producer.jobs.manifest;
+    expect(final.name).toBe("Candidate build gate");
+    expect(final.permissions).toEqual({
+      contents: "read",
+      actions: "read",
+      "id-token": "write",
+      attestations: "write",
     });
-    expect(areasForPaths(["scripts/release/kit-archive.sh"]).typescript).toBe(
-      true,
+    expect(jobScripts(final)).toContain("collect-build.mjs");
+    expect(jobScripts(final)).toContain("build-manifest.py");
+    const attest = final.steps.findIndex((step) =>
+      step.uses?.startsWith("actions/attest@"),
     );
+    const upload = final.steps.findIndex((step) => step.id === "upload");
+    expect(attest).toBeGreaterThan(0);
+    expect(upload).toBeGreaterThan(attest);
+    expect(final.steps[attest].with["subject-checksums"]).toBe(
+      "build-subjects.sha256",
+    );
+    expect(final.steps[attest].with["predicate-type"]).toBe(
+      "https://opensesame.dev/attestations/candidate-build/v1",
+    );
+    expect(final.steps[upload].with["retention-days"]).toBeGreaterThanOrEqual(
+      35,
+    );
+    expect(yaml).not.toContain("actions/download-artifact@");
+  });
+});
+
+it("the candidate builder prepares Linux DBus through trusted rootless helpers before compiling the kit", () => {
+  const native = producer.jobs.native;
+  const control = native.steps.find(
+    (step) => step.with?.path === ".ci-control",
+  );
+  expect(control.with["sparse-checkout"]).toContain("scripts/ci");
+  const body = jobScripts(native);
+  expect(body).toContain(
+    'bash ../.ci-control/scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"',
+  );
+  expect(
+    body.indexOf('source "$RUNNER_TEMP/opensesame-dbus/env.sh"'),
+  ).toBeLessThan(body.indexOf("cargo +1.88.0 build --locked --release"));
+  expect(body).not.toMatch(/sudo|apt-get install/);
+});
+
+describe("artifact publication workflow", () => {
+  it("can only be called with the candidate and three qualification receipts", () => {
+    expect(Object.keys(publisher.on)).toEqual(["workflow_call"]);
+    expect(Object.keys(publisher.on.workflow_call.inputs)).toHaveLength(10);
+    expect(publisher.permissions).toEqual({});
+    expect(publisher.concurrency["cancel-in-progress"]).toBe(false);
+    for (const job of Object.values(publisher.jobs))
+      expect(jobScripts(job)).toContain("verify-promotion");
+  });
+
+  it("gates every contents-write job and waits for Pages before publication", () => {
+    const ungatedWrites = (jobs, workflowPermissions = {}) =>
+      Object.entries(jobs).flatMap(([name, job]) => {
+        const permissions = job.permissions ?? workflowPermissions;
+        const writesContents =
+          permissions === "write-all" || permissions?.contents === "write";
+        const environment = job.environment;
+        return writesContents &&
+          environment !== "release" &&
+          environment?.name !== "release"
+          ? [name]
+          : [];
+      });
+    expect(ungatedWrites(publisher.jobs, publisher.permissions)).toEqual([]);
+    expect(ungatedWrites({ rogue: {} }, { contents: "write" })).toEqual([
+      "rogue",
+    ]);
+    expect(ungatedWrites({ rogue: {} }, "write-all")).toEqual(["rogue"]);
+    expect(
+      ungatedWrites({ rogue: { permissions: { contents: "write" } } }),
+    ).toEqual(["rogue"]);
+    expect(ungatedWrites({ rogue: { permissions: "write-all" } })).toEqual([
+      "rogue",
+    ]);
+    expect(publisher.jobs.stage.needs).toBe("admission");
+    expect(publisher.jobs.stage.environment).toEqual({
+      name: "release",
+      url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ inputs.run_id }}",
+    });
+    expect(publisher.jobs.publish.environment).toEqual({
+      name: "release",
+      url: "${{ needs.stage.outputs.draft_url }}",
+    });
+    expect(publisher.jobs.stage.outputs.draft_url).toBe(
+      "${{ steps.draft.outputs.draft_url }}",
+    );
+    expect(publisher.jobs.pages.environment.name).toBe("github-pages");
+    expect(publisher.jobs.pages.needs).toContain("stage");
+    expect(publisher.jobs.publish.needs).toContain("stage");
+    expect(publisher.jobs.publish.needs).toContain("pages");
+    expect(jobScripts(publisher.jobs.stage)).toContain(
+      "publish-release.mjs prepare",
+    );
+    expect(jobScripts(publisher.jobs.publish)).toContain(
+      "publish-release.mjs publish",
+    );
+  });
+
+  it("promotes the exact existing archive without source builds or stamping", () => {
+    const bodies = runScripts(publisherText).join("\n");
+    expect(bodies).not.toMatch(
+      /cargo .*build|turbo .*build|pnpm .*build|pages-release\.mjs stamp/,
+    );
+    expect(bodies).toContain(
+      'gzip -dc "$PAGES_ARCHIVE" > hosting/artifact.tar',
+    );
+    expect(bodies).toContain("downloadArtifact(");
+    expect(bodies).toContain(
+      "cmp hosting/artifact.tar hosting-checked/artifact.tar",
+    );
+    expect(bodies).toContain("verify-site.mjs");
+    const sign = publisher.jobs.stage.steps.find((step) =>
+      step.uses?.startsWith("actions/attest@"),
+    );
+    expect(sign.with["predicate-type"]).toBe(
+      "https://opensesame.dev/attestations/release-promotion/v1",
+    );
+  });
+
+  it("documents exact signer and main-ref verification plus draft-only recovery", () => {
+    expect(guide).toContain("--signer-workflow");
+    expect(guide).toContain("candidate-build.yml");
+    expect(guide).toContain("release-publish.yml");
+    expect(guide).toContain("--source-ref refs/heads/main");
+    expect(guide).toContain("unpublished draft");
+  });
+});
+
+describe("release workflow safety and routing", () => {
+  it("pins every external action and keeps expressions out of shell bodies", () => {
+    for (const text of [yaml, publisherText]) {
+      for (const [, action] of text.matchAll(/^\s*-?\s*uses:\s*(\S+)/gm))
+        expect(action).toMatch(/^[\w./-]+@[a-f0-9]{40}$/);
+      expect(text).not.toContain("pull_request_target");
+      for (const body of runScripts(text)) expect(body).not.toContain("${{");
+    }
+  });
+
+  it("routes native kit workflow and helper edits to TypeScript protocol checks", () => {
+    expect(areasForPaths([workflow]).typescript).toBe(true);
     for (const path of [
       workflow,
       "scripts/release/kit-archive.sh",
@@ -218,46 +261,6 @@ describe("release kit workflow", () => {
     ]) {
       expect(gatesForPath(path, driverReach(root)), path).toEqual(new Set());
     }
-  });
-});
-
-describe("release kit workflow", () => {
-  it("reads a run script whole, continuation lines of a quoted scalar included", () => {
-    const text = `jobs:\n  a:\n    steps:\n      - run: "echo one \\\n          ${expression("github.ref")}"\n`;
-    expect(runScripts(text).join("")).toContain(expression("github.ref"));
-  });
-
-  it("keeps the files for as long as the approval can wait", () => {
-    const kept = /name: release-files\n[\s\S]*?retention-days: (\d+)/.exec(
-      job("checksums"),
-    );
-    expect(Number(kept?.[1])).toBeGreaterThanOrEqual(30);
-  });
-
-  it("verifies every attestation before it creates the release", () => {
-    const publish = job("publish");
-    expect(publish).toContain("attestations: read");
-    expect(publish).toContain(
-      '--signer-workflow "$GH_REPO/.github/workflows/release-kit.yml"',
-    );
-    expect(publish).toContain('--source-ref "refs/tags/$TAG"');
-    const each = publish.indexOf('verify_attestation "dist/$file"');
-    const sums = publish.indexOf("verify_attestation dist/SHA256SUMS");
-    const create = publish.indexOf('gh release create "$TAG"');
-    expect(each).toBeGreaterThan(-1);
-    expect(sums).toBeGreaterThan(each);
-    expect(create).toBeGreaterThan(sums);
-  });
-
-  it("calls the environment an approval step and the ruleset what keeps others from tagging", () => {
-    const text = (value) => value.replace(/\s+/g, " ").replace(/# /g, "");
-    expect(text(yaml)).toContain("an approval step, not a boundary");
-    expect(text(guide)).toContain("an approval step, not a boundary");
-    expect(text(guide)).toContain("Immutable releases");
-    expect(text(guide)).not.toContain("cannot publish at all");
-    expect(text(yaml)).not.toContain(
-      "Only the owner may create a v* tag at all",
-    );
   });
 });
 

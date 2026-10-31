@@ -3,11 +3,10 @@ import type { BrowserUnavailableKind } from "@opensesame/app-core/lib/browser-di
 import type {
   ConnectMethod,
   ConnectPlan,
-  McpInfo,
   OauthPreset,
 } from "@opensesame/app-core/lib/connect-plan.js";
 import type { NativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
-import { nativeMcpMetadataUnavailableReason } from "@opensesame/app-core/lib/native-mcp-availability.js";
+import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import { configuredNativeOAuthPreset } from "@opensesame/app-core/lib/native-oauth-resource-preset.js";
 import { nativeBrowserOAuthDescriptor } from "./native-browser-oauth-descriptor.js";
 import type {
@@ -15,7 +14,11 @@ import type {
   NativeMethodDescriptor,
   NativeScopeGroup,
 } from "./native-connector-ui.js";
-import { configuredMcpDescriptor } from "./native-mcp-configured-descriptor.js";
+import {
+  type NativeMcpAvailability,
+  configuredMcpDescriptor,
+  nativeMcpDescriptor,
+} from "./native-mcp-configured-descriptor.js";
 import {
   type NativeOAuthResourceOptions,
   nativeOAuthResourceDescriptor,
@@ -38,13 +41,7 @@ export type BrowserProviderAvailability = {
     profile?: NativeBrowserOAuthProfile;
     scopeGroups?: NativeScopeGroup[];
   };
-  mcp: {
-    available: boolean;
-    reason?: string;
-    inactiveReason?: string;
-    actor: string;
-    defaultScopes?: readonly string[];
-  };
+  mcp: NativeMcpAvailability;
 };
 
 function scopes(preset: OauthPreset): NativeScopeGroup[] {
@@ -158,76 +155,6 @@ function apiDescriptor(
   };
 }
 
-function mcpUnavailableAdvice(
-  providerId: string,
-  metadata: McpInfo,
-  availability: BrowserProviderAvailability["mcp"],
-): Pick<NativeMethodDescriptor, "unavailableReason" | "unavailableKind"> {
-  const reason =
-    availability.reason ??
-    nativeMcpMetadataUnavailableReason(providerId, metadata) ??
-    undefined;
-  if (!availability.available && reason === undefined)
-    return {
-      unavailableKind: "runtime-inactive",
-      unavailableReason:
-        availability.inactiveReason ??
-        "Enable External connectors in Settings › Features to activate this connection on this device.",
-    };
-  return {
-    unavailableKind: "no-public-contract",
-    unavailableReason:
-      reason ??
-      "The provider has not advertised a public browser authorization contract for its MCP server.",
-  };
-}
-
-function mcpDescriptor(
-  providerId: string,
-  method: Extract<ConnectMethod, { kind: "mcp" }>,
-  availability: BrowserProviderAvailability["mcp"],
-): NativeMethodDescriptor {
-  const metadata = method.mcp.status === "ok" ? method.mcp : null;
-  return {
-    id: "mcp",
-    authorizeFirst: true,
-    preferredRank:
-      metadata?.status === "ok" && metadata.registration !== "manual" ? 10 : 40,
-    label:
-      metadata && metadata.registration !== "manual" ? "Managed MCP" : "MCP",
-    available: availability.available,
-    ...mcpUnavailableAdvice(providerId, method.mcp, availability),
-    instructions:
-      "Connect to this provider's published MCP server. OpenSesame verifies its advertised tools before reporting a connection.",
-    fields:
-      metadata?.registration === "manual"
-        ? [
-            {
-              id: "client_id",
-              label: "Public MCP client ID",
-              kind: "text",
-              secret: false,
-              required: true,
-            },
-          ]
-        : [],
-    scopeGroups: metadata
-      ? [
-          {
-            actor: availability.actor,
-            label: "MCP permissions",
-            choices: metadata.scopes.map((scope) => ({
-              name: scope,
-              description:
-                "Permission advertised by the provider's MCP authorization server.",
-              default: availability.defaultScopes?.includes(scope) ?? false,
-            })),
-          },
-        ]
-      : [],
-  };
-}
-
 function publicOAuthDescriptor(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
@@ -254,6 +181,7 @@ function publicOAuthDescriptor(
             ...options,
             resourceParameter:
               profile.mode === "google-token" ? "omit" : undefined,
+            accountOnly: profile.mode === "google-token",
           },
         )
       : publicMethod;
@@ -266,6 +194,7 @@ function publicOAuthDescriptor(
     return {
       ...nativeOAuthResourceDescriptor(preset, availability.callbackUrl, true, {
         resourceParameter: "omit",
+        accountOnly: true,
       }),
       preferredRank: 35,
     };
@@ -334,9 +263,14 @@ function additionalOAuthMethod(
 function providerMethods(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
+  selectedMethod?: NativeMethod,
 ): NativeMethodDescriptor[] {
+  const primaryMethod = plan.primaryMethod
+    ? (selectedMethod ?? plan.primaryMethod)
+    : undefined;
   const methods: NativeMethodDescriptor[] = [];
   for (const method of plan.methods) {
+    if (primaryMethod && method.kind !== primaryMethod) continue;
     if (method.kind === "api-key")
       methods.push(apiDescriptor(plan, method, availability.apiKey));
     if (method.kind === "oauth")
@@ -346,11 +280,14 @@ function providerMethods(
         configuredMcpDescriptor(
           plan.id,
           method.mcp,
-          mcpDescriptor(plan.id, method, availability.mcp),
+          nativeMcpDescriptor(plan.id, method.mcp, availability.mcp),
         ),
       );
   }
-  if (!methods.some((method) => method.id === "oauth")) {
+  if (
+    (!primaryMethod || primaryMethod === "oauth") &&
+    !methods.some((method) => method.id === "oauth")
+  ) {
     const additional = additionalOAuthMethod(plan, availability);
     if (additional) methods.unshift(additional);
   }
@@ -360,13 +297,14 @@ function providerMethods(
 export function nativeProviderDescriptor(
   plan: ConnectPlan,
   availability: BrowserProviderAvailability,
+  selectedMethod?: NativeMethod,
 ): NativeConnectorDescriptor {
-  const methods = providerMethods(plan, availability).map((method) =>
-    nativePolicyMethod(plan.id, method),
+  const methods = providerMethods(plan, availability, selectedMethod).map(
+    (method) => nativePolicyMethod(plan.id, method),
   );
   if (methods.length === 0)
     methods.push({
-      id: "oauth",
+      id: selectedMethod ?? "oauth",
       label: "Provider authorization",
       available: false,
       unavailableKind: "no-public-contract",

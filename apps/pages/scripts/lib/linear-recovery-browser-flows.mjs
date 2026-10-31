@@ -18,7 +18,7 @@ const retry = (page) =>
 
 async function scopes(page, label, selected) {
   const summary = page.getByLabel(label, { exact: true });
-  const details = page.locator("details").filter({ has: summary });
+  const details = page.locator("details.cx-selection").filter({ has: summary });
   if ((await details.getAttribute("open")) === null) await summary.click();
   for (const checkbox of await details.getByRole("checkbox").all()) {
     const name = (await checkbox.locator("..").innerText()).trim();

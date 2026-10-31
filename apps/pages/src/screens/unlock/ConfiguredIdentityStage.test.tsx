@@ -11,6 +11,7 @@ import {
 } from "./ConfiguredIdentityStage.js";
 
 beforeEach(() => {
+  vi.spyOn(dependencies, "beginSavedNativeOidc").mockResolvedValue(undefined);
   vi.spyOn(dependencies, "beginSavedNativeSaml").mockResolvedValue(undefined);
   vi.spyOn(dependencies, "hydrateIdentityConnections").mockResolvedValue(
     undefined,
@@ -74,6 +75,7 @@ it("routes saved public OIDC through the shared adapter", async () => {
     ),
   );
   expect(handlers.open).not.toHaveBeenCalled();
+  expect(dependencies.beginSavedNativeOidc).not.toHaveBeenCalled();
 });
 
 it("rejects a missing configuration after hydration without starting authentication", async () => {
@@ -239,4 +241,56 @@ it("delivers an original SAML refusal through the existing start error path", as
   expect(open).not.toHaveBeenCalled();
   expect(legacy).not.toHaveBeenCalled();
   expect(dependencies.hydrateIdentityConnections).not.toHaveBeenCalled();
+});
+
+it("captures native OIDC before a deferred handler and private hydration", async () => {
+  const order: string[] = [];
+  let run: (() => Promise<void>) | undefined;
+  vi.mocked(dependencies.beginSavedNativeOidc).mockImplementation(async () => {
+    order.push("native-start");
+  });
+  startConfiguredIdentity(
+    operator({ protocol: "oidc", nativeIdentity: true }),
+    {
+      open: vi.fn(),
+      legacy: vi.fn(),
+      fail: vi.fn(),
+      start: (action) => {
+        order.push("handler");
+        run = action;
+      },
+    },
+  );
+  expect(order).toEqual(["native-start", "handler"]);
+  expect(dependencies.hydrateIdentityConnections).not.toHaveBeenCalled();
+  expect(dependencies.readIdentityConnection).not.toHaveBeenCalled();
+  expect(dependencies.beginSavedNativeOidc).toHaveBeenCalledExactlyOnceWith(
+    "idc_native",
+  );
+  if (!run) throw new Error("Missing original OIDC workflow");
+  await run();
+  expect(dependencies.beginSavedNativeOidc).toHaveBeenCalledOnce();
+});
+it("preserves the original OIDC refusal without falling back to another route", async () => {
+  const error = new Error("Original identity authority changed");
+  vi.mocked(dependencies.beginSavedNativeOidc).mockRejectedValue(error);
+  let pending: Promise<void> | undefined;
+  const open = vi.fn();
+  const legacy = vi.fn();
+  startConfiguredIdentity(
+    operator({ protocol: "oidc", nativeIdentity: true }),
+    {
+      open,
+      legacy,
+      fail: vi.fn(),
+      start: (action) => {
+        pending = action();
+      },
+    },
+  );
+  await expect(pending).rejects.toBe(error);
+  expect(open).not.toHaveBeenCalled();
+  expect(legacy).not.toHaveBeenCalled();
+  expect(dependencies.hydrateIdentityConnections).not.toHaveBeenCalled();
+  expect(dependencies.beginIdentityConnectionSignIn).not.toHaveBeenCalled();
 });

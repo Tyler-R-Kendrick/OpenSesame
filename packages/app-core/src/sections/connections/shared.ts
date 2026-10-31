@@ -11,6 +11,8 @@ import type {
 } from "../../lib/connections.js";
 import { isNativeDeviceConnection } from "../../lib/device-connector-view.js";
 import { VERB_CHIP, VERB_LABEL } from "../../lib/identity-graph.js";
+import { nativeLocalCatalogConfiguration } from "../../lib/native-catalog-status.js";
+import type { NativeMethod } from "../../lib/native-connector-schema.js";
 
 export type Flash = { tone: "ok" | "warn" | "err"; text: string };
 
@@ -26,6 +28,7 @@ export const CATEGORY_LABELS = {
   encryption: "Encryption (secrets in git)",
   password_managers: "Password managers",
   agent_harnesses: "Agent harnesses",
+  cua_runtime: "Computer-use runtimes",
   ai_model_provider: "AI model providers",
   networking: "Networking",
   wallet: "Wallet",
@@ -48,6 +51,7 @@ export const FEATURE_BINDING_CATEGORIES = [
   "encryption",
   "password_managers",
   "agent_harnesses",
+  "cua_runtime",
   "ai_model_provider",
   "networking",
   "wallet",
@@ -212,12 +216,18 @@ function legacyStatusSentence(
 export function statusSentence(
   connection: Connection,
   provider?: Provider | null,
+  configurationMethod?: NativeMethod,
 ): string {
   if (isNativeDeviceConnection(connection))
     return (
       connection.statusDetail ??
       (connection.status === "active"
-        ? "Connection verified on this device."
+        ? connection.providerId === "google-drive"
+          ? "Google account verified; Drive access was not checked."
+          : provider &&
+              nativeLocalCatalogConfiguration(provider, configurationMethod)
+            ? "Configuration verified locally; provider access was not checked."
+            : "Connection verified on this device."
         : "Provider authorization or verification required before using this connection.")
     );
   return legacyStatusSentence(connection, provider);

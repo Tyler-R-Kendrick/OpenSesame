@@ -17,3 +17,5 @@ pub use validator::*;
 
 #[cfg(test)]
 mod adversarial;
+#[cfg(test)]
+mod adversarial_jwk;

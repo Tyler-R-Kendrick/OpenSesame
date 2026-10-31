@@ -21,14 +21,16 @@ export function TtlChoices({
   onChange,
   selectedRef,
   disabled = false,
+  label = "Opens for",
 }: {
   value: number;
   onChange: (ms: number) => void;
   selectedRef?: Ref<HTMLButtonElement>;
   disabled?: boolean;
+  label?: string;
 }) {
   return (
-    <div className="share-ttl" role="radiogroup" aria-label="Opens for">
+    <div className="share-ttl" role="radiogroup" aria-label={label}>
       {DROP_TTL_OPTIONS.map((option) => (
         <button
           key={option.ms}

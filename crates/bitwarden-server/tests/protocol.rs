@@ -72,11 +72,13 @@ async fn prelogin_answers_both_shapes_and_hides_unknown_accounts() {
 async fn a_wrong_password_and_an_unknown_email_get_the_same_answer() {
     let harness = Harness::start().await;
     let account = Account::register(&harness.http_url, "p@example.com", PASSWORD, LIGHT).await;
+    let wrong_password = "0".repeat(16);
+    let wrong_password = wrong_password.as_str();
     let form = |user: &'static str| {
         [
             ("grant_type", "password"),
             ("username", user),
-            ("password", "bm90IHRoZSBoYXNo"),
+            ("password", wrong_password),
             ("scope", "api offline_access"),
             ("client_id", "cli"),
             ("deviceIdentifier", "d"),

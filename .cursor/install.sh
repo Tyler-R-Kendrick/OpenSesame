@@ -2,6 +2,7 @@
 # Idempotent Cloud Agent bootstrap (see environment.json). No secrets; no daemons.
 set -euo pipefail
 
+. .cursor/cloud-path.sh
 export PATH="/usr/local/cargo/bin:${PATH}"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/packages/cargo-target}"
 
@@ -20,5 +21,8 @@ fi
 
 # Cursor Agent CLI for deepsec wave-2 Composer fallback (subscription `agent login` on the image).
 if ! command -v cursor-agent >/dev/null 2>&1; then
-  curl -fsSL https://cursor.com/install | bash
+  cursor_binary="$(node scripts/dev/install-cloud-cli.mjs cursor "$HOME/.local/share/cursor-agent/versions")"
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$cursor_binary" "$HOME/.local/bin/agent"
+  ln -sf "$cursor_binary" "$HOME/.local/bin/cursor-agent"
 fi

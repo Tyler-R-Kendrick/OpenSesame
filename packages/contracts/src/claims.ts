@@ -22,11 +22,11 @@ export const ClaimStateSchema = z.enum([
 
 export const CreateClaimRequestSchema = z.object({
   type: ClaimTargetTypeSchema,
-  targetManifest: z.record(z.unknown()),
+  targetManifest: z.record(z.string(), z.unknown()),
   ttlSeconds: z.number().int().positive().max(86_400).optional(),
   proofKeyJkt: z.string().min(8).optional(),
-  requestedDestination: z.record(z.unknown()).optional(),
-  requestedGrant: z.record(z.unknown()).optional(),
+  requestedDestination: z.record(z.string(), z.unknown()).optional(),
+  requestedGrant: z.record(z.string(), z.unknown()).optional(),
 });
 export type CreateClaimRequest = z.infer<typeof CreateClaimRequestSchema>;
 
@@ -46,10 +46,9 @@ export type CreateClaimResponse = z.infer<typeof CreateClaimResponseSchema>;
 export const PresentClaimRequestSchema = z.object({
   token: z.string().min(16),
   /**
-   * Optional second factor (ADR 0062). When supplied it is verified against
-   * the claim's peppered digest *before* the single-use presentation is
-   * spent, so a wrong code cannot burn the claim. Omitting it keeps the
-   * original token-only presentation.
+   * Required for secret-drop manifests (ADR 0062); optional for other claim
+   * ceremonies. The server verifies it before the single-use presentation
+   * is spent, so an omitted or wrong code cannot release a drop or burn it.
    */
   userCode: z.string().min(4).max(64).optional(),
 });
@@ -57,7 +56,7 @@ export type PresentClaimRequest = z.infer<typeof PresentClaimRequestSchema>;
 
 export const ReviewClaimRequestSchema = z.object({
   acceptedItemIds: z.array(z.string()),
-  destination: z.record(z.unknown()).optional(),
+  destination: z.record(z.string(), z.unknown()).optional(),
 });
 export type ReviewClaimRequest = z.infer<typeof ReviewClaimRequestSchema>;
 
@@ -69,14 +68,15 @@ export const CompleteClaimRequestSchema = z.object({
    */
   userCode: z.string().min(4).max(64),
   /**
-   * Optional claim bearer. When present it must match this claim; Identity
-   * already requires an authenticated principal plus the user code.
+   * Required for secret drops, before their shared code budget is charged.
+   * Optional for other claim ceremonies; when supplied it must match this
+   * claim. Every completion also requires a principal and the user code.
    */
   claimToken: z
     .string()
     .regex(/^osc_clm_/)
     .optional(),
-  destination: z.record(z.unknown()).optional(),
+  destination: z.record(z.string(), z.unknown()).optional(),
   idempotencyKey: z.string().min(8).optional(),
 });
 export type CompleteClaimRequest = z.infer<typeof CompleteClaimRequestSchema>;
@@ -123,6 +123,6 @@ export type ClaimSessionResponse = z.infer<typeof ClaimSessionResponseSchema>;
  * presentation window. GET/poll/complete keep projecting only the digest.
  */
 export const PresentClaimResponseSchema = ClaimSessionResponseSchema.extend({
-  targetManifest: z.record(z.unknown()),
+  targetManifest: z.record(z.string(), z.unknown()),
 });
 export type PresentClaimResponse = z.infer<typeof PresentClaimResponseSchema>;

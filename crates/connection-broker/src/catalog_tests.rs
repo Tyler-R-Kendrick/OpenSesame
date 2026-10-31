@@ -3,15 +3,15 @@ use super::*;
 #[test]
 fn embedded_catalog_is_valid_and_versioned() {
     let catalog = load().expect("embedded catalog");
-    assert_eq!(catalog.revision(), "2026-10-14.3");
-    assert_eq!(catalog.providers().len(), 186);
+    assert_eq!(catalog.revision(), "2026-10-27.1");
+    assert_eq!(catalog.providers().len(), 189);
     assert_eq!(
         catalog
             .providers()
             .iter()
             .filter(|provider| provider.id != "mock")
             .count(),
-        185
+        188
     );
     assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     let ollama = catalog.find("ollama").expect("Ollama provider");

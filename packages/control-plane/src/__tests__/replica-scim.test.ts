@@ -71,7 +71,12 @@ describe("J-REPLICA SCIM cleanup", () => {
       second.ctx.systemPrincipalReady,
     ]);
 
-    const { owner, org } = await seedTenant(first.app, "replica-scim", idp);
+    const { owner, org } = await seedTenant(
+      first.app,
+      first.ctx,
+      "replica-scim",
+      idp,
+    );
     const { token } = await mintScimToken(first.app, org.id, owner.accessToken);
     idp.setSubject("replica-scim-user");
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
