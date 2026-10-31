@@ -5,7 +5,10 @@ Date: 2026-08-19
 Amends: ADR 0005 (Level 3 materialization), ADR 0032 §6 (credential
 material boundary); supplements ADR 0044 (delegation receipts)
 Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; §4 here: the helpers become
-entry points of one binary).
+entry points of one binary, and the daemon admits them on its Unix socket by
+peer credentials, never by an operator token; ADR 0138 §2).
+Amended by: [ADR 0217](0217-aws-sts-mint.md) (§3 here: the aws mapping lands as
+STS `AssumeRole` for a role the operator binds to the connection).
 
 ## Context
 

@@ -12,6 +12,7 @@ import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { kdbxNativeDOM } from "./scripts/kdbx-native-dom-plugin.mjs";
+import { dependencyRoot } from "./scripts/lib/dependency-root.mjs";
 import { writePrivateSnapshot } from "./scripts/lib/private-files.mjs";
 import { mcpBrowserValidator } from "./scripts/mcp-browser-validator.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
@@ -59,13 +60,14 @@ const osDomainWallet = fileURLToPath(
  * app-core already depends on this copy. @scure/bip32 and nostr-tools pin
  * curves 2.0.1, which emits a second secp256k1 (Point, getPublicKey, sign
  * and verify with `prehash: false`, schnorr). One resolution keeps a single
- * copy. Those callers use the surface 2.4.0 still exports.
+ * copy. Those callers use the surface 2.4.0 still exports. The copy is the one
+ * app-core resolves, wherever the install placed it.
  */
-const nobleCurves = fileURLToPath(
-  new URL(
-    "../../packages/app-core/node_modules/@noble/curves",
-    import.meta.url,
+const nobleCurves = dependencyRoot(
+  fileURLToPath(
+    new URL("../../packages/app-core/package.json", import.meta.url),
   ),
+  "@noble/curves",
 );
 
 function redirectBareBase(

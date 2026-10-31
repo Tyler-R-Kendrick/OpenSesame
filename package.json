@@ -65,6 +65,7 @@
     "audit:exposure": "node scripts/security/exposure-matrix-gate.mjs",
     "audit:clippy": "bash ./scripts/audit/clippy-gate.sh",
     "audit:browser-dispositions": "node scripts/audit/browser-disposition-probes.mjs",
+    "audit:oauth-reach": "node scripts/audit/oauth-reach-probes.mjs",
     "audit:osv": "bash ./scripts/audit/osv-scanner-gate.sh",
     "audit:cargo-audit": "bash ./scripts/audit/cargo-audit-gate.sh",
     "audit:gitleaks": "bash ./scripts/audit/gitleaks-gate.sh",

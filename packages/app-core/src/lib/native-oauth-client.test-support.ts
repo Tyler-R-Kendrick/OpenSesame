@@ -60,6 +60,10 @@ type FixtureState = {
   hold: boolean;
   wrongClient: boolean;
   invalidDetails: boolean;
+  /** What the token answer names as its type; `null` leaves it out, as Shopify's does. */
+  tokenType: string | null;
+  /** Send `expires_in` as a numeric string, as some providers do. */
+  expiresAsText: boolean;
   noExpiry: boolean;
   scope: string;
   issued: number;
@@ -217,8 +221,14 @@ function tokenServer(
       JSON.stringify({
         access_token: `issued-access-${state.issued}`,
         refresh_token: `issued-refresh-${state.issued}`,
-        token_type: state.invalidDetails ? "MAC" : "Bearer",
-        expires_in: state.noExpiry ? undefined : 3600,
+        token_type: state.invalidDetails
+          ? "MAC"
+          : (state.tokenType ?? undefined),
+        expires_in: state.noExpiry
+          ? undefined
+          : state.expiresAsText
+            ? "3600"
+            : 3600,
         scope: state.scope,
       }),
     );
@@ -238,6 +248,8 @@ export async function nativeOAuthClientFixture(method: ClientMethod = "none") {
     hold: false,
     wrongClient: false,
     invalidDetails: false,
+    tokenType: "Bearer",
+    expiresAsText: false,
     noExpiry: false,
     scope: "read:items",
     issued: 0,

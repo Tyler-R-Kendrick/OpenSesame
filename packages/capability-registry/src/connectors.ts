@@ -1,3 +1,4 @@
+import { awsStsCapabilities } from "./aws-sts.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { modelKeyCapabilities } from "./model-keys.js";
 
@@ -123,9 +124,10 @@ export const connectPlanCapabilities: readonly Capability[] = [
   },
 ];
 
-/** Every connector capability: directory, plans, and the model keys a connection backs (ADR 0192). */
+/** Every connector capability: directory, plans, the model keys a connection backs (ADR 0192), and the AWS mint binding (ADR 0217). */
 export const connectorCapabilities: readonly Capability[] = [
   ...connectorDirectoryCapabilities,
   ...connectPlanCapabilities,
   ...modelKeyCapabilities,
+  ...awsStsCapabilities,
 ];

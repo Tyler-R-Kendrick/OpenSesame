@@ -7,12 +7,15 @@ import { acmeKeyFlows } from "./native-acme.js";
 import { awsKeyFlows } from "./native-aws.js";
 import { azureAcKeyFlows } from "./native-azure-ac.js";
 import { azureSecretsKeyFlows } from "./native-azure-secrets.js";
+import { bitwardenSecretsKeyFlows } from "./native-bitwarden-sm.js";
+import { bitwardenVaultKeyFlows } from "./native-bitwarden-vault.js";
 import { gcpIamKeyFlows, gcpKeyFlows } from "./native-gcp.js";
 import { googleWalletKeyFlows } from "./native-google-wallet.js";
 import { infisicalKeyFlows } from "./native-infisical.js";
 import type { NativeKeyFlows } from "./native-key-driver.js";
 import { snowflakeKeyFlows } from "./native-snowflake.js";
 import { stsKeyFlows } from "./native-sts.js";
+import { tailscaleKeyFlows } from "./native-tailscale.js";
 
 export const NATIVE_KEY_DRIVERS: readonly NativeKeyFlows[] = [
   awsKeyFlows,
@@ -25,6 +28,9 @@ export const NATIVE_KEY_DRIVERS: readonly NativeKeyFlows[] = [
   infisicalKeyFlows,
   snowflakeKeyFlows,
   googleWalletKeyFlows,
+  tailscaleKeyFlows,
+  bitwardenSecretsKeyFlows,
+  bitwardenVaultKeyFlows,
 ];
 
 export function nativeKeyDriverFor(providerId: string): NativeKeyFlows | null {

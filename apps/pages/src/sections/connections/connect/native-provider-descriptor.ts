@@ -74,7 +74,7 @@ function unavailableOAuthReason(preset: OauthPreset | null): string {
     return "This provider does not publish a browser OAuth application contract. Use another supported connection method.";
   return preset.tokenAuth === "none"
     ? "This provider's public OAuth application route is not supported here. Use its supported MCP authorization route when available."
-    : "This provider requires a confidential OAuth client. Its token exchange cannot run in a browser without exposing a client secret.";
+    : "This provider requires a confidential OAuth client. Register your own application with it and add its client ID and secret: the secret is sealed in your vault on this device and sent only to the provider's token endpoint.";
 }
 
 function oauthDescriptor(
@@ -223,6 +223,7 @@ function publicOAuthDescriptor(
         preset,
         availability.callbackUrl,
         availability.oauth.available,
+        { resourceParameter: options.resourceParameter },
       ),
       preferredRank: 35,
     };

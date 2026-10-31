@@ -223,6 +223,11 @@ export function bindNativeRuntime(
         ? anySignal([request.init.signal, deadline])
         : deadline;
       requestSignal.throwIfAborted();
+      // A token exchange is carried like any other call to a host the bridge
+      // holds (ADR 0218); the lease is not part of its signal, so a complete
+      // late answer can still be sealed and cleaned up.
+      const carried = carriedByBridge(ctx, request, requestSignal);
+      if (carried) return carried;
       return ctx.egress.fetch(
         request.url,
         { ...request.init, signal: requestSignal },

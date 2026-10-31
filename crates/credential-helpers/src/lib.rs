@@ -13,13 +13,15 @@
 //! helper fails closed — there is no fallback that decrypts a stored
 //! credential.
 //!
-//! **The socket fences who may ask; the operator token says who is asking.**
-//! The helpers connect over the daemon's Unix socket, where the kernel attests
-//! the peer UID. The daemon's `require_operator` also demands the operator
-//! token on this route, so a helper started in the operator's own shell
-//! forwards the `OPENSESAME_OPERATOR_TOKEN` it inherited, and one started
-//! without it (an agent's environment) is answered `401`. A helper holds no
-//! secret of its own: it never stores, prints or logs that value.
+//! **Authentication is the socket itself.** The helpers connect over the
+//! daemon's Unix socket, where the kernel attests the peer UID, and the
+//! daemon's `/v1/mint` authenticates a peer whose UID it allows by those
+//! credentials, never by a bearer the caller could leak (ADR 0138 §2, ADR
+//! 0048 §8), then mints only a connection the operator allowed for helpers
+//! (`opensesame daemon helpers allow`). Helpers therefore carry no secret of
+//! their own: they never read `OPENSESAME_OPERATOR_TOKEN` and send no operator
+//! header, so whatever answers at the socket path learns nothing that
+//! authorizes anything.
 //!
 //! Failure discipline: any non-200 from the daemon, any I/O error, any
 //! malformed response → non-zero exit with **nothing on stdout** and only a
@@ -32,29 +34,6 @@ use zeroize::Zeroizing;
 
 /// The daemon's Unix socket env override.
 pub const ENV_SOCK: &str = "OPENSESAME_AGENT_SOCK";
-
-/// The operator token a helper forwards when its environment holds one.
-pub const ENV_OPERATOR_TOKEN: &str = "OPENSESAME_OPERATOR_TOKEN";
-
-/// The `X-OpenSesame-Operator` header line for the token in the environment:
-/// empty when there is none, an error when it is not a plain header value (a
-/// token with a line break would let the environment write headers).
-#[cfg(unix)]
-fn operator_header() -> Result<Zeroizing<String>, HelperError> {
-    let Some(token) = std::env::var(ENV_OPERATOR_TOKEN)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-    else {
-        return Ok(Zeroizing::new(String::new()));
-    };
-    if !token.bytes().all(|byte| byte.is_ascii_graphic()) {
-        return Err(HelperError::Unconfigured(ENV_OPERATOR_TOKEN));
-    }
-    Ok(Zeroizing::new(format!(
-        "X-OpenSesame-Operator: {token}\r\n"
-    )))
-}
 
 /// Cap on a mint response; the payload is a few hundred bytes of JSON.
 #[cfg(unix)]
@@ -187,9 +166,27 @@ impl DaemonClient {
         connection_id: &str,
         installation_id: Option<&str>,
     ) -> Result<MintedCredential, HelperError> {
+        self.mint_for(connection_id, installation_id, None)
+    }
+
+    /// [`DaemonClient::mint`] asking for a credential lifetime, in seconds
+    /// (the AWS mint honours it under its binding's cap, ADR 0217).
+    ///
+    /// # Errors
+    ///
+    /// As [`DaemonClient::mint`].
+    pub fn mint_for(
+        &self,
+        connection_id: &str,
+        installation_id: Option<&str>,
+        duration_seconds: Option<u32>,
+    ) -> Result<MintedCredential, HelperError> {
         let mut body = json!({"connection_id": connection_id});
         if let Some(installation_id) = installation_id {
             body["installation_id"] = json!(installation_id);
+        }
+        if let Some(duration_seconds) = duration_seconds {
+            body["duration_seconds"] = json!(duration_seconds);
         }
         let (status, response_body) = Self::post(self, "/v1/mint", &body)?;
         if status != 200 {
@@ -228,7 +225,6 @@ impl DaemonClient {
     fn post(client: &Self, path: &str, body: &Value) -> Result<(u16, Option<String>), HelperError> {
         use std::io::{Read, Write};
         let payload = serde_json::to_string(body).map_err(|_| HelperError::Malformed)?;
-        let operator = operator_header()?;
         let mut stream = std::os::unix::net::UnixStream::connect(&client.sock)
             .map_err(|error| HelperError::Unavailable(error.to_string()))?;
         stream
@@ -237,11 +233,10 @@ impl DaemonClient {
         stream
             .set_write_timeout(Some(std::time::Duration::from_secs(10)))
             .ok();
-        let request = Zeroizing::new(format!(
-            "POST {path} HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\n{}Content-Length: {}\r\nConnection: close\r\n\r\n{payload}",
-            operator.as_str(),
+        let request = format!(
+            "POST {path} HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
             payload.len()
-        ));
+        );
         stream
             .write_all(request.as_bytes())
             .map_err(|error| HelperError::Unavailable(error.to_string()))?;

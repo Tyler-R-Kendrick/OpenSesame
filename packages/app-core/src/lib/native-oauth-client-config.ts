@@ -11,6 +11,7 @@ import { updateNativeConnector } from "./native-connector-store.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { assertGoogleDriveAccountContract } from "./native-google-drive-account.js";
 import { validateNativeMcpBinding } from "./native-mcp-target.js";
+import { nativeOAuthProviderContract } from "./native-oauth-client-contract.js";
 import { saveNativeOAuthClientConfiguration } from "./native-oauth-client-update.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
@@ -59,13 +60,16 @@ export function normalizeNativeOAuthClientParameters(
   return Object.fromEntries(
     Object.entries(parameters).filter(
       ([key, value]) =>
-        ![
+        // Sending the resource is what no setting at all means, so it is stored as none.
+        !(key === "resource_parameter" && value === "send") &&
+        (![
           "token_relay_url",
           "resource_protocol",
           "mcp_endpoint",
           "mcp_transport",
           "mcp_post_endpoint",
-        ].includes(key) || value !== "",
+        ].includes(key) ||
+          value !== ""),
     ),
   );
 }
@@ -314,6 +318,7 @@ export async function beginNativeOAuthClient(
     createdAt: now,
     expiresAt: now + 600_000,
   };
+  const contract = nativeOAuthProviderContract(record.configuration.providerId);
   const url = new URL(target.authorization_endpoint);
   const query = new URLSearchParams({
     response_type: "code",
@@ -322,8 +327,14 @@ export async function beginNativeOAuthClient(
     state,
     code_challenge: challenge,
     code_challenge_method: "S256",
-    scope: pending.scopes.join(" "),
   });
+  // A provider that takes no scopes (Notion) is not sent an empty one.
+  if (pending.scopes.length)
+    query.set("scope", pending.scopes.join(contract.scopeSeparator));
+  // What the provider's authorization endpoint requires of its own contract
+  // (Atlassian's audience, Notion's owner); never a name this flow already set.
+  for (const [name, value] of Object.entries(contract.authorizationParams))
+    if (!query.has(name)) query.set(name, value);
   if (target.resource && target.resource_parameter !== "omit")
     query.set("resource", target.resource);
   url.search = query.toString();

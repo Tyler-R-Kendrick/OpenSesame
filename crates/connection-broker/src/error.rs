@@ -59,6 +59,10 @@ pub enum BrokerError {
     /// ADR 0049: the provider has no derived-token mint path (yet).
     #[error("provider `{0}` cannot mint a derived credential")]
     Unmintable(String),
+    /// ADR 0217: STS refused or failed the AWS mint. The code is stable and
+    /// the text is fixed; nothing from STS's answer is carried.
+    #[error("aws sts mint failed: {0}")]
+    AwsSts(crate::aws_sts::StsFailure),
     /// ADR 0159: a web-login run for this organization and target is already
     /// in flight — on this process or another replica sharing the database.
     #[error("a web-login run for this target is already in flight")]
@@ -98,6 +102,7 @@ impl BrokerError {
             Self::UnsupportedCredential(_) => "unsupported_credential",
             Self::MaterializationDenied => "materialization_denied",
             Self::Unmintable(_) => "unmintable",
+            Self::AwsSts(failure) => failure.code(),
             Self::RunInFlight => "web_login_run_in_flight",
             Self::Invalid(_) => "invalid_request",
             Self::Storage(_) | Self::Serde(_) => "internal_error",
@@ -113,6 +118,7 @@ impl BrokerError {
                 format!("deployment is missing {}", missing.join(", "))
             }
             Self::CatalogUnavailable(_) => "the provider catalog is unavailable".into(),
+            Self::AwsSts(failure) => failure.hint().into(),
             Self::Storage(_) | Self::Serde(_) => "the request could not be completed".into(),
             other => other.to_string(),
         }
@@ -134,6 +140,7 @@ impl BrokerError {
             | Self::RunInFlight => 409,
             Self::IntegrationReadOnly | Self::MaterializationDenied => 403,
             Self::Unmintable(_) => 422,
+            Self::AwsSts(failure) => failure.http_status(),
             Self::ExchangeFailed(_) | Self::NeedsReauth(_) => 502,
             Self::CatalogUnavailable(_) | Self::Storage(_) | Self::Serde(_) => 500,
             _ => 400,
