@@ -1051,6 +1051,52 @@
       }
     },
     {
+      "id": "fal-ai",
+      "display_name": "fal.ai",
+      "category": "ai_model_provider",
+      "docs_url": "https://fal.ai/docs/model-endpoints/authentication",
+      "provenance_url": "https://fal.ai/docs/model-endpoints/authentication",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Key "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["fal.run", "queue.fal.run", "rest.alpha.fal.ai"],
+        "path_prefixes": []
+      },
+      "operations": ["request.create", "request.status", "request.result"],
+      "model_api": {
+        "protocol": "rest_json",
+        "base_url": "https://queue.fal.run"
+      }
+    },
+    {
+      "id": "higgsfield",
+      "display_name": "Higgsfield",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.higgsfield.ai/docs/authentication",
+      "provenance_url": "https://docs.higgsfield.ai/docs/api-reference/overview",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Key "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.higgsfield.ai"],
+        "path_prefixes": []
+      },
+      "operations": ["generation.create", "generation.read", "model.list"],
+      "model_api": {
+        "protocol": "rest_json",
+        "base_url": "https://api.higgsfield.ai"
+      }
+    },
+    {
       "id": "deepgram",
       "display_name": "Deepgram",
       "category": "ai_model_provider",
@@ -5747,8 +5793,52 @@
         "path_prefixes": []
       },
       "operations": ["secret.configure"]
+    },
+    {
+      "id": "obsidian",
+      "display_name": "Obsidian",
+      "category": "storage",
+      "docs_url": "https://coddingtonbear.github.io/obsidian-local-rest-api/",
+      "provenance_url": "https://github.com/coddingtonbear/obsidian-local-rest-api",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["127.0.0.1:27124"],
+        "path_prefixes": []
+      },
+      "operations": ["note.list", "note.read", "note.write"]
+    },
+    {
+      "id": "polar",
+      "display_name": "Polar",
+      "category": "crm",
+      "docs_url": "https://polar.sh/docs/integrate/oat",
+      "provenance_url": "https://polar.sh/docs/api-reference/introduction",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.polar.sh"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": [
+        "organization.list",
+        "product.list",
+        "order.list",
+        "subscription.list",
+        "customer.list"
+      ]
     }
   ],
-  "revision": "2026-10-27.1",
+  "revision": "2026-10-31.1",
   "schema_version": 1
 }

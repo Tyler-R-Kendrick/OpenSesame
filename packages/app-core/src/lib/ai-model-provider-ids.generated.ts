@@ -13,6 +13,8 @@ export const AI_MODEL_PROVIDER_IDS = [
   "huggingface",
   "elevenlabs",
   "stability",
+  "fal-ai",
+  "higgsfield",
   "deepgram",
   "assemblyai",
   "gemini",

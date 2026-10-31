@@ -10,7 +10,7 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, identity and browser secret backend provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(145);
+    expect(ids).toHaveLength(147);
     for (const id of [
       "webcrypto",
       "aws-kms",
@@ -54,6 +54,9 @@ describe("embedded connector catalog", () => {
       "letsencrypt",
       "aws-sts",
       "gcp-iam",
+      // Image and video models Add a connection offers (catalog rows).
+      "fal-ai",
+      "higgsfield",
     ]) {
       expect(ids).toContain(id);
     }

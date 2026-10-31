@@ -3392,9 +3392,7 @@
       "confidence": "medium",
       "notes": "Key scheme with the combined id:secret credential; one bounded read-only GET of the published API contract. No model runs, writes or token minting.",
       "sources": ["https://fal.ai/docs/model-endpoints/authentication"],
-      "template_params": [],
-      "display_name": "FAL.ai",
-      "category": "ai_model_provider"
+      "template_params": []
     },
     {
       "service": "higgsfield",
@@ -3424,9 +3422,7 @@
         "https://docs.higgsfield.ai/docs/authentication",
         "https://docs.higgsfield.ai/docs/api-reference/overview"
       ],
-      "template_params": [],
-      "display_name": "Higgsfield",
-      "category": "ai_model_provider"
+      "template_params": []
     },
     {
       "service": "linq",
@@ -3513,9 +3509,7 @@
           "required": true,
           "secret": false
         }
-      ],
-      "display_name": "Obsidian",
-      "category": "storage"
+      ]
     },
     {
       "service": "polar",
@@ -3541,9 +3535,7 @@
         "https://polar.sh/docs/integrate/oat",
         "https://github.com/polarsource/polar/blob/main/docs/openapi/2026-10.openapi.json"
       ],
-      "template_params": [],
-      "display_name": "Polar",
-      "category": "crm"
+      "template_params": []
     },
     {
       "service": "stripe",
