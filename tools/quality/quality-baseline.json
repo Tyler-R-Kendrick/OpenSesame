@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 445,
-    "violations": 711,
-    "oversizedLines": 219477
+    "files": 444,
+    "violations": 710,
+    "oversizedLines": 218819
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -737,9 +737,6 @@
     },
     "packages/app-core/src/lib/vault/protection/adapters/azure-key-vault-https.ts": {
       "max-lines-per-function": 1
-    },
-    "packages/app-core/src/lib/vault/store-ops.test.ts": {
-      "max-lines": 658
     },
     "packages/app-core/src/lib/vault/store.test.ts": {
       "max-lines": 498

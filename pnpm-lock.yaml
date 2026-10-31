@@ -686,6 +686,9 @@ importers:
       '@opensesame/cua-password-reset':
         specifier: workspace:*
         version: link:../cua-password-reset
+      '@opensesame/observability':
+        specifier: workspace:*
+        version: link:../observability
       linkedom:
         specifier: 0.18.14
         version: 0.18.14

@@ -11,8 +11,8 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 154,
-    "violations": 542,
+    "files": 153,
+    "violations": 541,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 15,
@@ -21,7 +21,7 @@
       "anti-slop/no-reflect-get": 6,
       "anti-slop/no-runtime-typeof": 152,
       "anti-slop/no-shape-in-symbol-names": 11,
-      "anti-slop/no-unknown-parameters": 34,
+      "anti-slop/no-unknown-parameters": 33,
       "anti-slop/no-unknown-returns": 2,
       "anti-slop/no-unsafe-dictionary-type": 12,
       "anti-slop/require-safety-comment-for-type-assertion": 98
@@ -119,9 +119,6 @@
     },
     "apps/pages/src/modules/identity.ceremonies/DeviceRoute.test.tsx": {
       "anti-slop/no-known-value-widening": 1
-    },
-    "apps/pages/src/modules/identity.ceremonies/DropClaimScreen.tsx": {
-      "anti-slop/no-unknown-parameters": 1
     },
     "apps/pages/src/modules/identity.ceremonies/InteractionScreen.test.tsx": {
       "anti-slop/no-known-value-widening": 1

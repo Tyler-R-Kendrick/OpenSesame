@@ -6,7 +6,7 @@ import {
   decideLocalAccessRequest,
 } from "./local-access-requests.js";
 import { configureLocalApplication } from "./local-applications.js";
-import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
+import { authenticator, origin } from "./local-authenticator.fixture.js";
 import { changeLocalDirectory } from "./local-directory-admin.js";
 import {
   type LocalDirectoryChange,
@@ -40,7 +40,7 @@ export async function localRequestFixture() {
   const device = await authenticator();
   const queues = new Map<string, Promise<void>>();
   vi.stubGlobal("isSecureContext", true);
-  vi.stubGlobal("location", { origin, hostname: rpID });
+  vi.stubGlobal("location", new URL(origin));
   vi.stubGlobal("navigator", {
     credentials: device,
     locks: {

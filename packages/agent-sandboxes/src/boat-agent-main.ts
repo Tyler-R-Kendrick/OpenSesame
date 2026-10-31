@@ -6,10 +6,12 @@
  * `BOAT_AGENT_ENV` in boat-agent.ts).
  */
 
+import { createLogger } from "@opensesame/observability";
 import { startBoatRelayAgent } from "./boat-agent.js";
 
+const log = createLogger({ name: "boat-relay-agent" });
 const agent = await startBoatRelayAgent(process.env);
-console.log(`boat relay agent listening on 127.0.0.1:${agent.port}`);
+log.info({ host: "127.0.0.1", port: agent.port }, "Boat relay agent listening");
 
 let closing = false;
 for (const signal of ["SIGTERM", "SIGINT"] as const) {

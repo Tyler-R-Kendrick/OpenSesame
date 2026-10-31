@@ -168,7 +168,7 @@ it.each(["success", "failure"])(
         data.byteLength === expected.length
       )
         copies.push(data);
-      return Reflect.apply(original, crypto.subtle, args);
+      return original(...args);
     });
     const release = installSignInPrfVault(
       overlapCast({
