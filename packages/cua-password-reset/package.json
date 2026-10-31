@@ -20,7 +20,7 @@
     "agent-browser": "0.40.0",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/vault-core": "workspace:*",
-    "ai": "6.0.237",
+    "ai": "7.0.155",
     "zod": "4.6.6"
   },
   "devDependencies": {
