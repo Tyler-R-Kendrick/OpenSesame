@@ -64,6 +64,9 @@ import { useTailscaleHeaderStatus } from "./tailscale/useTailscaleConnectionStat
  * imported hosted connections retain their management panels. GitHub keeps
  * its App flow. A refused service (ADR 0086 §6) gets no Connect road.
  */
+const bespokePanel = (id: string): boolean =>
+  isAiConnectionProvider(id) || id === "tailscale" || id === "boat";
+
 function connectOwned(providerId: string): "only" | "beside" | null {
   if (!hasConnectRoute(providerId)) return null;
   if (!isVercelCatalogId(providerId) || isGitBackupProvider(providerId))
@@ -311,11 +314,8 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {nativeExperience ||
-      identityExperience ||
-      secretBackendExperience ||
-      ((isAiConnectionProvider(provider.id) || provider.id === "tailscale") &&
-        !isConnectConnection(connection)) ? null : automatic ? (
+      {nativeExperience || identityExperience || secretBackendExperience ||
+      (bespokePanel(provider.id) && !isConnectConnection(connection)) ? null : automatic ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <div>
