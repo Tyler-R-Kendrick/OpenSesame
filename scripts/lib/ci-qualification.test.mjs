@@ -206,8 +206,8 @@ describe("candidate qualification records successful immutable-artifact checks",
 
 describe("upstream CI execution contracts survive tier migration", () => {
   it.each([
-    ["password-parity.yml", "pnpm test:2password-parity"],
-    ["complete-verify.yml", "pnpm verify 2>&1"],
+    ["password-parity.yml", "npm run test:2password-parity"],
+    ["complete-verify.yml", "npm run verify 2>&1"],
   ])("prepares DBus before the complete native gate in %s", (file, command) => {
     const workflow = read(file);
     expect(workflow).toContain(
@@ -260,7 +260,7 @@ describe("upstream CI execution contracts survive tier migration", () => {
   it.each([
     [
       "autofill-browser",
-      "pnpm --filter @opensesame/browser-extension-autofill test:e2e",
+      "npm run test:e2e -w @opensesame/browser-extension-autofill",
     ],
     ["sync-target-security", "sync-target"],
   ])(

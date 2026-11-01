@@ -113,8 +113,8 @@ describe("full-suite native preparation", () => {
       readFileSync(join(root, "package.json"), "utf8"),
     );
     expect(manifest.scripts.test).toContain("--concurrency=1");
-    expect(stepFor("pnpm exec turbo run typecheck test")).toContain(
-      "run: pnpm exec turbo run typecheck test --concurrency=1",
+    expect(stepFor("npm exec -- turbo run typecheck test")).toContain(
+      "run: npm exec -- turbo run typecheck test --concurrency=1",
     );
   });
   it("checks out the exact selected candidate commit for reusable validation", () => {
@@ -132,7 +132,7 @@ describe("full-suite native preparation", () => {
     expect(preparation).not.toMatch(
       /\n\s+if:|continue-on-error:|timeout-minutes:/,
     );
-    const tests = stepFor("pnpm exec turbo run typecheck test");
+    const tests = stepFor("npm exec -- turbo run typecheck test");
     expect(fullSteps.indexOf(preparation)).toBeLessThan(
       fullSteps.indexOf(tests),
     );
@@ -159,11 +159,11 @@ describe("full-suite native preparation", () => {
   });
 
   it("retains every package and both real Postgres contracts after preparation", () => {
-    const tests = stepFor("pnpm exec turbo run typecheck test");
+    const tests = stepFor("npm exec -- turbo run typecheck test");
     expect(tests).not.toMatch(/--filter|continue-on-error:|\n\s+if:/);
     for (const command of [
-      "pnpm --filter @opensesame/database test:postgres",
-      "pnpm --filter @opensesame/identity-worker test:postgres",
+      "npm run test:postgres -w @opensesame/database",
+      "npm run test:postgres -w @opensesame/identity-worker",
     ]) {
       const postgres = stepFor(command);
       expect(postgres).toContain(
@@ -229,7 +229,7 @@ describe("affected Pages build preparation", () => {
       "key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}",
     );
     expect(cache).not.toMatch(/restore-keys:|\/work|continue-on-error:/);
-    const install = scopedStepFor("run: pnpm install --frozen-lockfile");
+    const install = scopedStepFor("run: npm ci");
     const build = scopedStepFor("ci-affected-builds.mjs run-ts");
     expect(scopedSteps.indexOf(install)).toBeLessThan(
       scopedSteps.indexOf(cache),
@@ -266,11 +266,11 @@ describe("complete verify native preparation", () => {
     expect(preparation).not.toMatch(
       /cache-hit|continue-on-error:|timeout-minutes:|\n\s+if:/,
     );
-    expect(
-      completeSteps.indexOf(completeStepFor("pnpm install --frozen-lockfile")),
-    ).toBeLessThan(completeSteps.indexOf(preparation));
+    expect(completeSteps.indexOf(completeStepFor("run: npm ci"))).toBeLessThan(
+      completeSteps.indexOf(preparation),
+    );
     expect(completeSteps.indexOf(preparation)).toBeLessThan(
-      completeSteps.indexOf(completeStepFor("pnpm verify 2>&1")),
+      completeSteps.indexOf(completeStepFor("npm run verify 2>&1")),
     );
   });
 

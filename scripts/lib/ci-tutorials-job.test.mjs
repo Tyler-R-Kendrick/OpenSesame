@@ -15,7 +15,7 @@ describe("the tutorial walk's CI job", () => {
     // Out of the twenty-minute bundle job, which the walk would not fit in.
     expect(bundle).not.toContain("verify:tutorials");
     const job = ci.split("  tutorials-e2e:")[1]?.split("\n  rust:")[0] ?? "";
-    expect(job).toContain("pnpm --filter @opensesame/pages verify:tutorials");
+    expect(job).toContain("npm run verify:tutorials -w @opensesame/pages");
     expect(job).toContain("TUTORIALS_WIDTHS: ${{ matrix.width }}");
     expect(job).toContain("width: [1280, 390]");
     // A third of the library per leg: the first third also walks the passes

@@ -335,7 +335,7 @@ test("workflow retains signature, fixed command, original deadlines and exact ev
   assert.match(source, /EXPECTED_HEAD: \$\{\{ inputs\.source_sha \}\}/);
   assert.match(source, /test "\$\(git rev-parse HEAD\)" = "\$EXPECTED_HEAD"/);
   assert.match(source, /persist-credentials: false/);
-  assert.match(source, /pnpm install --frozen-lockfile/);
+  assert.match(source, /npm ci/);
   assert.match(
     source,
     /timeout --signal=TERM --kill-after=10s 900s node scripts\/ci-native-wasm\.mjs/,

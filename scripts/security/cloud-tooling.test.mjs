@@ -273,16 +273,15 @@ test("scheduled native auditing fails closed on the real production graph after 
   assert.deepEqual(job.permissions, { contents: "read" });
   assert.equal(job.if, undefined);
   assert.equal(job.needs, undefined);
-  const install = job.steps.findIndex((step) =>
-    step.run?.startsWith("pnpm install "),
+  const install = job.steps.findIndex(
+    (step) => step.run === "npm ci --ignore-scripts",
   );
   const audit = job.steps.findIndex(
     (step) =>
       step.run === "node tools/pwa-tailscale-native-http/native-audit.mjs",
   );
   assert.ok(install >= 0 && audit > install);
-  assert.ok(job.steps[install].run.split(/\s+/).includes("--frozen-lockfile"));
-  assert.ok(job.steps[install].run.split(/\s+/).includes("--ignore-scripts"));
+  assert.equal(job.steps[install].run, "npm ci --ignore-scripts");
   for (const step of job.steps) {
     assert.notEqual(step["continue-on-error"], true);
     assert.doesNotMatch(step.uses ?? "", /upload-artifact/);

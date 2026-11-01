@@ -132,9 +132,7 @@ describe("release qualification evidence", () => {
       expect(body).toContain("FUZZ_BATCH_BUDGET: ''");
       expect(body).not.toContain("continue-on-error");
     }
-    expect(job(release, "security")).toContain(
-      "pnpm install --frozen-lockfile --ignore-scripts",
-    );
+    expect(job(release, "security")).toContain("npm ci --ignore-scripts");
     const record = job(release, "record");
     expect(record).toContain(
       'verify --directory "$RUNNER_TEMP/candidate" --prerequisite-env PREREQUISITE_RECEIPT',
@@ -257,11 +255,11 @@ describe("complete coverage and publication boundaries", () => {
       expect(workflow).not.toContain("continue-on-error");
     }
     expect(read("ci-coverage.yml")).toContain("suite: [typescript, rust]");
-    expect(read("ci-coverage.yml")).toContain("pnpm test:coverage:ts");
-    expect(read("ci-coverage.yml")).toContain("pnpm test:coverage:rust");
+    expect(read("ci-coverage.yml")).toContain("npm run test:coverage:ts");
+    expect(read("ci-coverage.yml")).toContain("npm run test:coverage:rust");
     expect(
       read("complete-verify.yml").indexOf("await loadTailscaleAssets();"),
-    ).toBeLessThan(read("complete-verify.yml").indexOf("pnpm verify 2>&1"));
+    ).toBeLessThan(read("complete-verify.yml").indexOf("npm run verify 2>&1"));
   });
 });
 

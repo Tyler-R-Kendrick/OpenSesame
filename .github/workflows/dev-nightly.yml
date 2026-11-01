@@ -36,10 +36,10 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Require implemented and activated promotion policy
         env:
           GH_TOKEN: ${{ github.token }}

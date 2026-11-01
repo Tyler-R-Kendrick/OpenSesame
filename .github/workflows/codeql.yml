@@ -203,13 +203,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha || github.sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install locked audit runtime
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: npm ci --ignore-scripts
       - name: Compose the exact pinned native graph
         env:
           SOURCE_SHA: ${{ inputs.source_sha || github.sha }}

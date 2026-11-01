@@ -18,9 +18,10 @@ export function unitTestCommands(root, packages, plans) {
   const commands = [];
   if (whole.length > 0) {
     commands.push({
-      command: "pnpm",
+      command: "npm",
       args: [
         "exec",
+        "--",
         "turbo",
         "run",
         "test",
@@ -36,11 +37,11 @@ export function unitTestCommands(root, packages, plans) {
 }
 
 function scopedCommands(root, entry) {
-  const vitest = ["--filter", entry.name, "exec", "vitest"];
+  const vitest = ["exec", "-w", entry.name, "--", "vitest"];
   const commands = [];
   if (entry.related.length > 0) {
     commands.push({
-      command: "pnpm",
+      command: "npm",
       args: [
         ...vitest,
         "related",
@@ -53,7 +54,7 @@ function scopedCommands(root, entry) {
   const named = [...new Set([...entry.structural, ...entry.hubTests])];
   if (named.length > 0) {
     commands.push({
-      command: "pnpm",
+      command: "npm",
       args: [...vitest, "run", ...named, "--passWithNoTests"],
       note:
         entry.hubs.length > 0
@@ -63,8 +64,8 @@ function scopedCommands(root, entry) {
   }
   if (entry.extra !== undefined && entry.extraRuns) {
     commands.push({
-      command: "pnpm",
-      args: ["--filter", entry.name, "exec", "sh", "-c", entry.extra],
+      command: "npm",
+      args: ["exec", "-w", entry.name, "--", "sh", "-c", entry.extra],
     });
   }
   return commands;

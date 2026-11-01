@@ -62,10 +62,10 @@ jobs:
             scripts/release
             scripts/lib
             .github/workflows
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node@24
       - name: Verify the exact immutable candidate
         env:
           GH_TOKEN: ${{ github.token }}
@@ -208,15 +208,14 @@ jobs:
           BASE_SHA: ''
           HEAD_SHA: ''
         run: node scripts/lib/ci-affected-tests.mjs plan
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        # Not `pnpm bootstrap`: that also runs db:migrate (needs a live
+        # Not `npm run bootstrap`: that also runs db:migrate (needs a live
         # DATABASE_URL) and installs git hooks, neither of which belongs in CI.
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Cache the pinned native PWA distribution
         if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -227,7 +226,7 @@ jobs:
       - name: Prepare and verify native PWA assets before package tests
         if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
         # The canonical loader verifies cache hits and owns cold four-phase builds.
-        # Finish setup before pnpm quality and individual 20-second Vitest tests.
+        # Finish setup before npm run quality and individual 20-second Vitest tests.
         run: >-
           node --input-type=module -e
           'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
@@ -235,11 +234,11 @@ jobs:
         run: node scripts/quality/lint-changed.mjs
       - name: Lint generated auth artifacts
         if: steps.affected.outputs.lint_artifacts == 'true'
-        run: pnpm lint:artifacts
+        run: npm run lint:artifacts
       - name: Quality gates (structure + component coupling)
         # Ratchets against tools/quality/quality-baseline.json / tools/quality/package-metrics-baseline.json
         # and hard-fails on dependency cycles and phantom deps. Sub-second.
-        run: pnpm quality
+        run: npm run quality
       - name: Typecheck and test affected packages
         env:
           BASE_SHA: ''
@@ -252,8 +251,8 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           AGENT_BROWSER_CHROME: /usr/bin/google-chrome
         run: >-
-          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(pnpm exec which agent-browser)")"
-          pnpm --filter @opensesame/cua-password-reset test:e2e
+          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(npm exec -- which agent-browser)")"
+          npm run test:e2e -w @opensesame/cua-password-reset
       - name: Agent sandbox providers browser e2e
         # Exercise the local, relay, virtual-network and CDP lanes.
         if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/agent-sandboxes')
@@ -261,8 +260,8 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           AGENT_BROWSER_CHROME: /usr/bin/google-chrome
         run: >-
-          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(pnpm exec which agent-browser)")"
-          pnpm --fail-if-no-match --filter @opensesame/agent-sandboxes test:e2e
+          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(npm exec -- which agent-browser)")"
+          npm run test:e2e -w @opensesame/agent-sandboxes
       - name: Repository contract on a real Postgres
         # The same suites as the PGlite run, through the production driver.
         # Each suite creates and drops its own database.
@@ -270,14 +269,14 @@ jobs:
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
           OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
-        run: pnpm --filter @opensesame/database test:postgres
+        run: npm run test:postgres -w @opensesame/database
       - name: Worker delivery on a real Postgres
         # Web Push through the real worker tick and a stand-in push service,
         # over the production driver. Builds and drops its own database.
         if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/identity-worker')
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
-        run: pnpm --filter @opensesame/identity-worker test:postgres
+        run: npm run test:postgres -w @opensesame/identity-worker
       - name: Product-experience contracts
         # One block across the experience packages. It runs when the
         # affected set includes any of them.
@@ -285,7 +284,7 @@ jobs:
         # Only the blocks of the experience packages the diff reached.
         env:
           EXPERIENCE_PACKAGES: ${{ steps.affected.outputs.verify_packages }}
-        run: pnpm verify:experience
+        run: npm run verify:experience
 
   bundle:
     # Shards of one job, run in parallel, and only the ones the diff reaches:
@@ -316,13 +315,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Build Pages
         if: matrix.shard != 'budgets'
         env:
@@ -338,7 +336,7 @@ jobs:
         run: |
           node scripts/lib/ci-pages-build.mjs
           for profile in minimal-local family-local; do
-            VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
+            VITE_BASE=/OpenSesame/ npm run build:profile -w @opensesame/pages -- \
               --profile "capability-profiles/$profile.json" --mode hardened
           done
           test -s apps/pages/dist-profiles/minimal-local-hardened/index.html
@@ -354,9 +352,9 @@ jobs:
         # one chunk, and rich-explicit did not validate against the catalog.
         # Each build verifies its own dist and fails on any violation.
         run: |
-          VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
+          VITE_BASE=/OpenSesame/ npm run build:profile -w @opensesame/pages -- \
             --profile capability-profiles/enterprise-selected.json --mode hardened
-          VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
+          VITE_BASE=/OpenSesame/ npm run build:profile -w @opensesame/pages -- \
             --profile capability-profiles/rich-explicit.json --mode selective
           test -s apps/pages/dist-profiles/enterprise-selected-hardened/index.html
           test -s apps/pages/dist-profiles/rich-explicit-selective/index.html
@@ -369,14 +367,14 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: |
           google-chrome --version
-          pnpm --filter @opensesame/pages verify:webmcp
+          npm run verify:webmcp -w @opensesame/pages
       - name: Self-hosted provider configuration without hosted Connect
         if: matrix.shard == 'budgets'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
           PAGES_VERIFY_OUT: ${{ runner.temp }}/self-hosted-connectors
-        run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
+        run: npm run verify:self-hosted-connectors -w @opensesame/pages
       - name: Preserve self-hosted provider evidence
         if: always() && matrix.shard == 'budgets'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -389,7 +387,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:keyboard
+        run: npm run verify:keyboard -w @opensesame/pages
       - name: Push worker installs on approval and reverts on removal
         if: matrix.shard == 'budgets'
         # A real localhost origin with service workers allowed (context.route
@@ -401,7 +399,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:push-worker
+        run: npm run verify:push-worker -w @opensesame/pages
       - name: Service worker reload waits for a dirty edit
         if: matrix.shard == 'budgets'
         # A guest with an unsaved item must see the waiting release instead of
@@ -409,7 +407,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:sw-dirty-edit
+        run: npm run verify:sw-dirty-edit -w @opensesame/pages
       - name: Phone and tablet layout and touch contract
         if: startsWith(matrix.shard, 'mobile-')
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
@@ -424,14 +422,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
           MOBILE_SIZES: ${{ matrix.sizes }}
-        run: pnpm --filter @opensesame/pages verify:mobile
+        run: npm run verify:mobile -w @opensesame/pages
       - name: Approved header parity across viewport and pointer layouts
         if: matrix.shard == 'mobile-320'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
           PAGES_VERIFY_OUT: ${{ runner.temp }}/header-layout
-        run: pnpm --filter @opensesame/pages verify:header-layout
+        run: npm run verify:header-layout -w @opensesame/pages
       - name: Preserve measured header geometry
         if: always() && matrix.shard == 'mobile-320'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -446,7 +444,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:local-iam
+        run: npm run verify:local-iam -w @opensesame/pages
       - name: Trusted contacts through the browser's own WebAuthn and PRF
         if: matrix.shard == 'sign-in'
         # Five people, five contexts, five virtual authenticators that do PRF,
@@ -454,13 +452,13 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:quorum-browser
+        run: npm run verify:quorum-browser -w @opensesame/pages
       - name: Self-Issued OpenID Provider v2 contract
         if: matrix.shard == 'keyboard'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:siop
+        run: npm run verify:siop -w @opensesame/pages
       - name: Static front end complete without a backend
         if: matrix.shard == 'static'
         # ADR 0090: first screen is sign-in + guest, deep links resolve, no
@@ -470,7 +468,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:static
+        run: npm run verify:static -w @opensesame/pages
       - name: Encrypted search in the built app
         if: matrix.shard == 'static'
         # ADR 0175: with the capability on, retiring a password writes only an
@@ -481,7 +479,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:encrypted-search
+        run: npm run verify:encrypted-search -w @opensesame/pages
       - name: Portable drop opens on a second browser
         if: matrix.shard == 'static'
         # P8-1: a guest with no Identity API seals a secret. The card says any
@@ -492,54 +490,54 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:portable-drop
+        run: npm run verify:portable-drop -w @opensesame/pages
       - name: Unlock methods and second steps
         if: matrix.shard == 'auth'
         # ADR 0091: key first, then scan, then a code; lock → PIN → code.
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:auth
+        run: npm run verify:auth -w @opensesame/pages
       - name: Trusted-contact vault unlock quorum
         if: matrix.shard == 'auth'
         # Real browser passkeys: below-threshold stays locked for 2-of-3 and 3-of-3.
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:trusted-unlock
+        run: npm run verify:trusted-unlock -w @opensesame/pages
       - name: Customer vault and file envelopes in real WebCrypto
         if: matrix.shard == 'customer-crypto'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
         run: |
-          pnpm verify:customer-vault-browser
-          pnpm --filter @opensesame/pages exec node --test --experimental-test-isolation=none --test-concurrency=1 --test-timeout=20000 scripts/verify-kdbx-native-dom.mjs
+          npm run verify:customer-vault-browser
+          npm exec -w @opensesame/pages -- node --test --experimental-test-isolation=none --test-concurrency=1 --test-timeout=20000 scripts/verify-kdbx-native-dom.mjs
       - name: Native provider configuration and encrypted reloads
         if: matrix.shard == 'native-connectors'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:native-connectors
+        run: npm run verify:native-connectors -w @opensesame/pages
       - name: Public OAuth and MCP authorization protocols
         if: matrix.shard == 'native-public-protocol'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: |
-          pnpm --filter @opensesame/pages verify:native-public-protocol
-          pnpm --filter @opensesame/pages test:mcp-cross-realm
-          pnpm --filter @opensesame/pages verify:provider-auth
-          pnpm --filter @opensesame/pages build:identity-verify
-          pnpm --filter @opensesame/pages verify:identity-connections
+          npm run verify:native-public-protocol -w @opensesame/pages
+          npm run test:mcp-cross-realm -w @opensesame/pages
+          npm run verify:provider-auth -w @opensesame/pages
+          npm run build:identity-verify -w @opensesame/pages
+          npm run verify:identity-connections -w @opensesame/pages
       - name: Secret backends and encrypted vault
         if: matrix.shard == 'native-secret-backends'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: |
-          pnpm --filter @opensesame/pages build:secret-backends-verify
-          pnpm --filter @opensesame/pages verify:secret-backends
-          PAGES_VERIFY_OUT=${{ runner.temp }}/github-app-browser GITHUB_APP_VERIFY_PHASE=after pnpm --filter @opensesame/pages verify:github-app-browser
+          npm run build:secret-backends-verify -w @opensesame/pages
+          npm run verify:secret-backends -w @opensesame/pages
+          PAGES_VERIFY_OUT=${{ runner.temp }}/github-app-browser GITHUB_APP_VERIFY_PHASE=after npm run verify:github-app-browser -w @opensesame/pages
       - name: Preserve GitHub App browser evidence
         if: always() && matrix.shard == 'native-secret-backends'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -596,14 +594,14 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: |
           PATH="${GITHUB_WORKSPACE}/target/debug:/usr/local/cargo/bin:${PATH}" \
-            pnpm --filter @opensesame/pages verify:relay-join-live
+            npm run verify:relay-join-live -w @opensesame/pages
       - name: Same-machine live session
         # Two browser contexts, no ICE servers; loopback hints only on one machine.
         if: matrix.shard == 'journeys-2'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:live-local-pair
+        run: npm run verify:live-local-pair -w @opensesame/pages
       - name: Peer-trust peering diagnostics
         # Two contexts on the static dist: distinct SAS, a verified paste,
         # a crossed signal refused, a changed key blocked, duplicate names marked.
@@ -611,21 +609,21 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:peer-trust-two-context
+        run: npm run verify:peer-trust-two-context -w @opensesame/pages
       - name: Peering diagnostics
         # Two contexts on the static dist: ICE line while connecting (P8-3).
         if: matrix.shard == 'journeys-2'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:peering-diagnostics
+        run: npm run verify:peering-diagnostics -w @opensesame/pages
       - name: Fresh vault Passwords onboarding
         # P8-4: the walker rebuilds dist with its opt-in, then saves an account.
         if: matrix.shard == 'journeys-2'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:fresh-vault-login
+        run: npm run verify:fresh-vault-login -w @opensesame/pages
       - name: Vault password reset prompts
         # Both generate entry points prompt to configure, then name the
         # missing runtime once the feature is on; static dist only.
@@ -633,14 +631,14 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:vault-password-reset
+        run: npm run verify:vault-password-reset -w @opensesame/pages
       - name: CLI on the public site
         # P8-5: Pair CLI on the shared origin, with no loopback pairing field.
         if: matrix.shard == 'journeys-2'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:cli-public-site
+        run: npm run verify:cli-public-site -w @opensesame/pages
 
   ai-connections-e2e:
     name: AI connections end to end
@@ -658,19 +656,18 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Build the declared AI verification profile
-        run: pnpm --filter @opensesame/pages build:ai-connections-verify
+        run: npm run build:ai-connections-verify -w @opensesame/pages
       - name: Configure and use real AI protocol connections in Chromium
         env:
           PAGES_VERIFY_OUT: ${{ runner.temp }}/ai-connections-browser
-        run: pnpm --filter @opensesame/pages verify:ai-connections
+        run: npm run verify:ai-connections -w @opensesame/pages
       - name: Preserve AI browser evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -693,21 +690,20 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Build the declared Tailscale verification profile
-        run: pnpm --filter @opensesame/pages build:tailnet-browser-verify
+        run: npm run build:tailnet-browser-verify -w @opensesame/pages
       - name: Official browser SDK through real Headscale and a native peer
         # The Linux x64 fixture downloads hash-pinned binaries and uses
         # userspace networking; no TUN device or elevated runner is needed.
         env:
           PAGES_VERIFY_OUT: ${{ runner.temp }}/tailnet-browser-node
-        run: pnpm --filter @opensesame/pages verify:tailnet-browser-node
+        run: npm run verify:tailnet-browser-node -w @opensesame/pages
       - name: Preserve Tailscale browser evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -730,13 +726,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Build the static front end
         env:
           VITE_BASE: /OpenSesame/
@@ -749,7 +744,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:device-inbox
+        run: npm run verify:device-inbox -w @opensesame/pages
 
   push-e2e:
     # Its own job: the Bundle budget job's twenty minutes are spent, and this
@@ -768,17 +763,16 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Build Pages for the loopback origin the walk serves
         env:
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages build:push-verify
+        run: npm run build:push-verify -w @opensesame/pages
       - name: Push, end to end
         # The real Identity API (control-plane startServer(), in memory), the
         # Host's Web Push delivery, and a stand-in push service that verifies
@@ -790,7 +784,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:push
+        run: npm run verify:push -w @opensesame/pages
 
   device-identity-e2e:
     # Its own job: the Bundle budget job's twenty minutes were spent when this
@@ -810,13 +804,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Build Pages
         env:
           VITE_BASE: /OpenSesame/
@@ -833,7 +826,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:device-identity
+        run: npm run verify:device-identity -w @opensesame/pages
 
   tutorials-e2e:
     # Its own job, one per width and third of the library (`TUTORIALS_SHARD`;
@@ -864,13 +857,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Build Pages
         env:
           VITE_BASE: /OpenSesame/
@@ -891,7 +883,7 @@ jobs:
           VITE_BASE: /OpenSesame/
           TUTORIALS_WIDTHS: ${{ matrix.width }}
           TUTORIALS_SHARD: ${{ matrix.shard }}
-        run: pnpm --filter @opensesame/pages verify:tutorials
+        run: npm run verify:tutorials -w @opensesame/pages
 
   live-join-e2e:
     # Live sessions browser to browser (ADR 0150), the walk a person takes to
@@ -922,11 +914,10 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       # live-turn and ntfy are built from pinned source (go.sum); the Go that
       # builds them is the one live-turn's go.mod names.
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
@@ -934,25 +925,20 @@ jobs:
           go-version-file: scripts/test/live-turn/go.mod
           cache: false
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Require the matching SDK and preinstalled browsers
         run: |
           test "$(id -u)" -ne 0
-          live_pnpm_root="$(dirname "$PNPM_HOME")"
-          test -f "$live_pnpm_root/pnpm/package.json"
           docker run --rm --user "$(id -u):$(id -g)" \
             --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work,readonly" \
-            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
-            --env CI --env PATH --env PNPM_HOME \
+            --env CI \
             --workdir /work/apps/pages "$LIVE_JOIN_IMAGE" node -e '
               const assert = require("node:assert/strict");
               const fs = require("node:fs");
               const { execFileSync } = require("node:child_process");
               const { chromium, firefox, webkit } = require("@playwright/test");
-              assert.equal("pnpm@" + execFileSync("pnpm", ["--version"],
-                { encoding: "utf8" }).trim(), require("/work/package.json").packageManager);
-              execFileSync("pnpm", ["--filter", "@opensesame/cli", "exec", "tsx", "--version"],
-                { stdio: "inherit" });
+              execFileSync("npm", ["exec", "-w", "@opensesame/cli", "--", "tsx", "--version"],
+                { stdio: "inherit", cwd: "/work" });
               assert.equal(require("@playwright/test/package.json").version, "1.64.1",
                 "Update the pinned Playwright image with the SDK");
               for (const engine of [chromium, firefox, webkit]) {
@@ -969,7 +955,7 @@ jobs:
           key: live-fixtures-${{ hashFiles('scripts/test/live-fixtures.sh', 'scripts/test/live-turn/**', 'scripts/mtls/mtls-fixtures.sh') }}
       - name: The servers the walk runs (nats-server, ntfy, live-turn)
         # Fails, never skips: a missing server fails the walk that needs it.
-        run: pnpm test:live-fixtures
+        run: npm run test:live-fixtures
       - name: Build Pages
         env:
           VITE_BASE: /OpenSesame/
@@ -979,7 +965,7 @@ jobs:
         # only a deployment of one's own may do (`mayPairLocalAuthority`).
         env:
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages build:live-dedicated
+        run: npm run build:live-dedicated -w @opensesame/pages
       - name: Join a live session, ${{ matrix.owner }} owner, every joiner
         env:
           VITE_BASE: /OpenSesame/
@@ -991,13 +977,10 @@ jobs:
         # Keep native compilation on the runner; only the actual walk needs the
         # upstream browser image. Host networking preserves same-machine routes.
         run: |
-          live_pnpm_root="$(dirname "$PNPM_HOME")"
           docker run --rm --init --user "$(id -u):$(id -g)" \
             --network host --shm-size=2g \
             --mount "type=bind,source=$GITHUB_WORKSPACE,target=/work" \
-            --mount "type=bind,source=$live_pnpm_root,target=$live_pnpm_root,readonly" \
             --workdir /work/apps/pages \
-            --env PATH --env PNPM_HOME \
             --env CI --env VITE_BASE --env LIVE_OWNER --env LIVE_JOINERS --env DEBUG \
             "$LIVE_JOIN_IMAGE" node scripts/verify-live-join.mjs
       - name: Keep what the walk saw
@@ -1047,21 +1030,19 @@ jobs:
           save-if: false
         if: steps.affected.outputs.scope != 'none'
       # `bridge_roundtrip_fixture` reads a real schema through @env-spec/parser
-      # and fails on CI without it. The same pinned pnpm and Node as the
-      # TypeScript job, installed only when the env-spec crate is tested. No
-      # `cache: pnpm`: setup-node would save this job's one-package store under
-      # the key the TypeScript job restores its whole store from.
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-        if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      # and fails on CI without it. Node comes from mise, and only when the
+      # env-spec crate is tested. This job does not cache the npm store, so a
+      # partial install cannot share a key with the TypeScript job's store.
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
         with:
-          node-version: 22
+          cache: true
+          install_args: node
       - name: Install the env-spec bridge's parser
         # That package and its dependencies only (@env-spec/parser has none
         # and no install script), from the lockfile.
         if: steps.affected.outputs.scope == 'all' || contains(format(' {0} ', steps.affected.outputs.packages), ' opensesame-env-spec ')
-        run: pnpm install --frozen-lockfile --ignore-scripts --filter "@opensesame/env-spec-bridge..."
+        run: npm ci --ignore-scripts -w @opensesame/env-spec-bridge
       - name: Name the runner's node for the bridge
         # The env-spec bridge runs only a `node` nobody else could have
         # replaced, and the hosted image keeps its own in /usr/local/bin with
@@ -1172,11 +1153,10 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
         with:
           toolchain: 1.88.0
@@ -1194,20 +1174,20 @@ jobs:
         # The real gateway-process interop test compiles the default host CLI.
         run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Fast mTLS suite (unit, contracts, static bundle boundary)
         env:
           VITE_BASE: /OpenSesame/
         run: |
           source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          pnpm test:mtls
+          npm run test:mtls
       - name: Real-protocol mTLS suite (pinned nats-server, OpenBao, SPIRE, Caddy; Chromium)
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: |
           source "$RUNNER_TEMP/opensesame-dbus/env.sh"
-          pnpm test:mtls:integration
+          npm run test:mtls:integration
       - name: Upload sanitized evidence manifest
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1412,10 +1392,10 @@ jobs:
             scripts/release
             scripts/lib
             .github/workflows
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Materialize the verified candidate
         id: candidate
         env:
@@ -1428,11 +1408,9 @@ jobs:
         env:
           KIT_ARCHIVE: ${{ matrix.target == 'x86_64-unknown-linux-gnu' && steps.candidate.outputs.native_x86_archive || steps.candidate.outputs.native_arm_archive }}
         run: bash .ci-control/scripts/release/smoke-kit.sh "$KIT_ARCHIVE"
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
       - name: Install the candidate source's browser test dependencies
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Extract the production Pages payload without rebuilding
         id: pages
         if: matrix.target == 'x86_64-unknown-linux-gnu'
@@ -1450,15 +1428,15 @@ jobs:
         # These drivers consume dist; none compiles or restamps a distribution.
         # Service-worker drivers use their actual local HTTP worker harnesses.
         run: |
-          pnpm --filter @opensesame/pages verify:static
-          pnpm --filter @opensesame/pages verify:local-iam
-          pnpm --filter @opensesame/pages verify:auth
-          pnpm --filter @opensesame/pages verify:trusted-unlock
-          pnpm --filter @opensesame/pages verify:encrypted-search
-          pnpm --filter @opensesame/pages verify:portable-drop
-          pnpm --filter @opensesame/pages verify:sw-dirty-edit
-          pnpm --filter @opensesame/pages verify:push-worker
-          pnpm verify:customer-vault-browser
+          npm run verify:static -w @opensesame/pages
+          npm run verify:local-iam -w @opensesame/pages
+          npm run verify:auth -w @opensesame/pages
+          npm run verify:trusted-unlock -w @opensesame/pages
+          npm run verify:encrypted-search -w @opensesame/pages
+          npm run verify:portable-drop -w @opensesame/pages
+          npm run verify:sw-dirty-edit -w @opensesame/pages
+          npm run verify:push-worker -w @opensesame/pages
+          npm run verify:customer-vault-browser
       - name: Require unchanged production files after the browser journeys
         if: ${{ always() && steps.pages.outcome == 'success' }}
         run: |
@@ -1480,10 +1458,10 @@ jobs:
             scripts/release
             scripts/lib
             .github/workflows
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node@24
       - name: Require every qualification job to succeed
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
@@ -1505,10 +1483,10 @@ jobs:
             scripts/release
             scripts/lib
             .github/workflows
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node@24
       - name: Record successful candidate qualification
         env:
           GH_TOKEN: ${{ github.token }}

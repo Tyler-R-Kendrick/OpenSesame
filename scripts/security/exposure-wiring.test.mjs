@@ -31,10 +31,10 @@ test("root lint and quality entrypoints enforce exposure before optional work", 
   const { scripts } = JSON.parse(read("package.json"));
   assert.equal(scripts["audit:exposure"], `node ${GATE}`);
   for (const name of ["lint", "lint:all", "quality"]) {
-    assert.ok(scripts[name].startsWith("pnpm audit:exposure && "), name);
+    assert.ok(scripts[name].startsWith("npm run audit:exposure && "), name);
     assert.doesNotMatch(scripts[name], /audit:exposure\s*(?:\|\||;)/u);
   }
-  assert.ok(scripts.verify.startsWith("pnpm lint && "));
+  assert.ok(scripts.verify.startsWith("npm run lint && "));
   assert.match(
     scripts["quality:test"],
     /node --test scripts\/security\/\*\.test\.mjs/u,
@@ -56,7 +56,7 @@ test("existing hooks invoke the exact index and pushed-ref modes unconditionally
   assert.equal(push.split(pushed).length, 2);
   assert.ok(push.split("\n").includes(pushed));
   assert.ok(push.indexOf(pushed) < push.indexOf("  off)"));
-  assert.ok(push.indexOf(pushed) < push.indexOf("\n      pnpm verify\n"));
+  assert.ok(push.indexOf(pushed) < push.indexOf("\n      npm run verify\n"));
 });
 
 test("a native commit rejects an unsafe index even when the working guard is repaired", (t) => {

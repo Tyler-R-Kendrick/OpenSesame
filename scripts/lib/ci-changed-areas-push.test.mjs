@@ -143,7 +143,7 @@ describe("the Bundle budgets aggregate", () => {
     const job =
       ci.split("  device-identity-e2e:")[1]?.split("\n  rust:")[0] ?? "";
     expect(job).toContain(
-      "pnpm --filter @opensesame/pages verify:device-identity",
+      "npm run verify:device-identity -w @opensesame/pages",
     );
     expect(job).toContain("needs: changes");
     expect(job).toContain(
@@ -188,8 +188,8 @@ it.each([
     const job =
       ci.split(`\n  ${id}:\n`)[1]?.split(/\n {2}[a-z0-9-]+:\n/)[0] ?? "";
     expect(job).toContain("if: needs.changes.outputs.bundle == 'true'");
-    expect(job).toContain(`pnpm --filter @opensesame/pages ${build}`);
-    expect(job).toContain(`pnpm --filter @opensesame/pages ${verify}`);
+    expect(job).toContain(`npm run ${build} -w @opensesame/pages`);
+    expect(job).toContain(`npm run ${verify} -w @opensesame/pages`);
     expect(job).toContain("PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome");
     expect(job).toContain("VITE_BASE: /OpenSesame/");
     expect(job).toContain(`PAGES_VERIFY_OUT: \${{ runner.temp }}/${out}`);

@@ -79,15 +79,15 @@ function runListed(command, args, options = {}) {
 
 /** Keep real KDF suites from competing with other packages for runner CPU. */
 export function turboTestArgs() {
-  return ["exec", "turbo", "run", "test", "--concurrency=1"];
+  return ["exec", "--", "turbo", "run", "test", "--concurrency=1"];
 }
 
 /** Complete typechecking before starting CPU-bound crypto integration tests. */
 export function allScopeLanes() {
   return [
     [
-      { command: "pnpm", args: ["typecheck"] },
-      { command: "pnpm", args: turboTestArgs() },
+      { command: "npm", args: ["run", "typecheck"] },
+      { command: "npm", args: turboTestArgs() },
     ],
   ];
 }
@@ -107,9 +107,10 @@ async function runTs(plan) {
     process.exit(1);
   }
   const typecheck = {
-    command: "pnpm",
+    command: "npm",
     args: [
       "exec",
+      "--",
       "turbo",
       "run",
       "typecheck",
