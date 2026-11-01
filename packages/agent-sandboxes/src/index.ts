@@ -18,4 +18,6 @@ export * from "./vnet-server.js";
 export * from "./wasm-dom-driver.js";
 export * from "./wasm-provider.js";
 export * from "./cloudflare-anon-relay.js";
+export * from "./vercel-anon-relay.js";
+export * from "./vercel-relay-function.js";
 export * from "./cloudflare-relay-worker.js";

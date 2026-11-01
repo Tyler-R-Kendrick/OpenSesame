@@ -6,18 +6,23 @@
  */
 
 import { randomUUID } from "node:crypto";
-import {
-  type AnonymousCloudflareRelay,
-  deployAnonymousCloudflareRelay,
-} from "./cloudflare-anon-relay.js";
+import { deployAnonymousCloudflareRelay } from "./cloudflare-anon-relay.js";
 import {
   type AllocatedSandbox,
   type SandboxAllocationRequest,
   type SandboxProvider,
+  type SandboxProviderId,
   allowedDomainsFor,
 } from "./types.js";
 import { type VirtualFetch, virtualFetchOverHttp } from "./vnet.js";
 import { WasmDomDriver } from "./wasm-dom-driver.js";
+
+/** A per-run anonymously deployed relay (no account, no claim). */
+export interface AnonymousRelayDeployment {
+  relayUrl: string;
+  relayToken: string;
+  close(): Promise<void>;
+}
 
 export interface WasmRelayProviderOptions {
   /** Base URL of the virtual-network relay. */
@@ -30,26 +35,52 @@ export interface WasmRelayProviderOptions {
    * per allocation (temporary account, no signup, no claim).
    */
   anonymousCloudflare?: boolean;
+  /**
+   * With no relay configured, deploy an anonymous relay per
+   * allocation on the named vendor (temporary project/account, no
+   * signup, no claim).
+   */
+  anonymousRelay?: "cloudflare" | "vercel";
+  /** Readiness poll budget forwarded to the anonymous deploy. */
+  readyTimeoutMs?: number;
   /** Relay deployment seam (tests); defaults to the anonymous deploy. */
-  deployRelay?: () => Promise<AnonymousCloudflareRelay>;
+  deployRelay?: () => Promise<AnonymousRelayDeployment>;
+}
+
+async function deployAnonymousRelay(
+  options: WasmRelayProviderOptions,
+  vendor: "cloudflare" | "vercel",
+): Promise<AnonymousRelayDeployment> {
+  if (options.deployRelay) return options.deployRelay();
+  const deployOptions =
+    options.readyTimeoutMs !== undefined
+      ? { readyTimeoutMs: options.readyTimeoutMs }
+      : {};
+  if (vendor === "vercel")
+    return (await import("./vercel-anon-relay.js")).deployAnonymousVercelRelay(
+      deployOptions,
+    );
+  return deployAnonymousCloudflareRelay(deployOptions);
 }
 
 export class WasmRelayProvider implements SandboxProvider {
-  readonly id = "wasm-relay" as const;
+  readonly id: SandboxProviderId = "wasm-relay";
 
   constructor(private readonly options: WasmRelayProviderOptions = {}) {}
 
   async allocate(request: SandboxAllocationRequest): Promise<AllocatedSandbox> {
     const { url, allowedDomains } = allowedDomainsFor(request);
     const session = request.session ?? `wasm-${randomUUID()}`;
-    let deployed: AnonymousCloudflareRelay | undefined;
+    let deployed: AnonymousRelayDeployment | undefined;
     let virtualFetch = this.options.virtualFetch;
     if (!virtualFetch) {
       let relayUrl = this.options.relayUrl;
       let relayToken = this.options.relayToken;
-      if ((!relayUrl || !relayToken) && this.options.anonymousCloudflare) {
-        deployed = await (this.options.deployRelay?.() ??
-          deployAnonymousCloudflareRelay());
+      const anonymousVendor =
+        this.options.anonymousRelay ??
+        (this.options.anonymousCloudflare ? "cloudflare" : undefined);
+      if ((!relayUrl || !relayToken) && anonymousVendor) {
+        deployed = await deployAnonymousRelay(this.options, anonymousVendor);
         relayUrl = deployed.relayUrl;
         relayToken = deployed.relayToken;
       }

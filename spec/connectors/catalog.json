@@ -1473,6 +1473,57 @@
       "operations": ["browser.cdp"]
     },
     {
+      "id": "cloudflare-anonymous",
+      "display_name": "Cloudflare (anonymous relay)",
+      "category": "cua_runtime",
+      "docs_url": "https://developers.cloudflare.com/workers/platform/claim-deployments/",
+      "provenance_url": "https://blog.cloudflare.com/temporary-accounts/",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.cloudflare.com"],
+        "path_prefixes": []
+      },
+      "operations": ["sandbox.execute"]
+    },
+    {
+      "id": "vercel-anonymous",
+      "display_name": "Vercel (anonymous relay)",
+      "category": "cua_runtime",
+      "docs_url": "https://vercel.com/docs/deployments",
+      "provenance_url": "https://vercel.com/docs/deployments",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.vercel.com"],
+        "path_prefixes": []
+      },
+      "operations": ["sandbox.execute"]
+    },
+    {
+      "id": "boat",
+      "display_name": "Boat",
+      "category": "cua_runtime",
+      "docs_url": "https://docs.boat.dev/agent-auth",
+      "provenance_url": "https://boat.dev/auth.md",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["boat.dev"],
+        "path_prefixes": []
+      },
+      "operations": ["sandbox.execute"]
+    },
+    {
       "id": "render",
       "display_name": "Render",
       "category": "developer",

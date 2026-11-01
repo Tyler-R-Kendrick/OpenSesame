@@ -16,7 +16,21 @@ import { bundledGitProvider } from "./embedded-git.js";
 /** A cached catalog from another revision is discarded, never merged. */
 export const BUNDLED_REVISION = CATALOG_REVISION;
 
-const AUTO_CONFIGURABLE = new Set(["plain", "sealed-local", "webcrypto"]);
+/**
+ * Ready without any setup. The anonymous reset relays qualify: they
+ * deploy per run under a temporary vendor project/account, so there
+ * is no account to create, nothing to claim, and no credential to
+ * store. Boat is deliberately absent — it stays an optional runtime
+ * until a person configures it (its sandbox allocation is
+ * billing-gated upstream).
+ */
+const AUTO_CONFIGURABLE = new Set([
+  "plain",
+  "sealed-local",
+  "webcrypto",
+  "cloudflare-anonymous",
+  "vercel-anonymous",
+]);
 
 /**
  * The catalog row for `id`, as this app shows it before a Host answers. The

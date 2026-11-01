@@ -60,7 +60,13 @@ describe("password reset grammar", () => {
       "--runtime",
       "bundled:local",
     ];
-    for (const provider of ["local", "boat", "cloudflare", "wasm-relay"]) {
+    for (const provider of [
+      "local",
+      "boat",
+      "cloudflare",
+      "vercel",
+      "wasm-relay",
+    ]) {
       expect(
         parsePasswordReset([...bundled, "--provider", provider], flags),
       ).toMatchObject({ provider });

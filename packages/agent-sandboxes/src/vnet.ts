@@ -52,6 +52,14 @@ const virtualFetchResponseSchema = z.object({
   bodyText: z.string(),
 });
 
+const relayJarSchema = z.record(z.string(), z.record(z.string(), z.string()));
+
+const relayFetchResponseSchema = virtualFetchResponseSchema.extend({
+  jar: relayJarSchema.optional(),
+});
+
+type RelayJar = z.infer<typeof relayJarSchema>;
+
 /** HTTP client side of the virtual-network relay (global `fetch` only). */
 export function virtualFetchOverHttp(
   relayUrl: string,
@@ -71,9 +79,13 @@ export function virtualFetchOverHttp(
       "virtual network relay requires HTTPS or loopback HTTP and a token",
     );
   const endpoint = base.href.replace(/\/$/u, "");
+  const sessionJars = new Map<string, RelayJar>();
   const send = async (
     path: "/fetch" | "/close",
-    body: VirtualFetchRequest | { sessionId: string },
+    body:
+      | VirtualFetchRequest
+      | { sessionId: string }
+      | (VirtualFetchRequest & { jar: RelayJar }),
   ) => {
     const response = await fetch(`${endpoint}${path}`, {
       method: "POST",
@@ -88,12 +100,25 @@ export function virtualFetchOverHttp(
       throw new Error(`virtual network relay refused (${response.status})`);
     return response;
   };
-  const virtualFetch: VirtualFetch = async (request) =>
-    virtualFetchResponseSchema.parse(
-      await (await send("/fetch", request)).json(),
+  const virtualFetch: VirtualFetch = async (request) => {
+    const payload = {
+      ...request,
+      jar: sessionJars.get(request.sessionId) ?? {},
+    };
+    const parsed = relayFetchResponseSchema.parse(
+      await (await send("/fetch", payload)).json(),
     );
+    if (parsed.jar) sessionJars.set(request.sessionId, parsed.jar);
+    return {
+      status: parsed.status,
+      url: parsed.url,
+      headers: parsed.headers,
+      bodyText: parsed.bodyText,
+    };
+  };
   virtualFetch.closeSession = async (sessionId) => {
     await send("/close", { sessionId });
+    sessionJars.delete(sessionId);
   };
   return virtualFetch;
 }
