@@ -140,6 +140,17 @@ function toPrebuiltOutput(
   return out;
 }
 
+async function deleteVercelDeployment(
+  fetchImpl: FetchImpl,
+  token: string,
+  deploymentId: string,
+): Promise<void> {
+  await fetchImpl(`${API}/v13/deployments/${deploymentId}`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${token}` },
+  }).catch(() => {});
+}
+
 /** Deploy one file set to an anonymous project; returns its base URL. */
 export async function deployAnonymousVercelApp(
   project: VercelAnonymousProject,
@@ -186,12 +197,16 @@ export async function deployAnonymousVercelApp(
       headers: { authorization: `Bearer ${project.token}` },
     }).catch(() => null);
     if (polled?.ok) {
-      const current = deploymentSchema.parse(await polled.json());
-      host = (current.alias ?? []).find((a) => a.endsWith(".tmp.now"));
+      const current = deploymentSchema.safeParse(await polled.json());
+      if (current.success)
+        host = (current.data.alias ?? []).find((a) => a.endsWith(".tmp.now"));
     }
   }
-  if (!host)
+  if (!host) {
+    // Do not leak the deployment until the anonymous project expires.
+    await deleteVercelDeployment(fetchImpl, project.token, deployment.id);
     throw new Error("anonymous vercel deployment never got a tmp.now alias");
+  }
   return { baseUrl: `https://${host}`, deploymentId: deployment.id };
 }
 
@@ -228,16 +243,16 @@ export async function deployAnonymousVercelRelay(
     }
     if (!ready) await new Promise((r) => setTimeout(r, 3000));
   }
-  if (!ready) throw new Error("anonymous vercel relay did not become ready");
+  if (!ready) {
+    await deleteVercelDeployment(fetchImpl, project.token, deploymentId);
+    throw new Error("anonymous vercel relay did not become ready");
+  }
   return {
     relayUrl: `${relayBase}/api`,
     relayToken,
     project,
     close: async () => {
-      await fetchImpl(`${API}/v13/deployments/${deploymentId}`, {
-        method: "DELETE",
-        headers: { authorization: `Bearer ${project.token}` },
-      }).catch(() => {});
+      await deleteVercelDeployment(fetchImpl, project.token, deploymentId);
     },
   };
 }

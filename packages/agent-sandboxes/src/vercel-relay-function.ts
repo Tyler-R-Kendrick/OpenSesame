@@ -27,8 +27,23 @@ function storeCookies(jar, origin, headers) {
   }
 }
 function parseJar(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  return raw;
+  const jar = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return jar;
+  // The jar is RPC input: keep only bounded string leaves and refuse
+  // keys that could mutate prototypes when cookies are stored.
+  for (const [origin, cookies] of Object.entries(raw).slice(0, 32)) {
+    if (!cookies || typeof cookies !== "object" || Array.isArray(cookies))
+      continue;
+    const kept = {};
+    for (const [name, value] of Object.entries(cookies).slice(0, 64)) {
+      if (typeof value !== "string" || value.length > 4096) continue;
+      if (name.length > 128 || name === "__proto__" || name === "constructor" || name === "prototype")
+        continue;
+      kept[name] = value;
+    }
+    if (Object.keys(kept).length > 0) jar[origin] = kept;
+  }
+  return jar;
 }
 async function readBody(req) {
   const chunks = [];
