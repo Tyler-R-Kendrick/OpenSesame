@@ -12,6 +12,8 @@
  *   history.
  * - `cloudflare` — a Cloudflare Browser Run session allocated over REST and
  *   driven over CDP.
+ * - `vercel` — the WASM lane bound to a per-run anonymous Vercel relay
+ *   deployment (temporary project; no signup, no claim).
  * - `wasm-relay` — a DOM-level driver that needs no direct network: every
  *   fetch is virtualized through a relay, so the same driver code can run
  *   inside a WASM/browser host.
@@ -27,6 +29,7 @@ export const SANDBOX_PROVIDER_IDS = [
   "local",
   "boat",
   "cloudflare",
+  "vercel",
   "wasm-relay",
 ] as const;
 export type SandboxProviderId = (typeof SANDBOX_PROVIDER_IDS)[number];

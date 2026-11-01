@@ -23,6 +23,7 @@ import {
   LocalSandboxProvider,
   type SandboxProvider,
   type SandboxProviderId,
+  VercelAnonProvider,
   WasmRelayProvider,
   type WasmRelayProviderOptions,
 } from "@opensesame/agent-sandboxes";
@@ -105,6 +106,10 @@ export function createSandboxProvider(
       if (temporaryAccount) providerOptions.temporaryAccount = temporaryAccount;
       return new CloudflareSandboxProvider(providerOptions);
     }
+    case "vercel":
+      // Zero-config: deploy an anonymous Vercel relay per run
+      // (temporary project; no signup and no claim).
+      return new VercelAnonProvider();
     case "wasm-relay": {
       const options: WasmRelayProviderOptions = {};
       const relayUrl = process.env.OPENSESAME_VNET_RELAY_URL;
