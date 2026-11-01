@@ -8,7 +8,7 @@ import { turboCacheEnv } from "./ci-turbo-cache.mjs";
 
 const token = "remote-cache-token";
 const team = "opensesame";
-const repository = "Tyler-R-Kendrick/OpenSesame";
+const repository = "OpenSesame-Labs/OpenSesame";
 
 function context(overrides = {}) {
   return {
@@ -117,6 +117,9 @@ describe("ci.yml remote cache wiring", () => {
       "github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository",
     );
     expect(ci).toContain("node scripts/lib/ci-turbo-cache.mjs");
+    expect(ci).toContain("node scripts/lib/ci-turbo-base.mjs");
+    expect(ci).toContain("node scripts/lib/ci-turbo-local-cache.mjs");
+    expect(ci).toContain("TURBO_COMPARISON_REF:");
   });
 });
 

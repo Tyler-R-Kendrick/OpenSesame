@@ -74,11 +74,16 @@ export function readBuildPlan(root, kind, base, head) {
   }
 }
 
-export function buildCommand(kind, plan) {
+export function buildCommand(kind, plan, options = {}) {
   if (plan.scope === "none") return undefined;
   if (plan.scope === "packages" && plan.packages.length === 0) {
     throw new Error("affected build scope is packages but the list is empty");
   }
+  const turboRef = text(options.turboComparisonRef);
+  const comparisonFilter =
+    turboRef.length > 0 ? `--filter=...[${turboRef}]` : undefined;
+  const packageFilter = (name) =>
+    turboRef.length > 0 ? `--filter=${name}...[${turboRef}]` : `--filter=${name}`;
   if (kind === "cargo") {
     const args = ["build", "--locked"];
     if (plan.scope === "all") args.push("--workspace");
@@ -94,10 +99,16 @@ export function buildCommand(kind, plan) {
       "build",
       "--concurrency=4",
       ...(plan.scope === "all"
-        ? []
-        : plan.packages.map((name) => `--filter=${name}`)),
+        ? comparisonFilter
+          ? [comparisonFilter]
+          : []
+        : plan.packages.map((name) => packageFilter(name))),
     ],
   };
+}
+
+function text(value) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function emit(plan) {
@@ -132,7 +143,9 @@ function main() {
     process.env.HEAD_SHA ?? "",
   );
   if (command.startsWith("plan-")) return emit(plan);
-  const build = buildCommand(kind, plan);
+  const build = buildCommand(kind, plan, {
+    turboComparisonRef: process.env.TURBO_COMPARISON_REF,
+  });
   if (!build) {
     console.log(`no affected ${kind} build`);
     return;
