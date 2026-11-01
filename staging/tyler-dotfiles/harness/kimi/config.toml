@@ -1,0 +1,5 @@
+# managed-by: tyler-dotfiles
+# Installed only when ~/.kimi-code/config.toml does not exist yet.
+# `kimi login` owns that file afterwards (providers, models, credentials).
+# Do not overwrite a login-written config.
+default_model = "kimi-code/k3"
