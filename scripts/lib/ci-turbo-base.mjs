@@ -29,29 +29,40 @@ function text(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function ensureRef(root, ref) {
+function ensureRef(root, ref, env) {
   if (SHA.test(ref)) return ref;
   if (!/^origin\/[\w./-]+$/u.test(ref)) {
     throw new Error(`unsupported turbo comparison ref ${ref}`);
   }
   const remote = ref.slice("origin/".length);
-  execFileSync("git", ["fetch", "origin", remote, "--depth=1"], {
-    cwd: root,
-    stdio: ["ignore", "ignore", "inherit"],
-  });
-  execFileSync("git", ["rev-parse", ref], {
-    cwd: root,
-    stdio: ["ignore", "pipe", "inherit"],
-  });
-  return ref;
+  try {
+    execFileSync("git", ["fetch", "origin", remote, "--depth=1"], {
+      cwd: root,
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    execFileSync("git", ["rev-parse", ref], {
+      cwd: root,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return ref;
+  } catch {
+    const fallback = text(env.BASE_SHA);
+    if (SHA.test(fallback)) return fallback;
+    throw new Error(
+      `could not resolve turbo comparison ref ${ref}; set BASE_SHA to the stack parent`,
+    );
+  }
+}
+
+export function materializeTurboComparisonRef(env, root) {
+  return ensureRef(root, turboComparisonRef(env), env);
 }
 
 function main() {
   const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
     encoding: "utf8",
   }).trim();
-  let ref = turboComparisonRef(process.env);
-  ref = ensureRef(root, ref);
+  const ref = materializeTurboComparisonRef(process.env, root);
   const line = `turbo_comparison_ref=${ref}\n`;
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(process.env.GITHUB_OUTPUT, line);
