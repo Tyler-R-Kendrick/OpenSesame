@@ -26,15 +26,15 @@ describe("deployment authority", () => {
   });
   it("never elevates the path-hosted demo through endpoint configuration", () => {
     expect(
-      mayPairLocalAuthority("https://tyler-r-kendrick.github.io", {
+      mayPairLocalAuthority("https://opensesame-labs.github.io", {
         ...profile,
-        canonicalOrigin: "https://tyler-r-kendrick.github.io",
+        canonicalOrigin: "https://opensesame-labs.github.io",
       }),
     ).toBe(false);
     expect(
-      resolveDeploymentProfile("https://tyler-r-kendrick.github.io", {
+      resolveDeploymentProfile("https://opensesame-labs.github.io", {
         ...profile,
-        canonicalOrigin: "https://tyler-r-kendrick.github.io",
+        canonicalOrigin: "https://opensesame-labs.github.io",
         profile: "shared_origin_demo",
       }),
     ).toBe("shared_origin_demo");

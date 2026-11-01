@@ -65,7 +65,7 @@ import {
 import { syncSteps } from "./lib/tailnet-sync-steps.mjs";
 import { tailscaleServeDrive } from "./lib/tailscale-serve-drive.mjs";
 
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const port = Number(process.env.TAILNET_SYNC_PORT ?? 18791);
 const drive = `http://127.0.0.1:${port}`;

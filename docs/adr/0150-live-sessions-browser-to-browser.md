@@ -30,7 +30,7 @@ A vault in the Pages PWA lives in its owner's browser. "Join a vault as an
 approved user" therefore means reaching *that browser*: the owner is the
 server. ADR 0136 restored the join ceremony against a Host's HTTP routes, and
 the Host deliberately refuses to pair a browser on the shared
-`tyler-r-kendrick.github.io` origin, where every one of the owner's GitHub
+`opensesame-labs.github.io` origin, where every one of the owner's GitHub
 Pages sites runs. On the deployment people actually use, the road was hidden
 and an invited person had nowhere to go.
 

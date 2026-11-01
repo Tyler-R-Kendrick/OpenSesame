@@ -8,7 +8,7 @@ import {
 import { securityProfile } from "./security-profile.mjs";
 
 const OTHER = "https://vault.example.org";
-const upstreamCi = { GITHUB_REPOSITORY_OWNER: "Tyler-R-Kendrick" };
+const upstreamCi = { GITHUB_REPOSITORY_OWNER: "OpenSesame-Labs" };
 const forkCi = { GITHUB_REPOSITORY_OWNER: "Someone-Else" };
 
 const named = (origin, basePath) => ({ origin, basePath });
@@ -44,7 +44,7 @@ const cases = [
     "a fork that names the upstream project's origin as its own",
     { ...forkCi, PAGES_CANONICAL_ORIGIN: SHIPPED_ORIGIN },
     SHIPPED_BASE,
-    skipped(/names tyler-r-kendrick's origin.*someone-else/),
+    skipped(/names opensesame-labs's origin.*someone-else/),
   ],
   [
     "a fork under its own base path, with no origin",

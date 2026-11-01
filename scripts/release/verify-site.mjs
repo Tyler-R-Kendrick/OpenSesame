@@ -29,7 +29,7 @@ export async function verifySite(
   if (!directory || !isString(address) || !/^[0-9a-f]{40}$/.test(source ?? ""))
     throw new Error("Invalid Pages verification inputs");
   const base = new URL(address.endsWith("/") ? address : `${address}/`);
-  if (base.href !== "https://tyler-r-kendrick.github.io/OpenSesame/")
+  if (base.href !== "https://opensesame-labs.github.io/OpenSesame/")
     throw new Error("Unexpected production Pages destination");
   const queue = (await files(directory)).filter(
     (path) => relative(directory, path) !== ".nojekyll",

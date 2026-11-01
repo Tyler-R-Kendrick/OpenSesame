@@ -6,7 +6,7 @@ import {
   requestFor,
 } from "./browser-disposition-probes.mjs";
 
-const ORIGIN = "https://tyler-r-kendrick.github.io";
+const ORIGIN = "https://opensesame-labs.github.io";
 
 describe("admits", () => {
   it("admits the wildcard and the exact origin, and nothing else", () => {

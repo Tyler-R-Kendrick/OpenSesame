@@ -22,7 +22,7 @@ Grok triage via `scripts/audit/deepsec-grok-triage.mjs` with the same
 | Field | Value |
 | --- | --- |
 | SHA | `9c0eca7220665eea203f109b005072308d0eb5e6` |
-| Branch | `cursor/deepsec-grok-scan-3405` (PR [#773](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/773)) |
+| Branch | `cursor/deepsec-grok-scan-3405` (PR [#773](https://github.com/OpenSesame-Labs/OpenSesame/pull/773)) |
 | Finish | `=== FINISH COMPLETE 2026-10-08T07:18:50Z ===` (`/tmp/deepsec-grok-finish.log`) |
 
 ## Tooling and model

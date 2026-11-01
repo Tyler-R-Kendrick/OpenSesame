@@ -34,7 +34,7 @@ fs.mkdirSync(out, { recursive: true });
 const dist =
   process.env.PAGES_VERIFY_DIST ??
   fileURLToPath(new URL("../dist", import.meta.url));
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const harness = createHarness({ dist, origin, base, out });
 const sizes = [

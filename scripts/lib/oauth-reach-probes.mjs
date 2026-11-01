@@ -10,7 +10,7 @@
 
 export const ENDPOINTS = ["token", "resource", "revocation"];
 
-const FAKE_REDIRECT = "https://tyler-r-kendrick.github.io/";
+const FAKE_REDIRECT = "https://opensesame-labs.github.io/";
 const TEMPLATE = /[{}]/;
 
 /** Whether a URL still names a `{placeholder}` a person fills in. */

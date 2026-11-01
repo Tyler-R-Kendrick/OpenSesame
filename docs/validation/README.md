@@ -38,7 +38,7 @@ What was run for each feature, and what the results do and do not show.
 | [Trust broker](trust-broker-implementation-evidence.md) | Assurance evaluation for approvals. |
 | [2password parity gauntlet](2password-parity.md) | The parity gate against the 2password oracle, run over the native CLI, `opensesame-id` and the built PWA; a recorded run is [`2password-parity-result.json`](2password-parity-result.json). |
 | [2password upstream review](2password-upstream-review.md) | The upstream pull requests and issues folded into that oracle. |
-| [Wallet interaction traceability](wallet-interaction-traceability.md) | Requirement-to-test traceability for the wallet-native interaction layer, with machine-readable companions in [`evidence/wallet/`](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet). |
+| [Wallet interaction traceability](wallet-interaction-traceability.md) | Requirement-to-test traceability for the wallet-native interaction layer, with machine-readable companions in [`evidence/wallet/`](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet). |
 | [WebMCP](webmcp.md) | Native Chrome WebMCP support and how to verify it. |
 
 Approved current-state evidence follows the feature/project/platform contract in [`docs/evidence/`](../evidence/README.md).

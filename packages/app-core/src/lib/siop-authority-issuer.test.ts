@@ -19,7 +19,7 @@ describe("siop-authority", () => {
     for (const [pageOrigin, basePath] of [
       ["https://pages.example.test", "/OpenSesame/"],
       ["https://pages.example.test", "/"],
-      ["https://tyler-r-kendrick.github.io", "/OpenSesame/"],
+      ["https://opensesame-labs.github.io", "/OpenSesame/"],
       ["http://localhost:5180", "/OpenSesame/"],
     ] as const) {
       expect(dynamicSiopIssuer(pageOrigin, basePath)).toBe(

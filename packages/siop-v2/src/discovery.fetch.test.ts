@@ -9,10 +9,10 @@ import {
 import { isSiopV2Error } from "./errors.js";
 
 const PROJECT_PAGE = {
-  origin: "https://tyler-r-kendrick.github.io",
+  origin: "https://opensesame-labs.github.io",
   basePath: "/OpenSesame/",
 } as const;
-const ISSUER = "https://tyler-r-kendrick.github.io/OpenSesame/identity/siop";
+const ISSUER = "https://opensesame-labs.github.io/OpenSesame/identity/siop";
 
 async function asyncCodeOf<T>(run: () => Promise<T>): Promise<string> {
   try {
@@ -68,7 +68,7 @@ describe("fetchSiopMetadata", () => {
     ).resolves.toEqual({ issuer: ISSUER, authorizationEndpoint: ISSUER });
     expect(seen).toEqual([
       {
-        url: "https://tyler-r-kendrick.github.io/OpenSesame/siop-metadata.json",
+        url: "https://opensesame-labs.github.io/OpenSesame/siop-metadata.json",
         redirect: "error",
         accept: "application/json",
       },

@@ -120,7 +120,7 @@ jobs:
       TAG: ${{ needs.resolve.outputs.tag }}
       VITE_BASE: /OpenSesame/
       PAGES_DEPLOYMENT_PROFILE: shared_origin_demo
-      PAGES_CANONICAL_ORIGIN: https://tyler-r-kendrick.github.io
+      PAGES_CANONICAL_ORIGIN: https://opensesame-labs.github.io
       PAGES_HEADER_SECURITY: "0"
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -276,7 +276,7 @@ jobs:
                       release = json.loads(files['release.json'])
                       if release.get('revision') != env['SOURCE_SHA']: raise SystemExit('Pages source mismatch')
                       profile = json.loads(files['security-profile.json'])
-                      if profile.get('profile') != 'shared_origin_demo' or profile.get('canonicalOrigin') != 'https://tyler-r-kendrick.github.io':
+                      if profile.get('profile') != 'shared_origin_demo' or profile.get('canonicalOrigin') != 'https://opensesame-labs.github.io':
                           raise SystemExit('Wrong Pages deployment profile')
                   else:
                       directory = pathlib.PurePosixPath(name).name.removesuffix('.tar.gz')

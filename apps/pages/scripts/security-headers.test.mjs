@@ -290,7 +290,7 @@ test("loopback development admits local dev sources; shared origin is marked met
   assert.ok(dev.notes.some((n) => n.includes("headerSecurity is false")));
   const pages = generate(profile(policy()), {
     deploymentProfile: "shared_origin_demo",
-    canonicalOrigin: "https://tyler-r-kendrick.github.io",
+    canonicalOrigin: "https://opensesame-labs.github.io",
     headerSecurity: false,
   });
   assert.ok(pages.csp.includes("upgrade-insecure-requests"));

@@ -199,7 +199,7 @@ async function verifyHostedFiles(selected, directory, pages) {
   );
   await verifySite(
     pages,
-    "https://tyler-r-kendrick.github.io/OpenSesame/",
+    "https://opensesame-labs.github.io/OpenSesame/",
     selected.source_sha,
   );
 }

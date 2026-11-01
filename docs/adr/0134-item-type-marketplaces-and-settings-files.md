@@ -65,7 +65,7 @@ everything else (ADR 0065 §4):
 - At most 64 entries. The index and each definition are capped at 64 KiB.
 
 **Ours is the default.** A device starts with
-`github:tyler-r-kendrick/OpenSesame#main`. This repository publishes the
+`github:OpenSesame-Labs/OpenSesame#main`. This repository publishes the
 index and five types that are not built-ins: vehicle, email account,
 backup codes, gift card and combination lock. They live in
 `marketplace/item-types/`. `node scripts/release/pin-marketplace.mjs` re-pins

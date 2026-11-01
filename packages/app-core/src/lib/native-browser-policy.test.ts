@@ -67,7 +67,7 @@ describe("audited browser-only policy", () => {
     );
   });
   it("contains only TLS-verified concrete refusals with reproducible public evidence", () => {
-    expect(authored.audited_origin).toBe("https://tyler-r-kendrick.github.io");
+    expect(authored.audited_origin).toBe("https://opensesame-labs.github.io");
     const probes = authored.rules.map(
       (rule: { provider_id: string; probe: { method: string; url: string } }) =>
         `${rule.provider_id} ${rule.probe.method} ${rule.probe.url}`,

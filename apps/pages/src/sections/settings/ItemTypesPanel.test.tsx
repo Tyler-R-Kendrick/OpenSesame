@@ -233,7 +233,7 @@ describe("ItemTypesPanel", () => {
   it("adds an external repository as a line in marketplaces.json", async () => {
     renderPanel();
     openMarketplace();
-    await screen.findByText("github.com/tyler-r-kendrick/OpenSesame@main");
+    await screen.findByText("github.com/OpenSesame-Labs/OpenSesame@main");
     const field = screen.getByLabelText("Add a marketplace");
     fireEvent.change(field, { target: { value: "nope" } });
     fireEvent.click(screen.getByRole("button", { name: "Add marketplace" }));
@@ -245,7 +245,7 @@ describe("ItemTypesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add marketplace" }));
     await screen.findByText("gitlab.com/team/types");
     expect(await marketplaces()).toEqual([
-      "github:tyler-r-kendrick/OpenSesame#main",
+      "github:OpenSesame-Labs/OpenSesame#main",
       "gitlab:team/types",
     ]);
     fireEvent.click(
@@ -266,7 +266,7 @@ describe("ItemTypesPanel", () => {
     ).toBeTruthy();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Stop reading github.com/tyler-r-kendrick/OpenSesame@main",
+        name: "Stop reading github.com/OpenSesame-Labs/OpenSesame@main",
       }),
     );
     await screen.findByText("No marketplaces listed.");
@@ -278,7 +278,7 @@ describe("ItemTypesPanel", () => {
     openMarketplace();
     fireEvent.click(
       await screen.findByRole("button", {
-        name: "Stop reading github.com/tyler-r-kendrick/OpenSesame@main",
+        name: "Stop reading github.com/OpenSesame-Labs/OpenSesame@main",
       }),
     );
     await screen.findByText("No marketplaces listed.");
@@ -288,7 +288,7 @@ describe("ItemTypesPanel", () => {
         name: "List the OpenSesame marketplace again",
       }),
     );
-    await screen.findByText("github.com/tyler-r-kendrick/OpenSesame@main");
+    await screen.findByText("github.com/OpenSesame-Labs/OpenSesame@main");
   });
 
   it("reads the open vault's marketplaces.json, and follows a switch to another", async () => {

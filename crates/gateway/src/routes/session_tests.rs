@@ -300,7 +300,7 @@ async fn local_mint_refuses_unpaired_browsers_and_retired_credentials() {
         (None, None),
         (None, Some("opensesame-dev-operator")),
         (
-            Some("https://tyler-r-kendrick.github.io"),
+            Some("https://opensesame-labs.github.io"),
             Some(state.operator_token.as_str()),
         ),
         (

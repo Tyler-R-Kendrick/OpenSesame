@@ -96,7 +96,7 @@ Severity is the reviewer's, stated for the deployment the code ships in.
     Settings showed an unsalted digest prefix of the duress code. **Fix:**
     two-input sealing bound to the credential; the prefix is gone. **Test:**
     `prf-and-code.test.ts`, `settings.test.ts`. Visual record:
-    [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-23-duress-code-digest/).
+    [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-23-duress-code-digest/).
 19. **Low — local Access capabilities were described but not enforced**, so a
     demoted guest could rename the claimed owner into a guest and become
     operator. **Fix:** directory, membership, application and grant

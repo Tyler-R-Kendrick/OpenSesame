@@ -16,7 +16,7 @@ const outDir =
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const dist = path.join(root, "apps/pages/dist");
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 
 const harness = createHarness({ dist, origin, base, out: outDir });
 

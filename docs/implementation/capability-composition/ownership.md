@@ -2,7 +2,7 @@
 
 > Status (2026-10-08): landed. [ADR 0130](../../adr/0130-operator-controlled-capability-composition.md)
 > is Accepted and the contracts below are implemented; 12 of the 103 contracts in
-> [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/contract-test-matrix.json) are recorded
+> [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/contract-test-matrix.json) are recorded
 > `pending` (no landed test names them). Section 1 is the
 > 2026-09-22 baseline and stays as history. Sections 2 to 7 were checked against
 > this tree on 2026-10-08: paths are repository-relative (much of what was
@@ -11,7 +11,7 @@
 
 This is the coordination record for operator-controlled capability
 composition ([ADR 0130](../../adr/0130-operator-controlled-capability-composition.md),
-and the evidence under [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/)). Every runtime, editor, build step
+and the evidence under [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/)). Every runtime, editor, build step
 and test codes against the contracts named here. Where this file and a code
 comment disagree, fix the code or this file — never add a second resolver,
 loader, registry or vocabulary.
@@ -80,7 +80,7 @@ and are the only definitions.
 | **S18** network | `packages/app-core/src/lib/capabilities/egress.ts`, `apps/pages/scripts/security-headers.mjs` | egress adapter, capability-derived CSP/header templates |
 | **S19** lifecycle | `packages/app-core/src/lib/capabilities/{change,migration,invalidation}.ts` | change coordinator, `setup.v1` migration review, cross-tab invalidation |
 | **S20** registry parity | `packages/capability-registry/src/capability-map.ts` + parity tests | operation→capability prerequisites, profile projections |
-| **S21–S24** verification, docs | `apps/pages/scripts/verify-capability-graph.mjs`, `docs/**`, [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/) | property/fuzz suites, browser journeys, red-team fixtures, ADR, operator docs, evidence |
+| **S21–S24** verification, docs | `apps/pages/scripts/verify-capability-graph.mjs`, `docs/**`, [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/) | property/fuzz suites, browser journeys, red-team fixtures, ADR, operator docs, evidence |
 
 Shared-hotspot rule: only the owner rewrites a file; everyone else sends a
 narrowly scoped patch (a new export, a hook call, a filtered list). Files

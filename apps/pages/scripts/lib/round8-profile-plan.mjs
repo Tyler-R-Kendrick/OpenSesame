@@ -21,7 +21,7 @@ export const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../..",
 );
-export const ORIGIN = "https://tyler-r-kendrick.github.io";
+export const ORIGIN = "https://opensesame-labs.github.io";
 export const BASE = "/OpenSesame/";
 export const P8_1_BEFORE = "40681647c9ea585c6ec5fb920e81e2c7a70b12da";
 export const P8_1_AFTER = "51f27bc95716afda76eeae4629a18abfd03115ba";

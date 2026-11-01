@@ -32,7 +32,7 @@ import {
 } from "./plugin-pairing.js";
 
 const PASSWORD = "correct horse battery staple";
-const PAGES = "https://tyler-r-kendrick.github.io";
+const PAGES = "https://opensesame-labs.github.io";
 const KEY_X = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE";
 const KEY_Y = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMiE";
 const KEY_Z = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMyE";

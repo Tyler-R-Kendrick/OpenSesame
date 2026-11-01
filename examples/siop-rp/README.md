@@ -30,7 +30,7 @@ application id, `local_<uuid>`, and it is your `client_id`.
 ## Express
 
 ```bash
-OPENSESAME_PAGES_BASE=https://tyler-r-kendrick.github.io/OpenSesame \
+OPENSESAME_PAGES_BASE=https://opensesame-labs.github.io/OpenSesame \
 SIOP_RP_CLIENT_ID=local_<uuid> \
 SIOP_RP_REDIRECT_URI=http://127.0.0.1:4110/callback \
 SIOP_RP_ALLOW_LOOPBACK_HTTP=1 \
@@ -45,7 +45,7 @@ and leave it off.
 
 | Variable | Default | |
 |---|---|---|
-| `OPENSESAME_PAGES_BASE` | `https://tyler-r-kendrick.github.io/OpenSesame` | The deployment: origin plus base path, no trailing slash. For local Pages use `http://localhost:5180/OpenSesame`. |
+| `OPENSESAME_PAGES_BASE` | `https://opensesame-labs.github.io/OpenSesame` | The deployment: origin plus base path, no trailing slash. For local Pages use `http://localhost:5180/OpenSesame`. |
 | `SIOP_RP_CLIENT_ID` | `local_00000000-0000-4000-8000-000000000001` | The default application id; a person's own id can be passed per login as `/auth/start?client_id=`. |
 | `SIOP_RP_REDIRECT_URI` | `http://<listen>/callback` | Exact, as registered. |
 | `SIOP_RP_CALLBACK_PATHS` | the redirect URI's path | Extra comma-separated paths, each a further registered callback (`origin` + path). Start a login for one with `/auth/start?callback=/path`; a response arriving at a callback its login was not started for is `redirect_mismatch`, and a path not listed is refused at start. |
@@ -75,7 +75,7 @@ in-memory store and replay ledger. Behind more than one instance, pass your own
 ## Single-page app
 
 ```bash
-OPENSESAME_PAGES_BASE=https://tyler-r-kendrick.github.io/OpenSesame \
+OPENSESAME_PAGES_BASE=https://opensesame-labs.github.io/OpenSesame \
 SIOP_RP_CLIENT_ID=local_<uuid> \
   pnpm --filter @opensesame/example-siop-rp dev:spa    # http://127.0.0.1:4111
 pnpm --filter @opensesame/example-siop-rp build:spa     # dist/spa

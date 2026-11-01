@@ -29,7 +29,7 @@ Two things shape how you integrate:
   returns to with `startLogin({ redirectUri })`, which must be one of the
   `allowedRedirectUris` you configured.
 - **The issuer is the deployment**: `<origin><base>identity/siop`, for example
-  `https://tyler-r-kendrick.github.io/OpenSesame/identity/siop`. A fork, a
+  `https://opensesame-labs.github.io/OpenSesame/identity/siop`. A fork, a
   custom domain or another base path is a different issuer with different keys.
 
 ## Register your application (the person does this)
@@ -50,7 +50,7 @@ GET https://<origin><base>siop-metadata.json
 ```ts
 import { fetchSiopMetadata, pagesOriginOf, pagesSiopIssuer } from "@opensesame/siop-v2";
 
-const issuer = pagesSiopIssuer(pagesOriginOf("https://tyler-r-kendrick.github.io/OpenSesame"));
+const issuer = pagesSiopIssuer(pagesOriginOf("https://opensesame-labs.github.io/OpenSesame"));
 const { authorizationEndpoint } = await fetchSiopMetadata({ fetch, expectedIssuer: issuer });
 ```
 
@@ -145,7 +145,7 @@ the store with `SIOP_RP_MAX_PENDING_LOGINS` (default 10000), and behind a proxy
 key the limit on the address the proxy vouches for.
 
 ```bash
-OPENSESAME_PAGES_BASE=https://tyler-r-kendrick.github.io/OpenSesame \
+OPENSESAME_PAGES_BASE=https://opensesame-labs.github.io/OpenSesame \
 SIOP_RP_CLIENT_ID=local_… SIOP_RP_REDIRECT_URI=https://app.example/callback \
 SIOP_RP_DISCOVER=1 \
   pnpm --filter @opensesame/example-siop-rp dev

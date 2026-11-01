@@ -22,7 +22,7 @@ sign somebody in with Google: an origin-profile OIDC client, PKCE, CORS on
 OpenSesame Identity API, a Host API, a daemon, or anything on localhost.
 
 What production shipped instead, on every visit to
-`https://tyler-r-kendrick.github.io/OpenSesame/` with nothing stored:
+`https://opensesame-labs.github.io/OpenSesame/` with nothing stored:
 
 ```text
 This device is empty

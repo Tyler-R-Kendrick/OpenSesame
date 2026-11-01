@@ -10,16 +10,16 @@ Do not use OpenSesame as a hosted password database. There is no server-side vau
 
 ## Main pages
 
-- [Vault](https://tyler-r-kendrick.github.io/OpenSesame/)
-- [About](https://tyler-r-kendrick.github.io/OpenSesame/about.html)
-- [Privacy](https://tyler-r-kendrick.github.io/OpenSesame/privacy.html)
-- [Contact](https://tyler-r-kendrick.github.io/OpenSesame/contact.html)
-- [Source code](https://github.com/Tyler-R-Kendrick/OpenSesame)
-- [Documentation](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/docs)
-- [Security policy](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/SECURITY.md)
-- [Markdown home](https://tyler-r-kendrick.github.io/OpenSesame/index.md)
-- [Sitemap](https://tyler-r-kendrick.github.io/OpenSesame/sitemap.xml)
-- [Robots](https://tyler-r-kendrick.github.io/OpenSesame/robots.txt)
+- [Vault](https://opensesame-labs.github.io/OpenSesame/)
+- [About](https://opensesame-labs.github.io/OpenSesame/about.html)
+- [Privacy](https://opensesame-labs.github.io/OpenSesame/privacy.html)
+- [Contact](https://opensesame-labs.github.io/OpenSesame/contact.html)
+- [Source code](https://github.com/OpenSesame-Labs/OpenSesame)
+- [Documentation](https://github.com/OpenSesame-Labs/OpenSesame/tree/main/docs)
+- [Security policy](https://github.com/OpenSesame-Labs/OpenSesame/blob/main/SECURITY.md)
+- [Markdown home](https://opensesame-labs.github.io/OpenSesame/index.md)
+- [Sitemap](https://opensesame-labs.github.io/OpenSesame/sitemap.xml)
+- [Robots](https://opensesame-labs.github.io/OpenSesame/robots.txt)
 
 ## For agents
 
@@ -31,5 +31,5 @@ The public site is a static PWA. It does not expose a server-side data API, an M
 
 - Name: OpenSesame
 - Type: application
-- Canonical URL: https://tyler-r-kendrick.github.io/OpenSesame/
-- Repository: https://github.com/Tyler-R-Kendrick/OpenSesame
+- Canonical URL: https://opensesame-labs.github.io/OpenSesame/
+- Repository: https://github.com/OpenSesame-Labs/OpenSesame

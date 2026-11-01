@@ -81,7 +81,7 @@ exclude = ["tests/fuzz/cargo"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/Tyler-R-Kendrick/OpenSesame"
+repository = "https://github.com/OpenSesame-Labs/OpenSesame"
 rust-version = "1.88"
 
 [workspace.dependencies]

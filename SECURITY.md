@@ -6,7 +6,7 @@ Security fixes target the default branch (`main`). Published Pages and native ar
 
 ## Reporting
 
-Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new). On this repository, open **Report a vulnerability** under Security Advisories. Do not file public issues that include exploit details, tokens, or claim secrets.
+Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/OpenSesame-Labs/OpenSesame/security/advisories/new). On this repository, open **Report a vulnerability** under Security Advisories. Do not file public issues that include exploit details, tokens, or claim secrets.
 
 If private reporting is unavailable, contact the maintainer through the GitHub profile [@Tyler-R-Kendrick](https://github.com/Tyler-R-Kendrick).
 

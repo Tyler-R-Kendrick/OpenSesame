@@ -44,7 +44,7 @@ and source-digest options.
 ```bash
 tag=v0.2.0
 target=x86_64-unknown-linux-gnu
-repo=Tyler-R-Kendrick/OpenSesame
+repo=OpenSesame-Labs/OpenSesame
 gh release download "$tag" --repo "$repo" \
   --pattern SHA256SUMS --pattern candidate.json --pattern promotion.json \
   --pattern "opensesame-kit_${tag}_${target}.tar.gz"
@@ -95,7 +95,7 @@ online verification also checks GitHub's current repository identity.
 
 Releases produced before this migration retain their original verification
 contract: `--signer-workflow
-Tyler-R-Kendrick/OpenSesame/.github/workflows/release-kit.yml` and
+OpenSesame-Labs/OpenSesame/.github/workflows/release-kit.yml` and
 `--source-ref refs/tags/<tag>`, using the default SLSA provenance predicate.
 Do not treat an old release's missing candidate metadata as a new-pipeline
 success; choose the verification policy belonging to the release.

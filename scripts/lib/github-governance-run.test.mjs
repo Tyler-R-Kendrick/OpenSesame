@@ -36,7 +36,7 @@ const [, , verb, path, , method = "GET", input] = process.argv;
 if (verb !== "api") process.exit(2);
 const state = JSON.parse(fs.readFileSync(${JSON.stringify(state)}, "utf8"));
 const body = input ? JSON.parse(fs.readFileSync(0, "utf8")) : null;
-const repo = "repos/Tyler-R-Kendrick/OpenSesame";
+const repo = "repos/OpenSesame-Labs/OpenSesame";
 const bare = path.split("?")[0];
 const out = (value) => process.stdout.write(JSON.stringify(value));
 const save = () => fs.writeFileSync(${JSON.stringify(state)}, JSON.stringify(state));
@@ -159,7 +159,7 @@ describe("governance.mjs activation", () => {
       ["PUT", tagPolicy],
     ]);
     expect(rulesets[3].path).toBe(
-      "repos/Tyler-R-Kendrick/OpenSesame/rulesets/11",
+      "repos/OpenSesame-Labs/OpenSesame/rulesets/11",
     );
     expect(run.stdout).toContain('"verified":true');
   });

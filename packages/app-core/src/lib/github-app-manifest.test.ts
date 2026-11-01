@@ -34,7 +34,7 @@ describe("GitHub static callback", () => {
   });
   it.each([
     "http://localhost:5180",
-    "https://tyler-r-kendrick.github.io",
+    "https://opensesame-labs.github.io",
     "https://opensesame.vercel.app",
   ])("returns to the same static app beneath its base path (%s)", (origin) => {
     applyConnectCallbackBase("https://foreign-relay.example");

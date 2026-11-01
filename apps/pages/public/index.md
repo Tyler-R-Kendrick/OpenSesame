@@ -13,10 +13,10 @@ OpenSesame is a local-first, end-to-end-encrypted vault. Your master password de
 
 ## Start
 
-- [Open the vault](https://tyler-r-kendrick.github.io/OpenSesame/)
-- [Read the agent guide](https://tyler-r-kendrick.github.io/OpenSesame/llms.txt)
-- [About](https://tyler-r-kendrick.github.io/OpenSesame/about.html)
-- [Privacy](https://tyler-r-kendrick.github.io/OpenSesame/privacy.html)
-- [Contact](https://tyler-r-kendrick.github.io/OpenSesame/contact.html)
-- [Source code](https://github.com/Tyler-R-Kendrick/OpenSesame)
-- [Documentation](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/docs)
+- [Open the vault](https://opensesame-labs.github.io/OpenSesame/)
+- [Read the agent guide](https://opensesame-labs.github.io/OpenSesame/llms.txt)
+- [About](https://opensesame-labs.github.io/OpenSesame/about.html)
+- [Privacy](https://opensesame-labs.github.io/OpenSesame/privacy.html)
+- [Contact](https://opensesame-labs.github.io/OpenSesame/contact.html)
+- [Source code](https://github.com/OpenSesame-Labs/OpenSesame)
+- [Documentation](https://github.com/OpenSesame-Labs/OpenSesame/tree/main/docs)

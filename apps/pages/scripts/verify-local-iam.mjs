@@ -13,7 +13,7 @@ import {
 import { reviewCaptureDir } from "./lib/review-captures.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 const rp = "https://rp.example.test";
 const issuerUrl = `${origin}/OpenSesame/identity/authorize`;
 const out = process.env.PAGES_VERIFY_OUT ?? privateTempDir("local-iam-");

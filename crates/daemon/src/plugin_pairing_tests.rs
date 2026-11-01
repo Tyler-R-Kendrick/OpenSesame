@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tower::ServiceExt;
 
-const PAGES: &str = "https://tyler-r-kendrick.github.io";
+const PAGES: &str = "https://opensesame-labs.github.io";
 const OTHER: &str = "https://attacker.example";
 
 struct Fixture {
@@ -165,7 +165,7 @@ async fn a_code_from_the_wrong_origin_is_refused_and_spent() {
     for origin in [
         None,
         Some("null"),
-        Some("https://tyler-r-kendrick.github.io/"),
+        Some("https://opensesame-labs.github.io/"),
     ] {
         let code = f.code_for(PAGES);
         let (status, body, _) = call(&f.app, exchange_request(&code, origin)).await;

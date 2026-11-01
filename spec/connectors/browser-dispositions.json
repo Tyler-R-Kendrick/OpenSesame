@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "audited_origin": "https://tyler-r-kendrick.github.io",
+  "audited_origin": "https://opensesame-labs.github.io",
   "checked_date": "2026-10-12",
   "qualification": "Unauthenticated TLS-verified requests only, no account grant or credential, from the audited origin. A provider's answer to this origin is not a statement about any other origin or about authenticated access. Errors and 5xx do not establish provider CORS refusal, so they never produce a refusal here. Only providers with no compiled browser connection contract appear; every other provider's browser admission is in browser-policy.json.",
   "kinds": {
@@ -87,7 +87,7 @@
       "sources": [
         {
           "label": "How OpenSesame stores things",
-          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
+          "url": "https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
         }
       ],
       "probes": [],
@@ -119,7 +119,7 @@
       "sources": [
         {
           "label": "How OpenSesame stores things",
-          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
+          "url": "https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
         }
       ],
       "probes": [],
@@ -135,7 +135,7 @@
       "sources": [
         {
           "label": "Nothing the client stores rests in the clear (ADR 0149)",
-          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
+          "url": "https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
         }
       ],
       "probes": []

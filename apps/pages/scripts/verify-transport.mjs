@@ -42,7 +42,7 @@ import {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
-const ORIGIN = "https://tyler-r-kendrick.github.io";
+const ORIGIN = "https://opensesame-labs.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(
   process.env.PAGES_VERIFY_OUT ??

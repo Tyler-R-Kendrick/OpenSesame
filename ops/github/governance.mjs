@@ -7,7 +7,7 @@ import {
   selectRuleset,
 } from "../../scripts/lib/github-governance.mjs";
 
-const repository = "Tyler-R-Kendrick/OpenSesame";
+const repository = "OpenSesame-Labs/OpenSesame";
 const root = `repos/${repository}`;
 const readPolicy = (file) =>
   JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));

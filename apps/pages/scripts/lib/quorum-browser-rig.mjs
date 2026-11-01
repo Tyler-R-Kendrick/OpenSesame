@@ -15,7 +15,7 @@ import { chromium } from "@playwright/test";
 import { EXPECT_TIMEOUT_MS } from "./expect-timeout.mjs";
 import { bundle, root } from "./local-iam-rig.mjs";
 
-export const ORIGIN = "https://tyler-r-kendrick.github.io";
+export const ORIGIN = "https://opensesame-labs.github.io";
 export const BASE = "/OpenSesame/";
 
 let cached = null;

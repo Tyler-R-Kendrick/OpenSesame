@@ -5,7 +5,7 @@ header:
   schema-version: 2.2.0
   last-updated: '2026-10-29'
   last-reviewed: '2026-10-29'
-  url: https://raw.githubusercontent.com/Tyler-R-Kendrick/OpenSesame/main/security-insights.yml
+  url: https://raw.githubusercontent.com/OpenSesame-Labs/OpenSesame/main/security-insights.yml
   comment: |
     OpenSesame is an authorization fabric for the agentic era: agents hold
     scoped, revocable ConnectionRef handles and state intents; the Host
@@ -15,30 +15,30 @@ header:
 
 project:
   name: OpenSesame
-  homepage: https://tyler-r-kendrick.github.io/OpenSesame/
+  homepage: https://opensesame-labs.github.io/OpenSesame/
   administrators:
     - name: Tyler Kendrick
       primary: true
       social: https://github.com/Tyler-R-Kendrick
   repositories:
     - name: OpenSesame
-      url: https://github.com/Tyler-R-Kendrick/OpenSesame
+      url: https://github.com/OpenSesame-Labs/OpenSesame
       comment: |
         The single repository: native host binary (Rust), Identity API and
         client libraries (TypeScript), the offline Pages PWA, the browser
         extension, and the MCP servers.
   documentation:
-    code-of-conduct: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/CODE_OF_CONDUCT.md
-    release-process: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/operators/release-kit.md
-    support-policy: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/SUPPORT.md
+    code-of-conduct: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/CODE_OF_CONDUCT.md
+    release-process: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/operators/release-kit.md
+    support-policy: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/SUPPORT.md
   vulnerability-reporting:
     reports-accepted: true
     bug-bounty-available: false
     contact:
       name: Tyler Kendrick, through GitHub private vulnerability reporting
       primary: true
-      social: https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new
-    policy: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/SECURITY.md
+      social: https://github.com/OpenSesame-Labs/OpenSesame/security/advisories/new
+    policy: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/SECURITY.md
     in-scope:
       - the Rust authority plane (host, gateway, daemon, worker, helpers)
       - the Identity API and its building blocks
@@ -56,7 +56,7 @@ project:
       docs/security/audits/; GitHub security findings may also remain open.
 
 repository:
-  url: https://github.com/Tyler-R-Kendrick/OpenSesame
+  url: https://github.com/OpenSesame-Labs/OpenSesame
   status: active
   bug-fixes-only: false
   accepts-change-request: true
@@ -67,20 +67,20 @@ repository:
       primary: true
       social: https://github.com/Tyler-R-Kendrick
   documentation:
-    contributing-guide: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/CONTRIBUTING.md
-    review-policy: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/contributing/README.md
-    security-policy: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/SECURITY.md
-    governance: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/GOVERNANCE.md
-    dependency-management-policy: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/NOTICE
+    contributing-guide: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/CONTRIBUTING.md
+    review-policy: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/contributing/README.md
+    security-policy: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/SECURITY.md
+    governance: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/GOVERNANCE.md
+    dependency-management-policy: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/NOTICE
   license:
-    url: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/LICENSE
+    url: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/LICENSE
     expression: MIT
   release:
     automated-pipeline: true
     attestations:
       - name: Candidate build provenance
         predicate-uri: https://opensesame.dev/attestations/candidate-build/v1
-        location: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
+        location: https://github.com/OpenSesame-Labs/OpenSesame/releases
         comment: |
           The configured candidate builder signs the source identity and
           payload checksums. Release qualification and environment protection
@@ -89,21 +89,21 @@ repository:
           contract for older releases.
       - name: Release promotion evidence
         predicate-uri: https://opensesame.dev/attestations/release-promotion/v1
-        location: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
+        location: https://github.com/OpenSesame-Labs/OpenSesame/releases
         comment: |
           The configured publisher signs SHA256SUMS and the qualification
           evidence separately from the original build attestation.
     distribution-points:
-      - uri: https://github.com/Tyler-R-Kendrick/OpenSesame/releases
+      - uri: https://github.com/OpenSesame-Labs/OpenSesame/releases
         comment: GitHub Releases — qualified release kits, checksums and provenance
-      - uri: https://ghcr.io/tyler-r-kendrick/opensesame
+      - uri: https://ghcr.io/opensesame-labs/opensesame
         comment: Host container image location; the previous publisher is retired.
-      - uri: https://tyler-r-kendrick.github.io/OpenSesame/
+      - uri: https://opensesame-labs.github.io/OpenSesame/
         comment: The offline Pages PWA; the configured release workflow promotes qualified Pages bytes.
   security:
     assessments:
       self:
-        evidence: https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/docs/security
+        evidence: https://github.com/OpenSesame-Labs/OpenSesame/tree/main/docs/security
         date: '2026-10-23'
         comment: |
           The standing self-assessment is the security documentation set:
@@ -129,7 +129,7 @@ repository:
           ci:
             name: Code scanning (CodeQL)
             predicate-uri: https://intoto.SAST
-            location: https://github.com/Tyler-R-Kendrick/OpenSesame/security/code-scanning
+            location: https://github.com/OpenSesame-Labs/OpenSesame/security/code-scanning
             comment: Configured for non-draft pull requests, main, weekly runs and release qualification.
       - name: OSV-Scanner
         type: SCA
@@ -144,7 +144,7 @@ repository:
           ci:
             name: Security scanning workflow (weekly OSV pass)
             predicate-uri: https://intoto.SCA
-            location: https://github.com/Tyler-R-Kendrick/OpenSesame/security/code-scanning
+            location: https://github.com/OpenSesame-Labs/OpenSesame/security/code-scanning
             comment: |
               .github/workflows/security.yml on a weekly schedule; the same
               engine runs on demand as pnpm audit:osv.
@@ -160,7 +160,7 @@ repository:
           ci:
             name: Security scanning workflow (weekly gitleaks pass)
             predicate-uri: https://intoto.SCA
-            location: https://github.com/Tyler-R-Kendrick/OpenSesame/security/code-scanning
+            location: https://github.com/OpenSesame-Labs/OpenSesame/security/code-scanning
             comment: |
               Full history is scheduled weekly in security.yml. The optional
               pre-commit hook scans when gitleaks is installed; release
@@ -178,7 +178,7 @@ repository:
           adhoc:
             name: RustSec advisory gate
             predicate-uri: https://intoto.SCA
-            location: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/security/tooling-evaluation.md
+            location: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/security/tooling-evaluation.md
             comment: pnpm audit:cargo-audit, run by maintainers and the nightly triage routine.
       - name: cargo-fuzz (libFuzzer)
         type: fuzzing
@@ -192,7 +192,7 @@ repository:
           adhoc:
             name: Coverage-guided fuzz pass
             predicate-uri: https://intoto.fuzzing
-            location: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/validation/fuzzing.md
+            location: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/validation/fuzzing.md
             comment: |
               48 libFuzzer targets; pnpm audit:fuzz and the release batch
               gate. ADR 0211 describes the in-tree OSS-Fuzz submission pack;
@@ -209,5 +209,5 @@ repository:
           adhoc:
             name: TypeScript fuzz pass
             predicate-uri: https://intoto.fuzzing
-            location: https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/validation/fuzzing.md
+            location: https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/validation/fuzzing.md
             comment: 16 Jazzer.js targets over the identity and vault planes; pnpm test:fuzz.

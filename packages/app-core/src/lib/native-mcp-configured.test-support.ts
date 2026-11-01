@@ -287,7 +287,7 @@ export async function configuredMcpFixture(
   };
   if (mode === "header") input.parameters.mcp_header = "X-Test-Mcp-Key";
   const releaseOrigin = bindNativeBrowserPolicyOrigin(
-    () => "https://tyler-r-kendrick.github.io",
+    () => "https://opensesame-labs.github.io",
   );
   return {
     local,

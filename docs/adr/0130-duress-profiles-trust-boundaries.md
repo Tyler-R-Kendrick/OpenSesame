@@ -3,7 +3,7 @@
 - **Status:** Accepted (implemented in `packages/app-core/src/lib/duress/`; built on by [ADR 0155](0155-the-device-duress-code.md) and [ADR 0168](0168-duress-modes-from-scenarios.md))
 - **Date:** 2026-09-21
 - **Deciders:** OpenSesame maintainers
-- **Evidence:** [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/)
+- **Evidence:** [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/)
 
 ## Context
 
@@ -85,7 +85,7 @@ success (INV-29).
 - Settings → Security hosts enrollment, rehearsal, and status; decoy/restricted
   foregrounds must not leak sensitive labels or require new permission prompts
   at activation (INV-27).
-- Evidence pack under [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/) maps INV/SC/AT/task IDs;
+- Evidence pack under [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/) maps INV/SC/AT/task IDs;
   COORD fills execution results. REDTEAM owns adversarial findings text in
   `security-review.md`.
 - Operator guides document presets, inventory/recovery, and troubleshooting

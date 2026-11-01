@@ -85,7 +85,7 @@ it("exposes configured WorkOS fields without promoting a missing runtime", () =>
 });
 
 it.each([
-  { origin: "https://tyler-r-kendrick.github.io", admitted: false },
+  { origin: "https://opensesame-labs.github.io", admitted: false },
   { origin: "https://app.example", admitted: true },
 ])(
   "applies MCP admission at $origin while keeping API advice and OAuth refusal distinct",

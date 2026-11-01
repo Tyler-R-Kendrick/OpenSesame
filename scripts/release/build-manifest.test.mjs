@@ -23,7 +23,7 @@ def archive(path, entries):
     info.size=len(data); tar.addfile(info,io.BytesIO(data))
 pages=[('index.html',b'html'),('404.html',b'html'),('os-runtime-config.json',b'{}'),
  ('release.json',json.dumps({'revision':('b' if case=='source' else 'a')*40}).encode()),
- ('security-profile.json',json.dumps({'profile':'wrong' if case=='profile' else 'shared_origin_demo','canonicalOrigin':'https://tyler-r-kendrick.github.io'}).encode())]
+ ('security-profile.json',json.dumps({'profile':'wrong' if case=='profile' else 'shared_origin_demo','canonicalOrigin':'https://opensesame-labs.github.io'}).encode())]
 if case=='traversal': pages.append(('../escape',b'escape'))
 if case=='symlink': pages.append(('link',None))
 if case=='duplicate': pages.append(('index.html',b'duplicate'))

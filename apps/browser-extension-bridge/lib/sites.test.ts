@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SITES_KEY, createSiteRegistry, relayId, webOrigin } from "./sites.js";
 import { fakePorts } from "./test-ports.js";
 
-const APP = "https://tyler-r-kendrick.github.io";
+const APP = "https://opensesame-labs.github.io";
 
 describe("webOrigin", () => {
   it.each([

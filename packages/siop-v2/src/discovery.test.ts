@@ -19,10 +19,10 @@ import { STATIC_SIOP_METADATA } from "./issuer.js";
 import { p256Pair } from "./test-keys.js";
 
 const PROJECT_PAGE = {
-  origin: "https://tyler-r-kendrick.github.io",
+  origin: "https://opensesame-labs.github.io",
   basePath: "/OpenSesame/",
 } as const;
-const ISSUER = "https://tyler-r-kendrick.github.io/OpenSesame/identity/siop";
+const ISSUER = "https://opensesame-labs.github.io/OpenSesame/identity/siop";
 
 function codeOf<T>(run: () => T): string {
   try {
@@ -88,8 +88,8 @@ describe("pagesSiopIssuer", () => {
 describe("pagesOriginOf", () => {
   it("splits a deployment URL into origin and base path", () => {
     for (const written of [
-      "https://tyler-r-kendrick.github.io/OpenSesame",
-      "https://tyler-r-kendrick.github.io/OpenSesame/",
+      "https://opensesame-labs.github.io/OpenSesame",
+      "https://opensesame-labs.github.io/OpenSesame/",
     ]) {
       expect(pagesSiopIssuer(pagesOriginOf(written))).toBe(ISSUER);
     }
@@ -117,7 +117,7 @@ describe("pagesOriginOf", () => {
 describe("siopMetadataUrl", () => {
   it("sits beside the issuer's route, under the base path", () => {
     expect(siopMetadataUrl(ISSUER)).toBe(
-      `https://tyler-r-kendrick.github.io/OpenSesame/${SIOP_METADATA_FILE}`,
+      `https://opensesame-labs.github.io/OpenSesame/${SIOP_METADATA_FILE}`,
     );
     expect(siopMetadataUrl("https://vault.example.org/identity/siop")).toBe(
       "https://vault.example.org/siop-metadata.json",
@@ -245,7 +245,7 @@ describe("parseSiopMetadata — what the relying party refuses", () => {
 
   it("refuses an endpoint with credentials, a fragment or no URL at all", () => {
     for (const authorization_endpoint of [
-      "https://u:p@tyler-r-kendrick.github.io/OpenSesame/identity/siop",
+      "https://u:p@opensesame-labs.github.io/OpenSesame/identity/siop",
       `${ISSUER}#frag`,
       "not a url",
       "openid:",

@@ -20,7 +20,7 @@ ADR 0115 ([front door and connector directory](0115-front-door-and-connector-dir
 Canonical authority remains the existing `Grant` lineage (`crates/domain`); this
 ADR forbids a second AccessLease engine. Track verified vs incomplete work in
 [`docs/implementation/general-authority/completion-matrix.json`](../implementation/general-authority/completion-matrix.json)
-and the authority-fabric report under [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/general-authority/).
+and the authority-fabric report under [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/general-authority/).
 As of 2026-09-16: `pnpm test:authority-fabric` with OpenFGA reports **48 pass / 0 blocked / 3 unsupported** (GA-V-29 shuttle, GA-V-33b live OpenBao, GA-V-34 naming). FIX-FAMILY..GENERALITY (GA-V-35..50), AccessDomain Host routes, and `AuthorityGrant` lifecycle feed are command-backed. Remaining DoD: full AT-* live/provider rows, Identity enrollment gaps, receipts, Discord live opt-in, OpenBao binary for live stack.
 
 

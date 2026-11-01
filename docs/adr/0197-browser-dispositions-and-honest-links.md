@@ -108,6 +108,6 @@ the "Docs" of 31 services that publish none.
   `2026-10-12.1`): 23 from fnox to the vendor, 2 dead links repaired. The age and
   Vaultwarden links are GitHub URLs that could not be fetched from the sandbox
   that audited them (bot-blocking), so they are unverified rather than known good.
-- The probes were taken from `https://tyler-r-kendrick.github.io`. They are not a
+- The probes were taken from `https://opensesame-labs.github.io`. They are not a
   statement about another origin; an operator on another origin should run the
   audit.

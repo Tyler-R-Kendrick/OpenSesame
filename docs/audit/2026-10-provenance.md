@@ -524,7 +524,7 @@ release with native pre-response cancellation, no HTTP status/finish and zero
 next GETs; fresh unheld Test controls verified through actual HTTP in both
 widths. Four lossless native viewport images, exact identities, hashes and
 measurements are preserved in
-[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-15-secret-probe-cancellation/). All 250 outputs per phase
+[historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-15-secret-probe-cancellation/). All 250 outputs per phase
 and all frozen inputs remained unchanged, with no runtime errors, page overflow,
 live owned processes or planned listeners. These are controlled Infisical
 UniversalAuth HTTP observations, not native 1Password SDK or hosted-account
@@ -556,7 +556,7 @@ completed a controlled Connect REST GET, showed native-first partner and shared
 BYO fields, and restored partner Save/cold unlock with a blank token input.
 Twelve no-action checkpoints loaded no native SDK assets, workers or API calls.
 Eight lossless native images and qualified root/subpath/minimal/family static
-receipts are in [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-15-onepassword-native-configuration/).
+receipts are in [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-15-onepassword-native-configuration/).
 The first separate native SDK action run FAILED before its intended fixture 401;
 no native action completed. Its complete gzip HTTP 200 then unexpected abort
 remains under diagnosis, with immutable failed receipt and clean owned closure.
@@ -588,7 +588,7 @@ production vault code, not physical browser OPFS.
 
 Evidence-only PR #1349, `bb350569e2020b945823f8210af12715a19e99ee`, preserves
 [the Infisical
-observations](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-15-infisical-lifetime/README.md). Fresh
+observations](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-15-infisical-lifetime/README.md). Fresh
 normal/root/subpath artifacts were compiled from fffa; all 14,868 tracked input
 identities were restored, independent graphs passed and the five ordinary
 budgets remained unchanged and passed. Old subpath is a508; old root is dbb.
@@ -672,8 +672,8 @@ orchestration loop killed at ~83m with empty stdout log); Cursor ran
 
 **P8-1/P8-2 visual evidence (four install profiles)** — Grok Build `grok-4.7` in worktree
 `/tmp/p8-evidence-round8`; commit `25df77af0` on `cursor/p8-evidence-galleries-8ad8`;
-galleries under [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-17-p8-1-portable-drop-profiles/) and
-[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-17-p8-2-peer-trust-profiles/).
+galleries under [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-17-p8-1-portable-drop-profiles/) and
+[historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-17-p8-2-peer-trust-profiles/).
 
 **B8-1 (F11a)** — Grok Build `grok-4.7`; commit `6da1361bc` on `cursor/b8-1-siop-ambient-notice-8ad8`; PR #1470 stacked on P8-6.
 

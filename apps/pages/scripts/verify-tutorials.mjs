@@ -61,7 +61,7 @@ import {
 import { createWalker } from "./lib/tutorial-walker.mjs";
 
 const devUrl = process.env.TUTORIALS_DEV_URL ?? "";
-const origin = devUrl || "https://tyler-r-kendrick.github.io";
+const origin = devUrl || "https://opensesame-labs.github.io";
 const base = devUrl
   ? "/OpenSesame/"
   : (process.env.VITE_BASE ?? "/OpenSesame/");

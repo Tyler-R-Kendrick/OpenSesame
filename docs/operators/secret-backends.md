@@ -171,7 +171,7 @@ Proton has documented [access tokens](https://proton.me/support/pass-access-toke
 a CLI and [browser-capable SDK source](https://github.com/protonpass/pass-cli/blob/7ae51e52818bca8df905988e4b149d43d31d4c83/pass/Cargo.toml). On
 2026-10-14, an unauthenticated preflight to
 `https://pass-api.proton.me/account/v4/personal-access-token/session` from
-`https://tyler-r-kendrick.github.io` returned HTTP 200 with no CORS allow-origin,
+`https://opensesame-labs.github.io` returned HTTP 200 with no CORS allow-origin,
 allow-methods or allow-headers. The same request with Proton's own
 `https://pass.proton.me` origin returned those headers. This establishes a
 hosted cross-origin limitation for that measured endpoint/origin, not a claim

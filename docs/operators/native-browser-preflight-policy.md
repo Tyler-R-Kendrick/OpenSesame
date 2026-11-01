@@ -6,7 +6,7 @@ server connector contracts. There is no relay or retry that sends a key to an un
 route. Other supported methods, including MCP, have independent admission contracts.
 
 On **2026-10-09**, read-only HTTPS OPTIONS probes used origin
-`https://tyler-r-kendrick.github.io`. They sent only the intended method and header **names**,
+`https://opensesame-labs.github.io`. They sent only the intended method and header **names**,
 with no keys, tokens, cookies or authorization values. TLS certificate verification
 was enabled; each request had a 12-second deadline and at most six ran concurrently.
 All finite Datadog sites, Typeform regions and Railway credential variants were probed.

@@ -146,7 +146,7 @@ export { chooseCapabilities };
 /** The capabilities every journey in this suite needs before it starts. */
 export const LOCAL_IAM_CAPABILITIES = ["Access authority", "Browser-local IAM"];
 
-const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
+const BASE = "https://opensesame-labs.github.io/OpenSesame";
 
 export async function openLocalAccessPage(
   context,

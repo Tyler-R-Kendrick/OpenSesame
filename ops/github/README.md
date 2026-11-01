@@ -1,13 +1,14 @@
 # Repository governance
 
-This personal-account public repository requires an up-to-date pull request on
-its default branch. It has no merge queue: GitHub does not support queues for
-this repository configuration. CODEOWNERS routes review without requiring the
+This public organization repository merges through GitHub's native merge queue on
+the default branch. "Require branch up to date" is off — the queue rebuilds each
+entry against the tip of `main`. CODEOWNERS routes review without requiring the
 sole owner to approve their own PR. Resolved review threads, signed commits,
 squash-only linear history, blocked force pushes/deletion and all three named
 Actions checks remain required, with no bypass actors. GitHub Actions (app ID
-15368) must report the checks; a third-party status with the same name cannot
-satisfy them.
+15368) must report `TypeScript`, `Bundle budgets`, and `Rust` on both
+`pull_request` and `merge_group`; a third-party status with the same name cannot
+satisfy them. See [merge queue](../docs/contributing/merge-queue.md).
 
 Copilot review can be requested as an additional independent analysis, but it
 does not supply a second human maintainer or automatically satisfy an approval

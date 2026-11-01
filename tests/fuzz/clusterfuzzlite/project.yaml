@@ -18,9 +18,9 @@
 # google/oss-fuzz (or the CFL host's projects/ directory). Enrollment is
 # recorded in docs/adr/0211-oss-fuzz-and-oss-verify-enrollment.md; the filing
 # checklist lives in docs/contributing/oss-programs.md.
-homepage: "https://github.com/Tyler-R-Kendrick/OpenSesame"
+homepage: "https://github.com/OpenSesame-Labs/OpenSesame"
 language: rust
-main_repo: "https://github.com/Tyler-R-Kendrick/OpenSesame"
+main_repo: "https://github.com/OpenSesame-Labs/OpenSesame"
 # TODO(enrollment): replace with the address that should receive ClusterFuzz
 # build failures and crash reports before opening the upstream PR.
 primary_contact: "set-before-filing@example.com"

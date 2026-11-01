@@ -133,7 +133,7 @@ describe("Settings' file viewer", () => {
     render(<Viewer />);
     fireEvent.click(file("marketplaces.json"));
     await waitFor(() =>
-      expect(editor(MARKETPLACES_PATH).value).toContain("tyler-r-kendrick"),
+      expect(editor(MARKETPLACES_PATH).value).toContain("OpenSesame-Labs"),
     );
     fireEvent.change(editor(MARKETPLACES_PATH), {
       target: { value: '{ "marketplaces": ["http://nope"] }' },

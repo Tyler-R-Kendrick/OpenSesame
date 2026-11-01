@@ -1,6 +1,6 @@
 # OpenSSF Scorecard maintenance
 
-The [public result](https://api.scorecard.dev/projects/github.com/Tyler-R-Kendrick/OpenSesame)
+The [public result](https://api.scorecard.dev/projects/github.com/OpenSesame-Labs/OpenSesame)
 dated 2026-10-26 reports 5.5/10 for commit
 `aad2c85b4b567fd632d0e409d53d17bb66e8fba4`. It is a snapshot, not a scan of
 the working checkout. Merge fixes and wait for a subsequent public result before
@@ -102,7 +102,7 @@ passing certification or unverified badge ID is asserted here.
 | Pinned-Dependencies | Pin public Rust, Debian, Node and OSS-Fuzz images by verified digest; replace mutable Grok/Cursor installers with versioned SHA-256 checked artifacts and lock Kimi's npm dependency inventory. OSS Verify's base is supplied by its external local-builder framework, not a public registry tag to which a fabricated digest can be attached. |
 | Security-Policy | Add the direct private-report URL. GitHub confirms private vulnerability reporting is enabled. |
 | Code-Review | GitHub accepted a real Copilot review request. It does not create a second human maintainer or guarantee an approving review. Do not manufacture review records to change the score. |
-| Branch-Protection | Reconcile the checked-in policy with the supported strict up-to-date checks on this personal repository, replacing an unsupported merge-queue specification. Existing signatures, checks, resolved threads and force-push/deletion protection remain. Applying release-tag protection returns HTTP 403 to this integration. The release environment proposal retains owner review and no admin bypass, and allows only main because immutable promotion runs from that controller branch. Tag protection remains separate. Activation remains blocked by HTTP 403 because this integration lacks Environment/Administration write access. |
+| Branch-Protection | Reconcile the checked-in policy with GitHub's native merge queue on the organization default branch (`strict_required_status_checks_policy` off; `merge_group` checks match the three required Actions contexts). Existing signatures, checks, resolved threads and force-push/deletion protection remain. Applying release-tag protection returns HTTP 403 to this integration. The release environment proposal retains owner review and no admin bypass, and allows only main because immutable promotion runs from that controller branch. Tag protection remains separate. Activation remains blocked by HTTP 403 because this integration lacks Environment/Administration write access. |
 | Binary-Artifacts | Retain the required Gradle wrapper bootstrap. Its SHA-256 matches the official Gradle 8.13 wrapper checksum, and the downloaded distribution has a checked-in checksum. A regression test rejects changed bootstrap bytes. This verifies artifact identity, not absence of implementation vulnerabilities, and does not pretend the bootstrap is source text. |
 | Maintained / Contributors | Project age and independent contributor diversity require real time and contributions; do not create artificial activity or identities for the score. |
 

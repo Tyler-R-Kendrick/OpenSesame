@@ -205,7 +205,7 @@ describe("building the list of ways in", () => {
     openWaysIn();
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     expect(fieldNamed("Redirect URI to register").value).toBe(
-      "https://tyler-r-kendrick.github.io/OpenSesame/",
+      "https://opensesame-labs.github.io/OpenSesame/",
     );
   });
 

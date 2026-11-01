@@ -331,7 +331,7 @@ with no Identity API, and only while the browser holds one.
   locked vault has no watcher, no mark and no notification: nothing rings for
   a vault nobody has open. That is the lock doing its job, not a gap.
 - Before and after, from two real builds, at phone and desktop width:
-  [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-04-device-inbox/README.md).
+  [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-04-device-inbox/README.md).
 
 ## Verification
 

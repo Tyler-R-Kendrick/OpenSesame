@@ -17,7 +17,7 @@ import {
 import { openRequest } from "./local-request-journey.mjs";
 import { expect } from "./patient-expect.mjs";
 
-export const ORIGIN = "https://tyler-r-kendrick.github.io";
+export const ORIGIN = "https://opensesame-labs.github.io";
 export const BASE = `${ORIGIN}/OpenSesame`;
 
 /** The longest any one thing is waited for, on a slow machine. */

@@ -15,7 +15,7 @@ const gate = join(root, "scripts/quality/evidence-gate.mjs");
 const slot = "unlock/pages/web";
 const reviewer = "Tyler-R-Kendrick";
 const review =
-  "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045#pullrequestreview-3412345678";
+  "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045#pullrequestreview-3412345678";
 
 /** A persisted slot whose manifest records this approval, inventory exact. */
 function approvedBy(by, reference) {
@@ -83,7 +83,7 @@ test("approval names a reviewer's GitHub login, never a placeholder", () => {
         slot,
         approvedBy(
           "pending review",
-          "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045 (review pending)",
+          "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045 (review pending)",
         ),
       ),
     /approval/u,
@@ -144,12 +144,12 @@ test("approval names a reviewer's GitHub login, never a placeholder", () => {
 
 test("approval reference links a pull request, review or comment of this repository", () => {
   for (const reference of [
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045#pullrequestreview-3412345678",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045#issuecomment-4366962002",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045#discussion_r2462234567",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045/files#r2462234567",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/issues/2001#issuecomment-4366962002",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045#pullrequestreview-3412345678",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045#issuecomment-4366962002",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045#discussion_r2462234567",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045/files#r2462234567",
+    "https://github.com/OpenSesame-Labs/OpenSesame/issues/2001#issuecomment-4366962002",
     "https://github.com/tyler-r-kendrick/opensesame/pull/7",
   ])
     assert.equal(
@@ -158,22 +158,22 @@ test("approval reference links a pull request, review or comment of this reposit
     );
   for (const reference of [
     "https://review.example/42",
-    "https://gitlab.com/Tyler-R-Kendrick/OpenSesame/-/merge_requests/1",
-    "http://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045",
-    "https://github.com.evil.example/Tyler-R-Kendrick/OpenSesame/pull/2045",
-    "https://evil.example/github.com/Tyler-R-Kendrick/OpenSesame/pull/2045",
-    "https://user@github.com/Tyler-R-Kendrick/OpenSesame/pull/2045",
-    "https://github.com:8443/Tyler-R-Kendrick/OpenSesame/pull/2045",
+    "https://gitlab.com/OpenSesame-Labs/OpenSesame/-/merge_requests/1",
+    "http://github.com/OpenSesame-Labs/OpenSesame/pull/2045",
+    "https://github.com.evil.example/OpenSesame-Labs/OpenSesame/pull/2045",
+    "https://evil.example/github.com/OpenSesame-Labs/OpenSesame/pull/2045",
+    "https://user@github.com/OpenSesame-Labs/OpenSesame/pull/2045",
+    "https://github.com:8443/OpenSesame-Labs/OpenSesame/pull/2045",
     "https://github.com/someone-else/OpenSesame/pull/2045",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame-fork/pull/2045",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/0",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045?approved=1",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045#anything",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/issues/2001",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/docs/evidence",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045 (review pending)",
+    "https://github.com/OpenSesame-Labs/OpenSesame-fork/pull/2045",
+    "https://github.com/OpenSesame-Labs/OpenSesame",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/0",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045?approved=1",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045#anything",
+    "https://github.com/OpenSesame-Labs/OpenSesame/issues/2001",
+    "https://github.com/OpenSesame-Labs/OpenSesame/tree/main/docs/evidence",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045 (review pending)",
     "pending review",
   ])
     assert.throws(
@@ -188,7 +188,7 @@ test("promotion refuses a placeholder approval and writes nothing", (t) => {
   const destination = join(f.directory, "docs/evidence", slot);
   const refused = f.promote(
     "pending review",
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045 (review pending)",
+    "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045 (review pending)",
   );
   assert.notEqual(refused.status, 0);
   assert.match(refused.stderr, /approval/u);

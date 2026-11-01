@@ -5,7 +5,7 @@ use clap::Subcommand;
 use serde_json::{json, Value};
 
 /// Where the pairing link opens when a phone scans it.
-const DEFAULT_PAGES_URL: &str = "https://tyler-r-kendrick.github.io/OpenSesame/";
+const DEFAULT_PAGES_URL: &str = "https://opensesame-labs.github.io/OpenSesame/";
 
 #[derive(Subcommand, Debug)]
 pub enum DriveCmd {

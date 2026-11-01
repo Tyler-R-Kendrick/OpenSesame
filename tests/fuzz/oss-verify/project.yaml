@@ -7,11 +7,11 @@
 # adding projects/opensesame/ to that repository with these files; the
 # decision is docs/adr/0211-oss-fuzz-and-oss-verify-enrollment.md and the
 # filing checklist is docs/contributing/oss-programs.md.
-repo: https://github.com/Tyler-R-Kendrick/OpenSesame
+repo: https://github.com/OpenSesame-Labs/OpenSesame
 # TODO(enrollment): the one address that receives findings and build problems;
 # OSS Verify checks it belongs to a maintainer. Set before filing.
 primary_contact: set-before-filing@example.com
-homepage: https://github.com/Tyler-R-Kendrick/OpenSesame
+homepage: https://github.com/OpenSesame-Labs/OpenSesame
 language: rust
 # First wave (ADR 0211 §3): the security-boundary families the in-repo
 # oracles already assert — authority algebra and parsers. Every target must

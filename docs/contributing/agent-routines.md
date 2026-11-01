@@ -201,7 +201,7 @@ none was given, rather than guessing.
 ## Operating notes
 
 - **Environment id.** `create_trigger` needs an `environment_id` pointing at
-  an environment that can clone `https://github.com/Tyler-R-Kendrick/OpenSesame`.
+  an environment that can clone `https://github.com/OpenSesame-Labs/OpenSesame`.
   Use `list_environments` to find it; when creating a trigger from inside a
   session already running in the right environment, `environment_id` can be
   omitted and it will be inherited.

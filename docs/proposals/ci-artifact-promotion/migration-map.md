@@ -1,7 +1,7 @@
 # CI migration map
 
 **Status: proposed implementation plan; no active workflow or repository setting is changed by this document.**
-Baseline: `Tyler-R-Kendrick/OpenSesame` at `aad2c85b4b567fd632d0e409d53d17bb66e8fba4`.
+Baseline: `OpenSesame-Labs/OpenSesame` at `aad2c85b4b567fd632d0e409d53d17bb66e8fba4`.
 The YAML examples in this proposal live outside `.github/workflows/` and are inert.
 Names below are implementation targets; a named helper or reusable is not evidence that it has been implemented or run.
 

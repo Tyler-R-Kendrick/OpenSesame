@@ -8,7 +8,7 @@
 import { pagesOriginOf, pagesSiopIssuer } from "@opensesame/siop-v2";
 
 export type SiopRpConfig = {
-  /** Pages origin + optional path prefix, e.g. https://tyler-r-kendrick.github.io/OpenSesame */
+  /** Pages origin + optional path prefix, e.g. https://opensesame-labs.github.io/OpenSesame */
   pagesBase: string;
   /** The default application id the person registers (`local_<uuid>`). */
   clientId: string;
@@ -91,7 +91,7 @@ export function loadSiopRpConfig(
 ): SiopRpConfig {
   const pagesBase = trimTrailingSlashes(
     env.OPENSESAME_PAGES_BASE?.trim() ||
-      "https://tyler-r-kendrick.github.io/OpenSesame",
+      "https://opensesame-labs.github.io/OpenSesame",
   );
   const { listen, host, port } = listenOf(env);
   const redirectUri =

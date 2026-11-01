@@ -29,7 +29,7 @@ import { sealWithPin } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { tailscaleServeDrive } from "./lib/tailscale-serve-drive.mjs";
 
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 const base = "/OpenSesame/";
 const repo = fileURLToPath(new URL("../../..", import.meta.url));
 const [mode, side, rawArg, outArg] = process.argv.slice(2);

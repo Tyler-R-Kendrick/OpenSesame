@@ -1,4 +1,4 @@
-const REPO_URL = "https://github.com/Tyler-R-Kendrick/OpenSesame";
+const REPO_URL = "https://github.com/OpenSesame-Labs/OpenSesame";
 
 type AboutLink = {
   readonly label: string;

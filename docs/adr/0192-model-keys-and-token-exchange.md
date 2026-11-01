@@ -54,7 +54,7 @@ Whether a provider can be tested **from a browser** is a fact about its CORS
 policy, not about our code, so it was measured and not assumed: an
 unauthenticated `GET {base}/models` (a 401 or 403 means auth is required, not
 that the route is absent) and `OPTIONS` preflights for GET and POST from the
-audited origin `https://tyler-r-kendrick.github.io`. Only a provider that
+audited origin `https://opensesame-labs.github.io`. Only a provider that
 passes gets a connect preset, and so a **Test connection** key. The rest are
 still listed, still in the category, and are connected where a browser can
 reach them (the desktop host); the tile says nothing a person cannot act on.

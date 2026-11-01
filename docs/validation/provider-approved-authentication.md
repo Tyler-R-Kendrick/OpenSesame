@@ -1,6 +1,6 @@
 # Approved provider authentication audit
 
-Checked 2026-10-09 against provider-owned documentation and the deployed browser origin `https://tyler-r-kendrick.github.io`. Browser-only routes remain the selected deployment model. The catalog-wide capability audit is maintained by the capability audit slice; this report covers approved authentication alternatives to the shipped confidential integration presets.
+Checked 2026-10-09 against provider-owned documentation and the deployed browser origin `https://opensesame-labs.github.io`. Browser-only routes remain the selected deployment model. The catalog-wide capability audit is maintained by the capability audit slice; this report covers approved authentication alternatives to the shipped confidential integration presets.
 
 ## Implemented provider routes
 

@@ -22,7 +22,7 @@ import { createHarness } from "./static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, "../../../..");
-const ORIGIN = "https://tyler-r-kendrick.github.io";
+const ORIGIN = "https://opensesame-labs.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const DIST = path.resolve(here, "../../dist");
 const OUT = path.resolve(ROOT, "artifacts/live-netns");

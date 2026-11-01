@@ -6,7 +6,7 @@ import { maybePage } from "../ports.js";
 const SHARED_ORIGIN_DEMO: SecurityProfile = {
   version: 1,
   profile: "shared_origin_demo",
-  canonicalOrigin: "https://tyler-r-kendrick.github.io",
+  canonicalOrigin: "https://opensesame-labs.github.io",
   headerSecurity: false,
 };
 
@@ -47,7 +47,7 @@ export function resolveDeploymentProfile(
     return configured.profile;
   if (
     configured.profile === "dedicated_origin" &&
-    origin !== "https://tyler-r-kendrick.github.io" &&
+    origin !== "https://opensesame-labs.github.io" &&
     configured.headerSecurity &&
     new URL(origin).protocol === "https:" &&
     !isLoopbackOrigin(origin)

@@ -46,7 +46,7 @@ Promotion replaces the whole named slot, removes its superseded files and writes
 reference}`, and a SHA-256 inventory of all files including README.md. Do not
 invent approval or relabel old captures as current. `by` is the reviewer's
 GitHub login, never a placeholder such as "pending review", "tbd" or "unknown".
-`reference` is the `https://github.com/Tyler-R-Kendrick/OpenSesame/...` address
+`reference` is the `https://github.com/OpenSesame-Labs/OpenSesame/...` address
 of the pull request, review or comment that approved the captures. The promoter
 and the gate apply this rule from one module, `scripts/lib/evidence-approval.mjs`,
 so neither accepts what the other refuses. Approval metadata records the
@@ -69,7 +69,7 @@ reported dirty trees, pending checks or older paired builds. The approved set is
 therefore empty until new evidence is reviewed and promoted.
 
 Historical artifacts remain available in Git at
-[`fd554446241e32962e82763ddb772f9420096279`](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence).
+[`fd554446241e32962e82763ddb772f9420096279`](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence).
 Link an exact historical file by commit SHA when discussing a prior change;
 never restore its entire evidence chain into the working tree. Durable wallet
 claim definitions live in `spec/conformance/wallet-claims.json`; active visual

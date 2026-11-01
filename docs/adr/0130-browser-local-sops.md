@@ -95,7 +95,7 @@ forbids putting a local host in front of a browser capability. A prompt for
 ## Consequences
 
 - Settings → Security → SOPS document can open, decrypt, edit, encrypt and save a SOPS
-  document on `tyler-r-kendrick.github.io/OpenSesame/`, offline, with no
+  document on `opensesame-labs.github.io/OpenSesame/`, offline, with no
   backend of any kind — which is what ADR 0129 §7 promised.
 - `pnpm verify:sops-browser` (product gate, required) and
   `pnpm verify:sops-conformance` (compatibility gate, required, incomplete

@@ -144,7 +144,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
         test_support::TEST_VAULT_SESSION_ROOT_DIGEST, verifying_key_spki_b64, PairingError,
     };
     let (app, state) = test_router("http://127.0.0.1:8787");
-    let origin = "https://tyler-r-kendrick.github.io";
+    let origin = "https://opensesame-labs.github.io";
     let now = now_unix();
     let attacker = mint_test_signing_key();
     let attacker_spki = verifying_key_spki_b64(attacker.verifying_key());

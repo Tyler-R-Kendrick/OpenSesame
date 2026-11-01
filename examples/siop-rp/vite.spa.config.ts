@@ -20,7 +20,7 @@ export default defineConfig({
     __SIOP_SPA_CONFIG__: JSON.stringify({
       pagesBase: (
         process.env.OPENSESAME_PAGES_BASE ??
-        "https://tyler-r-kendrick.github.io/OpenSesame"
+        "https://opensesame-labs.github.io/OpenSesame"
       ).replace(/\/+$/u, ""),
       clientId:
         process.env.SIOP_RP_CLIENT_ID ??

@@ -2,7 +2,7 @@ use super::*;
 use base64::Engine as _;
 use opensesame_plugin_settings::PAIRING_CODE_PREFIX;
 
-const PAGES: &str = "https://tyler-r-kendrick.github.io";
+const PAGES: &str = "https://opensesame-labs.github.io";
 
 fn settings() -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().unwrap();
@@ -42,9 +42,9 @@ fn pair_prints_a_code_for_the_origin_and_keeps_only_its_digest() {
 fn pair_refuses_an_origin_a_browser_would_never_send() {
     let (_dir, path) = settings();
     for origin in [
-        "https://tyler-r-kendrick.github.io/",
-        "https://tyler-r-kendrick.github.io/OpenSesame",
-        "http://tyler-r-kendrick.github.io",
+        "https://opensesame-labs.github.io/",
+        "https://opensesame-labs.github.io/OpenSesame",
+        "http://opensesame-labs.github.io",
         "*",
     ] {
         let error = pair(&path, origin, DEFAULT_DAEMON_URL, "Desk").unwrap_err();

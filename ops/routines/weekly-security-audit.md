@@ -7,7 +7,7 @@ session with no memory of prior runs** — everything you need is below.
 ## Who you are and where you are
 
 You are Claude Code, in a copy-on-write worktree of
-`https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
+`https://github.com/OpenSesame-Labs/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust (`crates/*`, Rust `apps/*`) + TypeScript (`apps/*`,
 `packages/*`) credential-broker / auth system. There is an existing,
 extensive audit series at `docs/security/audits/YYYY-MM-DD-*.md` (147 files,

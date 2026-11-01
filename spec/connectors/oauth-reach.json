@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "audited_origin": "https://tyler-r-kendrick.github.io",
+  "audited_origin": "https://opensesame-labs.github.io",
   "checked_date": "2026-10-31",
   "qualification": "Unauthenticated, TLS-verified requests from the audited origin with fake credentials; nothing is granted. An endpoint is direct when its real answer carries an allowing Access-Control-Allow-Origin and, where the request needs a preflight (a custom header such as Authorization), the preflight allows the origin and names the headers. Tenant endpoints answer for themselves and are not probed; only the family of hosts a tenant may live at is recorded.",
   "providers": [
@@ -28,9 +28,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "X-Requested-With, X-Allow-Asana-Client, X-Asana-Client-Lib, Content-Type, Authorization, Asana-Enable, Asana-Disable, Asana-First-Party-Disable",
             "checked_at": "2026-10-31T00:55:11+00:00"
           }
@@ -263,9 +263,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "*,x-requested-with,Content-Type,Accept,If-Modified-Since,If-None-Match,X-Token,Authorization",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -359,7 +359,7 @@
             "status": 401,
             "allow_origin": null,
             "preflight_status": 204,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "authorization,accept",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -423,9 +423,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "authorization,accept",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -442,7 +442,7 @@
           "direct": true,
           "probe": {
             "status": 400,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": null,
             "preflight_allow_origin": null,
             "preflight_allow_headers": null,
@@ -499,9 +499,9 @@
           "direct": true,
           "probe": {
             "status": 400,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "Content-Type, Authorization, X-Audit-Log-Reason, X-Track, X-Super-Properties, X-Context-Properties, X-Failed-Requests, X-Fingerprint, X-RPC-Proxy, X-Discord-Locale, X-Discord-Original-MD5, X-Discord-Timezone, X-Debug-Options, x-client-trace-id, If-None-Match, X-Captcha-Key, X-Captcha-Rqtoken, X-Captcha-Session-Id, X-Discord-Resource-Optimization-Level, x-science-test, X-Discord-MFA-Authorization, Range, X-RateLimit-Precision, X-Discord-Features, X-Installation-Id",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -513,9 +513,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "Content-Type, Authorization, X-Audit-Log-Reason, X-Track, X-Super-Properties, X-Context-Properties, X-Failed-Requests, X-Fingerprint, X-RPC-Proxy, X-Discord-Locale, X-Discord-Original-MD5, X-Discord-Timezone, X-Debug-Options, x-client-trace-id, If-None-Match, X-Captcha-Key, X-Captcha-Rqtoken, X-Captcha-Session-Id, X-Discord-Resource-Optimization-Level, x-science-test, X-Discord-MFA-Authorization, Range, X-RateLimit-Precision, X-Discord-Features, X-Installation-Id",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -527,9 +527,9 @@
           "direct": true,
           "probe": {
             "status": 400,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "Content-Type, Authorization, X-Audit-Log-Reason, X-Track, X-Super-Properties, X-Context-Properties, X-Failed-Requests, X-Fingerprint, X-RPC-Proxy, X-Discord-Locale, X-Discord-Original-MD5, X-Discord-Timezone, X-Debug-Options, x-client-trace-id, If-None-Match, X-Captcha-Key, X-Captcha-Rqtoken, X-Captcha-Session-Id, X-Discord-Resource-Optimization-Level, x-science-test, X-Discord-MFA-Authorization, Range, X-RateLimit-Precision, X-Discord-Features, X-Installation-Id",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -548,7 +548,7 @@
             "status": 400,
             "allow_origin": null,
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "authorization,accept",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -560,9 +560,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "authorization",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -593,9 +593,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "Authorization,Cache-Control,Content-Type,If-Modified-Since,If-None-Match,Range,Dropbox-API-Arg,Dropbox-API-Select-User,Dropbox-API-User-Locale,Dropbox-API-Select-Admin,Dropbox-API-Path-Root,X-CSRF-Token,X-Dropbox-Backend,X-Dropbox-Validation,X-Dropbox-Destination,X-Dropbox-User-Agent,X-Dropbox-Force-Request-Tracing,X-Dropbox-Is-ESV,X-Dropbox-ESV-View-Name,Accept,Accept-Language,Content-Language,Origin,Referer,Traceparent,x-coding-agent-use-staging,x-grpc-web,x-user-agent,grpc-timeout,x-grpc-web-client,x-grpc-web-client-timeout",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -607,7 +607,7 @@
           "direct": true,
           "probe": {
             "status": 400,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": null,
             "preflight_allow_origin": null,
             "preflight_allow_headers": null,
@@ -739,7 +739,7 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": null,
             "preflight_allow_origin": null,
             "preflight_allow_headers": null,
@@ -753,9 +753,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "authorization,accept",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -767,7 +767,7 @@
           "direct": true,
           "probe": {
             "status": 400,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": null,
             "preflight_allow_origin": null,
             "preflight_allow_headers": null,
@@ -786,7 +786,7 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": null,
             "preflight_allow_origin": null,
             "preflight_allow_headers": null,
@@ -800,9 +800,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "authorization,accept",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -814,7 +814,7 @@
           "direct": true,
           "probe": {
             "status": 400,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": null,
             "preflight_allow_origin": null,
             "preflight_allow_headers": null,
@@ -946,9 +946,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "authorization,accept",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -1434,9 +1434,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "X-Sentry-Auth, X-Requested-With, Origin, Accept, Content-Type, Authentication, Authorization, Content-Encoding, sentry-trace, baggage, X-CSRFToken",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -1520,9 +1520,9 @@
           "direct": true,
           "probe": {
             "status": 400,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 204,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "User-Agent, Keep-Alive, Content-Type, Authorization, client-token, spotify-installation-id, dpop",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }
@@ -1534,9 +1534,9 @@
           "direct": true,
           "probe": {
             "status": 401,
-            "allow_origin": "https://tyler-r-kendrick.github.io",
+            "allow_origin": "https://opensesame-labs.github.io",
             "preflight_status": 200,
-            "preflight_allow_origin": "https://tyler-r-kendrick.github.io",
+            "preflight_allow_origin": "https://opensesame-labs.github.io",
             "preflight_allow_headers": "Accept,App-Platform,Authorization,Content-Type,Origin,Retry-After,Spotify-App-Version,X-Cloud-Trace-Context,client-token,content-access-token",
             "checked_at": "2026-10-31T00:47:50+00:00"
           }

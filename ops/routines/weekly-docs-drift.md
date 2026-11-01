@@ -7,7 +7,7 @@ session with no memory of prior runs** — everything you need is below.
 ## Who you are and where you are
 
 You are Claude Code, in a copy-on-write worktree of
-`https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
+`https://github.com/OpenSesame-Labs/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust + TypeScript monorepo. This routine's job is documentation
 accuracy: root docs drift from the actual tree over time — a script gets
 renamed, a planned feature gets described before it lands (or removed after

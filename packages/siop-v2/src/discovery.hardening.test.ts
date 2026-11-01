@@ -11,10 +11,10 @@ import {
 import { isSiopV2Error } from "./errors.js";
 
 const PAGES = {
-  origin: "https://tyler-r-kendrick.github.io",
+  origin: "https://opensesame-labs.github.io",
   basePath: "/OpenSesame/",
 } as const;
-const ISSUER = "https://tyler-r-kendrick.github.io/OpenSesame/identity/siop";
+const ISSUER = "https://opensesame-labs.github.io/OpenSesame/identity/siop";
 const GOOD = serializePagesSiopMetadata(PAGES);
 
 async function codeOf<T>(run: () => Promise<T>): Promise<string> {

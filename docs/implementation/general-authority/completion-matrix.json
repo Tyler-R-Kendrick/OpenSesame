@@ -294,7 +294,7 @@
       "evidence": [
         {
           "command": "PLAYWRIGHT_CHROMIUM=$CHROME node apps/pages/scripts/capture-evidence.mjs compose work/evidence/general-authority/authority/cross-platform/journey.json",
-          "historicalEvidence": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-17-access-authority/",
+          "historicalEvidence": "https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-17-access-authority/",
           "resultScope": "Recorded historical result; command destination updated to scratch and not rerun by this cleanup.",
           "result": "ok. before=Vault share sessions only; after=Local sessions & grants + Audience templates (phone+desktop)"
         }
@@ -447,7 +447,7 @@
       "title": "Structural quality gates for new modules",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/general-authority/authority-fabric-report.json \u2192 55 pass / 1 blocked / 0 unsupported",
+      "evidence": "https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/general-authority/authority-fabric-report.json \u2192 55 pass / 1 blocked / 0 unsupported",
       "blockedBy": [],
       "notes": "FIX-* and AT-* modules registered; fabric unsupported residual cleared (GA-V-29 shuttle interleaving now runnable via concurrency-test)."
     },
@@ -475,13 +475,13 @@
       "evidence": [
         {
           "command": "rg -n \"Local sessions & grants|Audience templates|Vault share sessions\" work/evidence/general-authority/authority/cross-platform/README.md",
-          "historicalEvidence": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-17-access-authority/",
+          "historicalEvidence": "https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-17-access-authority/",
           "resultScope": "Recorded historical result; command destination updated to scratch and not rerun by this cleanup.",
           "result": "ok. measured before/after captions committed beside sheets"
         }
       ],
       "blockedBy": ["GA-P-02"],
-      "notes": "Before/after sheets at https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-17-access-authority/ from two real builds."
+      "notes": "Before/after sheets at https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-17-access-authority/ from two real builds."
     },
     {
       "id": "GRA-REPRO",

@@ -1,7 +1,7 @@
 # Agent prompt — Vault key protection and age/SOPS interoperability
 
 **Audience:** lead LLM coding agent + parallel subagent swarm in
-`Tyler-R-Kendrick/OpenSesame`. This file is self-contained. Do not depend on
+`OpenSesame-Labs/OpenSesame`. This file is self-contained. Do not depend on
 prior chat. Repository source is authoritative over the September 20, 2026
 baseline snapshot below; document material differences with file/symbol
 evidence.
@@ -589,15 +589,15 @@ Baseline pinned to `dc3d11878c90f1088d094ff18f5ee9d301e4a57d`.
 
 GitHub deep links (baseline SHA):
 
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/capabilities.ts
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/apps/pages/src/components/KeyVaultCeremony.tsx
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/capability-bind.ts
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/crypto.ts
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/unlock-methods.ts
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/store.ts
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/crates/human-vault/src/lib.rs
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/crates/sealed-store/src/store.rs
-- https://github.com/Tyler-R-Kendrick/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/docs/adr/0037-git-sealed-store.md
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/capabilities.ts
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/apps/pages/src/components/KeyVaultCeremony.tsx
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/capability-bind.ts
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/crypto.ts
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/unlock-methods.ts
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/packages/app-core/src/lib/vault/store.ts
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/crates/human-vault/src/lib.rs
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/crates/sealed-store/src/store.rs
+- https://github.com/OpenSesame-Labs/OpenSesame/blob/dc3d11878c90f1088d094ff18f5ee9d301e4a57d/docs/adr/0037-git-sealed-store.md
 
 ---
 

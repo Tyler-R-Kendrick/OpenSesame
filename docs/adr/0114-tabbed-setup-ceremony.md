@@ -30,7 +30,7 @@ at all (`apps/pages/src/screens/SetupScreen.tsx`).
 The count was already wrong before that change: when ADR 0130 was taken the
 executable declared **four** statically imported tabs (connectors, ai, identity,
 mfa), not six. That discrepancy is recorded in
-[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/baseline.md), and neither number is a
+[historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/baseline.md), and neither number is a
 target now.
 
 Everything else here stands: the steps-rail idiom, plain `role="tab"` buttons in

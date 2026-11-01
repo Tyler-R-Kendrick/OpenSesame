@@ -1468,7 +1468,7 @@
       "configured": false,
       "connection_configuration_fields": [],
       "display_name": "Mock provider (testing)",
-      "docs_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/tools/mock-upstream-idp",
+      "docs_url": "https://github.com/OpenSesame-Labs/OpenSesame/tree/main/tools/mock-upstream-idp",
       "egress": {
         "authorities": [
           "127.0.0.1"
@@ -1509,7 +1509,7 @@
         "fixture.read",
         "fixture.write"
       ],
-      "provenance_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/tools/mock-upstream-idp",
+      "provenance_url": "https://github.com/OpenSesame-Labs/OpenSesame/tree/main/tools/mock-upstream-idp",
       "scopes": [
         {
           "default": true,
@@ -8781,7 +8781,7 @@
         }
       ],
       "display_name": "BYO AI",
-      "docs_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/operators/ai-connections.md",
+      "docs_url": "https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/operators/ai-connections.md",
       "egress": {
         "authorities": [],
         "path_prefixes": [],

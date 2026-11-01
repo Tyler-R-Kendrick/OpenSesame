@@ -4,7 +4,7 @@ import { type SenderFacts, createBridge } from "./bridge.js";
 import { relayId } from "./sites.js";
 import { EXTENSION_ID, fakePorts } from "./test-ports.js";
 
-const APP = "https://tyler-r-kendrick.github.io";
+const APP = "https://opensesame-labs.github.io";
 const table = [
   { providerId: "plivo", authorities: ["api.plivo.com"] },
 ] as const;
@@ -56,7 +56,7 @@ describe("who the bridge answers", () => {
     ["no url", { ...tab, url: undefined }],
     [
       "a plain-http origin",
-      { ...tab, url: "http://tyler-r-kendrick.github.io/" },
+      { ...tab, url: "http://opensesame-labs.github.io/" },
     ],
   ])("refuses %s", async (_name, sender) => {
     const { bridge, fake } = await ready();

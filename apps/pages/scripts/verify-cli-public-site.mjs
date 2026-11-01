@@ -4,7 +4,7 @@
 //   pnpm --filter @opensesame/pages verify:cli-public-site
 //
 // The Pages build is the one CI already produced (`scripts/lib/ci-pages-build.mjs`).
-// This walk does not rebuild. A guest on https://tyler-r-kendrick.github.io
+// This walk does not rebuild. A guest on https://opensesame-labs.github.io
 // opens Identity › Devices, finds Pair CLI uncounted, and reaches Authorize
 // CLI from the command bar. The pairing field stays hidden. The block is a
 // status mark and a tray notice. Nothing calls loopback.
@@ -22,7 +22,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(
   process.env.PAGES_VERIFY_DIST ?? path.join(here, "..", "dist"),
 );
-const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+const ORIGIN = process.env.PAGES_ORIGIN ?? "https://opensesame-labs.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(
   process.env.PAGES_VERIFY_OUT ??

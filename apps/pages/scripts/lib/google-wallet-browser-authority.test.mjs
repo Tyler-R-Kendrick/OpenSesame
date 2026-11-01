@@ -11,7 +11,7 @@ import {
   GOOGLE_WALLET_TOKEN_URL,
 } from "./google-wallet-browser-protocol.mjs";
 
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 const closes = [];
 afterEach(async () => {
   for (const close of closes.splice(0).reverse()) await close();

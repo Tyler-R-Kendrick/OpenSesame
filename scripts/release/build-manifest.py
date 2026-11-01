@@ -31,7 +31,7 @@ for name, (_, target) in expected.items():
             release = json.loads(files['release.json'])
             if release.get('revision') != env['SOURCE_SHA']: raise SystemExit('Pages source mismatch')
             profile = json.loads(files['security-profile.json'])
-            if profile.get('profile') != 'shared_origin_demo' or profile.get('canonicalOrigin') != 'https://tyler-r-kendrick.github.io':
+            if profile.get('profile') != 'shared_origin_demo' or profile.get('canonicalOrigin') != 'https://opensesame-labs.github.io':
                 raise SystemExit('Wrong Pages deployment profile')
         else:
             directory = pathlib.PurePosixPath(name).name.removesuffix('.tar.gz')

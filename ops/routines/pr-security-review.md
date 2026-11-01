@@ -7,7 +7,7 @@ to invoke it:
 
 - Paste this whole file into a fresh Claude Code cloud session, followed by
   a line naming the PR: `PR number: 123` (repo defaults to
-  `Tyler-R-Kendrick/OpenSesame` unless told otherwise).
+  `OpenSesame-Labs/OpenSesame` unless told otherwise).
 - If this file is registered as a Routine bound to a persistent session (not
   a fresh-session-per-fire one — see `docs/contributing/agent-routines.md` for
   why this one is registered differently, if at all), fire it with
@@ -20,7 +20,7 @@ ask for one rather than guessing.
 ## Who you are and where you are
 
 You are Claude Code, reviewing a specific pull request against
-`https://github.com/Tyler-R-Kendrick/OpenSesame`. OpenSesame is a polyglot
+`https://github.com/OpenSesame-Labs/OpenSesame`. OpenSesame is a polyglot
 Rust + TypeScript credential-broker/auth system. CodeRabbit does not
 auto-review this repository while it has fewer than 10 stars. Your job is
 the security pass: apply this repo's accumulated security checklist line by
@@ -77,15 +77,15 @@ comment — not one comment per checklist item.
 ## Exact commands
 
 ```bash
-gh pr view <PR-NUMBER> --repo Tyler-R-Kendrick/OpenSesame --json title,body,baseRefName,headRefName,files
-gh pr diff <PR-NUMBER> --repo Tyler-R-Kendrick/OpenSesame
+gh pr view <PR-NUMBER> --repo OpenSesame-Labs/OpenSesame --json title,body,baseRefName,headRefName,files
+gh pr diff <PR-NUMBER> --repo OpenSesame-Labs/OpenSesame
 ```
 
 Then, for full context on any changed file (the diff alone often lacks
 surrounding code that matters for a security read):
 
 ```bash
-gh pr checkout <PR-NUMBER> --repo Tyler-R-Kendrick/OpenSesame
+gh pr checkout <PR-NUMBER> --repo OpenSesame-Labs/OpenSesame
 ```
 
 Read `tools/security/claude-review-checklist.md` in full — it is the artifact this
@@ -134,7 +134,7 @@ the body) covering:
 Post this as a single comment on the PR:
 
 ```bash
-gh pr comment <PR-NUMBER> --repo Tyler-R-Kendrick/OpenSesame --body "$(cat <<'EOF'
+gh pr comment <PR-NUMBER> --repo OpenSesame-Labs/OpenSesame --body "$(cat <<'EOF'
 <the structured review from above>
 EOF
 )"

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://tyler-r-kendrick.github.io/OpenSesame/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://tyler-r-kendrick.github.io/OpenSesame/about.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://tyler-r-kendrick.github.io/OpenSesame/privacy.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://tyler-r-kendrick.github.io/OpenSesame/contact.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://tyler-r-kendrick.github.io/OpenSesame/llms.txt</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://tyler-r-kendrick.github.io/OpenSesame/index.md</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://opensesame-labs.github.io/OpenSesame/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://opensesame-labs.github.io/OpenSesame/about.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://opensesame-labs.github.io/OpenSesame/privacy.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://opensesame-labs.github.io/OpenSesame/contact.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://opensesame-labs.github.io/OpenSesame/llms.txt</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://opensesame-labs.github.io/OpenSesame/index.md</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
 </urlset>

@@ -29,7 +29,7 @@ pub async fn config(State(server): State<BitwardenServer>) -> Json<Value> {
         "gitHash": "opensesame",
         "server": {
             "name": "OpenSesame",
-            "url": "https://github.com/Tyler-R-Kendrick/OpenSesame",
+            "url": "https://github.com/OpenSesame-Labs/OpenSesame",
         },
         "environment": {
             "cloudRegion": null,

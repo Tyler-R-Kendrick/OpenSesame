@@ -18,7 +18,7 @@ left the providers that do not: 27 API-key providers that the audited preflight 
 refuses (SendGrid, Postmark, Datadog, Cloudflare, Resend, …), and 17 more (16 model
 providers and Plivo) that had no key check at all because the one that exists is
 unreadable from a page. Their servers answer a request from
-`https://tyler-r-kendrick.github.io` without an `Access-Control-Allow-Origin` header, so a
+`https://opensesame-labs.github.io` without an `Access-Control-Allow-Origin` header, so a
 page that sends the request cannot read whether the key was accepted. That is a rule of
 the browser, not of OpenSesame: no change to the page can make it say yes.
 

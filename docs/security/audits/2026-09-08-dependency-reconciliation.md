@@ -7,8 +7,8 @@ This is not a fresh vulnerability database scan or a claim of zero advisories.
 
 ## Reconciliation
 
-[PR #376](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/376) is closed,
-unmerged. [PR #378](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/378)
+[PR #376](https://github.com/OpenSesame-Labs/OpenSesame/pull/376) is closed,
+unmerged. [PR #378](https://github.com/OpenSesame-Labs/OpenSesame/pull/378)
 already merged the SimpleWebAuthn update in
 `b6c5ba147aaf0db770a77304b6568c8c50ca172d`. The installed and locked server
 version is 13.3.2. Reapplying #376 would duplicate that change and introduce

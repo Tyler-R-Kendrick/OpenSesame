@@ -1,6 +1,6 @@
 {
   "$comment": "Maintained index of historical audit dispositions, not approval or current implementation validation. Preserve actionable findings here; raw run output stays outside the tracked tree.",
-  "source": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-8/findings.json",
+  "source": "https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-8/findings.json",
   "sourceProductCommit": "cfa60722e1c26403c0d833fb230c48a5db07bd44",
   "validationScope": "Historical run-8 records only. Its metadata says in_progress with hunting incomplete. No current-head revalidation was performed during consolidation.",
   "findings": [

@@ -25,7 +25,7 @@ Naming: [`compatibility-map.md`](compatibility-map.md).
 ## Swarms
 
 Work IDs follow the repository's existing `<SWARM>-NN` convention (see
-[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet/interaction-evidence.json)), prefixed `GA-` for this
+[historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet/interaction-evidence.json)), prefixed `GA-` for this
 programme.
 
 | Swarm | Owns | Primary paths | Work IDs |

@@ -17,7 +17,7 @@ import {
 } from "./device-link.js";
 
 const BASE = "/OpenSesame/";
-const ORIGIN = "https://tyler-r-kendrick.github.io";
+const ORIGIN = "https://opensesame-labs.github.io";
 const at = (path: string) => `${ORIGIN}${path}`;
 
 afterEach(() => {

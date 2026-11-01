@@ -42,7 +42,7 @@ if (side !== "before" && side !== "after") {
 }
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = process.env.EVIDENCE_DIST ?? path.resolve(here, "..", "dist");
-const ORIGIN = "https://tyler-r-kendrick.github.io";
+const ORIGIN = "https://opensesame-labs.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 // The directory `capture-evidence.mjs compose` reads for this journey file.
 const OUT = path.join(

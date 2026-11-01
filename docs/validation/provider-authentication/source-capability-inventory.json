@@ -6138,7 +6138,7 @@
   ],
   "qualification": "Listed source identities and compiled route contracts only. Source potential requires the actual runtime, instance policy, egress approval and provider registration; never evidence of live provider grants or observed deployment glyphs.",
   "scenario": {
-    "auditedOrigin": "https://tyler-r-kendrick.github.io",
+    "auditedOrigin": "https://opensesame-labs.github.io",
     "googleStrictOpenerIsolation": true,
     "counts": {
       "potentialBrowser": 89,

@@ -4,7 +4,7 @@ import { createBridge } from "./bridge.js";
 import { POPUP_MESSAGE, handlePopup, parsePopupMessage } from "./popup-api.js";
 import { EXTENSION_ID, fakePorts } from "./test-ports.js";
 
-const APP = "https://tyler-r-kendrick.github.io";
+const APP = "https://opensesame-labs.github.io";
 const table = [
   { providerId: "plivo", authorities: ["api.plivo.com"] },
 ] as const;

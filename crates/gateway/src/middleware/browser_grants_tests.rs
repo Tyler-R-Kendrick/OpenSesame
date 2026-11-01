@@ -80,7 +80,7 @@ async fn real_preflight_never_admits_shared_unpaired_or_operator_requests() {
     for (path, origin, headers) in [
         (
             "/api/v1/browser-pairings",
-            "https://tyler-r-kendrick.github.io",
+            "https://opensesame-labs.github.io",
             "dpop",
         ),
         (

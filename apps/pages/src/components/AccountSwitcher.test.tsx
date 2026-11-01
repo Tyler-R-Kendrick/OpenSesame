@@ -355,7 +355,7 @@ describe("AccountSwitcher — signed in through the broker, no Identity API (ADR
       upstreamId: "shoo",
       idToken: "id.token",
       pairwiseSub: "pw_abc",
-      audience: "origin:https://tyler-r-kendrick.github.io",
+      audience: "origin:https://opensesame-labs.github.io",
       jwksUri: "https://shoo.dev/.well-known/jwks.json",
       expiresAt: Date.now() + 60_000,
       name: "Test Person",

@@ -58,7 +58,7 @@ must not enter those mutation paths.
 
 8. **Shoo.** Dialect unchanged. Automatic acquisition is unsupported.
 
-Hermetic case IDs (POL-DEFAULT, POL-ENTERPRISE, OIDC-*, ID-*, LIFE-*, PROVIDER-*, WEB-BRIDGE, REG-EVIDENCE) are mapped in `docs/validation/ambient-sso.md` and [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-17-ambient-sso/evidence.json).
+Hermetic case IDs (POL-DEFAULT, POL-ENTERPRISE, OIDC-*, ID-*, LIFE-*, PROVIDER-*, WEB-BRIDGE, REG-EVIDENCE) are mapped in `docs/validation/ambient-sso.md` and [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-17-ambient-sso/evidence.json).
 
 ## Consequences
 

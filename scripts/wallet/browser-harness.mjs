@@ -18,7 +18,7 @@ import { enterAsGuest, openWallet } from "./lib/wallet-capability.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 initializeWalletVerification(root);
 const DIST = join(root, "apps/pages/dist");
-const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+const ORIGIN = process.env.PAGES_ORIGIN ?? "https://opensesame-labs.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = join(root, "artifacts/wallet-browser-qab");
 

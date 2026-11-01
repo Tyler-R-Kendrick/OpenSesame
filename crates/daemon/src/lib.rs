@@ -671,7 +671,7 @@ mod tests {
         use tower::ServiceExt;
         for (origin, token) in [
             (
-                Some("https://tyler-r-kendrick.github.io"),
+                Some("https://opensesame-labs.github.io"),
                 test_operator_token(),
             ),
             (Some("http://localhost:5180"), test_operator_token()),
