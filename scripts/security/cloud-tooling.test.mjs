@@ -164,8 +164,72 @@ test("cloud CLI payloads and Kimi dependencies have committed integrity pins", (
   }
   const dockerfile = readFileSync(join(root, ".cursor/Dockerfile"), "utf8");
   assert.match(dockerfile, /npm ci --prefix \/opt\/opensesame-cloud-tools/);
-  assert.match(dockerfile, /npm_config_nodedir=\/usr\/local/);
-  assert.doesNotMatch(dockerfile, /curl[^\n]*\|\s*bash|npm install -g/);
+  assert.match(dockerfile, /mise where node/);
+  assert.match(dockerfile, /include\/node\/node\.h/);
+  assert.match(dockerfile, /npm_config_nodedir="\$node_prefix"/);
+  assert.doesNotMatch(dockerfile, /curl[^\n]*\|\s*(?:ba)?sh|npm install -g/);
+  assert.doesNotMatch(dockerfile, /mise\.run/);
+});
+
+test("Cursor image installs mise from a pinned checksum tarball", () => {
+  const dockerfile = readFileSync(join(root, ".cursor/Dockerfile"), "utf8");
+  const installScript = readFileSync(join(root, ".cursor/install.sh"), "utf8");
+  assert.match(dockerfile, /ARG MISE_VERSION=\d+\.\d+\.\d+/);
+  assert.doesNotMatch(dockerfile, /MISE_VERSION=latest/);
+  const x64 = dockerfile.match(/ARG MISE_SHA256_LINUX_X64=([a-f0-9]{64})\n/);
+  const arm64 = dockerfile.match(
+    /ARG MISE_SHA256_LINUX_ARM64=([a-f0-9]{64})\n/,
+  );
+  assert.ok(x64, "linux-x64 mise tarball checksum");
+  assert.ok(arm64, "linux-arm64 mise tarball checksum");
+  assert.notEqual(x64[1], arm64[1]);
+  assert.match(dockerfile, /mise_sha="\$\{MISE_SHA256_LINUX_X64\}"/);
+  assert.match(dockerfile, /mise_sha="\$\{MISE_SHA256_LINUX_ARM64\}"/);
+  assert.match(
+    dockerfile,
+    /archive="mise-v\$\{MISE_VERSION\}-\$\{mise_target\}\.tar\.gz"/,
+  );
+  assert.match(
+    dockerfile,
+    /https:\/\/github\.com\/jdx\/mise\/releases\/download\/v\$\{MISE_VERSION\}\/\$\{archive\}/,
+  );
+  assert.match(dockerfile, /sha256sum -c --strict/);
+  assert.match(dockerfile, /tar -xzf "\/tmp\/\$\{archive\}"/);
+  assert.match(dockerfile, /^ENV MISE_DATA_DIR=\/opt\/mise$/m);
+  assert.match(dockerfile, /^ENV PATH=\/opt\/mise\/shims:/m);
+  assert.match(dockerfile, /^ENV BASH_ENV=\/etc\/profile\.d\/mise\.sh$/m);
+  assert.match(dockerfile, /^COPY mise\.toml mise\.lock /m);
+  const profile = imageProfile(dockerfile, "mise");
+  assert.match(profile, /\/opt\/mise\/shims/);
+  assert.match(profile, /CARGO_TARGET_DIR/);
+  assert.match(profile, /\. \/etc\/profile\.d\/kimi-code\.sh/);
+  const userAt = dockerfile.indexOf("\nUSER vscode\n");
+  assert.ok(userAt > 0);
+  assert.match(dockerfile.slice(0, userAt), /mise install --locked/);
+  assert.match(dockerfile.slice(userAt), /mise install --locked/);
+  assert.doesNotMatch(dockerfile, /FROM node:|COPY --from=node /);
+  assert.doesNotMatch(dockerfile, /\bcorepack\b|rustup component add|pnpm@/);
+  assert.doesNotMatch(dockerfile, /mise\.run/);
+  assert.doesNotMatch(dockerfile, /curl[^\n]*\|\s*(?:ba)?sh/);
+  assert.match(installScript, /mise install --locked\n/);
+  assert.match(installScript, /mise run deps\n/);
+  assert.doesNotMatch(installScript, /\bcorepack\b|pnpm@/);
+  assert.doesNotMatch(installScript, /mise\.run/);
+  assert.doesNotMatch(installScript, /curl[^\n]*\|\s*(?:ba)?sh/);
+  assert.match(
+    dockerfile,
+    /install-cloud-cli\.mjs grok \/usr\/local\/bin\/grok/,
+  );
+  assert.match(dockerfile, /downloads\.json/);
+  assert.match(installScript, /install-cloud-cli\.mjs cursor/);
+  const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  assert.equal(manifest.engines.node, ">=24");
+  const preflight = readFileSync(
+    join(root, "scripts/dev/grok-preflight.sh"),
+    "utf8",
+  );
+  assert.match(preflight, /\bgrok models\b/);
+  assert.doesNotMatch(preflight, /\/usr\/local\/lib\/node|node:22/);
 });
 
 test("published base images are pinned, while OSS Verify keeps its local builder contract", () => {
@@ -296,8 +360,18 @@ function shellFixture(t) {
       join(root, ".cursor/cloud-path.sh"),
       join(folder, ".cursor/cloud-path.sh"),
     );
-  for (const name of ["corepack", "cargo"])
-    writeFileSync(join(bin, name), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  const miseLog = join(folder, "mise-calls.txt");
+  writeFileSync(
+    join(bin, "mise"),
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(miseLog)}\nexit 0\n`,
+    { mode: 0o755 },
+  );
+  writeFileSync(
+    join(bin, "corepack"),
+    "#!/bin/sh\nprintf '%s\\n' 'corepack invoked' >&2\nexit 99\n",
+    { mode: 0o755 },
+  );
+  writeFileSync(join(bin, "cargo"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
   symlinkSync(process.execPath, join(bin, "node"));
   writeFileSync(
     join(folder, "scripts/dev/install-dependencies.sh"),
@@ -318,21 +392,25 @@ throw new Error("an already installed Cursor must not be downloaded again");
   for (const name of ["cursor-agent", "agent"])
     symlinkSync(binary, join(fixtureHome, ".local/bin", name));
   const dockerfile = readFileSync(join(root, ".cursor/Dockerfile"), "utf8");
-  const profile = join(folder, "cargo.sh");
+  const bashEnv = dockerfile.match(/^ENV BASH_ENV=(.+)$/m)?.[1];
+  assert.equal(bashEnv, "/etc/profile.d/mise.sh");
+  const profile = join(folder, "mise.sh");
   const cloudProfile = join(folder, "kimi-code.sh");
   writeFileSync(cloudProfile, imageProfile(dockerfile, "kimi-code"));
   writeFileSync(
     profile,
-    imageProfile(dockerfile, "cargo").replace(
+    imageProfile(dockerfile, "mise").replace(
       ". /etc/profile.d/kimi-code.sh",
       '. "$FIXTURE_CLOUD_PROFILE"',
     ),
   );
   const imagePath = dockerfile.match(/^ENV PATH=(.+)$/m)?.[1];
   assert.ok(imagePath);
+  assert.match(imagePath, /^\/opt\/mise\/shims:/);
   return {
     folder,
     fixtureHome,
+    miseLog,
     env: {
       ...process.env,
       HOME: fixtureHome,
@@ -366,6 +444,7 @@ test("fresh non-login image shells find installed Cursor commands and bootstrap 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "fixture-cursor\nfixture-cursor\n");
   assert.equal(existsSync(join(f.folder, "unexpected-redownload")), false);
+  assert.doesNotMatch(result.stderr, /corepack invoked/);
   const standaloneEnv = { ...f.env, BASH_ENV: undefined };
   const standalone = spawnSync(
     "/bin/bash",
@@ -379,5 +458,36 @@ test("fresh non-login image shells find installed Cursor commands and bootstrap 
   assert.ifError(standalone.error);
   assert.equal(standalone.status, 0, standalone.stderr);
   assert.equal(existsSync(join(f.folder, "unexpected-redownload")), false);
+  assert.doesNotMatch(standalone.stderr, /corepack invoked/);
+  assert.equal(
+    readFileSync(f.miseLog, "utf8"),
+    [
+      "install --locked",
+      "run deps",
+      "install --locked",
+      "run deps",
+      "install --locked",
+      "run deps",
+      "",
+    ].join("\n"),
+  );
+  const pathCheck = spawnSync(
+    "/bin/bash",
+    [
+      "--noprofile",
+      "--norc",
+      "-c",
+      [
+        "set -eu",
+        'export PATH="/usr/sbin:/usr/bin:/sbin:/bin"',
+        '. "$BASH_ENV"',
+        'case ":$PATH:" in *:/opt/mise/shims:*) ;; *) echo "mise shims missing" >&2; exit 1 ;; esac',
+        'case ":$PATH:" in *:/usr/local/bin:*) ;; *) echo "grok dir missing" >&2; exit 1 ;; esac',
+      ].join("\n"),
+    ],
+    { cwd: f.folder, env: f.env, encoding: "utf8" },
+  );
+  assert.ifError(pathCheck.error);
+  assert.equal(pathCheck.status, 0, pathCheck.stderr);
   assert.equal(process.env.HOME, originalHome);
 });

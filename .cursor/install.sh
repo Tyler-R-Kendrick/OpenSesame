@@ -3,13 +3,18 @@
 set -euo pipefail
 
 . .cursor/cloud-path.sh
-export PATH="/usr/local/cargo/bin:${PATH}"
+export MISE_DATA_DIR="${MISE_DATA_DIR:-/opt/mise}"
+case ":${PATH}:" in
+  *:"${MISE_DATA_DIR}/shims":*) ;;
+  *) PATH="${MISE_DATA_DIR}/shims:${PATH}" ;;
+esac
+export PATH
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/packages/cargo-target}"
 
-corepack enable
-corepack prepare pnpm@9.15.0 --activate
-bash scripts/dev/install-dependencies.sh
-cargo +1.88.0 fetch
+# Node, npm, and Rust come from the locked mise config. `deps` runs npm ci.
+mise install --locked
+mise run deps
+cargo fetch
 
 # Grok Build subscription auth. Non-fatal when the Cursor store is absent
 # (local dev). The installer prints status only, never auth file contents.
