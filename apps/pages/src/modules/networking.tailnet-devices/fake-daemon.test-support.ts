@@ -1,7 +1,8 @@
 /**
  * A daemon's tailnet routes in memory, behind a fake egress port, for the
  * panel tests: the real client sends real requests and reads real answers in
- * the daemon's shape (`spec/conformance/tailnet-admin-protocol.json`).
+ * the daemon's shape (`spec/conformance/tailnet-admin-protocol.json.hbs`,
+ * rendered at test time).
  */
 
 import type { EgressPort } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
@@ -17,6 +18,15 @@ import {
   isJsonObject,
 } from "@opensesame/os-domain";
 import { screen } from "@testing-library/react";
+import {
+  syntheticTailscaleAuthKeyControlId,
+  syntheticTailscaleAuthKeyForControlId,
+} from "@opensesame/app-core/lib/synthetic-tailscale-key.js";
+
+export const TEST_MINT_AUTH_KEY_ID = syntheticTailscaleAuthKeyControlId();
+export const TEST_MINT_AUTH_KEY = syntheticTailscaleAuthKeyForControlId(
+  TEST_MINT_AUTH_KEY_ID,
+);
 
 export type WireDevice = JsonObject & { id: string };
 
@@ -90,7 +100,7 @@ function readRoute(daemon: FakeDaemon, path: string): Response | null {
 function mintKey(daemon: FakeDaemon, body: BoundaryValue): Response {
   const get = (name: string) => field(body, name);
   const created = {
-    id: "kNEW9CNTRL",
+    id: TEST_MINT_AUTH_KEY_ID,
     description: get("description"),
     created: "2026-10-05T09:01:00Z",
     expires: "2026-10-06T09:01:00Z",
@@ -100,7 +110,7 @@ function mintKey(daemon: FakeDaemon, body: BoundaryValue): Response {
     ephemeral: get("ephemeral"),
     preauthorized: get("preauthorized"),
     tags: get("tags"),
-    key: "tskey-auth-kNEW9CNTRL-Secret0Value",
+    key: TEST_MINT_AUTH_KEY,
   };
   daemon.keys.push({ ...created, key: null });
   return json(201, created);

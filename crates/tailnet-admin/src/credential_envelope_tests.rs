@@ -5,19 +5,22 @@ use chacha20poly1305::{
     XChaCha20Poly1305, XNonce,
 };
 use hkdf::Hkdf;
+use secrecy::ExposeSecret;
 
-const SECRET: &str = "tskey-client-customer-canary-0123456789abcdef";
+fn test_oauth_secret() -> SecretString {
+    crate::synthetic::client_secret()
+}
 
-fn connected(dir: &Path, tailnet: &str) -> (AdminStore, TailnetConfig) {
+fn connected(dir: &Path, tailnet: &str, secret: &SecretString) -> (AdminStore, TailnetConfig) {
     let store = AdminStore::at(dir);
     let config = store
         .connect(
             tailnet,
             Credential {
                 kind: CredentialKind::Oauth,
-                client_id: "customerClient".into(),
+                client_id: crate::synthetic::client_id(),
             },
-            &SecretString::from(SECRET.to_owned()),
+            secret,
             7,
         )
         .unwrap();
@@ -28,7 +31,12 @@ fn raw(store: &AdminStore) -> String {
     std::fs::read_to_string(store.dir.join(SECRET_FILE)).unwrap()
 }
 
-fn unwrap(store: &AdminStore, config: &TailnetConfig, value: &str) -> Vec<u8> {
+fn unwrap(
+    store: &AdminStore,
+    config: &TailnetConfig,
+    value: &str,
+    expected: &[u8],
+) -> Vec<u8> {
     let root = hex::decode(
         std::fs::read_to_string(store.dir.join(KEY_FILE))
             .unwrap()
@@ -83,29 +91,32 @@ fn unwrap(store: &AdminStore, config: &TailnetConfig, value: &str) -> Vec<u8> {
             },
         )
         .unwrap();
-    assert_eq!(plaintext, SECRET.as_bytes());
+    assert_eq!(plaintext, expected);
     dek
 }
 
 #[test]
 fn fresh_data_keys_and_restart_preserve_only_encrypted_credentials() {
     let dir = tempfile::tempdir().unwrap();
-    let (store, config) = connected(dir.path(), "customer-a.example");
+    let secret = test_oauth_secret();
+    let (store, config) = connected(dir.path(), "customer-a.example", &secret);
     let first = raw(&store);
     assert!(first.starts_with("osev2.") && !first.contains("tskey") && !first.contains("canary"));
-    let dek = unwrap(&store, &config, &first);
+    let expected = secret.expose_secret().as_bytes();
+    let dek = unwrap(&store, &config, &first, expected);
     let restarted = AdminStore::at(dir.path());
-    assert_eq!(restarted.secret(&config).unwrap().expose_secret(), SECRET);
-    let (_, next) = connected(dir.path(), "customer-a.example");
-    assert_ne!(dek, unwrap(&store, &next, &raw(&store)));
+    assert_eq!(restarted.secret(&config).unwrap().expose_secret(), secret.expose_secret());
+    let (_, next) = connected(dir.path(), "customer-a.example", &secret);
+    assert_ne!(dek, unwrap(&store, &next, &raw(&store), expected));
 }
 
 #[test]
 fn copied_root_and_ciphertext_cannot_move_to_another_local_namespace() {
     let a = tempfile::tempdir().unwrap();
     let b = tempfile::tempdir().unwrap();
-    let (store, _) = connected(a.path(), "customer-a.example");
-    let (other, config) = connected(b.path(), "customer-a.example");
+    let secret = test_oauth_secret();
+    let (store, _) = connected(a.path(), "customer-a.example", &secret);
+    let (other, config) = connected(b.path(), "customer-a.example", &secret);
     for name in [KEY_FILE, SECRET_FILE] {
         std::fs::copy(store.dir.join(name), other.dir.join(name)).unwrap();
     }
@@ -115,7 +126,8 @@ fn copied_root_and_ciphertext_cannot_move_to_another_local_namespace() {
 #[test]
 fn changing_tailnet_client_kind_or_purpose_refuses_the_credential() {
     let dir = tempfile::tempdir().unwrap();
-    let (store, config) = connected(dir.path(), "customer-a.example");
+    let secret = test_oauth_secret();
+    let (store, config) = connected(dir.path(), "customer-a.example", &secret);
     let mut other = config.clone();
     other.tailnet = "customer-b.example".into();
     write_private(
@@ -155,7 +167,7 @@ fn changing_tailnet_client_kind_or_purpose_refuses_the_credential() {
     let wrong = key.seal_value(
         &store.namespace(&config).unwrap(),
         "another-purpose",
-        SECRET,
+        secret.expose_secret(),
     );
     write_private(&store.dir.join(SECRET_FILE), wrong.as_bytes()).unwrap();
     assert!(store.secret(&config).is_err());
@@ -164,9 +176,11 @@ fn changing_tailnet_client_kind_or_purpose_refuses_the_credential() {
 #[test]
 fn tampering_unknown_versions_truncation_and_plaintext_downgrade_fail_closed() {
     let dir = tempfile::tempdir().unwrap();
-    let (store, config) = connected(dir.path(), "customer-a.example");
+    let secret = test_oauth_secret();
+    let (store, config) = connected(dir.path(), "customer-a.example", &secret);
     let original = raw(&store);
     let packed = URL_SAFE_NO_PAD.decode(&original[6..]).unwrap();
+    let plaintext = secret.expose_secret();
     for position in [0, 24, 72, packed.len() - 1] {
         let mut corrupt = packed.clone();
         corrupt[position] ^= 1;
@@ -175,7 +189,7 @@ fn tampering_unknown_versions_truncation_and_plaintext_downgrade_fail_closed() {
         assert!(store.secret(&config).is_err());
     }
     for value in [
-        SECRET,
+        plaintext,
         "osev2.",
         "osev3.invalid",
         &original[..original.len() - 3],
@@ -188,7 +202,8 @@ fn tampering_unknown_versions_truncation_and_plaintext_downgrade_fail_closed() {
 #[test]
 fn missing_root_never_mints_a_replacement_for_existing_ciphertext() {
     let dir = tempfile::tempdir().unwrap();
-    let (store, config) = connected(dir.path(), "customer-a.example");
+    let secret = test_oauth_secret();
+    let (store, config) = connected(dir.path(), "customer-a.example", &secret);
     std::fs::remove_file(store.dir.join(KEY_FILE)).unwrap();
     assert!(store.secret(&config).is_err());
     assert!(!store.dir.join(KEY_FILE).exists());
@@ -196,7 +211,7 @@ fn missing_root_never_mints_a_replacement_for_existing_ciphertext() {
         .connect(
             &config.tailnet,
             config.credential.clone(),
-            &SecretString::from(SECRET.to_owned()),
+            &secret,
             8
         )
         .is_err());
@@ -206,15 +221,17 @@ fn missing_root_never_mints_a_replacement_for_existing_ciphertext() {
 #[test]
 fn damaged_marker_and_missing_root_cannot_authorize_reconnect_root_creation() {
     let dir = tempfile::tempdir().unwrap();
-    let (store, config) = connected(dir.path(), "customer-a.example");
+    let secret = test_oauth_secret();
+    let (store, config) = connected(dir.path(), "customer-a.example", &secret);
     std::fs::remove_file(store.dir.join(KEY_FILE)).unwrap();
-    for damaged in [SECRET, "Xsev2.damaged", "osev3.damaged", ""] {
+    let plaintext = secret.expose_secret();
+    for damaged in [plaintext, "Xsev2.damaged", "osev3.damaged", ""] {
         write_private(&store.dir.join(SECRET_FILE), damaged.as_bytes()).unwrap();
         assert!(store
             .connect(
                 &config.tailnet,
                 config.credential.clone(),
-                &SecretString::from(SECRET.to_owned()),
+                &secret,
                 8
             )
             .is_err());
@@ -225,6 +242,7 @@ fn damaged_marker_and_missing_root_cannot_authorize_reconnect_root_creation() {
 #[test]
 fn validated_private_legacy_config_migrates_once_and_restarts() {
     let dir = tempfile::tempdir().unwrap();
+    let secret = test_oauth_secret();
     let store = AdminStore::at(dir.path());
     let config = TailnetConfig {
         v: 1,
@@ -240,15 +258,15 @@ fn validated_private_legacy_config_migrates_once_and_restarts() {
         &serde_json::to_vec(&config).unwrap(),
     )
     .unwrap();
-    write_private(&store.dir.join(SECRET_FILE), SECRET.as_bytes()).unwrap();
+    write_private(&store.dir.join(SECRET_FILE), secret.expose_secret().as_bytes()).unwrap();
     assert!(!store.dir.join(KEY_FILE).exists());
-    assert_eq!(store.secret(&config).unwrap().expose_secret(), SECRET);
+    assert_eq!(store.secret(&config).unwrap().expose_secret(), secret.expose_secret());
     let current = store.config().unwrap().unwrap();
     assert_eq!(current.v, FILE_VERSION);
     let sealed = raw(&store);
     assert!(sealed.starts_with("osev2."));
     let restarted = AdminStore::at(dir.path());
-    assert_eq!(restarted.secret(&current).unwrap().expose_secret(), SECRET);
+    assert_eq!(restarted.secret(&current).unwrap().expose_secret(), secret.expose_secret());
     assert_eq!(raw(&store), sealed, "migration is idempotent");
 }
 
@@ -260,11 +278,11 @@ fn api_key_restart_and_cache_context_follow_trusted_connection_and_credential() 
         kind: CredentialKind::ApiKey,
         client_id: String::new(),
     };
-    let value = SecretString::from("tskey-api-runtime-canary-0123456789abcdef".to_owned());
+    let value = crate::synthetic::api_token();
     let first = store.connect("-", kind.clone(), &value, 1).unwrap();
     let (read, first_scope) = store.credential_snapshot(&first).unwrap();
     assert_eq!(read.expose_secret(), value.expose_secret());
-    assert!(!raw(&store).contains("runtime-canary"));
+    assert!(!raw(&store).contains("tskey"));
     let restarted = AdminStore::at(dir.path());
     assert_eq!(
         restarted.credential_snapshot(&first).unwrap().1,
@@ -280,6 +298,7 @@ fn api_key_restart_and_cache_context_follow_trusted_connection_and_credential() 
 fn legacy_plaintext_with_unknown_or_unprotected_provenance_cannot_mint_a_root() {
     use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
+    let secret = test_oauth_secret();
     let store = AdminStore::at(dir.path());
     let config = TailnetConfig {
         v: 1,
@@ -295,7 +314,7 @@ fn legacy_plaintext_with_unknown_or_unprotected_provenance_cannot_mint_a_root() 
         &serde_json::to_vec(&config).unwrap(),
     )
     .unwrap();
-    write_private(&store.dir.join(SECRET_FILE), SECRET.as_bytes()).unwrap();
+    write_private(&store.dir.join(SECRET_FILE), secret.expose_secret().as_bytes()).unwrap();
     let path = store.dir.join(SECRET_FILE);
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
     assert!(store.secret(&config).is_err());

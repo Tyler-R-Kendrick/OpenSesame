@@ -1,13 +1,11 @@
 /**
- * The Pages client against `spec/conformance/tailnet-admin-protocol.json`
- * (ADR 0169): every exchange driven through the real client and a fake
- * egress port. The client must build exactly the request the spec records
- * and read exactly the answer the daemon gives — which the daemon is held to
- * by the same file (`crates/daemon/src/tailnet_admin_conformance_tests.rs`).
+ * The Pages client against `spec/conformance/tailnet-admin-protocol.json.hbs`
+ * (ADR 0169), rendered at test time: every exchange driven through the real
+ * client and a fake egress port. The client must build exactly the request
+ * the spec records and read exactly the answer the daemon gives — which the
+ * daemon is held to by the same template
+ * (`crates/daemon/src/tailnet_admin_conformance_tests.rs`).
  */
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -21,18 +19,14 @@ import {
   tailnetAdminSeams,
 } from "./client.js";
 import { TailnetAdminError } from "./errors.js";
+import { loadTailnetAdminProtocolSpec } from "./load-protocol-spec.js";
 import {
   formatTailnetPairingCode,
   parseTailnetPairingCode,
 } from "./pairing.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const spec: JsonObject = JSON.parse(
-  readFileSync(
-    join(here, "../../../../../spec/conformance/tailnet-admin-protocol.json"),
-    "utf8",
-  ),
-);
+const specFixture = loadTailnetAdminProtocolSpec();
+const spec: JsonObject = specFixture;
 
 type Exchange = {
   name: string;

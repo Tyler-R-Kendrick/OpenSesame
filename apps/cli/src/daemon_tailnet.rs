@@ -263,11 +263,13 @@ mod tests {
     fn a_secret_is_one_trimmed_line_of_a_file() {
         let tmp = tempfile::tempdir().unwrap();
         let path = tmp.path().join("s");
-        std::fs::write(&path, "  tskey-api-abc-12345678  \nignored\n").unwrap();
+        let expected = opensesame_tailnet_admin::api_token_plain();
+        let contents = format!("  {expected}  \nignored\n");
+        std::fs::write(&path, contents).unwrap();
         let secret = read_secret(Some(&path)).unwrap();
         assert_eq!(
             secrecy::ExposeSecret::expose_secret(&secret),
-            "tskey-api-abc-12345678"
+            expected.as_str()
         );
         std::fs::write(&path, "\n").unwrap();
         assert!(read_secret(Some(&path)).is_err());

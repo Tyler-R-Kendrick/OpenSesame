@@ -25,6 +25,8 @@ pub mod ops;
 mod pairing;
 mod pairing_code;
 mod paths;
+mod synthetic;
+mod protocol_fixture;
 mod upstream;
 pub mod validate;
 pub mod wire;
@@ -35,4 +37,9 @@ pub use error::AdminError;
 pub use pairing::{Paired, PairedView, PendingView, RolePairings};
 pub use pairing_code::{format_pairing_code, Role, CODE_PREFIX, CODE_TTL_SECS};
 pub use paths::{admin_dir_from, default_admin_dir, DIR_ENV};
+pub use protocol_fixture::{protocol_fixture, ProtocolFixture};
+pub use synthetic::{
+    api_token, api_token_plain, auth_control_id, auth_key, auth_key_for_control_id, client_id,
+    client_secret,
+};
 pub use upstream::{Upstream, API_BASE, API_HOST, EGRESS_RULE};

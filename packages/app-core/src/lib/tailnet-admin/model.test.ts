@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { syntheticTailscaleAuthKey } from "../synthetic-tailscale-key.js";
 import {
   deviceMarks,
   isExitNode,
@@ -180,9 +181,8 @@ describe("form checks mirror the daemon's", () => {
   it("descriptions and the join command", () => {
     expect(validDescription("lab runners")).toBe(true);
     expect(validDescription("bad!")).toBe(false);
-    expect(joinCommand("tskey-auth-x")).toBe(
-      "tailscale up --auth-key=tskey-auth-x",
-    );
+    const authKey = syntheticTailscaleAuthKey();
+    expect(joinCommand(authKey)).toBe(`tailscale up --auth-key=${authKey}`);
   });
 
   it("key facts", () => {

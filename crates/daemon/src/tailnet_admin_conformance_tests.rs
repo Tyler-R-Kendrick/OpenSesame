@@ -1,4 +1,4 @@
-//! The tailnet routes against `spec/conformance/tailnet-admin-protocol.json`
+//! The tailnet routes against `spec/conformance/tailnet-admin-protocol.json.hbs`
 //! (ADR 0169): every exchange replayed, in order, through the real router, a
 //! real pairing store and a stub standing in for api.tailscale.com. The stub
 //! holds the calls the spec says the daemon must make and answers each as
@@ -13,13 +13,11 @@ use axum::{
     body::{to_bytes, Body, Bytes},
     http::{Method as HttpMethod, Request, Uri},
 };
-use opensesame_tailnet_admin::{Credential, CredentialKind};
+use opensesame_tailnet_admin::{protocol_fixture, Credential, CredentialKind};
 use secrecy::SecretString;
 use tower::ServiceExt;
 
-const SPEC: &str = include_str!("../../../spec/conformance/tailnet-admin-protocol.json");
 pub(super) const ORIGIN: &str = "https://ops.example.com";
-pub(super) const API_TOKEN: &str = "tskey-api-kCONFORM1CNTRL-0123456789abcdef";
 
 pub(super) struct Stub {
     pub(super) expected: VecDeque<Value>,
@@ -30,12 +28,12 @@ pub(super) struct Stub {
     pub(super) seen: Vec<(String, String)>,
 }
 
-impl Default for Stub {
-    fn default() -> Self {
+impl Stub {
+    fn with_bearer(api_token: &str) -> Self {
         Self {
             expected: VecDeque::new(),
             problems: Vec::new(),
-            bearer: Some(format!("Bearer {API_TOKEN}")),
+            bearer: Some(format!("Bearer {api_token}")),
             seen: Vec::new(),
         }
     }
@@ -87,8 +85,8 @@ fn answer(
 }
 
 /// A stub for api.tailscale.com on a loopback port; its base URL and queue.
-pub(super) async fn stub_upstream() -> (String, Arc<Mutex<Stub>>) {
-    let stub = Arc::new(Mutex::new(Stub::default()));
+pub(super) async fn stub_upstream(api_token: &str) -> (String, Arc<Mutex<Stub>>) {
+    let stub = Arc::new(Mutex::new(Stub::with_bearer(api_token)));
     let shared = Arc::clone(&stub);
     let app = Router::new().fallback(move |method, uri, headers, body| {
         let response = answer(&shared, &method, &uri, &headers, &body);
@@ -100,6 +98,12 @@ pub(super) async fn stub_upstream() -> (String, Arc<Mutex<Stub>>) {
     (format!("http://127.0.0.1:{}", addr.port()), stub)
 }
 
+pub(super) async fn stub_upstream_default() -> (String, Arc<Mutex<Stub>>, String) {
+    let api_token = opensesame_tailnet_admin::api_token_plain();
+    let (base, stub) = stub_upstream(&api_token).await;
+    (base, stub, api_token)
+}
+
 /// A daemon state connected to `tailnet` with an API token, and a bearer for
 /// each role, paired from [`ORIGIN`].
 pub(super) fn connected(
@@ -107,6 +111,7 @@ pub(super) fn connected(
     dir: &std::path::Path,
     tailnet: &str,
     at: u64,
+    api_token: &str,
 ) -> (App, String, String) {
     let store = AdminStore::at(dir);
     let credential = Credential {
@@ -117,7 +122,7 @@ pub(super) fn connected(
         .connect(
             tailnet,
             credential,
-            &SecretString::from(API_TOKEN.to_string()),
+            &SecretString::from(api_token.to_string()),
             at,
         )
         .unwrap();
@@ -140,11 +145,19 @@ pub(super) fn connected(
 
 #[tokio::test]
 async fn the_routes_answer_every_exchange_the_spec_records() {
-    let spec: Value = serde_json::from_str(SPEC).expect("the spec is JSON");
+    let fixture = protocol_fixture();
+    let api_token = opensesame_tailnet_admin::api_token_plain();
+    let spec: Value = serde_json::from_str(&fixture.spec_json).expect("the spec is JSON");
     let tmp = tempfile::tempdir().unwrap();
-    let (base, stub) = stub_upstream().await;
+    let (base, stub) = stub_upstream(&api_token).await;
     let at = spec["connectedAt"].as_u64().unwrap();
-    let (state, read, manage) = connected(&base, tmp.path(), spec["tailnet"].as_str().unwrap(), at);
+    let (state, read, manage) = connected(
+        &base,
+        tmp.path(),
+        spec["tailnet"].as_str().unwrap(),
+        at,
+        &api_token,
+    );
     let store = state.tailnet.store.clone().unwrap();
     let app = routes(&state).with_state(state);
 
@@ -226,7 +239,8 @@ async fn the_routes_answer_every_exchange_the_spec_records() {
 
 #[test]
 fn the_pairing_code_is_the_one_the_spec_records() {
-    let spec: Value = serde_json::from_str(SPEC).unwrap();
+    let fixture = protocol_fixture();
+    let spec: Value = serde_json::from_str(&fixture.spec_json).unwrap();
     let pairing = &spec["pairing"];
     let role = Role::parse(pairing["role"].as_str().unwrap()).unwrap();
     let code = opensesame_tailnet_admin::format_pairing_code(

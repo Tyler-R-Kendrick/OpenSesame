@@ -12,7 +12,11 @@ import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { dedicatedSite } from "./live-dedicated.mjs";
 import { createHarness } from "./static-origin-harness.mjs";
-import { API_TOKEN, TAILNET, startTailscaleStub } from "./tailscale-stub.mjs";
+import {
+  TAILNET,
+  createTailscaleStubApiToken,
+  startTailscaleStub,
+} from "./tailscale-stub.mjs";
 
 const repo = fileURLToPath(new URL("../../../..", import.meta.url));
 const binary =
@@ -46,7 +50,8 @@ export async function startStack({ out, dist = dedicatedSite().dist, port }) {
     base,
     out: path.join(out, ".log"),
   });
-  const stub = await startTailscaleStub();
+  const apiToken = createTailscaleStubApiToken();
+  const stub = await startTailscaleStub(apiToken);
   const env = {
     ...process.env,
     OPENSESAME_TAILNET_ADMIN_DIR: state,
@@ -63,7 +68,7 @@ export async function startStack({ out, dist = dedicatedSite().dist, port }) {
       stdio: ["pipe", "pipe", "pipe"],
     });
   const secretFile = path.join(os.tmpdir(), `tailnet-token-${process.pid}`);
-  fs.writeFileSync(secretFile, `${API_TOKEN}\n`, { mode: 0o600 });
+  fs.writeFileSync(secretFile, `${apiToken}\n`, { mode: 0o600 });
   try {
     cli(
       "connect",
@@ -96,6 +101,7 @@ export async function startStack({ out, dist = dedicatedSite().dist, port }) {
     origin,
     base,
     state,
+    apiToken,
     stub,
     cli,
     browser,

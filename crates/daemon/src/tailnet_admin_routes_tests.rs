@@ -1,14 +1,13 @@
 //! What the spec's exchanges do not cover: CORS, the pairing exchange, the
 //! OAuth access token, budgets, and a daemon with nowhere to keep state.
 
-use super::conformance::{connected, stub_upstream, ORIGIN};
+use super::conformance::{connected, stub_upstream_default, ORIGIN};
 use super::*;
 use axum::{
     body::{to_bytes, Body},
     http::Request,
 };
 use opensesame_tailnet_admin::{Credential, CredentialKind};
-use secrecy::SecretString;
 use serde_json::json;
 use tower::ServiceExt;
 
@@ -43,8 +42,8 @@ fn post(path: &str, token: &str, body: &Value) -> Request<Body> {
 #[tokio::test]
 async fn cors_answers_only_a_paired_origin_and_exactly_it() {
     let tmp = tempfile::tempdir().unwrap();
-    let (base, _) = stub_upstream().await;
-    let (state, read, _) = connected(&base, tmp.path(), "-", 1);
+    let (base, _, api_token) = stub_upstream_default().await;
+    let (state, read, _) = connected(&base, tmp.path(), "-", 1, &api_token);
     let app = routes(&state).with_state(state);
     let preflight = |origin: &str| {
         Request::options("/v1/tailnet/devices")
@@ -72,8 +71,8 @@ async fn cors_answers_only_a_paired_origin_and_exactly_it() {
 #[tokio::test]
 async fn a_bearer_works_only_from_its_origin_and_forgets_itself() {
     let tmp = tempfile::tempdir().unwrap();
-    let (base, _) = stub_upstream().await;
-    let (state, read, _) = connected(&base, tmp.path(), "-", 1);
+    let (base, _, api_token) = stub_upstream_default().await;
+    let (state, read, _) = connected(&base, tmp.path(), "-", 1, &api_token);
     let app = routes(&state).with_state(state);
     let (status, _, body) = send(
         &app,
@@ -98,8 +97,8 @@ async fn a_bearer_works_only_from_its_origin_and_forgets_itself() {
 #[tokio::test]
 async fn a_code_is_traded_through_the_route_once_and_only_from_its_origin() {
     let tmp = tempfile::tempdir().unwrap();
-    let (base, _) = stub_upstream().await;
-    let (state, _, _) = connected(&base, tmp.path(), "-", 1);
+    let (base, _, api_token) = stub_upstream_default().await;
+    let (state, _, _) = connected(&base, tmp.path(), "-", 1, &api_token);
     let store = state.tailnet.store.clone().unwrap();
     let app = routes(&state).with_state(state);
     let trade = |origin: &str, code: &str| {
@@ -149,12 +148,13 @@ async fn a_code_is_traded_through_the_route_once_and_only_from_its_origin() {
 #[tokio::test]
 async fn an_oauth_client_is_traded_for_a_token_and_retraded_after_a_401() {
     let tmp = tempfile::tempdir().unwrap();
-    let (base, stub) = stub_upstream().await;
+    let (base, stub, _api_token) = stub_upstream_default().await;
     let store = AdminStore::at(tmp.path());
-    let secret = SecretString::from("tskey-client-kOAUTH1CNTRL-0123456789abcdef".to_string());
+    let secret = opensesame_tailnet_admin::client_secret();
+    let client_id = "kOAUTH1CNTRL".to_string();
     let credential = Credential {
         kind: CredentialKind::Oauth,
-        client_id: "kOAUTH1CNTRL".into(),
+        client_id: client_id.clone(),
     };
     store.connect("-", credential, &secret, 1).unwrap();
     let (code, _) = store
@@ -168,9 +168,10 @@ async fn an_oauth_client_is_traded_for_a_token_and_retraded_after_a_401() {
     let mut state = crate::tests::test_state("http://127.0.0.1:1");
     state.tailnet = TailnetAdminHost::at(Some(store), Upstream::loopback(&base).unwrap());
     let app = routes(&state).with_state(state);
-    let mint = |n: u32| {
+    let mint = |_n: u32| {
+        let access_token = opensesame_tailnet_admin::api_token_plain();
         json!({"method": "POST", "path": "/api/v2/oauth/token", "body": null, "status": 200,
-        "response": {"access_token": format!("tskey-api-minted{n}-abcdefgh"), "expires_in": 3600}})
+        "response": {"access_token": access_token, "expires_in": 3600}})
     };
     let devices = |status: u16| {
         json!({"method": "GET", "path": "/api/v2/tailnet/-/devices?fields=all",
@@ -199,14 +200,14 @@ async fn an_oauth_client_is_traded_for_a_token_and_retraded_after_a_401() {
 #[tokio::test]
 async fn an_oauth_key_without_tags_is_refused_before_it_is_asked() {
     let tmp = tempfile::tempdir().unwrap();
-    let (base, stub) = stub_upstream().await;
-    let (state, _, manage) = connected(&base, tmp.path(), "-", 1);
+    let (base, stub, api_token) = stub_upstream_default().await;
+    let (state, _, manage) = connected(&base, tmp.path(), "-", 1, &api_token);
     let store = state.tailnet.store.clone().unwrap();
     let credential = Credential {
         kind: CredentialKind::Oauth,
         client_id: "kOAUTH1CNTRL".into(),
     };
-    let secret = SecretString::from("tskey-client-kOAUTH1CNTRL-0123456789abcdef".to_string());
+    let secret = opensesame_tailnet_admin::client_secret();
     store.connect("-", credential, &secret, 1).unwrap();
     let app = routes(&state).with_state(state);
     let body = json!({"description": "x", "expiry_seconds": 86400});
@@ -222,8 +223,8 @@ async fn an_oauth_key_without_tags_is_refused_before_it_is_asked() {
 #[tokio::test]
 async fn tailscale_rate_limits_and_a_bearer_has_a_budget() {
     let tmp = tempfile::tempdir().unwrap();
-    let (base, stub) = stub_upstream().await;
-    let (mut state, _, manage) = connected(&base, tmp.path(), "-", 1);
+    let (base, stub, api_token) = stub_upstream_default().await;
+    let (mut state, _, manage) = connected(&base, tmp.path(), "-", 1, &api_token);
     state.tailnet.change_limiter = Arc::new(TokenBucket::new(1.0, 0.001));
     let app = routes(&state).with_state(state);
     stub.lock().unwrap().expected = [json!({"method": "POST", "path": "/api/v2/device/n1/expire",
@@ -246,8 +247,8 @@ async fn tailscale_rate_limits_and_a_bearer_has_a_budget() {
 #[tokio::test]
 async fn the_audit_route_reads_newest_first_and_a_daemon_without_state_refuses() {
     let tmp = tempfile::tempdir().unwrap();
-    let (base, stub) = stub_upstream().await;
-    let (state, read, manage) = connected(&base, tmp.path(), "-", 1);
+    let (base, stub, api_token) = stub_upstream_default().await;
+    let (state, read, manage) = connected(&base, tmp.path(), "-", 1, &api_token);
     let app = routes(&state).with_state(state);
     stub.lock().unwrap().expected = [json!({"method": "DELETE", "path": "/api/v2/device/n9",
         "body": null, "status": 200, "response": null})]
@@ -278,8 +279,8 @@ async fn the_audit_route_reads_newest_first_and_a_daemon_without_state_refuses()
 #[tokio::test]
 async fn a_disconnected_tailnet_says_so() {
     let tmp = tempfile::tempdir().unwrap();
-    let (base, _) = stub_upstream().await;
-    let (state, read, _) = connected(&base, tmp.path(), "-", 1);
+    let (base, _, api_token) = stub_upstream_default().await;
+    let (state, read, _) = connected(&base, tmp.path(), "-", 1, &api_token);
     state.tailnet.store.as_ref().unwrap().disconnect().unwrap();
     let app = routes(&state).with_state(state);
     let (status, _, body) = send(&app, get("/v1/tailnet/status", ORIGIN, Some(&read))).await;

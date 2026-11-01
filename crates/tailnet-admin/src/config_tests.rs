@@ -1,9 +1,10 @@
 use super::*;
+use crate::synthetic::{api_token, client_id, client_secret};
 
 fn oauth() -> Credential {
     Credential {
         kind: CredentialKind::Oauth,
-        client_id: "kAbC123CNTRL".into(),
+        client_id: client_id(),
     }
 }
 
@@ -12,7 +13,7 @@ fn connect_records_the_tailnet_and_keeps_the_secret_apart() {
     let tmp = tempfile::tempdir().unwrap();
     let store = AdminStore::at(tmp.path());
     assert_eq!(store.config().unwrap(), None);
-    let secret = SecretString::from("tskey-client-kAbC123CNTRL-0123456789abcdef".to_string());
+    let secret = client_secret();
     let config = store.connect("example.com", oauth(), &secret, 7).unwrap();
     assert_eq!(store.config().unwrap(), Some(config.clone()));
     let json = std::fs::read_to_string(tmp.path().join(CONFIG_FILE)).unwrap();
@@ -35,37 +36,21 @@ fn connect_records_the_tailnet_and_keeps_the_secret_apart() {
 fn connect_refuses_what_tailscale_never_issues() {
     let tmp = tempfile::tempdir().unwrap();
     let store = AdminStore::at(tmp.path());
-    let good = SecretString::from("tskey-client-abc-0123456789".to_string());
     let api = Credential {
         kind: CredentialKind::ApiKey,
         client_id: String::new(),
     };
-    let cases: [(&str, Credential, &str, &str); 5] = [
-        (
-            "../etc",
-            oauth(),
-            "tskey-client-abc-0123456789",
-            "invalid_tailnet",
-        ),
-        (
-            "-",
-            api.clone(),
-            "tskey-client-abc-0123456789",
-            "invalid_credential",
-        ),
-        (
-            "-",
-            oauth(),
-            "tskey-api-abc-0123456789",
-            "invalid_credential",
-        ),
+    let cases: [(&str, Credential, fn() -> SecretString, &str); 5] = [
+        ("../etc", oauth(), client_secret, "invalid_tailnet"),
+        ("-", api.clone(), client_secret, "invalid_credential"),
+        ("-", oauth(), api_token, "invalid_credential"),
         (
             "-",
             Credential {
                 kind: CredentialKind::Oauth,
                 client_id: String::new(),
             },
-            "tskey-client-abc-0123456789",
+            client_secret,
             "invalid_client_id",
         ),
         (
@@ -74,28 +59,18 @@ fn connect_refuses_what_tailscale_never_issues() {
                 kind: CredentialKind::ApiKey,
                 client_id: "x".into(),
             },
-            "tskey-api-abc-0123456789",
+            api_token,
             "invalid_client_id",
         ),
     ];
     for (tailnet, credential, secret, code) in cases {
         let error = store
-            .connect(
-                tailnet,
-                credential,
-                &SecretString::from(secret.to_string()),
-                1,
-            )
+            .connect(tailnet, credential, &secret(), 1)
             .unwrap_err();
         assert_eq!(error.code(), code);
     }
-    assert!(store.connect("-", oauth(), &good, 1).is_ok());
+    assert!(store.connect("-", oauth(), &client_secret(), 1).is_ok());
     assert!(store
-        .connect(
-            "user@example.com",
-            api,
-            &SecretString::from("tskey-api-k1-abcdefgh".to_string()),
-            1
-        )
+        .connect("user@example.com", api, &api_token(), 1)
         .is_ok());
 }

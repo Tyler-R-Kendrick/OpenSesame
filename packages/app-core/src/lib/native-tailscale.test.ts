@@ -1,6 +1,6 @@
 import { beforeEach, expect, it } from "vitest";
 import { readDeviceRows } from "./device-connector-records.js";
-import { fakeTailscaleAuthKeyPublicPrefix } from "./fake-tailscale-key.js";
+import { syntheticTailscaleAuthKeyPublicPrefix } from "./synthetic-tailscale-key.js";
 import type { NativeApiConfigureInput } from "./native-api-connectors.js";
 import { installNativeApiTests } from "./native-api.test-support.js";
 import { loadNativeConnectorRecord } from "./native-connector-store.js";
@@ -237,7 +237,7 @@ it("creates an auth key shown once, from the capabilities asked for, and never k
   expect(result.items[0]?.secretValue).toBe(fx.authKey);
   expect(
     JSON.stringify(loadNativeConnectorRecord(saved.connectionId)),
-  ).not.toContain(fakeTailscaleAuthKeyPublicPrefix(fx.authKey));
+  ).not.toContain(syntheticTailscaleAuthKeyPublicPrefix(fx.authKey));
   const refused = async (tags: string, days: string) => {
     const fixture = routes();
     await expect(

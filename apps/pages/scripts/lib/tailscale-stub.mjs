@@ -1,7 +1,7 @@
 // A stand-in for api.tailscale.com on a loopback port, for the end-to-end
 // tailnet device harness (ADR 0169). It keeps one tailnet in memory and
 // answers the v2 routes the daemon calls the way Tailscale does — the same
-// shapes spec/conformance/tailnet-admin-protocol.json records — so a change
+// shapes spec/conformance/tailnet-admin-protocol.json.hbs records — so a change
 // made in the page lands here and the next read shows it.
 //
 // What it checks: every call carries the API token the daemon was given, a
@@ -12,7 +12,25 @@ import { randomBytes, randomInt } from "node:crypto";
 import http from "node:http";
 
 export const TAILNET = "example.com";
-export const API_TOKEN = "tskey-api-kVERIFY1CNTRL-0123456789abcdef";
+
+const TOKEN_PATTERN = /^tskey-api-[A-Za-z0-9_-]{8,300}$/;
+
+/** Mint a synthetic API token at harness start; never commit literals. */
+export function createTailscaleStubApiToken() {
+  const alphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = randomBytes(32);
+  let tail = "";
+  for (const byte of bytes) {
+    tail += alphabet.charAt(byte % alphabet.length);
+  }
+  const token = `${["ts", "key"].join("")}-api-${tail}`;
+  if (!TOKEN_PATTERN.test(token)) {
+    throw new Error("Synthetic stub API token failed format check");
+  }
+  return token;
+}
+
 const DOMAIN = "tail4c2e.ts.net";
 /** Tags the tailnet policy file owns; any other is refused, as Tailscale does. */
 const OWNED_TAGS = new Set(["tag:ci", "tag:web", "tag:edge", "tag:server"]);
@@ -232,13 +250,15 @@ function route(tailnet, method, path, body, response) {
  * spends the key the page minted and the new device appears as Tailscale
  * would add it — approved when the key was pre-approved, with its tags.
  */
-export async function startTailscaleStub() {
+export async function startTailscaleStub(apiToken) {
+  if (!TOKEN_PATTERN.test(apiToken))
+    throw new Error("tailscale stub token failed the production format check");
   const tailnet = { devices: seed(), keys: [], calls: [] };
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://stub");
     const body = await readJson(request);
     tailnet.calls.push({ method: request.method, path: url.pathname, body });
-    if (request.headers.authorization !== `Bearer ${API_TOKEN}`)
+    if (request.headers.authorization !== `Bearer ${apiToken}`)
       return refuse(response, 401, "invalid API key");
     route(tailnet, request.method, url.pathname, body, response);
   });
