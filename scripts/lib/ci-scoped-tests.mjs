@@ -44,6 +44,7 @@ export function isInfraPath(path) {
   const name = path.slice(path.lastIndexOf("/") + 1);
   return (
     name === "package.json" ||
+    name === "package-lock.json" ||
     name === "pnpm-lock.yaml" ||
     name === "pnpm-workspace.yaml" ||
     name === "turbo.json" ||

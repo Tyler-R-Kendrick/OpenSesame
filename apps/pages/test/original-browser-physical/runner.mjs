@@ -23,7 +23,7 @@ const inputRoots = [
 ];
 const fixedInputs = [
   "package.json",
-  "pnpm-lock.yaml",
+  "package-lock.json",
   "apps/pages/package.json",
   "packages/app-core/package.json",
   "packages/vault-core/package.json",

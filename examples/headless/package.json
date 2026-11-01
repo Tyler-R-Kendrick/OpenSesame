@@ -13,11 +13,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/sdk-cli": "workspace:*"
+    "@opensesame/os-domain": "*",
+    "@opensesame/sdk-cli": "*"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "tsx": "4.23.15",
     "typescript": "7.0.2",

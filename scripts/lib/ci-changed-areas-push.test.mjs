@@ -51,6 +51,7 @@ describe("the Web Push walk's area", () => {
       "apps/pages/scripts/lib/capture-push-steps.mjs",
       "apps/pages/vite.sw-push.config.ts",
       ".github/workflows/ci.yml",
+      "package-lock.json",
       "pnpm-lock.yaml",
     ]) {
       expect(areas([path]).push, path).toBe(true);

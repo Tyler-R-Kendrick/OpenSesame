@@ -19,11 +19,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/log-scrub": "workspace:*",
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/log-scrub": "*",
+    "@opensesame/os-domain": "*"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "fast-check": "4.10.2",
     "typescript": "7.0.2",

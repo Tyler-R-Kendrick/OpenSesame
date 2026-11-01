@@ -1,4 +1,4 @@
-# pnpm stays in package.json packageManager until the npm workspaces migration.
+# Node 24 matches package.json engines.node ">=24". npm workspaces replaced pnpm.
 # Temurin 17 matches ci-prerelease-checks (JAVA_HOME_17_X64). 17.0.20+101 is
 # the newest Temurin 17 build mise's catalog publishes for every locked
 # platform; 17.0.21+9 has no windows-x64 metadata.

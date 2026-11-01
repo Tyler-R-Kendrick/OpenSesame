@@ -27,10 +27,17 @@ function fixture(t) {
     copyFileSync(join(root, name), join(dir, name));
   writeFileSync(
     join(dir, "package.json"),
-    '{"packageManager":"pnpm@9.15.0"}\n',
+    '{"name":"bootstrap","private":true}\n',
   );
-  writeFileSync(join(dir, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
-  writeFileSync(join(dir, "pnpm-workspace.yaml"), "packages: []\n");
+  writeFileSync(
+    join(dir, "package-lock.json"),
+    `${JSON.stringify({
+      name: "bootstrap",
+      lockfileVersion: 3,
+      requires: true,
+      packages: { "": { name: "bootstrap" } },
+    })}\n`,
+  );
   execFileSync("git", ["init", "-q"], {
     cwd: dir,
     stdio: ["ignore", "pipe", "pipe"],
@@ -40,16 +47,15 @@ function fixture(t) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   writeFileSync(
-    join(dir, "bin/pnpm"),
+    join(dir, "bin/npm"),
     [
       "#!/bin/sh",
       'printf "%s\\n" "$*" >> "$BOOTSTRAP_TEST_LOG"',
       'printf "%s\\n" "${CI:-}" >> "$BOOTSTRAP_TEST_CI_LOG"',
       '[ "${BOOTSTRAP_TEST_FAIL:-}" != 1 ] || exit 3',
       '[ "${BOOTSTRAP_TEST_CANCEL:-}" != 1 ] || exit 0',
-      "mkdir -p node_modules/.pnpm",
-      '[ "${BOOTSTRAP_TEST_NO_MODULES:-}" = 1 ] || touch node_modules/.modules.yaml',
-      '[ "${BOOTSTRAP_TEST_NO_LOCK:-}" = 1 ] || cp pnpm-lock.yaml node_modules/.pnpm/lock.yaml',
+      "mkdir -p node_modules",
+      'if [ "${BOOTSTRAP_TEST_NO_LOCK:-}" = 1 ]; then printf "%s\\n" "{}" > node_modules/.package-lock.json; elif [ "${BOOTSTRAP_TEST_NO_MODULES:-}" != 1 ]; then cp package-lock.json node_modules/.package-lock.json; fi',
       "",
     ].join("\n"),
     { mode: 0o755 },
@@ -98,15 +104,20 @@ test("explicit bootstrap installs frozen dependencies once and notices lock chan
     const result = f.run({ OPENSESAME_AGENT_BOOTSTRAP: "1" });
     assert.equal(result.status, 0, result.stderr);
   }
-  assert.deepEqual(f.calls(), ["install --frozen-lockfile"]);
+  assert.deepEqual(f.calls(), ["ci"]);
   writeFileSync(
-    join(f.dir, "pnpm-lock.yaml"),
-    "lockfileVersion: '9.0'\n# changed\n",
+    join(f.dir, "package-lock.json"),
+    `${JSON.stringify({
+      name: "bootstrap",
+      lockfileVersion: 3,
+      requires: true,
+      packages: { "": { name: "bootstrap", version: "changed" } },
+    })}\n`,
   );
   assert.equal(f.run({ OPENSESAME_AGENT_BOOTSTRAP: "1" }).status, 0);
   assert.deepEqual(f.calls(), [
-    "install --frozen-lockfile",
-    "install --frozen-lockfile",
+    "ci",
+    "ci",
   ]);
 });
 
@@ -144,36 +155,36 @@ test("an untracked new workspace manifest invalidates the install fingerprint", 
   );
   assert.equal(f.run({ OPENSESAME_AGENT_BOOTSTRAP: "1" }).status, 0);
   assert.deepEqual(f.calls(), [
-    "install --frozen-lockfile",
-    "install --frozen-lockfile",
+    "ci",
+    "ci",
   ]);
 });
 
-test("direct installs force noninteractive pnpm and reuse a matching installation", (t) => {
+test("direct installs force noninteractive npm and reuse a matching installation", (t) => {
   const f = fixture(t);
   const first = f.install({ CI: "false" });
   assert.equal(first.status, 0, first.stderr);
-  assert.deepEqual(f.calls(), ["install --frozen-lockfile"]);
+  assert.deepEqual(f.calls(), ["ci"]);
   assert.equal(readFileSync(f.ciLog, "utf8"), "true\n");
   const marker = join(f.dir, "node_modules/.cache/opensesame-install.sha256");
   const fingerprint = readFileSync(marker, "utf8");
   const second = f.install();
   assert.equal(second.status, 0, second.stderr);
   assert.match(second.stdout, /current lockfile already installed/);
-  assert.deepEqual(f.calls(), ["install --frozen-lockfile"]);
+  assert.deepEqual(f.calls(), ["ci"]);
   assert.equal(readFileSync(marker, "utf8"), fingerprint);
 });
 
-test("an exit-zero cancelled reinstall cannot bless a stale virtual-store lock", (t) => {
+test("an exit-zero cancelled reinstall cannot bless a stale module lock", (t) => {
   const f = fixture(t);
   assert.equal(f.install().status, 0);
-  const installedLock = join(f.dir, "node_modules/.pnpm/lock.yaml");
-  writeFileSync(installedLock, "lockfileVersion: '9.0'\n# stale install\n");
+  const installedLock = join(f.dir, "node_modules/.package-lock.json");
+  writeFileSync(installedLock, "{}\n");
   const cancelled = f.install({ BOOTSTRAP_TEST_CANCEL: "1" });
   assert.equal(cancelled.status, 1, cancelled.stderr);
   assert.match(
     cancelled.stderr,
-    /installed virtual-store lockfile does not match/,
+    /installed module lockfile does not match package-lock\.json/,
   );
   assert.equal(
     existsSync(join(f.dir, "node_modules/.cache/opensesame-install.sha256")),
@@ -184,12 +195,12 @@ test("an exit-zero cancelled reinstall cannot bless a stale virtual-store lock",
   assert.equal(recovered.status, 0, recovered.stderr);
   assert.equal(
     readFileSync(installedLock, "utf8"),
-    readFileSync(join(f.dir, "pnpm-lock.yaml"), "utf8"),
+    readFileSync(join(f.dir, "package-lock.json"), "utf8"),
   );
   assert.equal(f.calls().length, 3);
 });
 
-test("exit-zero installs missing either pnpm manifest do not get a marker", (t) => {
+test("exit-zero installs missing the npm module lock do not get a marker", (t) => {
   for (const failure of [
     { BOOTSTRAP_TEST_NO_MODULES: "1" },
     { BOOTSTRAP_TEST_NO_LOCK: "1" },
@@ -206,8 +217,8 @@ test("exit-zero installs missing either pnpm manifest do not get a marker", (t) 
   }
 });
 
-test("cache hits require both pnpm manifests even with a matching marker", (t) => {
-  for (const missing of [".modules.yaml", ".pnpm/lock.yaml"]) {
+test("cache hits require a matching npm module lock even with a marker", (t) => {
+  for (const missing of [".package-lock.json"]) {
     const f = fixture(t);
     assert.equal(f.install().status, 0);
     rmSync(join(f.dir, "node_modules", missing));
@@ -223,8 +234,13 @@ test("a changed lock and failed install invalidate the earlier success marker", 
   const f = fixture(t);
   assert.equal(f.install().status, 0);
   writeFileSync(
-    join(f.dir, "pnpm-lock.yaml"),
-    "lockfileVersion: '9.0'\n# new resolution\n",
+    join(f.dir, "package-lock.json"),
+    `${JSON.stringify({
+      name: "bootstrap",
+      lockfileVersion: 3,
+      requires: true,
+      packages: { "": { name: "bootstrap", version: "new-resolution" } },
+    })}\n`,
   );
   const failed = f.install({ BOOTSTRAP_TEST_FAIL: "1" });
   assert.equal(failed.status, 3, failed.stderr);

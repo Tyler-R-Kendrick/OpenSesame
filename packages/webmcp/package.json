@@ -15,11 +15,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/capability-registry": "workspace:*",
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/capability-registry": "*",
+    "@opensesame/os-domain": "*"
   },
   "devDependencies": {
-    "@opensesame/observability": "workspace:*",
+    "@opensesame/observability": "*",
     "@types/node": "22.15.29",
     "typescript": "7.0.2",
     "vitest": "4.1.12"

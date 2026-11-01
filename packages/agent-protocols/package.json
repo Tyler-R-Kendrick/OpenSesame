@@ -16,13 +16,13 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "typescript": "7.0.2",
     "vitest": "4.1.12"
   },
   "dependencies": {
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/os-domain": "*",
     "jose": "6.2.13"
   },
   "license": "MIT",

@@ -16,16 +16,16 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/agent-client": "workspace:*",
+    "@opensesame/agent-client": "*",
     "@modelcontextprotocol/sdk": "1.32.0",
-    "@opensesame/api-client": "workspace:*",
-    "@opensesame/observability": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/api-client": "*",
+    "@opensesame/observability": "*",
+    "@opensesame/os-domain": "*",
     "zod": "4.6.6"
   },
   "devDependencies": {
-    "@opensesame/capability-registry": "workspace:*",
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/capability-registry": "*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "tsx": "4.23.15",
     "typescript": "7.0.2",

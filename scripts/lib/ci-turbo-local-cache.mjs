@@ -13,7 +13,7 @@ export function turboLocalCacheKey(env, options = {}) {
   const digest =
     options.lockDigest ??
     createHash("sha256")
-      .update(readFileSync(resolve(repoRootFromHere(), "pnpm-lock.yaml")))
+      .update(readFileSync(resolve(repoRootFromHere(), "package-lock.json")))
       .digest("hex")
       .slice(0, 16);
   return {

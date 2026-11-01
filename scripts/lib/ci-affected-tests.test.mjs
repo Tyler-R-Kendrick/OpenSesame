@@ -92,6 +92,7 @@ describe("affected packages", () => {
 
   it("tests every package when the lockfile or turbo config changes", () => {
     expect(planPackages(["pnpm-lock.yaml"], packages).scope).toBe("all");
+    expect(planPackages(["package-lock.json"], packages).scope).toBe("all");
     expect(planPackages(["turbo.json"], packages).scope).toBe("all");
     expect(planPackages(["package.json"], packages).lintArtifacts).toBe(true);
     expect(planPackages(["tsconfig.json"], packages).scope).toBe("all");

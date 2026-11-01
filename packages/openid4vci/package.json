@@ -15,11 +15,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/os-domain": "*",
     "jose": "6.2.13"
   },
   "devDependencies": {
-    "@opensesame/openid4vp": "workspace:*",
+    "@opensesame/openid4vp": "*",
     "@types/node": "22.15.29",
     "typescript": "7.0.2",
     "vitest": "4.1.12"

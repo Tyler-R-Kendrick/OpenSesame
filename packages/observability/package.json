@@ -16,12 +16,12 @@
   },
   "dependencies": {
     "@noble/ciphers": "2.4.0",
-    "@opensesame/log-scrub": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/log-scrub": "*",
+    "@opensesame/os-domain": "*",
     "pino": "9.7.0"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "typescript": "7.0.2",
     "vitest": "4.1.12"

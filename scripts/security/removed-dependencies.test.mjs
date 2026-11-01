@@ -1,50 +1,48 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { test } from "node:test";
-import { isJsonObject, isString } from "../lib/json-boundary.mjs";
+import { isString } from "../lib/json-boundary.mjs";
 
-const require = createRequire(
-  new URL("../../node_modules/.pnpm/node_modules/", import.meta.url),
-);
-const { parse } = require("yaml");
 const removed = new Set(["braces", "node-forge", "jks-js"]);
-const lock = parse(
-  readFileSync(new URL("../../pnpm-lock.yaml", import.meta.url), "utf8"),
+const lock = JSON.parse(
+  readFileSync(new URL("../../package-lock.json", import.meta.url), "utf8"),
 );
+
+function packageName(key) {
+  const parts = key.split("node_modules/");
+  return parts.length > 1 ? parts.at(-1) : undefined;
+}
 
 function assertAllowedReference(reference) {
   if (!isString(reference)) return;
   for (const name of removed) {
     assert.ok(
-      !reference.startsWith(`${name}@`),
+      !reference.startsWith(`${name}@`) && reference !== name,
       `Removed dependency alias: ${reference}`,
     );
   }
 }
 
-test("removed vulnerable devtools dependencies have no packages, snapshots or consumer edges", () => {
-  assert.equal(lock.lockfileVersion, "9.0");
-  for (const section of [
-    lock.packages,
-    lock.snapshots,
-    lock.patchedDependencies ?? {},
-  ]) {
-    assert.ok(isJsonObject(section));
-    for (const name of Object.keys(section)) assertAllowedReference(name);
-  }
-  for (const consumer of [
-    ...Object.values(lock.importers),
-    ...Object.values(lock.snapshots),
-  ]) {
+test("removed vulnerable devtools dependencies have no lockfile edges", () => {
+  assert.ok(lock.lockfileVersion >= 3);
+  const packages = lock.packages ?? {};
+  assert.equal(typeof packages, "object");
+  for (const [key, entry] of Object.entries(packages)) {
+    const name = packageName(key);
+    if (name !== undefined) {
+      assert.ok(!removed.has(name), `Removed dependency package: ${key}`);
+    }
+    if (isString(entry?.name)) {
+      assert.ok(!removed.has(entry.name), `Removed dependency name: ${entry.name}`);
+    }
     for (const field of [
       "dependencies",
       "devDependencies",
       "optionalDependencies",
     ]) {
-      for (const [name, entry] of Object.entries(consumer[field] ?? {})) {
-        assert.ok(!removed.has(name), `Removed dependency edge: ${name}`);
-        assertAllowedReference(isString(entry) ? entry : entry.version);
+      for (const dep of Object.keys(entry?.[field] ?? {})) {
+        assert.ok(!removed.has(dep), `Removed dependency edge: ${dep}`);
+        assertAllowedReference(dep);
       }
     }
   }

@@ -20,12 +20,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/os-domain": "*",
     "yaml": "2.9.1",
     "zod": "4.6.6"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "fast-check": "4.10.2",
     "typescript": "7.0.2",

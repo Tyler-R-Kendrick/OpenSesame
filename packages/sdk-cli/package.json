@@ -17,12 +17,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@opensesame/log-scrub": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/qr": "workspace:^"
+    "@opensesame/log-scrub": "*",
+    "@opensesame/os-domain": "*",
+    "@opensesame/qr": "*"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "typescript": "7.0.2",
     "vitest": "4.1.12"

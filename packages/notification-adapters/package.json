@@ -20,9 +20,9 @@
     "generate:vapid": "tsx scripts/generate-vapid.ts"
   },
   "dependencies": {
-    "@opensesame/oauth-provider": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/webhooks": "workspace:*"
+    "@opensesame/oauth-provider": "*",
+    "@opensesame/os-domain": "*",
+    "@opensesame/webhooks": "*"
   },
   "devDependencies": {
     "@types/jws": "3.2.11",

@@ -24,11 +24,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/os-domain": "*",
     "oidc-provider": "9.13.1"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "typescript": "7.0.2",
     "vitest": "4.1.12"

@@ -88,6 +88,7 @@ test("minters, templates, lockfiles, and build dirs are not scanned", () => {
     "packages/app-core/src/lib/synthetic-tailscale-key.test.ts",
     "scripts/security/tskey-literal-gate.mjs",
     "spec/conformance/tailnet-admin-protocol.json.hbs",
+    "package-lock.json",
     "pnpm-lock.yaml",
     "Cargo.lock",
     "node_modules/pkg/index.js",

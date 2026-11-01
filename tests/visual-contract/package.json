@@ -24,6 +24,6 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/os-domain": "*"
   }
 }

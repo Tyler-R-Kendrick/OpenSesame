@@ -18,17 +18,17 @@
     "test:postgres": "sh -c 'test -n \"$DATABASE_URL\" || { echo \"test:postgres needs DATABASE_URL (a role with CREATEDB)\" >&2; exit 1; }' && vitest run src/__tests__/web-push-delivery.postgres.test.ts"
   },
   "dependencies": {
-    "@opensesame/log-scrub": "workspace:*",
-    "@opensesame/claims": "workspace:*",
-    "@opensesame/database": "workspace:*",
-    "@opensesame/webhooks": "workspace:*",
-    "@opensesame/observability": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/log-scrub": "*",
+    "@opensesame/claims": "*",
+    "@opensesame/database": "*",
+    "@opensesame/webhooks": "*",
+    "@opensesame/observability": "*",
+    "@opensesame/os-domain": "*",
     "nats": "2.29.3",
-    "@opensesame/notification-adapters": "workspace:*"
+    "@opensesame/notification-adapters": "*"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "tsx": "4.23.15",
     "typescript": "7.0.2",

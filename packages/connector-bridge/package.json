@@ -21,7 +21,7 @@
     "vitest": "4.1.12"
   },
   "dependencies": {
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/os-domain": "*"
   },
   "license": "MIT",
   "repository": {

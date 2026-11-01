@@ -26,8 +26,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/observability": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/observability": "*",
+    "@opensesame/os-domain": "*",
     "@xmldom/xmldom": "0.9.12",
     "jose": "6.2.13",
     "selfsigned": "5.5.0",
@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@node-saml/node-saml": "5.2.0",
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "ldapjs": "3.0.7",
     "tsx": "4.23.15",

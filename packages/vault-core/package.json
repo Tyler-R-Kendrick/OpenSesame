@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/vault-item-types": "workspace:*"
+    "@opensesame/os-domain": "*",
+    "@opensesame/vault-item-types": "*"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

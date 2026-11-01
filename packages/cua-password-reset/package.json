@@ -18,8 +18,8 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "2.0.88",
     "agent-browser": "0.40.0",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/vault-core": "workspace:*",
+    "@opensesame/os-domain": "*",
+    "@opensesame/vault-core": "*",
     "ai": "7.0.155",
     "zod": "4.6.6"
   },
