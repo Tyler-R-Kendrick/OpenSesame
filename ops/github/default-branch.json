@@ -21,7 +21,8 @@
         "require_extra_approval_for_unattributed_changes": true,
         "required_reviewers": [],
         "required_review_thread_resolution": true,
-        "allowed_merge_methods": ["squash"]
+        "allowed_merge_methods": ["squash"],
+        "dismissal_restriction": { "allowed_actors": [], "enabled": false }
       }
     },
     {
