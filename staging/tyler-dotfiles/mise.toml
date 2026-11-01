@@ -1,0 +1,14 @@
+# managed-by: tyler-dotfiles
+# Personal dev tools. Versions float to the newest release on each install.
+# OpenSesame's language toolchain (Node, Rust, Java, Go) is a project
+# requirement and stays in that repo. Inside an OpenSesame checkout, that
+# repo's mise.toml overrides any tool name both configs define.
+# Grok Build and the Cursor Agent CLI are not registry tools. install.sh
+# installs those from vendor/downloads.json after checking the pinned digest.
+
+[tools]
+fd = "latest"
+github-cli = "latest"
+jq = "latest"
+ripgrep = "latest"
+shellcheck = "latest"

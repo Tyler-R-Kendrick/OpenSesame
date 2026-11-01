@@ -1,0 +1,13 @@
+---
+description: Operator model routing (tier 1) — see docs/contributing/agent-setup.md
+alwaysApply: false
+---
+
+# Grok Build first (tier 1) — operator scope
+
+Model/subscription routing is personal operator setup, not product policy.
+The tier chain, auth, and fallback rules live in
+`docs/contributing/agent-setup.md` (user-scope setup), not in `AGENTS.md`.
+This file is kept
+only as a Cursor adapter so existing references resolve; do not add
+routing, quota, or credential detail here.
