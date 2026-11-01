@@ -94,10 +94,10 @@ jobs:
         with:
           cache: true
           install_args: node
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
-          targets: wasm32-unknown-unknown
+          cache: true
+          install_args: rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
@@ -162,10 +162,10 @@ jobs:
         with:
           cache: true
           install_args: node
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
-          targets: wasm32-unknown-unknown
+          cache: true
+          install_args: rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
@@ -180,15 +180,18 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Install pinned nightly for undefined-behavior and fuzz checks
         if: matrix.check == 'miri' || matrix.check == 'fuzz-rust'
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: nightly-2026-08-01
-          components: miri
+          cache: true
+          install_args: rust[components=miri]@nightly-2026-08-01
+          working_directory: ${{ runner.temp }}
       - name: Install the fuzz tool's build compiler
         if: matrix.check == 'fuzz-rust'
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.94.0
+          cache: true
+          install_args: rust@1.94.0
+          working_directory: ${{ runner.temp }}
       - name: Install pinned tools
         env:
           DEEP_CHECK: ${{ matrix.check }}

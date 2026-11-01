@@ -5,7 +5,9 @@
 
 [tools]
 node = "24"
-rust = { version = "1.88.0", components = ["rustfmt", "clippy"], targets = ["wasm32-unknown-unknown"] }
+# llvm-tools-preview is for cargo-llvm-cov and native Windows stack dumps.
+# rust-toolchain.toml stays rustfmt and clippy.
+rust = { version = "1.88.0", components = ["rustfmt", "clippy", "llvm-tools-preview"], targets = ["wasm32-unknown-unknown"] }
 go = "1.26.10"
 java = "temurin-17.0.20+101"
 "cargo:cargo-ndk" = "4.1.2"

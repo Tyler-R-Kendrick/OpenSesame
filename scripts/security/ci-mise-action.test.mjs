@@ -16,6 +16,8 @@ const allowedArgs = new Set([
   "node",
   "node@24",
   "rust",
+  "rust@1.94.0",
+  "rust[components=miri]@nightly-2026-08-01",
   "go",
   "java",
   "cargo:cargo-ndk",
@@ -101,9 +103,28 @@ test("npm jobs install Node with the pinned mise-action", () => {
           label,
         );
         if (step.with.working_directory !== undefined) {
-          assert.equal(step.with.working_directory, "src", label);
-          assert.equal(tokens.includes("node"), true, label);
+          const directory = step.with.working_directory;
           assert.equal(tokens.includes("node@24"), false, label);
+          if (directory === "src") {
+            assert.equal(
+              tokens.includes("node") || tokens.includes("rust"),
+              true,
+              label,
+            );
+          } else {
+            assert.equal(directory, "${{ runner.temp }}", label);
+            assert.equal(tokens.includes("node"), false, label);
+            assert.equal(
+              tokens.some(
+                (token) =>
+                  token === "rust" ||
+                  token.startsWith("rust@") ||
+                  token.startsWith("rust["),
+              ),
+              true,
+              label,
+            );
+          }
         }
       }
     }
@@ -112,5 +133,65 @@ test("npm jobs install Node with the pinned mise-action", () => {
       .filter((line) => line.includes("jdx/mise-action@"));
     assert.equal(rawMise.length, parsedMise, name);
     for (const line of rawMise) assert.match(line, miseLine, name);
+  }
+});
+
+function rustTokens(step) {
+  if (step?.uses !== miseUses) return [];
+  const args = step.with?.install_args;
+  if (typeof args !== "string") return [];
+  return args.split(/\s+/u).filter((token) => token !== "");
+}
+
+function installsRust(step) {
+  return rustTokens(step).some(
+    (token) =>
+      token === "rust" ||
+      token.startsWith("rust@") ||
+      token.startsWith("rust["),
+  );
+}
+
+function needsRust(step) {
+  if (
+    typeof step?.uses === "string" &&
+    step.uses.startsWith("Swatinem/rust-cache@")
+  ) {
+    return true;
+  }
+  return /\b(?:cargo|rustup)\s+/u.test(runText(step));
+}
+
+test("workflows do not install Rust with dtolnay/rust-toolchain", () => {
+  const files = workflows();
+  assert.ok(files.length > 0);
+  for (const { name, text } of files) {
+    assert.doesNotMatch(text, /dtolnay\/rust-toolchain/u, name);
+    assert.doesNotMatch(text, /rust-toolchain@/u, name);
+  }
+});
+
+test("cargo jobs install Rust with the pinned mise-action", () => {
+  for (const { name, text } of workflows()) {
+    const jobs = parse(text).jobs ?? {};
+    for (const [id, job] of Object.entries(jobs)) {
+      const steps = Array.isArray(job?.steps) ? job.steps : [];
+      const label = `${name}:${id}`;
+      let needAt = -1;
+      const rustAt = [];
+      steps.forEach((step, index) => {
+        if (needAt < 0 && needsRust(step)) needAt = index;
+        if (installsRust(step)) rustAt.push(index);
+      });
+      if (needAt >= 0) {
+        assert.ok(rustAt.length > 0, `${label} runs cargo without mise rust`);
+        assert.ok(rustAt[0] < needAt, `${label} runs cargo before mise rust`);
+      }
+      assert.equal(
+        JSON.stringify(job).includes("dtolnay/rust-toolchain"),
+        false,
+        label,
+      );
+    }
   }
 });

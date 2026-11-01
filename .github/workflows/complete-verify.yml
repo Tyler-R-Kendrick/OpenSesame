@@ -39,11 +39,10 @@ jobs:
         with:
           cache: true
           install_args: node
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
-          components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
+          cache: true
+          install_args: rust
       - name: Install Linux keychain build and test dependencies
         run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
       - name: Install the repository contract tool

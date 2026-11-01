@@ -176,9 +176,10 @@ jobs:
         run: node scripts/lib/ci-affected-builds.mjs plan-cargo
       - name: Install Linux keychain build dependencies
         run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
+          cache: true
+          install_args: rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - name: Build affected crates and their prerequisites
         env:
