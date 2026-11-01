@@ -1,0 +1,25 @@
+# pnpm stays in package.json packageManager until the npm workspaces migration.
+# Temurin 17 matches ci-prerelease-checks (JAVA_HOME_17_X64). 17.0.20+101 is
+# the newest Temurin 17 build mise's catalog publishes for every locked
+# platform; 17.0.21+9 has no windows-x64 metadata.
+
+[tools]
+node = "24"
+rust = { version = "1.88.0", components = ["rustfmt", "clippy"], targets = ["wasm32-unknown-unknown"] }
+go = "1.26.10"
+java = "temurin-17.0.20+101"
+"cargo:cargo-ndk" = "4.1.2"
+
+[env]
+CARGO_TARGET_DIR = "{{env.HOME}}/.cache/packages/cargo-target"
+
+[settings]
+lockfile = true
+
+[tasks.setup]
+description = "Install workspace dependencies"
+run = "bash scripts/dev/install-dependencies.sh"
+
+[tasks.deps]
+description = "Install workspace dependencies"
+run = "bash scripts/dev/install-dependencies.sh"
