@@ -60,7 +60,7 @@ const mutations = [
   [
     "importing package verifier routing",
     "packages/control-plane/package.json",
-    '"@opensesame/os-domain": "workspace:*"',
+    '"@opensesame/os-domain": "*"',
     '"@opensesame/os-domain": "npm:unchecked-claims@1.0.0"',
   ],
   [
