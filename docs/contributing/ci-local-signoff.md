@@ -1,6 +1,6 @@
 # Local sign-off
 
-GitHub Actions CI on `Tyler-R-Kendrick/OpenSesame` is the authoritative merge
+GitHub Actions CI on `OpenSesame-Labs/OpenSesame` is the authoritative merge
 gate. The ruleset requires the Actions checks TypeScript, Bundle budgets, and
 Rust. A local status does not replace those checks.
 
