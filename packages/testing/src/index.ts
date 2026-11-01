@@ -9,3 +9,8 @@ export {
   checkThenSetAdmitsDoubleClaim,
   countConcurrentWins,
 } from "./pact.js";
+export {
+  PINNED_POSTGRES_IMAGE,
+  startEphemeralPostgres,
+  type EphemeralPostgres,
+} from "./postgres-testcontainer.js";

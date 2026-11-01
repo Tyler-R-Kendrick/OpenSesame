@@ -22,8 +22,27 @@ are written with. It is a dev dependency only; no production code imports it.
 | `assertNoSecretFields(value, allow)` | Contract: a JSON body carries no `access_token`, `refresh_token`, `client_secret`, `webhook_secret`, `private_key`, `claim_token` / `claimToken` |
 | `assertFailClosedStatuses(responses, required)` | Contract: an OpenAPI responses object documents the fail-closed statuses (default `401`) |
 | `assertDurableSurvivesPartition(count, publish)` | Chaos: durable work is still present after a failed publish |
+| `startEphemeralPostgres()`, `PINNED_POSTGRES_IMAGE` | Integration: disposable Postgres via Testcontainers when Docker is available |
 
-## Develop
+## Postgres integration tests
+
+When a suite needs real Postgres (not PGlite), prefer
+`startEphemeralPostgres()` from this package. It uses a digest-pinned
+`postgres:16-alpine` image. Skip the suite when Docker is unavailable rather
+than falling back to ad-hoc compose scripts.
+
+```typescript
+import { startEphemeralPostgres } from "@opensesame/testing";
+
+const postgres = await startEphemeralPostgres();
+process.env.DATABASE_URL = postgres.databaseUrl;
+try {
+  // run migrations and assertions
+} finally {
+  await postgres.stop();
+}
+```
+
 
 ```bash
 pnpm --filter @opensesame/testing test
