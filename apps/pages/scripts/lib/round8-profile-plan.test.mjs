@@ -51,5 +51,6 @@ test("REPO is the repository root", () => {
   const manifest = JSON.parse(
     fs.readFileSync(path.join(REPO, "package.json"), "utf8"),
   );
-  assert.equal(manifest.packageManager?.startsWith("pnpm"), true);
+  assert.equal(manifest.name, "opensesame");
+  assert.equal(manifest.private, true);
 });

@@ -160,6 +160,7 @@ describe("scope all", () => {
   it("finishes typecheck before running one package at a time", () => {
     expect(turboTestArgs()).toEqual([
       "exec",
+      "--",
       "turbo",
       "run",
       "test",
@@ -167,8 +168,8 @@ describe("scope all", () => {
     ]);
     expect(allScopeLanes()).toEqual([
       [
-        { command: "pnpm", args: ["typecheck"] },
-        { command: "pnpm", args: turboTestArgs() },
+        { command: "npm", args: ["run", "typecheck"] },
+        { command: "npm", args: turboTestArgs() },
       ],
     ]);
   });

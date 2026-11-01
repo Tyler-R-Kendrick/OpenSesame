@@ -34,9 +34,10 @@ test("builds changed packages and transitive consumers, leaving unrelated work o
   assert.equal(plan.scope, "packages");
   assert.deepEqual(plan.packages, ["app", "service", "shared"]);
   const command = buildCommand("packages", plan);
-  assert.equal(command.command, "pnpm");
+  assert.equal(command.command, "npm");
   assert.deepEqual(command.args, [
     "exec",
+    "--",
     "turbo",
     "run",
     "build",
@@ -191,8 +192,8 @@ test("shared compiler, dependency and embedded-spec inputs compile the whole gra
     assert.equal(planBuildCrates([path], graph).scope, "all", path);
   }
   assert.deepEqual(buildCommand("packages", { scope: "all", packages: [] }), {
-    command: "pnpm",
-    args: ["exec", "turbo", "run", "build", "--concurrency=4"],
+    command: "npm",
+    args: ["exec", "--", "turbo", "run", "build", "--concurrency=4"],
   });
   assert.deepEqual(
     buildCommand(
@@ -201,9 +202,10 @@ test("shared compiler, dependency and embedded-spec inputs compile the whole gra
       { turboComparisonRef: "origin/main" },
     ),
     {
-      command: "pnpm",
+      command: "npm",
       args: [
         "exec",
+        "--",
         "turbo",
         "run",
         "build",
