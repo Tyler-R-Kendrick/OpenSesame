@@ -11,12 +11,12 @@ describe("password reset readiness", () => {
     expect(passwordResetFeatureApproved(["ai.password-reset"])).toBe(true);
   });
 
-  it("refuses when no computer-use runtime is saved", async () => {
+  it("is runtime-ready by default via the anonymous relays, with nothing saved", async () => {
     await forgetDeviceConnectors();
     const verdict = await evaluatePasswordResetReadiness(
       ["ai.password-reset"],
       { kind: "browser", browserPlane: "builtin", because: "configured" },
     );
-    expect(verdict).toEqual({ ok: false, reason: "runtime" });
+    expect(verdict).toEqual({ ok: true });
   });
 });

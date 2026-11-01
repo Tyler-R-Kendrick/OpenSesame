@@ -47,6 +47,22 @@ export interface WasmRelayProviderOptions {
   deployRelay?: () => Promise<AnonymousRelayDeployment>;
 }
 
+async function deployAnonymousRelay(
+  options: WasmRelayProviderOptions,
+  vendor: "cloudflare" | "vercel",
+): Promise<AnonymousRelayDeployment> {
+  if (options.deployRelay) return options.deployRelay();
+  const deployOptions =
+    options.readyTimeoutMs !== undefined
+      ? { readyTimeoutMs: options.readyTimeoutMs }
+      : {};
+  if (vendor === "vercel")
+    return (await import("./vercel-anon-relay.js")).deployAnonymousVercelRelay(
+      deployOptions,
+    );
+  return deployAnonymousCloudflareRelay(deployOptions);
+}
+
 export class WasmRelayProvider implements SandboxProvider {
   readonly id: SandboxProviderId = "wasm-relay";
 
@@ -64,18 +80,7 @@ export class WasmRelayProvider implements SandboxProvider {
         this.options.anonymousRelay ??
         (this.options.anonymousCloudflare ? "cloudflare" : undefined);
       if ((!relayUrl || !relayToken) && anonymousVendor) {
-        deployed = await (this.options.deployRelay?.() ??
-          (anonymousVendor === "vercel"
-            ? (await import("./vercel-anon-relay.js")).deployAnonymousVercelRelay(
-                this.options.readyTimeoutMs !== undefined
-                  ? { readyTimeoutMs: this.options.readyTimeoutMs }
-                  : {},
-              )
-            : deployAnonymousCloudflareRelay(
-                this.options.readyTimeoutMs !== undefined
-                  ? { readyTimeoutMs: this.options.readyTimeoutMs }
-                  : {},
-              )));
+        deployed = await deployAnonymousRelay(this.options, anonymousVendor);
         relayUrl = deployed.relayUrl;
         relayToken = deployed.relayToken;
       }

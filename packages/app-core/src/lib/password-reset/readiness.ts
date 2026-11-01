@@ -6,6 +6,7 @@
 
 import { listConnections } from "../connections.js";
 import { catalogProvider } from "../connector-catalog.js";
+import { getBundledProviders } from "../embedded-catalog.js";
 import {
   type ResolvedModelPlane,
   autonomousResetAvailable,
@@ -25,6 +26,15 @@ export function passwordResetFeatureApproved(
 }
 
 export async function passwordResetRuntimeConfigured(): Promise<boolean> {
+  // The anonymous Cloudflare/Vercel relays are configured by default:
+  // they need no vendor account, no claim, and no saved connection.
+  const anonymousReady = getBundledProviders().some(
+    (provider) =>
+      provider.category === "cua_runtime" &&
+      provider.configured &&
+      provider.autoConfigurable,
+  );
+  if (anonymousReady) return true;
   const rows = await listConnections();
   return rows.some((row) => {
     const provider = catalogProvider(row.providerId);

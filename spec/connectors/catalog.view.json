@@ -2424,6 +2424,90 @@
     },
     {
       "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-31.3",
+      "category": "cua_runtime",
+      "configured": false,
+      "connection_configuration_fields": [],
+      "display_name": "Cloudflare (anonymous relay)",
+      "docs_url": "https://developers.cloudflare.com/workers/platform/claim-deployments/",
+      "egress": {
+        "authorities": [
+          "api.cloudflare.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "cloudflare-anonymous",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "operations": [
+        "sandbox.execute"
+      ],
+      "provenance_url": "https://blog.cloudflare.com/temporary-accounts/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-31.3",
+      "category": "cua_runtime",
+      "configured": false,
+      "connection_configuration_fields": [],
+      "display_name": "Vercel (anonymous relay)",
+      "docs_url": "https://vercel.com/docs/deployments",
+      "egress": {
+        "authorities": [
+          "api.vercel.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "vercel-anonymous",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "operations": [
+        "sandbox.execute"
+      ],
+      "provenance_url": "https://vercel.com/docs/deployments",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-31.3",
+      "category": "cua_runtime",
+      "configured": false,
+      "connection_configuration_fields": [],
+      "display_name": "Boat",
+      "docs_url": "https://docs.boat.dev/agent-auth",
+      "egress": {
+        "authorities": [
+          "boat.dev"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "boat",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "operations": [
+        "sandbox.execute"
+      ],
+      "provenance_url": "https://boat.dev/auth.md",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,

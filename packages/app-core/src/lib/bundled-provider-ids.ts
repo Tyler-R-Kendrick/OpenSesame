@@ -50,6 +50,9 @@ export const BUNDLED_CATALOG_IDS: readonly string[] = [
   "vercel-sandbox",
   "e2b",
   "browserbase-cdp",
+  "cloudflare-anonymous",
+  "vercel-anonymous",
+  "boat",
 ];
 
 let bundledIds: ReadonlySet<string> | null = null;

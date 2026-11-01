@@ -15,4 +15,26 @@ describe("password reset integration suggestions", () => {
       expect.arrayContaining(["openai", "anthropic", "vercel-ai-gateway"]),
     );
   });
+
+  it("enables the anonymous Cloudflare and Vercel relays by default", () => {
+    const providers = getBundledProviders();
+    for (const id of ["cloudflare-anonymous", "vercel-anonymous"]) {
+      expect(providers.find((provider) => provider.id === id)).toMatchObject({
+        category: "cua_runtime",
+        configured: true,
+        autoConfigurable: true,
+      });
+    }
+  });
+
+  it("lists Boat as an optional runtime that is off until configured", () => {
+    const boat = getBundledProviders().find(
+      (provider) => provider.id === "boat",
+    );
+    expect(boat).toMatchObject({
+      category: "cua_runtime",
+      configured: false,
+      autoConfigurable: false,
+    });
+  });
 });
