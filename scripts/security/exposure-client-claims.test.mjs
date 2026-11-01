@@ -114,8 +114,8 @@ const mutations = [
   [
     "payload AEAD",
     "packages/vault-core/src/drop-format.ts",
-    '{ name: "AES-GCM", iv: overlapCast(b64ToBytes(nonce)) }',
-    '{ name: "AES-CBC", iv: overlapCast(b64ToBytes(nonce)) }',
+    '{ name: "AES-GCM", iv: asBufferSource(b64ToBytes(nonce)) }',
+    '{ name: "AES-CBC", iv: asBufferSource(b64ToBytes(nonce)) }',
   ],
   [
     "vault-format export routing",
