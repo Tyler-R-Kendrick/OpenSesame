@@ -1,0 +1,14 @@
+---
+description: Operator model routing (tier 2) — see docs/contributing/agent-setup.md
+alwaysApply: false
+---
+
+# Kimi Code second (tier 2) — operator scope
+
+Model/subscription routing is personal operator setup, not product policy.
+The tier chain, auth, and fallback rules live in
+`docs/contributing/agent-setup.md` (user-scope setup), not in `AGENTS.md`.
+Operator runbook:
+`.cursor/kimi-code.md`, `docs/operators/kimi-code-cloud.md`. This file is
+kept only as a Cursor adapter so existing references resolve; do not add
+routing, quota, or credential detail here.

@@ -11,6 +11,10 @@ esac
 export PATH
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/packages/cargo-target}"
 
+# Personal dotfiles before project dependencies. Clone failure uses
+# staging/tyler-dotfiles. The bootstrap does not elevate privileges.
+bash scripts/dev/dotfiles-bootstrap.sh
+
 # Node, npm, and Rust come from the locked mise config. `deps` runs npm ci.
 mise install --locked
 mise run deps

@@ -18,7 +18,7 @@ Identity and Host APIs are kept **deliberately separate** — no BFF merge. Cano
 
 ## 2. Toolchain
 
-Pins are canonical in `package.json` (`engines`, `packageManager`, devDependencies) and `rust-toolchain.toml` — read them there, do not copy versions into new prose. In short: Node ≥ 22, pnpm via Corepack, Rust pinned by `rust-toolchain.toml` (`cargo +1.88.0 ...`), Turbo for workspace tasks, Biome for lint/format, Oxlint anti-slop, Vitest and Playwright for tests. Setup detail: [getting started](docs/getting-started/README.md).
+Pins are canonical in `package.json` (`engines`, devDependencies), `mise.toml`, and `rust-toolchain.toml` — read them there, do not copy versions into new prose. In short: Node and npm via mise (`mise install --locked`), npm workspaces, Rust pinned by `mise.toml` and `rust-toolchain.toml` (`cargo +1.88.0 ...`), Turbo for workspace tasks, Biome for lint/format, Oxlint anti-slop, Vitest and Playwright for tests. Setup detail: [getting started](docs/getting-started/README.md).
 
 ## Cursor Cloud specific instructions
 
@@ -29,18 +29,20 @@ Generic cloud-agent environment notes live in [cloud agents](docs/contributing/c
 All scripts are defined in the root `package.json` unless noted. Full reference (per-plane run commands and every Pages `verify:*` trigger and behaviour contract): [commands](docs/contributing/commands.md). Script catalogue: [scripts](scripts/README.md).
 
 ```bash
-pnpm bootstrap     # install if needed + db:migrate + setup:hooks
-pnpm dev           # turbo dev (Identity plane and related packages)
-pnpm build         # turbo build
-pnpm lint          # Biome on changed files + repository/evidence checks
-pnpm quality       # structure, coupling, design and docs-index gates
-pnpm typecheck     # strict TypeScript across the workspace
-pnpm test          # turbo test
-pnpm verify        # full local gate: lint, anti-slop, quality, tests
-pnpm docs:index    # regenerate ADR/audit/evidence indexes after docs changes
+mise install --locked  # Node, npm, Rust, Go, and Java from mise.toml / mise.lock
+mise run deps          # fingerprinted npm ci
+npm run bootstrap      # deps:install + db:migrate + setup:hooks
+npm run dev            # turbo dev (Identity plane and related packages)
+npm run build          # turbo build
+npm run lint           # Biome on changed files + repository/evidence checks
+npm run quality        # structure, coupling, design and docs-index gates
+npm run typecheck      # strict TypeScript across the workspace
+npm run test           # turbo test
+npm run verify         # full local gate: lint, anti-slop, quality, tests
+npm run docs:index     # regenerate ADR/audit/evidence indexes after docs changes
 ```
 
-Before pushing: `pnpm lint && pnpm quality && pnpm typecheck && pnpm test` (see §8). Schema generation is deliberate — see [getting started](docs/getting-started/README.md), not a root shortcut.
+Before pushing: `npm run lint && npm run quality && npm run typecheck && npm run test` (see §8). Schema generation is deliberate — see [getting started](docs/getting-started/README.md), not a root shortcut.
 
 ## 4. Layout map
 

@@ -1,21 +1,18 @@
 {
   "name": "OpenSesame",
-  "image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm@sha256:fc57fb865035c5395e85246c8842b071ced6e7cde727b3c98abbcc794eaf4759",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1@sha256:8c0de46939b61958041700ee89e3493f3b2e4131a06dc46b4d9423427d06e5f6": {
-      "version": "22",
-      "installYarnUsingApt": false
-    }
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
   },
   "containerEnv": {
     "DEVCONTAINER": "1",
-    "COREPACK_HOME": "/home/vscode/.cache/node/corepack",
+    "MISE_DATA_DIR": "/opt/mise",
     "CARGO_TARGET_DIR": "/home/vscode/.cache/packages/cargo-target"
   },
   "forwardPorts": [8787, 8788, 18790],
-  "onCreateCommand": "rustup show active-toolchain || cargo --version",
-  "updateContentCommand": "mkdir -p \"$HOME/.local/bin\" && corepack enable --install-directory \"$HOME/.local/bin\" && corepack prepare pnpm@9.15.0 --activate && bash scripts/dev/install-dependencies.sh",
-  "postCreateCommand": "bash scripts/dev/setup-hooks.sh",
+  "onCreateCommand": "mise --version",
+  "updateContentCommand": "mise install --locked && bash scripts/dev/dotfiles-bootstrap.sh && mise run deps",
+  "postCreateCommand": "mise install --locked && bash scripts/dev/dotfiles-bootstrap.sh && mise run deps && bash scripts/dev/setup-hooks.sh",
   "postStartCommand": "bash scripts/dev/install-agent-skills.sh",
   "customizations": {
     "vscode": {
@@ -31,8 +28,5 @@
       }
     }
   },
-  "remoteUser": "vscode",
-  "mounts": [
-    "source=opensesame-pnpm-store-${localWorkspaceFolderBasename},target=/home/vscode/.local/share/pnpm/store,type=volume"
-  ]
+  "remoteUser": "vscode"
 }
