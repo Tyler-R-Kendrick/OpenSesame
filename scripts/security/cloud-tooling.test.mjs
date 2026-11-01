@@ -235,6 +235,7 @@ test("Cursor image installs mise from a pinned checksum tarball", () => {
 test("published base images are pinned, while OSS Verify keeps its local builder contract", () => {
   for (const file of [
     ".cursor/Dockerfile",
+    ".devcontainer/Dockerfile",
     "ops/compose/Dockerfile",
     "tests/fuzz/clusterfuzzlite/Dockerfile",
   ]) {
@@ -375,6 +376,11 @@ function shellFixture(t) {
   writeFileSync(
     join(folder, "scripts/dev/install-dependencies.sh"),
     "exit 0\n",
+  );
+  writeFileSync(
+    join(folder, "scripts/dev/dotfiles-bootstrap.sh"),
+    "#!/bin/sh\nexit 0\n",
+    { mode: 0o755 },
   );
   writeFileSync(
     join(folder, "scripts/dev/install-cloud-cli.mjs"),

@@ -1,0 +1,9 @@
+# managed-by: tyler-dotfiles
+# User-level Grok Build config.
+# Exported from the guidance in OpenSesame .grok/config.toml. That project
+# file sets no settings: auth and model routing are personal.
+# Subscription / device login lives in ~/.grok/auth.json. install.sh copies
+# it only when GROK_SUBSCRIPTION_AUTH_SOURCE is present (Cursor cloud store)
+# and never prints the file.
+# Do not set auth.preferred_method = "api_key". That preference, like a
+# runtime XAI_API_KEY, shadows OIDC in ~/.grok/auth.json.
