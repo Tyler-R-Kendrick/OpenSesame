@@ -41,7 +41,9 @@ describe("the live join walk's CI job (ADR 0150)", () => {
   });
 
   it("builds every server and both Pages builds the walks need, and fails rather than skip", () => {
-    expect(job).toContain("go-version-file: scripts/test/live-turn/go.mod");
+    expect(job).toContain("install_args: go");
+    expect(job).not.toContain("actions/setup-go");
+    expect(job).not.toContain("go-version-file:");
     expect(job).toContain("npm run test:live-fixtures");
     expect(job).toContain("node scripts/lib/ci-pages-build.mjs");
     expect(job).toContain("npm run build:live-dedicated -w @opensesame/pages");

@@ -11,9 +11,18 @@ rust = { version = "1.88.0", components = ["rustfmt", "clippy", "llvm-tools-prev
 go = "1.26.10"
 java = "temurin-17.0.20+101"
 "cargo:cargo-ndk" = "4.1.2"
+# Installer CLIs for scripts/dev/install-agent-skills.sh. Skill content stays unpinned.
+"npm:skills" = "1.7.4"
+"npm:impeccable" = "4.8.0"
+"npm:typeui.sh" = "0.7.1"
 
 [env]
 CARGO_TARGET_DIR = "{{env.HOME}}/.cache/packages/cargo-target"
+# sdkmanager packages for the Android jobs. compileSdk is 36.
+ANDROID_SDK_PLATFORM = "android-36"
+ANDROID_BUILD_TOOLS = "35.0.0"
+ANDROID_BUILD_TOOLS_LATEST = "36.0.0"
+ANDROID_NDK_VERSION = "28.0.13004108"
 
 [settings]
 lockfile = true

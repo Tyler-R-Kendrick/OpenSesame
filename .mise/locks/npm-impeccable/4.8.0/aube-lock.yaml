@@ -1,0 +1,75 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      impeccable:
+        specifier: 4.8.0
+        version: 4.8.0
+
+packages:
+
+  '@impeccable/cli-darwin-arm64@0.1.18':
+    resolution: {integrity: sha512-Uhs8Vu8lNnwanaPnAY1TeIqQP0h+qPApAAyZozG5JZOgF++U6tFPpA0X1hsXwbwS1ldiZ8zCbkeWp1TgHhQoDw==}
+    cpu: [arm64]
+    os: [darwin]
+    hasBin: true
+
+  '@impeccable/cli-darwin-x64@0.1.18':
+    resolution: {integrity: sha512-oEdi45ONAkBsWdAAv5V/vzUJJ+aw4qDZlvjWFaVy1QIsSY0tgGK7VUz4aXzCYctdojBL9naEkmA7geNnRHWnAQ==}
+    cpu: [x64]
+    os: [darwin]
+    hasBin: true
+
+  '@impeccable/cli-linux-arm64@0.1.18':
+    resolution: {integrity: sha512-LHqLzy8YWy8U+xOJm5hGgAZrr5YRoZ0ic3eixSx32XT3OYhkwf6ubJgIFT6L2M/qg/dXaucskGVBG4KV9RQGRw==}
+    cpu: [arm64]
+    os: [linux]
+    hasBin: true
+
+  '@impeccable/cli-linux-x64@0.1.18':
+    resolution: {integrity: sha512-cksllv5f/VryElehX8CcKCIOSpTHCKX9iLRxCre4A8cqtjmNsDKc8jtVO87hvfmCKISXKzHXfZGEIpJyGEiiBA==}
+    cpu: [x64]
+    os: [linux]
+    hasBin: true
+
+  '@impeccable/cli-windows-x64@0.1.18':
+    resolution: {integrity: sha512-gQa/hDCMeJPdanY8/F6dm+HX8CRUWw0qZemcmS7RnZoI1NFgPi8iYZ+PSA5m+KG/vf/fmkQrVEUJaZRIeHu9Pg==}
+    cpu: [x64]
+    os: [win32]
+    hasBin: true
+
+  impeccable@4.8.0:
+    resolution: {integrity: sha512-e0+wbJppJMiQN8npKmIkBbKetfSlarak7OIGlsRhc8folekz4PgStjuprhYi+imjqBb6OCMJLV9II2hHGmcCyg==}
+    engines: {node: '>=18.19.0'}
+    hasBin: true
+
+snapshots:
+
+  '@impeccable/cli-darwin-arm64@0.1.18':
+    optional: true
+
+  '@impeccable/cli-darwin-x64@0.1.18':
+    optional: true
+
+  '@impeccable/cli-linux-arm64@0.1.18':
+    optional: true
+
+  '@impeccable/cli-linux-x64@0.1.18':
+    optional: true
+
+  '@impeccable/cli-windows-x64@0.1.18':
+    optional: true
+
+  impeccable@4.8.0:
+    optionalDependencies:
+      '@impeccable/cli-darwin-arm64': 0.1.18
+      '@impeccable/cli-darwin-x64': 0.1.18
+      '@impeccable/cli-linux-arm64': 0.1.18
+      '@impeccable/cli-linux-x64': 0.1.18
+      '@impeccable/cli-windows-x64': 0.1.18

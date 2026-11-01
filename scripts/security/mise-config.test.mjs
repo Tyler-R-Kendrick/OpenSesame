@@ -252,30 +252,52 @@ test("mise.toml matches the Rust, Node, Go, Java, and cargo-ndk pins", () => {
   assert.equal(manifest.engines.node, ">=24");
   assert.equal(Object.hasOwn(manifest, "packageManager"), false);
   assert.equal(Object.hasOwn(tools, "pnpm"), false);
-  assert.ok(Array.isArray(manifest.workspaces) && manifest.workspaces.length > 0);
+  assert.ok(
+    Array.isArray(manifest.workspaces) && manifest.workspaces.length > 0,
+  );
 
-  const goFile = ci.match(/^ {2,}go-version-file:\s+(\S+)\s*$/mu);
-  assert.ok(goFile, "ci-prerelease-checks go-version-file");
-  const goDirective = readText(goFile[1]).match(/^go\s+(\S+)\s*$/mu);
+  const goDirective = readText("scripts/test/live-turn/go.mod").match(
+    /^go\s+(\S+)\s*$/mu,
+  );
   assert.ok(goDirective, "go.mod go directive");
   assert.equal(asString(tools.go, "go"), goDirective[1]);
+  assert.match(ci, /install_args: go\s*$/mu);
+  assert.doesNotMatch(ci, /actions\/setup-go/u);
+  assert.doesNotMatch(ci, /go-version-file:/u);
 
-  const javaHome = [
-    ...ci.matchAll(/JAVA_HOME_(\d+)_X64/gu),
-  ].map((match) => match[1]);
-  assert.deepEqual([...new Set(javaHome)], ["17"]);
   assert.match(asString(tools.java, "java"), /^temurin-17(?:\.|$)/u);
+  assert.doesNotMatch(ci, /JAVA_HOME_17_X64/u);
+  assert.match(ci, /install_args: rust java cargo:cargo-ndk\s*$/mu);
 
-  const cargoNdk = ci.match(
-    /cargo install cargo-ndk --version (\S+) --locked/u,
-  );
-  assert.ok(cargoNdk, "ci-prerelease-checks cargo-ndk pin");
-  assert.equal(asString(tools["cargo:cargo-ndk"], "cargo-ndk"), cargoNdk[1]);
+  assert.equal(asString(tools["cargo:cargo-ndk"], "cargo-ndk"), "4.1.2");
+  assert.doesNotMatch(ci, /cargo install cargo-ndk/u);
 
+  const env = asTable(mise.env, "env");
   assert.equal(
-    asString(asTable(mise.env, "env").CARGO_TARGET_DIR, "CARGO_TARGET_DIR"),
+    asString(env.CARGO_TARGET_DIR, "CARGO_TARGET_DIR"),
     "{{env.HOME}}/.cache/packages/cargo-target",
   );
+  assert.equal(
+    asString(env.ANDROID_SDK_PLATFORM, "ANDROID_SDK_PLATFORM"),
+    "android-36",
+  );
+  assert.equal(
+    asString(env.ANDROID_BUILD_TOOLS, "ANDROID_BUILD_TOOLS"),
+    "35.0.0",
+  );
+  assert.equal(
+    asString(env.ANDROID_BUILD_TOOLS_LATEST, "ANDROID_BUILD_TOOLS_LATEST"),
+    "36.0.0",
+  );
+  assert.equal(
+    asString(env.ANDROID_NDK_VERSION, "ANDROID_NDK_VERSION"),
+    "28.0.13004108",
+  );
+  assert.match(ci, /platforms;\$\{ANDROID_SDK_PLATFORM\}/u);
+  assert.match(ci, /build-tools;\$\{ANDROID_BUILD_TOOLS\}/u);
+  assert.match(ci, /build-tools;\$\{ANDROID_BUILD_TOOLS_LATEST\}/u);
+  assert.match(ci, /ndk;\$\{ANDROID_NDK_VERSION\}/u);
+  assert.doesNotMatch(ci, /28\.0\.13004108/u);
   assert.equal(
     asBoolean(asTable(mise.settings, "settings").lockfile, "lockfile"),
     true,
@@ -296,5 +318,33 @@ test("mise.lock exists and names every install platform", () => {
       lock.includes(`platforms.${platform}`),
       `mise.lock does not mention ${platform}`,
     );
+  }
+});
+
+test("mise.toml pins the agent skill installer CLIs", () => {
+  const mise = parseToml(readText("mise.toml"));
+  const tools = asTable(mise.tools, "tools");
+  const script = readText("scripts/dev/install-agent-skills.sh");
+  const pins = [
+    ["npm:skills", "skills@1.7.4"],
+    ["npm:impeccable", "impeccable@4.8.0"],
+    ["npm:typeui.sh", "typeui.sh@0.7.1"],
+  ];
+  const lock = readText("mise.lock");
+  for (const [tool, spec] of pins) {
+    const version = spec.slice(spec.indexOf("@") + 1);
+    const slug = tool.slice("npm:".length).replaceAll(".", "-");
+    const sidecar = `.mise/locks/npm-${slug}/${version}`;
+    assert.equal(asString(tools[tool], tool), version);
+    assert.ok(script.includes(spec), spec);
+    assert.ok(lock.includes(`path = "${sidecar}"`), sidecar);
+    assert.ok(readText(`${sidecar}/aube-lock.yaml`).includes(version), sidecar);
+  }
+  assert.match(
+    script,
+    /mise install npm:skills npm:impeccable npm:typeui\.sh/u,
+  );
+  for (const path of ["AGENTS.md", "docs/contributing/commands.md"]) {
+    assert.doesNotMatch(readText(path), /\bpnpm\b/u, path);
   }
 });

@@ -69,6 +69,8 @@ describe("native mobile required checks", () => {
             ![
               "OPENSESAME_BINDGEN_CARGO_HOME",
               "OPENSESAME_BINDGEN_TARGET_DIR",
+              "CARGO_HOME",
+              "CARGO_TARGET_DIR",
             ].includes(name),
         ),
       );
@@ -93,6 +95,24 @@ touch "$bindgen_cargo_home/.package-cache"
           ),
         ).isFile(),
       ).toBe(true);
+      const ambient = join(fixture, "ambient-cargo");
+      execFileSync(
+        "bash",
+        [
+          "-euc",
+          `repo_root="$1"; cache() { ${defaults.join("\n")}
+mkdir -p "$bindgen_cargo_home" "$bindgen_target"
+touch "$bindgen_cargo_home/.package-cache"
+}; cache`,
+          "--",
+          fixture,
+        ],
+        {
+          env: { ...environment, CARGO_HOME: ambient },
+          stdio: "pipe",
+        },
+      );
+      expect(lstatSync(join(ambient, ".package-cache")).isFile()).toBe(true);
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }
