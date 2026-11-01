@@ -71,13 +71,17 @@ export const capabilityRuntime: CapabilityRuntime = {
       framed: true,
       order: 70,
     });
-    activation.onDispose(installPasswordResetVaultUiSeams());
+    activation.onDispose(installPasswordResetVaultUiSeams(ctx.vault));
     activation.onDispose(
       installPasswordResetRotationRelay({
         readiness: async () => {
           const verdict = await browserInference();
           const plane = resolveModelPlane(loadModelProvider(), verdict);
-          return evaluatePasswordResetReadiness(["ai.password-reset"], plane);
+          return evaluatePasswordResetReadiness(
+            ["ai.password-reset"],
+            plane,
+            ctx.vault.tomb,
+          );
         },
       }),
     );

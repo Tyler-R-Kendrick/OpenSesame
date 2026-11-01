@@ -27,6 +27,7 @@ import {
 } from "@opensesame/app-core/lib/connector-directory.js";
 import {
   type ConnectorSetting,
+  connectionSettingKey,
   readConnectorSettings,
   settingFor,
   writeConnectorSetting,
@@ -112,7 +113,7 @@ function connectionRows(connections: readonly Connection[]): ConnectorRow[] {
     .filter((connection) => connection.status !== "revoked")
     .map((connection) => ({
       // The ledger key predates Connect; kept so earlier bindings still match.
-      id: `host:${connection.connectionId}`.slice(0, 128),
+      id: connectionSettingKey(connection.connectionId),
       label: connection.displayName.slice(0, 128),
       providerId: connection.providerId,
       name: connection.displayName,

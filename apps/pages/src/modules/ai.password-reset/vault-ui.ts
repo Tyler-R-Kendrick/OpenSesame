@@ -13,19 +13,24 @@ import {
   installPasswordResetVaultUi,
 } from "@opensesame/app-core/lib/password-reset/vault-ui-seam.js";
 
-const implementation: PasswordResetVaultUiSeams = {
-  subscribeRuns: subscribeVaultResetRuns,
-  runPhaseFor: (scope, itemId) =>
-    vaultResetRunFor(scope, itemId)?.phase ?? null,
-  evaluateReadiness: async (approved) => {
-    const verdict = await browserInference();
-    const plane = resolveModelPlane(loadModelProvider(), verdict);
-    const readiness = await evaluatePasswordResetReadiness(approved, plane);
-    if (readiness.ok) return { ok: true };
-    return { ok: false, reason: readiness.reason };
-  },
-};
-
-export function installPasswordResetVaultUiSeams(): () => void {
+export function installPasswordResetVaultUiSeams(
+  vault: Readonly<{ tomb: string | null }>,
+): () => void {
+  const implementation: PasswordResetVaultUiSeams = {
+    subscribeRuns: subscribeVaultResetRuns,
+    runPhaseFor: (scope, itemId) =>
+      vaultResetRunFor(scope, itemId)?.phase ?? null,
+    evaluateReadiness: async (approved) => {
+      const verdict = await browserInference();
+      const plane = resolveModelPlane(loadModelProvider(), verdict);
+      const readiness = await evaluatePasswordResetReadiness(
+        approved,
+        plane,
+        vault.tomb,
+      );
+      if (readiness.ok) return { ok: true };
+      return { ok: false, reason: readiness.reason };
+    },
+  };
   return installPasswordResetVaultUi(implementation);
 }
