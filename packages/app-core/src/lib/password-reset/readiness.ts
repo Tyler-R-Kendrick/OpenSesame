@@ -51,7 +51,11 @@ export async function passwordResetRuntimeConfigured(
     !settingFor(settings, providerId).enabled;
   const rowOff = (row: Connection) =>
     !settingFor(settings, connectionSettingKey(row.connectionId)).enabled;
-  const saved = (await listConnections()).filter(
+  // A connection list that cannot be read (an unrelated Connect
+  // transport outage) must not escape as a rejection or veto the
+  // anonymous defaults below; it only forfeits saved-runtime credit.
+  const listed = await listConnections().catch(() => [] as Connection[]);
+  const saved = listed.filter(
     (row) =>
       row.status !== "revoked" &&
       catalogProvider(row.providerId)?.category === "cua_runtime",

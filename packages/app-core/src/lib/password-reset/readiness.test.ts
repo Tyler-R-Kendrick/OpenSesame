@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { connectionSeams } from "../connections.js";
 import {
   DEFAULT_CONNECTOR_SETTING,
   writeConnectorSetting,
@@ -61,6 +62,22 @@ describe("password reset readiness", () => {
       fixture.tomb,
     );
     expect(verdict).toEqual({ ok: false, reason: "runtime" });
+  });
+
+  it("stays ready when the connection list cannot be read", async () => {
+    await forgetDeviceConnectors();
+    const original = connectionSeams.listConnections;
+    connectionSeams.listConnections = () =>
+      Promise.reject(new Error("connect transport unavailable"));
+    try {
+      const verdict = await evaluatePasswordResetReadiness(
+        ["ai.password-reset"],
+        PLANE,
+      );
+      expect(verdict).toEqual({ ok: true });
+    } finally {
+      connectionSeams.listConnections = original;
+    }
   });
 
   it("stays ready while one anonymous relay remains enabled", async () => {
