@@ -10,6 +10,7 @@ import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backend
 import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { GithubNativeAppPanels } from "./GithubNativeAppPanels.js";
+import { BoatPanels } from "./boat/BoatPanels.js";
 import { AiConnectionPanels } from "./ai/AiConnectionPanels.js";
 import { ModelKeysPanel } from "./ai/keys/ModelKeysPanel.js";
 import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
@@ -64,6 +65,15 @@ function NativeSettingsPanels(props: Props) {
 }
 export function SettingsPageConnectPanels(props: Props) {
   const { provider, connection, nativeExperience, identityExperience } = props;
+  // Boat is configured by claiming an account (auth.md), not by a key.
+  if (provider.id === "boat" && !isConnectConnection(connection))
+    return (
+      <BoatPanels
+        connection={connection}
+        onFlash={props.onFlash}
+        onChanged={props.onChanged}
+      />
+    );
   if (provider.id === "tailscale" && !isConnectConnection(connection))
     return <TailscalePanels {...props} />;
   // Linear composes default MCP and advanced GraphQL, and owns its saved routes.
