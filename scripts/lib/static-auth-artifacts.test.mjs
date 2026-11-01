@@ -195,14 +195,14 @@ it("keeps both lint entrypoints gated by rebuilt artifacts and source tests", ()
     readFileSync(new URL("../../package.json", import.meta.url)),
   );
   expect(scripts.lint).toMatch(
-    /^pnpm audit:exposure && pnpm lint:artifacts && /,
+    /^npm run audit:exposure && npm run lint:artifacts && /,
   );
   expect(scripts["lint:all"]).toMatch(
-    /^pnpm audit:exposure && pnpm lint:artifacts && /,
+    /^npm run audit:exposure && npm run lint:artifacts && /,
   );
   expect(scripts["lint:artifacts"]).toContain("build-static-auth.mjs --check");
   expect(scripts["lint:artifacts"]).toContain(
-    "pnpm --filter @opensesame/static-auth test",
+    "npm run test -w @opensesame/static-auth",
   );
   expect(scripts["lint:artifacts"]).toContain("src/lib/auth-client.test.ts");
 });

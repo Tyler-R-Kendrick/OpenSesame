@@ -33,6 +33,7 @@ describe("ci unit commands", () => {
     );
     expect(commands[0].args).toEqual([
       "exec",
+      "--",
       "turbo",
       "run",
       "test",
@@ -40,9 +41,10 @@ describe("ci unit commands", () => {
       "--filter=@t/w",
     ]);
     expect(commands[1].args).toEqual([
-      "--filter",
-      "@t/a",
       "exec",
+      "-w",
+      "@t/a",
+      "--",
       "vitest",
       "related",
       "/r/packages/a/src/x.ts",

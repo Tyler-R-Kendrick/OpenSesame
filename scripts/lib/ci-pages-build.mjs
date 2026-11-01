@@ -28,11 +28,11 @@ function main() {
     console.error(`> ${step}`);
     const words = step.split(/\s+/);
     // `node scripts/...` runs as written; a bin (`vite build`) resolves through
-    // the package's own node_modules, as it does under `pnpm run`.
+    // the package's own node_modules, as it does under `npm exec`.
     const [command, args] =
       words[0] === "node"
         ? ["node", words.slice(1)]
-        : ["pnpm", ["exec", ...words]];
+        : ["npm", ["exec", "--", ...words]];
     const result = spawnSync(command, args, {
       cwd: dir,
       stdio: "inherit",
