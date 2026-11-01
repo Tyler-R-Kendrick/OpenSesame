@@ -320,3 +320,31 @@ test("mise.lock exists and names every install platform", () => {
     );
   }
 });
+
+test("mise.toml pins the agent skill installer CLIs", () => {
+  const mise = parseToml(readText("mise.toml"));
+  const tools = asTable(mise.tools, "tools");
+  const script = readText("scripts/dev/install-agent-skills.sh");
+  const pins = [
+    ["npm:skills", "skills@1.7.4"],
+    ["npm:impeccable", "impeccable@4.8.0"],
+    ["npm:typeui.sh", "typeui.sh@0.7.1"],
+  ];
+  const lock = readText("mise.lock");
+  for (const [tool, spec] of pins) {
+    const version = spec.slice(spec.indexOf("@") + 1);
+    const slug = tool.slice("npm:".length).replaceAll(".", "-");
+    const sidecar = `.mise/locks/npm-${slug}/${version}`;
+    assert.equal(asString(tools[tool], tool), version);
+    assert.ok(script.includes(spec), spec);
+    assert.ok(lock.includes(`path = "${sidecar}"`), sidecar);
+    assert.ok(readText(`${sidecar}/aube-lock.yaml`).includes(version), sidecar);
+  }
+  assert.match(
+    script,
+    /mise install npm:skills npm:impeccable npm:typeui\.sh/u,
+  );
+  for (const path of ["AGENTS.md", "docs/contributing/commands.md"]) {
+    assert.doesNotMatch(readText(path), /\bpnpm\b/u, path);
+  }
+});

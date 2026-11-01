@@ -4,136 +4,136 @@ Full command crib sheet moved from `AGENTS.md` §3. The canonical source of trut
 
 ## 3. Command crib sheet
 
-All scripts below are defined in the root `package.json` unless noted.
+All scripts below are defined in the root `package.json` unless noted. Install the toolchain with `mise install --locked` (pins in `mise.toml`) before these scripts.
 
 ```bash
-pnpm bootstrap           # install if needed + db:migrate + setup:hooks
-                          # schema generation is deliberate: pnpm db:generate
-pnpm dev                 # turbo dev (control-plane, identity-worker,
+npm run bootstrap           # install if needed + db:migrate + setup:hooks
+                          # schema generation is deliberate: npm run db:generate -w @opensesame/database
+npm run dev                 # turbo dev (control-plane, identity-worker,
                           #   mock-upstream-idp, example-rp-alpha/beta/static-rp)
-pnpm dev:pwa             # Pages vite on :5180, no backend
-pnpm dev:cli             # native opensesame CLI; verb after --
-pnpm dev:host            # host on 127.0.0.1:8787
-pnpm dev:daemon          # daemon on 127.0.0.1:18790
-pnpm dev:live-nats       # nats-server config in operator mode for live sessions
+npm run dev:pwa             # Pages vite on :5180, no backend
+npm run dev:cli             # native opensesame CLI; verb after --
+npm run dev:host            # host on 127.0.0.1:8787
+npm run dev:daemon          # daemon on 127.0.0.1:18790
+npm run dev:live-nats       # nats-server config in operator mode for live sessions
                           #   (minted per-session credentials, ADR 0167)
-pnpm build               # turbo run build
-pnpm typecheck           # turbo run typecheck
-pnpm lint                # lint:artifacts + Biome gate for files changed from origin/main
-pnpm lint:design         # control contract (docs/design/controls.md)
-pnpm lint:all            # lint:artifacts + full-repository Biome + anti-slop audit
-pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail;
+npm run build               # turbo run build
+npm run typecheck           # turbo run typecheck
+npm run lint                # lint:artifacts + Biome gate for files changed from origin/main
+npm run lint:design         # control contract (docs/design/controls.md)
+npm run lint:all            # lint:artifacts + full-repository Biome + anti-slop audit
+npm run lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail;
                           #   ratchets tools/quality/anti-slop-baseline.json
-pnpm quality             # quality:test (scripts/lib + scripts/security tests) + quality:gate, :log-hygiene,
+npm run quality             # quality:test (scripts/lib + scripts/security tests) + quality:gate, :log-hygiene,
                           #   :packages and :app-core
-pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
-pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
-pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subscriber in production code; ratchets
+npm run quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
+npm run quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
+npm run quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subscriber in production code; ratchets
                           #   tools/quality/log-hygiene-baseline.json (ADR 0157)
-pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
+npm run quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks;
                           #   and repo-wide, a seam its module exports for its owner and tests (the vault store's
                           #   body port, ADR 0160 §5a) is imported by no one else
-pnpm quality:bundle      # build apps/pages, check tools/quality/bundle-budgets.json
-pnpm quality:report      # all three as reports, no gating
-pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity + MANIFEST.sha256 freshness
-pnpm anti-slop:manifest  # rewrite the installer asset's MANIFEST.sha256 after changing a rule (ADR 0200)
-pnpm test:rust-lint      # contract test for rustfmt/Clippy hook + verify wiring
-pnpm lint:fix            # fix changed and staged files
-pnpm test                # turbo test across every workspace test script
-pnpm test:integration    # turbo run test:integration
-pnpm test:e2e            # turbo run test:e2e; live suites require their URLs
-pnpm test:security       # @opensesame/testing test:security
-pnpm test:task-access    # scripts/test/task-security-battle-test.sh
-pnpm test:redteam        # @opensesame/redteam promptfoo corpus against mcp-host, behind a stub Host/daemon
+npm run quality:bundle      # build apps/pages, check tools/quality/bundle-budgets.json
+npm run quality:report      # all three as reports, no gating
+npm run test:anti-slop      # plugin RuleTester suite + installer-asset parity + MANIFEST.sha256 freshness
+npm run anti-slop:manifest  # rewrite the installer asset's MANIFEST.sha256 after changing a rule (ADR 0200)
+npm run test:rust-lint      # contract test for rustfmt/Clippy hook + verify wiring
+npm run lint:fix            # fix changed and staged files
+npm run test                # turbo test across every workspace test script
+npm run test:integration    # turbo run test:integration
+npm run test:e2e            # turbo run test:e2e; live suites require their URLs
+npm run test:security       # @opensesame/testing test:security
+npm run test:task-access    # scripts/test/task-security-battle-test.sh
+npm run test:redteam        # @opensesame/redteam promptfoo corpus against mcp-host, behind a stub Host/daemon
                           #   (the structural pact suite is that package's test:integration)
-pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
-pnpm --filter @opensesame/pages storybook   # the design system's catalog on :6006, MCP at /mcp
+npm run test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
+npm run storybook -w @opensesame/pages   # the design system's catalog on :6006, MCP at /mcp
                           #   (docs/design/tooling.md); build-storybook, typecheck:storybook
-pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
-pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
-pnpm test:proxied-run    # scripts/test/proxied-run-test.sh — `opensesame dev run --agent` end to end (ADR 0150): the
+npm run test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
+npm run test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
+npm run test:proxied-run    # scripts/test/proxied-run-test.sh — `opensesame dev run --agent` end to end (ADR 0150): the
                           #   real binary, the surrogate-proxy plugin's TEST build installed through `plugins install`
                           #   with its pin, a token sealed by `pass insert connections/<org>/<name>`, the real
                           #   @env-spec/parser, a child that reaches a loopback stand-in for api.vercel.com only through
                           #   the run's proxy; pins the refusals, the revocation and how a run ends when `opensesame` is signalled. Needs node_modules for the parser
                           #   or OPENSESAME_E2E_ENVSPEC_DIR; fails, never skips (docs/operators/proxied-run-quickstart.md)
-pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI and the
+npm run test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI and the
                           #   SignalR client Bitwarden's apps pin, against the bitwarden-compat surface
                           #   (ADR 0141, ADR 0148); fails, never skips
-pnpm test:tailnet-sync:real # scripts/test/tailnet-sync-real-tailnet.sh — verify:tailnet-sync over a real
+npm run test:tailnet-sync:real # scripts/test/tailnet-sync-real-tailnet.sh — verify:tailnet-sync over a real
                           #   tailnet: pinned headscale + two tailscaled nodes (one on a kernel TUN), the drive
                           #   behind `tailscale serve`, Chrome's own Local Network Access gate; needs
                           #   /dev/net/tun + CAP_NET_ADMIN, fails, never skips (ADR 0144)
-pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
-pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
+npm run test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
+npm run test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
                           #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
-pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright clientCertificates against the
+npm run test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright clientCertificates against the
                           #   Identity plane's own TLS listener (verify-browser-cert), plus the static app with
                           #   no certificate and the Transport form
-pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
+npm run test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
-pnpm test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned
+npm run test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned
                           #   upstream source + live-turn (pion/turn, UDP/TCP/TLS), the servers
                           #   verify:live-join runs (ADR 0150 §6)
-pnpm test:all            # typecheck + test + test:integration
-pnpm test:2password-parity # scripts/test/2password-parity.mjs — every suite declared in
+npm run test:all            # typecheck + test + test:integration
+npm run test:2password-parity # scripts/test/2password-parity.mjs — every suite declared in
                           #   spec/conformance/2password-parity.json (CI: password-parity.yml)
-pnpm test:connect-preflight # scripts/test/connect-preflight.mjs — every connector's real endpoints,
+npm run test:connect-preflight # scripts/test/connect-preflight.mjs — every connector's real endpoints,
                           #   read-only: OAuth authorize + discovery, MCP metadata, API-key verify (ADR 0147)
 
-# Test-depth suites (none of these are in `pnpm verify`)
-pnpm test:coverage       # TS (v8; statements/branches/functions/lines floors 94/88/94/95, + 50% per-pkg lines)
+# Test-depth suites (none of these are in `npm run verify`)
+npm run test:coverage       # TS (v8; statements/branches/functions/lines floors 94/88/94/95, + 50% per-pkg lines)
                           #   + Rust (llvm-cov) — docs/validation/test-coverage.md
-pnpm test:coverage:ts    # scripts/quality/ts-coverage-gate.mjs; floors ratchet, never lower
-pnpm test:coverage:rust  # cargo llvm-cov --fail-under-lines/-functions
-pnpm test:mutation       # Stryker (TS) + cargo-mutants (Rust), scoped high-value files
-pnpm test:mutation:ts    # stryker run → artifacts/mutation/typescript.json
-pnpm test:mutation:rust  # cargo mutants → artifacts/mutation/rust
-pnpm test:fuzz:batch     # Jazzer.js long pass (FUZZ_SECONDS=300)
-pnpm db:migrate          # @opensesame/database db:migrate
-pnpm db:reset            # @opensesame/database db:reset
-pnpm generate:openapi    # writes packages/control-plane/openapi.json
-pnpm generate:sbom       # CycloneDX SBOM to sbom/bom.json
-pnpm docs:index          # rewrite the generated tables in docs/adr, docs/security/audits and docs/evidence
-pnpm verify              # lint + lint:anti-slop + test:anti-slop + quality + test:rust-lint
+npm run test:coverage:ts    # scripts/quality/ts-coverage-gate.mjs; floors ratchet, never lower
+npm run test:coverage:rust  # cargo llvm-cov --fail-under-lines/-functions
+npm run test:mutation       # Stryker (TS) + cargo-mutants (Rust), scoped high-value files
+npm run test:mutation:ts    # stryker run → artifacts/mutation/typescript.json
+npm run test:mutation:rust  # cargo mutants → artifacts/mutation/rust
+npm run test:fuzz:batch     # Jazzer.js long pass (FUZZ_SECONDS=300)
+npm run db:migrate          # @opensesame/database db:migrate
+npm run db:reset            # @opensesame/database db:reset
+npm run generate:openapi    # writes packages/control-plane/openapi.json
+npm run generate:sbom       # CycloneDX SBOM to sbom/bom.json
+npm run docs:index          # rewrite the generated tables in docs/adr, docs/security/audits and docs/evidence
+npm run verify              # lint + lint:anti-slop + test:anti-slop + quality + test:rust-lint
                           #   + audit:clippy (rustfmt, full-feature Clippy) + test:plugin-boundary + test:all
                           #   + cargo +1.88.0 test --workspace --all-targets
                           #   + ./scripts/test/battle-test.sh — full local gate
 
 # Security/audit gates (scripts/audit/*-gate.sh; the fuzz passes are in scripts/fuzz/)
-pnpm audit:cve-lite
-pnpm audit:ast-grep
-pnpm audit:exposure        # deterministic exposure combinations and reviewed source bindings
-pnpm audit:clippy          # rustfmt + full-feature Clippy; pedantic/complexity denied
-pnpm audit:osv
-pnpm audit:cargo-audit
-pnpm audit:gitleaks
-pnpm audit:semgrep
-pnpm audit:deepsec          # .deepsec pattern scan (+ AI process when credentials allow)
-pnpm audit:browser-dispositions # re-probes every recorded request in spec/connectors/browser-dispositions.json from the
+npm run audit:cve-lite
+npm run audit:ast-grep
+npm run audit:exposure        # deterministic exposure combinations and reviewed source bindings
+npm run audit:clippy          # rustfmt + full-feature Clippy; pedantic/complexity denied
+npm run audit:osv
+npm run audit:cargo-audit
+npm run audit:gitleaks
+npm run audit:semgrep
+npm run audit:deepsec          # .deepsec pattern scan (+ AI process when credentials allow)
+npm run audit:browser-dispositions # re-probes every recorded request in spec/connectors/browser-dispositions.json from the
                             #   audited origin (unauthenticated, network); exits 1 when a provider's answer moved (ADR 0197)
-pnpm audit:daemon-deps      # daemon dependency budget (ADR 0048 §5)
-pnpm audit:plugin-boundary  # opensesame-cli and the daemon never reach a plugin crate (ADR 0150 §7);
+npm run audit:daemon-deps      # daemon dependency budget (ADR 0048 §5)
+npm run audit:plugin-boundary  # opensesame-cli and the daemon never reach a plugin crate (ADR 0150 §7);
                             #   test:plugin-boundary is its negative control, and is in verify
-pnpm audit:fuzz             # cargo-fuzz short pass over targets whose crates changed (not in verify)
-pnpm audit:fuzz:batch       # cargo-fuzz long batch over all targets (not in verify)
-pnpm audit:kani             # bounded proofs (scripts/audit/kani-gate.sh)
-pnpm audit:miri             # UB checks (scripts/audit/miri-gate.sh)
-pnpm audit:shuttle          # concurrency model checks (scripts/audit/shuttle-gate.sh)
-pnpm test:fuzz              # Jazzer.js short pass (not in verify)
+npm run audit:fuzz             # cargo-fuzz short pass over targets whose crates changed (not in verify)
+npm run audit:fuzz:batch       # cargo-fuzz long batch over all targets (not in verify)
+npm run audit:kani             # bounded proofs (scripts/audit/kani-gate.sh)
+npm run audit:miri             # UB checks (scripts/audit/miri-gate.sh)
+npm run audit:shuttle          # concurrency model checks (scripts/audit/shuttle-gate.sh)
+npm run test:fuzz              # Jazzer.js short pass (not in verify)
 ```
 
 ### Per-plane local run
 
 **Identity plane:**
 ```bash
-pnpm install
-pnpm --filter @opensesame/mock-upstream-idp build
-pnpm --filter @opensesame/mock-upstream-idp start        # :9090
+npm ci
+npm run build -w @opensesame/mock-upstream-idp
+npm run start -w @opensesame/mock-upstream-idp        # :9090
 export OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1   # the dev claim pepper needs the opt-in, and it is 1 or 0
-pnpm --filter @opensesame/control-plane start             # :8788
+npm run start -w @opensesame/control-plane             # :8788
 curl -s http://127.0.0.1:8788/v1/health/live
 ```
 
@@ -179,27 +179,27 @@ When the human says run the app locally, attach a live debug session. Do
 not hand off a URL, a `preview` of `dist/`, or a headless `verify:*` run.
 
 ```bash
-pnpm dev:pwa             # vite --port 5180 --strictPort --host localhost
+npm run dev:pwa             # vite --port 5180 --strictPort --host localhost
 # Keep this process attached. Open http://localhost:5180 (localhost, not
 # 127.0.0.1, for passkeys). Watch console, pageerror, and failed requests.
 # Patch source so Vite HMR updates the same session; do not restart from
 # dist/ unless a merge-gate build was requested.
-pnpm --filter @opensesame/pages dev       # full stack: Host :18787 + Identity :18788 + mock IdPs :9090-:9094 + Vite
+npm run dev -w @opensesame/pages       # full stack: Host :18787 + Identity :18788 + mock IdPs :9090-:9094 + Vite
 ```
 
 **Pages as a static front end, no backend (ADR 0090) — run before touching
 sign-in, setup, settings defaults or anything on the boot path:**
 ```bash
-VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+VITE_BASE=/OpenSesame/ npm exec -- turbo run build --filter=@opensesame/pages
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:static
+  npm run verify:static -w @opensesame/pages
 # Drives dist/ under https://opensesame-labs.github.io/OpenSesame/ in
 # headless Chromium: first screen is the front door's three roads + the guest
 # Skip (no setup wall, no sign-in), guest walks every section, Google via a
 # mocked shoo.dev lands unlocked once setup is skipped, deep links resolve. Fails on any page error, console error, loopback request,
 # missing asset, or on-screen "No Identity API" copy.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:mobile
+  npm run verify:mobile -w @opensesame/pages
 # Same harness, the phone journey (DESIGN.md § Touch): 320, 390, 430 and
 # landscape (then a tablet, portrait and landscape), in a real coarse-pointer
 # context. Every interactive control is
@@ -214,7 +214,7 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # `MOBILE_SIZES=320,390` (names from `lib/mobile-contract.mjs`) walks only those
 # sizes, which is how CI shards it; an unknown name fails, unset walks them all.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:auth
+  npm run verify:auth -w @opensesame/pages
 # Same harness, the authentication flow (ADR 0091): a guest presses Add on the
 # authenticator row and is walked through a key first (the PIN card, in the
 # same sheet), then scan, then a code computed from the setup key on screen,
@@ -223,7 +223,7 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # same way. Run before touching unlock methods, second steps or the unlock
 # screen.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:device-identity
+  npm run verify:device-identity -w @opensesame/pages
 # Same harness, the device as the Identity plane (ADR 0160), a guest with no
 # Identity API at desktop and phone widths: no sign-out row until the device
 # has a session, the status reads "This device", the session's principal is
@@ -232,7 +232,7 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # serves an audit trail. Run before touching `identityPlane`, `identityServes`,
 # the device host, or a panel gated on the Identity plane.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:device-inbox
+  npm run verify:device-inbox -w @opensesame/pages
 # Same harness, the device's receipts, inbox and local notifications (ADR 0162)
 # in a vault with no Identity API and no Host, at desktop and phone widths: a
 # request raised and shown on the tab, told to a second tab (title, bell, one
@@ -242,7 +242,7 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # answering 423. Own CI job, required through Bundle budgets. Run before
 # touching `device-receipts`, `device-inbox`, `local-notifications` or Receipts.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:tutorials
+  npm run verify:tutorials -w @opensesame/pages
 # Same harness, every tutorial (ADR 0163): the Support sheet's Tutorials tab
 # lists them, each is started from its row and walked with Next alone — the
 # mouse on one step, Enter on the next — on the shell with every optional
@@ -260,7 +260,7 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # `TUTORIALS_SHARD=k/n` walks the kth of n slices of the library (by tutorial id);
 # slice 1 also runs Escape, the move and the gates. CI runs three per width.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:encrypted-search
+  npm run verify:encrypted-search -w @opensesame/pages
 # Same harness, Encrypted search (ADR 0175) in the built app, at desktop and
 # phone widths: with the capability off, retiring a password writes the sealed
 # `opensesame-password-history` and the item's id is readable in it (the
@@ -272,16 +272,15 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # before, found through a blind index. Run before touching `lib/encrypted-db/`,
 # the history-backup or password-history stores, or `ports.keyRange`.
 LIVE_OWNER=chromium LIVE_JOINERS=chromium,firefox,webkit \
-  pnpm --filter @opensesame/pages verify:live-join
+  npm run verify:live-join -w @opensesame/pages
 # Same harness, live sessions (ADR 0150, ADR 0193) in real browser contexts over
 # real WebRTC, every walk once per joiner browser: the owner in LIVE_OWNER, the
 # joiners in LIVE_JOINERS (chromium, firefox, webkit as the pinned Playwright
-# installs them: `pnpm exec playwright install --with-deps chromium firefox
+# installs them: `npm exec -- playwright install --with-deps chromium firefox
 # webkit`; PLAYWRIGHT_CHROMIUM may point Chromium elsewhere). A walk an engine
 # cannot take here prints NOT TAKEN with why (lib/live-engines.mjs). CI runs it
 # as "Live join (<owner> owner)", three shards with every joiner each, folded
-# into the mandatory weekly prerelease gate. Needs a second build first: `pnpm --filter @opensesame/pages
-# build:live-dedicated` (dist-live-dedicated, stamped `dedicated_origin` for
+# into the mandatory weekly prerelease gate. Needs a second build first: `npm run build:live-dedicated -w @opensesame/pages` (dist-live-dedicated, stamped `dedicated_origin` for
 # https://opensesame.example.test). The carrier and declined walks run on it,
 # because a carrier on loopback or a LAN is local operator authority the shared
 # github.io origin may not reach (`mayPairLocalAuthority`); verify:live-join
@@ -301,11 +300,11 @@ LIVE_OWNER=chromium LIVE_JOINERS=chromium,firefox,webkit \
 # app mints the credential, the link never carries the secret; a wrong server
 # secret must fail). Where a pair holds WebKit, which like Safari refuses plain
 # loopback from https, each carrier is reached through a TLS front. A missing server fails the run
-# (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `pnpm test:live-fixtures` builds them). Run
+# (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `npm run test:live-fixtures` builds them). Run
 # before touching lib/live, the join road, Routes or sharing.live. Operator
 # guide: docs/operators/live-sessions.md.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:live-netns
+  npm run verify:live-netns -w @opensesame/pages
 # The tunnel walk on a real network path: two Linux network namespaces
 # (unprivileged user namespaces; no root, no sudo, no `ip`), a Chromium in
 # each, a veth with multicast off between them and a harness namespace that
@@ -317,7 +316,7 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # Fails, never skips, without namespace support. Run before touching
 # lib/live/candidates.ts or the address hint.
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:push-worker
+  npm run verify:push-worker -w @opensesame/pages
 # A real localhost origin with service workers allowed (`context.route` never
 # sees a worker's fetches, and the shared harness blocks workers). A device
 # holding the core `sw.js` approves Push notifications and must end on
@@ -328,13 +327,13 @@ PLAYWRIGHT_CHROMIUM=<chromium-binary> \
 # leaves waiting is asked for again under a fresh `?r=` URL, with no nudge. Run
 # before touching the worker controller, `src/sw*`, or anything on the push
 # enrolment path (`lib/push*.ts`).
-pnpm --filter @opensesame/pages build:push-verify    # second Pages build into
+npm run build:push-verify -w @opensesame/pages    # second Pages build into
                           #   dist-push-verify, stamped loopback_development for
                           #   http://localhost:41877 (the one origin that profile
                           #   honours); the tracked security-profile.json is put
                           #   back whether the build passes or fails
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
-  pnpm --filter @opensesame/pages verify:push
+  npm run verify:push -w @opensesame/pages
 # Web Push end to end against a real Identity API (control-plane
 # `startServer()` in memory on :41878, the Host's Web Push delivery, and a
 # stand-in push service that verifies RFC 8292 VAPID and decrypts RFC 8291

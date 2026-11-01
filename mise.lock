@@ -82,6 +82,24 @@ url = "https://nodejs.org/dist/v24.22.2/node-v24.22.2-darwin-x64.tar.gz"
 checksum = "sha256:ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2"
 url = "https://nodejs.org/dist/v24.22.2/node-v24.22.2-win-x64.zip"
 
+[[tools."npm:impeccable"]]
+version = "4.8.0"
+aube = { path = ".mise/locks/npm-impeccable/4.8.0", digest = "sha256:5f3f11c1f6d2d2052bcffd9ee101d8e1ce27478cb6fadf58a9c8ac25512c4ad6" }
+backend = "npm:impeccable"
+specifiers = ["4.8.0"]
+
+[[tools."npm:skills"]]
+version = "1.7.4"
+aube = { path = ".mise/locks/npm-skills/1.7.4", digest = "sha256:0fc828a5def0f23c2336c3e5094fc52f74b3b73e8f86a28c338a63c4324b902b" }
+backend = "npm:skills"
+specifiers = ["1.7.4"]
+
+[[tools."npm:typeui.sh"]]
+version = "0.7.1"
+aube = { path = ".mise/locks/npm-typeui-sh/0.7.1", digest = "sha256:2aa13ad8821cdff443c875ee10996495e05c12fe5203bc4a8e993fe692b7e43a" }
+backend = "npm:typeui.sh"
+specifiers = ["0.7.1"]
+
 [[tools.rust]]
 version = "1.88.0"
 backend = "core:rust"
