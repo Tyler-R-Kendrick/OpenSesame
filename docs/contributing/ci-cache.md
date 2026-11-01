@@ -45,3 +45,5 @@ TypeScript build jobs resolve a comparison ref with
 `merge_group.base_sha`, pull requests use `origin/$GITHUB_BASE_REF`, and other
 events use `origin/main`. Affected package builds pass that ref to Turborepo as
 `--filter=<package>...[ref]` (or `--filter=...[ref]` for a full-graph build).
+When a stacked pull request's base branch is not fetchable from `origin`, CI
+falls back to the resolved `BASE_SHA` from the affected-graph job.

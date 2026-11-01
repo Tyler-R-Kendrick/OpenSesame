@@ -1,5 +1,12 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { turboComparisonRef } from "./ci-turbo-base.mjs";
+import {
+  materializeTurboComparisonRef,
+  turboComparisonRef,
+} from "./ci-turbo-base.mjs";
 
 const sha = (n) => n.toString(16).padStart(40, "0");
 
@@ -33,6 +40,41 @@ describe("turboComparisonRef", () => {
       expect(turboComparisonRef({ GITHUB_EVENT_NAME: event })).toBe(
         "origin/main",
       );
+    }
+  });
+});
+
+describe("materializeTurboComparisonRef", () => {
+  it("falls back to BASE_SHA when the stack parent branch is not on the remote", () => {
+    const root = mkdtempSync(join(tmpdir(), "turbo-base-fallback-"));
+    try {
+      execFileSync("git", ["init"], { cwd: root });
+      execFileSync(
+        "git",
+        [
+          "-c",
+          "user.email=test@example.com",
+          "-c",
+          "user.name=test",
+          "commit",
+          "--allow-empty",
+          "-m",
+          "seed",
+        ],
+        { cwd: root },
+      );
+      expect(
+        materializeTurboComparisonRef(
+          {
+            GITHUB_EVENT_NAME: "pull_request",
+            GITHUB_BASE_REF: "cursor/missing-parent-8e4a",
+            BASE_SHA: sha(2),
+          },
+          root,
+        ),
+      ).toBe(sha(2));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 });
