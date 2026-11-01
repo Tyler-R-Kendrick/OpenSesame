@@ -125,6 +125,37 @@ describe("vercel relay fetch handler source", () => {
     expect(seen[1]?.url).toBe("https://rp.test/done");
   });
 
+  it("drops non-string and prototype-polluting jar entries", async () => {
+    let sentCookies = "";
+    const invoke = loadFetchHandler(async (_input, init) => {
+      sentCookies = new Headers(init?.headers).get("cookie") ?? "";
+      return new Response("ok", { status: 200 });
+    });
+    const result = await invoke({
+      sessionId: "s4",
+      url: "https://rp.test/reset",
+      method: "GET",
+      allowedOrigins: ["https://rp.test"],
+      jar: {
+        "https://rp.test": {
+          good: "yes",
+          nested: { polluted: true },
+          count: 7,
+          ["__proto__"]: "polluted",
+        },
+        "https://other.test": "not-a-record",
+      },
+    });
+    expect(result.statusCode).toBe(200);
+    expect(sentCookies).toBe("good=yes");
+    const jar = result.json().jar as JarState;
+    expect(jar["https://rp.test"]).toEqual({ good: "yes" });
+    expect(jar["https://other.test"]).toBeUndefined();
+    expect(
+      (Object.prototype as Record<string, unknown>).polluted,
+    ).toBeUndefined();
+  });
+
   it("caps upstream bodies while streaming", async () => {
     const huge = "x".repeat(2_000_000);
     const invoke = loadFetchHandler(async () => {

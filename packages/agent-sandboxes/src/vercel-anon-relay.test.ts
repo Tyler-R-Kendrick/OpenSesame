@@ -51,7 +51,46 @@ function fakeVercelApi() {
   };
 }
 
+function fakeVercelApiNeverReady() {
+  const calls: string[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    calls.push(`${init?.method ?? "GET"} ${url}`);
+    if (url.includes("/v1/anonymous/projects"))
+      return Response.json({
+        token: "anon-token",
+        projectId: "prj_test",
+        claimUrl: "https://vercel.com/claim-deployment?code=x",
+        expiresAt: Date.now() + 3_600_000,
+      });
+    if (url.includes("/v2/files")) return new Response(null, { status: 200 });
+    if (url.includes("/v13/deployments") && init?.method === "POST")
+      return Response.json({
+        id: "dpl_stuck",
+        url: "opensesame-relay-abc.vercel.app",
+        alias: ["opensesame-relay-abc-anon.vercel.app"],
+      });
+    return Response.json({});
+  };
+  return { fetchImpl, calls };
+}
+
 describe("anonymous Vercel relay deployment", () => {
+  it("deletes the deployment when the tmp.now alias never arrives", async () => {
+    const fake = fakeVercelApiNeverReady();
+    await expect(
+      deployAnonymousVercelRelay({
+        fetchImpl: fake.fetchImpl,
+        readyTimeoutMs: 1,
+      }),
+    ).rejects.toThrow("tmp.now");
+    expect(
+      fake.calls.some(
+        (c) => c.startsWith("DELETE ") && c.includes("dpl_stuck"),
+      ),
+    ).toBe(true);
+  });
+
   it("bootstraps an anonymous project and deploys the relay with no claim step", async () => {
     const fake = fakeVercelApi();
     const deployed = await deployAnonymousVercelRelay({
