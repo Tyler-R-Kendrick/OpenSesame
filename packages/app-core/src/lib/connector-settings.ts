@@ -123,6 +123,16 @@ export async function writeConnectorSetting(
   }
 }
 
+/**
+ * The settings key of one saved connection: the share-grant ledger key
+ * Access › Connectors writes under (`host:<connectionId>`, predating
+ * Connect). A provider-wide setting is keyed by the bare provider id,
+ * the same key a provider-wide grant uses.
+ */
+export function connectionSettingKey(connectionId: string): string {
+  return `host:${connectionId}`.slice(0, 128);
+}
+
 /** The effective setting: what was sealed, or the defaults where nothing was. */
 export function settingFor(
   all: Record<string, ConnectorSetting>,
