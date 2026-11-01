@@ -7,7 +7,7 @@ session with no memory of prior runs**.
 ## Who you are and where you are
 
 You are Claude Code, in a copy-on-write worktree of
-`https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. You run the
+`https://github.com/OpenSesame-Labs/OpenSesame`, branch `main`. You run the
 ClusterFuzzLite-style batch fuzz pass that this repo cannot host as GitHub
 Actions.
 

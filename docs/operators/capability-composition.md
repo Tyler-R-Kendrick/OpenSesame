@@ -666,6 +666,6 @@ Every new user-facing feature is a capability. Five things, in addition to
 
 - [ADR 0130](../adr/0130-operator-controlled-capability-composition.md) — the decision
 - [`docs/validation/capability-composition.md`](../validation/capability-composition.md) — how each claim is verified
-- [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/) — baseline, limitations, contract matrix
+- [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/) — baseline, limitations, contract matrix
 - [`docs/implementation/capability-composition/ownership.md`](../implementation/capability-composition/ownership.md) — the interface contract
 - [ADR 0090](../adr/0090-static-frontend-complete-without-backend.md) — the static front end is complete without a backend

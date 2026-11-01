@@ -162,7 +162,7 @@ the tar. It forces the build instead of accepting unverified cached task
 outputs, and passes the explicitly declared Vite/profile inputs.
 
 This variant is fixed to `/OpenSesame/`, `shared_origin_demo`, and
-`https://tyler-r-kendrick.github.io`. No deployment environment secrets are
+`https://opensesame-labs.github.io`. No deployment environment secrets are
 attached. Identity, Host, daemon, and serverless Connect URLs remain forbidden
 runtime stamps by `apps/pages/scripts/write-runtime-config.mjs`. All permitted
 stamps happen **before** hashing; a consumer cannot stamp a new configuration

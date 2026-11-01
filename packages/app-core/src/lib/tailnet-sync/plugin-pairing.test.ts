@@ -59,13 +59,13 @@ describe("the plugin pairing code, as the CLI prints it", () => {
 
   it("names only an origin exactly as a browser sends it", () => {
     for (const good of [
-      "https://tyler-r-kendrick.github.io",
+      "https://opensesame-labs.github.io",
       "https://example.com:8443",
       "http://localhost:5180",
     ])
       expect(isPairableOrigin(good), good).toBe(true);
     for (const bad of [
-      "https://tyler-r-kendrick.github.io/",
+      "https://opensesame-labs.github.io/",
       "https://example.com:443",
       "http://127.0.0.1:5180",
       "http://localhost",
@@ -80,7 +80,7 @@ describe("the traded key, sealed in the vault", () => {
   const pairing: PluginDaemonPairing = {
     url: "https://desk.tail4c2e.ts.net",
     token: TOKEN,
-    origin: "https://tyler-r-kendrick.github.io",
+    origin: "https://opensesame-labs.github.io",
     label: "Desk",
   };
 

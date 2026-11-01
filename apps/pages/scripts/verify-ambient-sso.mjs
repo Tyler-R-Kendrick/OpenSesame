@@ -12,7 +12,7 @@ import { doorGuest } from "./lib/front-door.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
-const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+const ORIGIN = process.env.PAGES_ORIGIN ?? "https://opensesame-labs.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const TENANT = "aaaabbbb-cccc-dddd-eeee-ffffffffffff";
 const ISSUER = `https://login.microsoftonline.com/${TENANT}/v2.0`;

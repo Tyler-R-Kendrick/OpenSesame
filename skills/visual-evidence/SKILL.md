@@ -141,7 +141,7 @@ The promotion command writes the approval manifest and file hashes. Supply the
 actual reviewed source commit and approval; do not invent either. `--approved-by`
 is the reviewer's GitHub login, never a placeholder such as "pending review",
 "tbd" or "unknown". `--approval-ref` is the
-`https://github.com/Tyler-R-Kendrick/OpenSesame/...` address of the pull request,
+`https://github.com/OpenSesame-Labs/OpenSesame/...` address of the pull request,
 review or comment that approved the captures. The promoter and the evidence gate
 both refuse anything else (`scripts/lib/evidence-approval.mjs`).
 

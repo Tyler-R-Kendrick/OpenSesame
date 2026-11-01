@@ -9,7 +9,7 @@ import { sealLocalOnly } from "./lib/pages-journey.mjs";
 import { privateTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /** Session Wallet tools registered on vault unlock (ADR 0123 / context.ts). */
 const VAULT_SESSION_WALLET_TOOLS = [

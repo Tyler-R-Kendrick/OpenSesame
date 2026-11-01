@@ -33,7 +33,7 @@ jobs:
           CONTROLLER_SHA: ${{ github.workflow_sha }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REPOSITORY" = Tyler-R-Kendrick/OpenSesame
+          test "$GITHUB_REPOSITORY" = OpenSesame-Labs/OpenSesame
           test "$GITHUB_REF" = refs/heads/main
           test "$GITHUB_WORKFLOW_REF" = "$GITHUB_REPOSITORY/.github/workflows/release-weekly.yml@refs/heads/main"
           case "$GITHUB_EVENT_NAME" in schedule|workflow_dispatch) ;; *) exit 1 ;; esac

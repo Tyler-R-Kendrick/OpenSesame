@@ -6,20 +6,20 @@ Base inspected: `495f1d42082dcd56b7a3d50bf39cfc645c2f7acd`. Changes are in signe
 
 | PR | Change |
 | --- | --- |
-| [1485](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1485) | TURN x/crypto 0.56.0, x/sys 0.47.0, Pion STUN 3.1.5 and transport 4.0.2; Go 1.26 minimum and pinned 1.26.9 CI toolchain |
-| [1487](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1487) | Missing native store key refuses daemon fill; preserves age/GPG reads |
-| [1491](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1491) | Missing native key refuses bridge reads/writes before mutation |
-| [1492](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1492) | rustls 0.23.46, quinn-proto 0.11.18, Wasmtime 36.0.18; independent fuzz lockfile too |
-| [1493](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1493) | Isolated DeepSec workspace: Undici 7.29.1/8.10.2, brace-expansion 5.0.12, MCP SDK 1.31.0 including peers |
-| [1494](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1494) | Advanced CodeQL with explicit Android Kotlin and iOS Swift builds and Go test extraction |
-| [1499](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1499) | Bound unauthenticated issuer input before normalization; replace quadratic input parsers |
-| [1500](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1500) | Private tool/state files, protected shared paths, and confined loopback static serving |
-| [1512](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1512) | Require explicit interactive reveal for generated/updated passwords; stop printing prior passwords and trailers |
-| [1524](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1524) | Kotlin Android/Compose 2.4.20, supported R8 9.1.31 override, and JVM 17 compiler-options migration |
-| [1528](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1528) | Patch 46 advisory IDs in Android build-only dependencies through a Netty BOM and scoped constraints |
-| [1550](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1550) | Remove remaining Rust advisory implementations: AWS-LC RSA, direct SQLite/Postgres drivers, metadata-only system D-Bus |
-| [1554](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1554) | WXT tinyglobby upgrade; remove optional ADB crypto/JKS dependencies and obsolete advisory exceptions |
-| [1556](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1556) | Repair actual default Kotlin autobuild discovery; pinned Gradle wrapper and generated-header attribution |
+| [1485](https://github.com/OpenSesame-Labs/OpenSesame/pull/1485) | TURN x/crypto 0.56.0, x/sys 0.47.0, Pion STUN 3.1.5 and transport 4.0.2; Go 1.26 minimum and pinned 1.26.9 CI toolchain |
+| [1487](https://github.com/OpenSesame-Labs/OpenSesame/pull/1487) | Missing native store key refuses daemon fill; preserves age/GPG reads |
+| [1491](https://github.com/OpenSesame-Labs/OpenSesame/pull/1491) | Missing native key refuses bridge reads/writes before mutation |
+| [1492](https://github.com/OpenSesame-Labs/OpenSesame/pull/1492) | rustls 0.23.46, quinn-proto 0.11.18, Wasmtime 36.0.18; independent fuzz lockfile too |
+| [1493](https://github.com/OpenSesame-Labs/OpenSesame/pull/1493) | Isolated DeepSec workspace: Undici 7.29.1/8.10.2, brace-expansion 5.0.12, MCP SDK 1.31.0 including peers |
+| [1494](https://github.com/OpenSesame-Labs/OpenSesame/pull/1494) | Advanced CodeQL with explicit Android Kotlin and iOS Swift builds and Go test extraction |
+| [1499](https://github.com/OpenSesame-Labs/OpenSesame/pull/1499) | Bound unauthenticated issuer input before normalization; replace quadratic input parsers |
+| [1500](https://github.com/OpenSesame-Labs/OpenSesame/pull/1500) | Private tool/state files, protected shared paths, and confined loopback static serving |
+| [1512](https://github.com/OpenSesame-Labs/OpenSesame/pull/1512) | Require explicit interactive reveal for generated/updated passwords; stop printing prior passwords and trailers |
+| [1524](https://github.com/OpenSesame-Labs/OpenSesame/pull/1524) | Kotlin Android/Compose 2.4.20, supported R8 9.1.31 override, and JVM 17 compiler-options migration |
+| [1528](https://github.com/OpenSesame-Labs/OpenSesame/pull/1528) | Patch 46 advisory IDs in Android build-only dependencies through a Netty BOM and scoped constraints |
+| [1550](https://github.com/OpenSesame-Labs/OpenSesame/pull/1550) | Remove remaining Rust advisory implementations: AWS-LC RSA, direct SQLite/Postgres drivers, metadata-only system D-Bus |
+| [1554](https://github.com/OpenSesame-Labs/OpenSesame/pull/1554) | WXT tinyglobby upgrade; remove optional ADB crypto/JKS dependencies and obsolete advisory exceptions |
+| [1556](https://github.com/OpenSesame-Labs/OpenSesame/pull/1556) | Repair actual default Kotlin autobuild discovery; pinned Gradle wrapper and generated-header attribution |
 
 Independent read-only investigation preceded fixes; fresh candidate reviews identified compatibility regressions that were corrected before shipping. Full repository verification and post-fix CodeQL results are recorded below when complete. No new alert suppressions were added.
 
@@ -87,7 +87,7 @@ The root Gradle 8.13 wrapper delegates to the actual Android project. Its standa
 
 The exact generated UniFFI declaration-only C header is marked linguist-generated. There are no tracked handwritten C/C++ translation units. GitHub must recompute language/configuration state after merge; this attribution does not itself prove an existing C++ scanner configuration has been removed.
 
-Actual default Swift run [39136575096](https://github.com/Tyler-R-Kendrick/OpenSesame/actions/runs/39136575096) uses the full repository source root on macOS 26 but builds only WalletEnvelopeCore (three of thirteen Swift files). The prepared manual iOS workflow supplies the Rust framework and actual simulator build; default setup does not invoke that entry point. Full Swift coverage still requires activation of that workflow or a separately validated complete discoverable iOS project.
+Actual default Swift run [39136575096](https://github.com/OpenSesame-Labs/OpenSesame/actions/runs/39136575096) uses the full repository source root on macOS 26 but builds only WalletEnvelopeCore (three of thirteen Swift files). The prepared manual iOS workflow supplies the Rust framework and actual simulator build; default setup does not invoke that entry point. Full Swift coverage still requires activation of that workflow or a separately validated complete discoverable iOS project.
 
 ## Activation and completion criteria
 

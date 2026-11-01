@@ -174,7 +174,7 @@ async function main() {
     const dist = dists.get(walk.buildKey);
     const harness = createHarness({
       dist,
-      origin: process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io",
+      origin: process.env.PAGES_ORIGIN ?? "https://opensesame-labs.github.io",
       base: "/OpenSesame/",
       out: profileDir(walk.name),
     });

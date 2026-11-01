@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "audited_origin": "https://tyler-r-kendrick.github.io",
+  "audited_origin": "https://opensesame-labs.github.io",
   "checked_date": "2026-10-09",
   "qualification": "Unauthenticated TLS-verified OPTIONS and public metadata GET only, no account grant/proof. Errors and 5xx do not establish provider CORS refusal. Dynamic tenant and credential URLs are not guessed. New MCP rules apply only to the audited origin; another operator origin must complete actual metadata, registration, token and resource requests. Origin-specific response admission does not prove authenticated access.",
   "rules": [
@@ -1178,7 +1178,7 @@
     {
       "provider_id": "airtable",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Airtable MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1202,7 +1202,7 @@
     {
       "provider_id": "axiom",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Axiom MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1226,7 +1226,7 @@
     {
       "provider_id": "beehiiv",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "beehiiv MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1250,7 +1250,7 @@
     {
       "provider_id": "better-stack",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Better Stack MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1274,7 +1274,7 @@
     {
       "provider_id": "brex",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Brex MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1298,7 +1298,7 @@
     {
       "provider_id": "checkly",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Checkly MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1327,7 +1327,7 @@
     {
       "provider_id": "cloudflare",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Cloudflare MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1356,7 +1356,7 @@
     {
       "provider_id": "cloudinary",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Cloudinary MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1380,7 +1380,7 @@
     {
       "provider_id": "common-room",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Common Room MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1409,7 +1409,7 @@
     {
       "provider_id": "coupler-io",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Coupler.io MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1433,7 +1433,7 @@
     {
       "provider_id": "fireflies",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Fireflies MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1457,7 +1457,7 @@
     {
       "provider_id": "honeycomb",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Honeycomb MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1486,7 +1486,7 @@
     {
       "provider_id": "indeed",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Indeed MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1515,7 +1515,7 @@
     {
       "provider_id": "intuit-mailchimp",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Intuit Mailchimp MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1544,7 +1544,7 @@
     {
       "provider_id": "lovable",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Lovable MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1568,7 +1568,7 @@
     {
       "provider_id": "manufact",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Manufact MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1592,7 +1592,7 @@
     {
       "provider_id": "new-relic",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "New Relic MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1616,7 +1616,7 @@
     {
       "provider_id": "otter-ai",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Otter.ai MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1640,7 +1640,7 @@
     {
       "provider_id": "pendo",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Pendo MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1664,7 +1664,7 @@
     {
       "provider_id": "posthog",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "PostHog MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1688,7 +1688,7 @@
     {
       "provider_id": "pylon",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Pylon MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1712,7 +1712,7 @@
     {
       "provider_id": "quicknode",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Quicknode MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1741,7 +1741,7 @@
     {
       "provider_id": "read-ai",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Read AI MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1765,7 +1765,7 @@
     {
       "provider_id": "readwise",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Readwise MCP is unavailable from this site's origin.",
       "evidence_urls": ["https://readwise.io", "https://mcp2.readwise.io/mcp"],
@@ -1791,7 +1791,7 @@
     {
       "provider_id": "resend",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Resend MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1815,7 +1815,7 @@
     {
       "provider_id": "sentry",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Sentry MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1844,7 +1844,7 @@
     {
       "provider_id": "streak",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Streak MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1873,7 +1873,7 @@
     {
       "provider_id": "superhuman-mail",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Superhuman Mail MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1902,7 +1902,7 @@
     {
       "provider_id": "ticktick",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "TickTick MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1926,7 +1926,7 @@
     {
       "provider_id": "todoist",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Todoist MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1950,7 +1950,7 @@
     {
       "provider_id": "webflow",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Webflow MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -1979,7 +1979,7 @@
     {
       "provider_id": "whimsical",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Whimsical MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -2003,7 +2003,7 @@
     {
       "provider_id": "zapier",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Zapier MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -2032,7 +2032,7 @@
     {
       "provider_id": "zernio",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Zernio MCP is unavailable from this site's origin.",
       "evidence_urls": [
@@ -2061,7 +2061,7 @@
     {
       "provider_id": "adobe",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Adobe MCP does not admit the required protocol header from this site's origin.",
       "evidence_urls": [
@@ -2079,7 +2079,7 @@
           "mcp-protocol-version"
         ],
         "status": 200,
-        "allow_origin": "https://tyler-r-kendrick.github.io",
+        "allow_origin": "https://opensesame-labs.github.io",
         "allow_methods": "GET,OPTIONS,POST",
         "allow_headers": "authorization,x-api-key,x-request-id,Accept,Accept-Encoding,x-session-id,Content-Type,Mcp-Session-Id,traceparent,tracestate",
         "denied_header": "mcp-protocol-version",
@@ -2091,7 +2091,7 @@
     {
       "provider_id": "local-falcon",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Local Falcon MCP does not admit the required protocol header from this site's origin.",
       "evidence_urls": [
@@ -2121,7 +2121,7 @@
     {
       "provider_id": "sanity",
       "method": "mcp",
-      "origins": ["https://tyler-r-kendrick.github.io"],
+      "origins": ["https://opensesame-labs.github.io"],
       "parameters": {},
       "reason": "Sanity MCP does not admit the required protocol header from this site's origin.",
       "evidence_urls": [

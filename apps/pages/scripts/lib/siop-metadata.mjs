@@ -35,7 +35,7 @@ export const SIOP_METADATA_FILE = "siop-metadata.json";
 export const SHIPPED_BASE = "/OpenSesame/";
 
 /** The shipped deployment's origin, and the account that owns it. */
-export const SHIPPED_ORIGIN = "https://tyler-r-kendrick.github.io";
+export const SHIPPED_ORIGIN = "https://opensesame-labs.github.io";
 const UPSTREAM_OWNER = new URL(SHIPPED_ORIGIN).hostname.split(".")[0];
 
 /**

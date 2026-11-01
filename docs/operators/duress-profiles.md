@@ -4,7 +4,7 @@
 **Not a personal safety plan.** Read the limitations section before arming.
 
 Design: [ADR 0130](../adr/0130-duress-profiles-trust-boundaries.md).
-Evidence: [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/).
+Evidence: [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/).
 
 ## Turning it on in Pages
 
@@ -71,7 +71,7 @@ does not provide that.
 ## Presets (scenario vocabulary)
 
 Presets map to compiled scenario IDs (fixtures under
-[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/examples/)). Labels in UI
+[historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/examples/)). Labels in UI
 must match these semantics — do not invent stronger wording.
 
 | Preset / scenario | Typical trigger | What changes | Honest limit |

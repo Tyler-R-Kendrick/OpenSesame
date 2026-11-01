@@ -42,7 +42,7 @@ export type MarketplaceSource = ForgeSource | RawSource;
 export const INDEX_PATH = ".opensesame/marketplace.json";
 
 /** Ours: the marketplace every device starts with. */
-export const DEFAULT_MARKETPLACE = "github:tyler-r-kendrick/OpenSesame#main";
+export const DEFAULT_MARKETPLACE = "github:OpenSesame-Labs/OpenSesame#main";
 
 const SEGMENT = /^[A-Za-z0-9_.-]{1,100}$/;
 const REF = /^[A-Za-z0-9_./-]{1,128}$/;

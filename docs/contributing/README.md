@@ -18,8 +18,9 @@ the rules themselves are [`AGENTS.md`](../../AGENTS.md).
    change carries before/after evidence
    ([visual-evidence skill](../../skills/visual-evidence/SKILL.md)).
 5. **Merge.** Squash only, signed commits, up to date with `main`, review
-   threads resolved. Scheduled delivery controllers qualify a frozen candidate
-   through environment gates before promoting its stored Pages/native artifacts.
+   threads resolved, through the [Mergify queue](merge-queue.md). Scheduled
+   delivery controllers qualify a frozen candidate through environment gates
+   before promoting its stored Pages/native artifacts.
 
 ## CI
 
@@ -104,5 +105,8 @@ change through.
 | [OSS programs](oss-programs.md) | Open-source program participation notes. |
 | [PostHog setup](posthog-setup.md) | Setting up product analytics. |
 | [AI automation roadmap](ai-automation-roadmap.md) | A dated (2026-08-09) assessment of where AI tooling was used in the development process and where it was meant to go; its status note says what has since changed. |
+| [Merge queue](merge-queue.md) | Mergify queue for this personal account. GitHub's native merge queue is not on the live ruleset. |
+| [CI cache](ci-cache.md) | Optional Turborepo remote cache. Fork pull requests and runs without a token stay read-only. |
+| [Local sign-off](ci-local-signoff.md) | Optional `basecamp/gh-signoff` preflight. GitHub Actions CI remains the merge gate. |
 
 - [Repository footprint](repository-footprint.md) — source size limits, temporary artifacts, shared skills and lightweight bootstrap.

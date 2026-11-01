@@ -249,7 +249,7 @@ export async function nativeCatalogJourney(
       continue;
     }
     const routeRow = nativeCatalogRouteRow(row);
-    const url = new URL(row.href, `https://tyler-r-kendrick.github.io${base}`);
+    const url = new URL(row.href, `https://opensesame-labs.github.io${base}`);
     await nativeVisit(
       page,
       base,

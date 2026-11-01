@@ -30,7 +30,7 @@ on every request and writes each change to an audit log.
   - **An API access token** (`tskey-api-…`). Any key it mints may be
     untagged. It expires on Tailscale's schedule, so plan to replace it.
 - A deployment of the web app at its own address. The shared demo at
-  `tyler-r-kendrick.github.io` cannot hold tailnet authority and says so. A
+  `opensesame-labs.github.io` cannot hold tailnet authority and says so. A
   dedicated or loopback deployment can
   ([pages-origin.md](pages-origin.md)).
 

@@ -62,11 +62,12 @@ describe("repository governance default-branch rules", () => {
       "required_signatures",
       "pull_request",
       "required_status_checks",
+      "merge_queue",
     ]);
     const checks = policy.rules.find(
       (rule) => rule.type === "required_status_checks",
     ).parameters;
-    expect(checks.strict_required_status_checks_policy).toBe(true);
+    expect(checks.strict_required_status_checks_policy).toBe(false);
     expect(checks.required_status_checks).toEqual([
       { context: "TypeScript", integration_id: 15368 },
       { context: "Bundle budgets", integration_id: 15368 },
@@ -80,14 +81,19 @@ describe("repository governance default-branch rules", () => {
     expect(review.require_code_owner_review).toBe(false);
   });
 
-  it("uses strict current-head checks on a personal repository without a merge queue", () => {
-    expect(policy.rules.some((rule) => rule.type === "merge_queue")).toBe(
-      false,
-    );
-    expect(
-      policy.rules.find((rule) => rule.type === "required_status_checks")
-        .parameters.strict_required_status_checks_policy,
-    ).toBe(true);
+  it("declares a squash merge queue that supersedes strict up-to-date", () => {
+    const queue = policy.rules.find(
+      (rule) => rule.type === "merge_queue",
+    ).parameters;
+    expect(queue).toEqual({
+      check_response_timeout_minutes: 60,
+      grouping_strategy: "ALLGREEN",
+      max_entries_to_build: 5,
+      max_entries_to_merge: 5,
+      merge_method: "SQUASH",
+      min_entries_to_merge: 1,
+      min_entries_to_merge_wait_minutes: 5,
+    });
   });
 });
 

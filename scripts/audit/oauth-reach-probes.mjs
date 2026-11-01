@@ -32,7 +32,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const specPath = join(here, "../../spec/connectors/oauth-reach.json");
 const presetsPath = join(here, "../../spec/connectors/connect-presets.json");
 
-const ORIGIN = "https://tyler-r-kendrick.github.io";
+const ORIGIN = "https://opensesame-labs.github.io";
 
 /**
  * Providers whose endpoints name the person's own tenant. A tenant answers for

@@ -13,7 +13,7 @@ const dist = path.resolve(
 const phase = process.env.PAGES_CAPTURE_PHASE ?? "after";
 if (!["before", "after"].includes(phase))
   throw new Error("Choose before or after capture phase");
-const origin = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+const origin = process.env.PAGES_ORIGIN ?? "https://opensesame-labs.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ??

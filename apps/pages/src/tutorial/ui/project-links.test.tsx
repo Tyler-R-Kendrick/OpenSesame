@@ -20,24 +20,24 @@ it("offers the ten project documents only from unlocked Support", async () => {
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
     expect(link.getAttribute("href")).toMatch(
-      /^https:\/\/github\.com\/Tyler-R-Kendrick\/OpenSesame/,
+      /^https:\/\/github\.com\/OpenSesame-Labs\/OpenSesame/,
     );
   }
   expect(
     within(panel)
       .getByRole("link", { name: "What it is" })
       .getAttribute("href"),
-  ).toBe("https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/README.md");
+  ).toBe("https://github.com/OpenSesame-Labs/OpenSesame/blob/main/README.md");
   expect(
     within(panel).getByRole("link", { name: "Changelog" }).getAttribute("href"),
   ).toBe(
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/CHANGELOG.md",
+    "https://github.com/OpenSesame-Labs/OpenSesame/blob/main/docs/CHANGELOG.md",
   );
   expect(
     within(panel)
       .getByRole("link", { name: "Open a private advisory" })
       .getAttribute("href"),
   ).toBe(
-    "https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new",
+    "https://github.com/OpenSesame-Labs/OpenSesame/security/advisories/new",
   );
 });

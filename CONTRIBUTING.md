@@ -23,7 +23,7 @@ code goes.
 
 ## Report bugs
 
-File bugs in [GitHub Issues](https://github.com/Tyler-R-Kendrick/OpenSesame/issues).
+File bugs in [GitHub Issues](https://github.com/OpenSesame-Labs/OpenSesame/issues).
 Never file a public issue carrying exploit details, tokens or claim secrets —
 vulnerabilities go through [SECURITY.md](SECURITY.md) private reporting instead.
 
@@ -75,8 +75,8 @@ locally: `pnpm --filter @opensesame/pages verify:<keyboard|mobile|static|auth|lo
 - **Ratchets only tighten.** If `pnpm quality` says something improved, commit
   the updated baseline; never raise a recorded number.
 
-Merges are squash-only, up to date with `main`, with review threads resolved.
-There is no merge queue; use auto-merge after review.
+Merges are squash-only, with review threads resolved, through GitHub's merge
+queue on `main`. See [merge queue](docs/contributing/merge-queue.md).
 
 ## After merge
 
@@ -100,7 +100,7 @@ source/HTML/runtime marker is verified over HTTPS, and the immutable native
 release assets and qualification evidence are published. Check the served marker:
 
 ```bash
-node scripts/release/pages-release.mjs verify https://tyler-r-kendrick.github.io/OpenSesame/ <candidate-source-sha>
+node scripts/release/pages-release.mjs verify https://opensesame-labs.github.io/OpenSesame/ <candidate-source-sha>
 ```
 
 ## Ground rules

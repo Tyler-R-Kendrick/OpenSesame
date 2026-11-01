@@ -27,7 +27,7 @@ This archived coordination record describes the original run. New work follows
 [the evidence persistence contract](../evidence/README.md), with temporary output
 in ignored `work/evidence/wallet/wallet/cross-platform/`.
 
-No claim may be marked `local_execution_verified` or `productionEnabled: true` without command output under [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet/). Placeholders stay `blocked` or `specified`.
+No claim may be marked `local_execution_verified` or `productionEnabled: true` without command output under [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet/). Placeholders stay `blocked` or `specified`.
 
 ## Forbidden
 

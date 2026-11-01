@@ -10,7 +10,7 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn global_headers_never_grant_browser_or_private_network_access() {
     for origin in [
-        "https://tyler-r-kendrick.github.io",
+        "https://opensesame-labs.github.io",
         "https://paired.example",
         "null",
     ] {

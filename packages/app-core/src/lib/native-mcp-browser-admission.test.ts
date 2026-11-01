@@ -26,7 +26,7 @@ import { requireNativeMcpRecord } from "./native-mcp-records.js";
 import { verifyNativeMcpConnector } from "./native-mcp-verification.js";
 import { bindNativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 
-const AUDITED_ORIGIN = "https://tyler-r-kendrick.github.io";
+const AUDITED_ORIGIN = "https://opensesame-labs.github.io";
 installNativeMcpConnectorTests();
 
 function callback(id: string): string {

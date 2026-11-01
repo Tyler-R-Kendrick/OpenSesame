@@ -1,7 +1,7 @@
 # Security review (interim)
 
 > Preserved from the 2026-09-21 duress documentation at
-> [fd554446](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/security-review.md).
+> [fd554446](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-duress/security-review.md).
 > This relocation does not re-run or newly approve the historical findings.
 
 

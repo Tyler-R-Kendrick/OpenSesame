@@ -31,7 +31,7 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = process.env.PAGES_VERIFY_DIST ?? path.resolve(here, "..", "dist");
-const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+const ORIGIN = process.env.PAGES_ORIGIN ?? "https://opensesame-labs.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(
   process.env.PAGES_VERIFY_OUT ??

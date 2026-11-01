@@ -7,7 +7,7 @@
 import { decodeJsonText } from "./json-text.mjs";
 
 /** The repository whose reviews approve its evidence. */
-export const EVIDENCE_REPOSITORY = "Tyler-R-Kendrick/OpenSesame";
+export const EVIDENCE_REPOSITORY = "OpenSesame-Labs/OpenSesame";
 
 // GitHub's login rule: 1 to 39 letters, digits and single hyphens, with no
 // hyphen at either end.

@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const ORIGIN =
-  process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+  process.env.PAGES_ORIGIN ?? "https://opensesame-labs.github.io";
 export const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 export const ARTIFACT_ROOT =
   process.env.VERIFY_CHECKLIST_OUT ??

@@ -15,7 +15,7 @@ import {
   requestFor,
 } from "./oauth-reach-probes.mjs";
 
-const ORIGIN = "https://tyler-r-kendrick.github.io";
+const ORIGIN = "https://opensesame-labs.github.io";
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const spec = (name) =>
   JSON.parse(readFileSync(join(root, "spec/connectors", name), "utf8"));

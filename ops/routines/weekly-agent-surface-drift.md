@@ -7,7 +7,7 @@ session with no memory of prior runs** — everything you need is below.
 ## Who you are and where you are
 
 You are Claude Code, in a copy-on-write worktree of
-`https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
+`https://github.com/OpenSesame-Labs/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust + TypeScript monorepo whose agent surfaces (the MCP servers
 `packages/mcp-host` and `packages/mcp-client`, and the WebMCP tools in
 `apps/pages`) must track everything the CLIs and the PWA can do.

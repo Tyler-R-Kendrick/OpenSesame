@@ -11,7 +11,7 @@ import { settingsFileKeyboardContract } from "./lib/settings-file-keyboard-contr
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { trustedContactsKeyboardContract } from "./lib/trusted-contacts-keyboard-contract.mjs";
 
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const out =
   process.env.PAGES_VERIFY_OUT ??

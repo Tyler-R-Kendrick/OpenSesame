@@ -148,7 +148,7 @@ tailscale serve --bg 8788      # https://<host>.<tailnet>.ts.net
 
 ### The deployed Pages vault over Tailscale Serve
 
-Neither plane puts `https://tyler-r-kendrick.github.io` on a CORS allowlist for
+Neither plane puts `https://opensesame-labs.github.io` on a CORS allowlist for
 you. The Identity API (`packages/control-plane/src/config.ts`) allows exactly the
 origins in `OPENSESAME_CORS_ORIGINS`, and none when it is unset; list the Pages
 origin there for the deployed vault to call it. The Host API validates the same
@@ -162,7 +162,7 @@ full of
 
 ```
 Access to fetch at 'https://<host>.<tailnet>.ts.net/identity/v1/health/live'
-from origin 'https://tyler-r-kendrick.github.io' has been blocked by CORS
+from origin 'https://opensesame-labs.github.io' has been blocked by CORS
 policy: No 'Access-Control-Allow-Origin' header is present
 ```
 
@@ -175,12 +175,12 @@ being down. Check from the machine that runs it:
 
 ```bash
 curl -si http://127.0.0.1:8788/v1/health/live \
-  -H 'Origin: https://tyler-r-kendrick.github.io' | grep -i 'access-control\|HTTP/'
+  -H 'Origin: https://opensesame-labs.github.io' | grep -i 'access-control\|HTTP/'
 curl -si http://127.0.0.1:8787/health/live | grep -i 'HTTP/'
 tailscale serve status
 ```
 
-A `200` with `access-control-allow-origin: https://tyler-r-kendrick.github.io`
+A `200` with `access-control-allow-origin: https://opensesame-labs.github.io`
 on loopback and a `502` through Serve is a Serve target pointing at the wrong
 port or a service that has exited; a `200` on loopback with no
 `access-control-allow-origin` is an origin missing from

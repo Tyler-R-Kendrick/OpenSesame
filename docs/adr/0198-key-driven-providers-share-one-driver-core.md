@@ -100,7 +100,7 @@ that was never checked.
   (`CLOUD_CREDENTIAL_PROVIDER_IDS`, `CERTIFICATE_PROVIDER_IDS` in
   `embedded-catalog-data.ts`) and drawn where their families live, Settings ›
   Integrations › Cloud secret storage and › Certificate authority. The capture
-  that found this is in [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-12-key-driven-providers/).
+  that found this is in [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-12-key-driven-providers/).
 - ACME needs the person to publish DNS records and wait: Finish tells the person
   so, in its own words, when the CA could not find them.
 - Verification of Let's Encrypt against the real staging CA was run during

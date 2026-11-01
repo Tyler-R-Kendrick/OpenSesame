@@ -19,7 +19,7 @@ describe("parseMarketplaceSource", () => {
     expect(parse(DEFAULT_MARKETPLACE)).toEqual({
       forge: "github",
       host: "github.com",
-      repo: "tyler-r-kendrick/OpenSesame",
+      repo: "OpenSesame-Labs/OpenSesame",
       ref: "main",
       root: "",
     });
@@ -206,7 +206,7 @@ describe("sourceReference", () => {
 describe("rawFileUrl", () => {
   it("reads GitHub through raw.githubusercontent.com at the pinned ref", () => {
     expect(rawFileUrl(parse(DEFAULT_MARKETPLACE), INDEX_PATH)).toBe(
-      "https://raw.githubusercontent.com/tyler-r-kendrick/OpenSesame/main/.opensesame/marketplace.json",
+      "https://raw.githubusercontent.com/OpenSesame-Labs/OpenSesame/main/.opensesame/marketplace.json",
     );
     expect(rawFileUrl(parse("octo/types"), "a.json")).toBe(
       "https://raw.githubusercontent.com/octo/types/HEAD/a.json",
@@ -253,7 +253,7 @@ describe("rawFileUrl", () => {
 describe("sourceLabel", () => {
   it("names host, repository, root and pin", () => {
     expect(sourceLabel(parse(DEFAULT_MARKETPLACE))).toBe(
-      "github.com/tyler-r-kendrick/OpenSesame@main",
+      "github.com/OpenSesame-Labs/OpenSesame@main",
     );
     expect(sourceLabel(parse(`https://git.example.net/r/${INDEX_PATH}`))).toBe(
       "git.example.net/r",

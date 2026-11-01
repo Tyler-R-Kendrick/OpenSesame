@@ -7,7 +7,7 @@ addons.setConfig({
   theme: create({
     base: "light",
     brandTitle: "OpenSesame",
-    brandUrl: "https://tyler-r-kendrick.github.io/OpenSesame/",
+    brandUrl: "https://opensesame-labs.github.io/OpenSesame/",
     colorPrimary: "#171717",
     colorSecondary: "#4d4d4d",
     appBg: "#fafafa",

@@ -137,7 +137,7 @@ async fn a_browser_cannot_open_or_list_slots() {
     );
     request.headers_mut().insert(
         "origin",
-        "https://tyler-r-kendrick.github.io".parse().unwrap(),
+        "https://opensesame-labs.github.io".parse().unwrap(),
     );
     let (status, _) = call(&app, request).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -180,7 +180,7 @@ async fn an_unconfigured_drive_says_so() {
 
 #[tokio::test]
 async fn a_configured_browser_origin_may_call_the_device_routes_only() {
-    let origin = "https://tyler-r-kendrick.github.io";
+    let origin = "https://opensesame-labs.github.io";
     let state = crate::tests::test_state("http://127.0.0.1:1");
     let devices = device_routes_for(&[origin.to_string()]).with_state(state);
     let preflight = Request::builder()
@@ -231,7 +231,7 @@ async fn a_configured_browser_origin_may_call_the_device_routes_only() {
 /// must be answered, and a saved connector's own headers let through.
 #[tokio::test]
 async fn a_public_page_may_reach_a_private_drive() {
-    let origin = "https://tyler-r-kendrick.github.io";
+    let origin = "https://opensesame-labs.github.io";
     let state = crate::tests::test_state("http://127.0.0.1:1");
     let devices = device_routes_for(&[origin.to_string()]).with_state(state);
     let preflight = |from: &str| {

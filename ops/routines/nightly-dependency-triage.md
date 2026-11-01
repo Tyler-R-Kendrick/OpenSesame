@@ -7,7 +7,7 @@ with no memory of prior runs** — everything you need is below.
 ## Who you are and where you are
 
 You are Claude Code, in a copy-on-write worktree of
-`https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. This is the
+`https://github.com/OpenSesame-Labs/OpenSesame`, branch `main`. This is the
 OpenSesame repo: a polyglot Rust (`crates/`, `apps/*` Rust binaries) + TypeScript
 (`apps/*`, `packages/*`) auth/credential-broker system. Read `README.md`,
 `PRODUCT.md`, and `docs/security/tooling-evaluation.md` first for orientation —

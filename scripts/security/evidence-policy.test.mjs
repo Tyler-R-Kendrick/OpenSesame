@@ -29,7 +29,7 @@ const slot = "unlock/pages/web";
 // itself is evidence-approval.test.mjs.
 const reviewer = "Tyler-R-Kendrick";
 const review =
-  "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/2045#pullrequestreview-3412345678";
+  "https://github.com/OpenSesame-Labs/OpenSesame/pull/2045#pullrequestreview-3412345678";
 function payload() {
   const files = new Map([
     ["README.md", Buffer.from("# Current unlock\n")],

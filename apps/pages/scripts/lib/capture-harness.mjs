@@ -28,7 +28,7 @@ import {
 import { createHarness } from "./static-origin-harness.mjs";
 
 /** The production origin, unless a journey shows what a dedicated deployment does. */
-const STATIC_ORIGIN = "https://tyler-r-kendrick.github.io";
+const STATIC_ORIGIN = "https://opensesame-labs.github.io";
 
 /** What a push page keeps of its session: the shim and the principal it was given. */
 export const pushSessions = new WeakMap();

@@ -16,11 +16,11 @@ secure. Historical rejections must not be interpreted as a fresh approval.
 
 ## Historical detail
 
-- [Latest recorded findings and full traces](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-8/findings.json)
-- [Latest recorded run scope and incomplete status](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-8/run-metadata.json)
-- [Recorded resolutions of the six validation leads](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-3-needs-validation-resolutions.md)
-- [Full historical audit tree](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit)
-- [Historical PR review transcripts and verdicts](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/kimi-reviews)
+- [Latest recorded findings and full traces](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-8/findings.json)
+- [Latest recorded run scope and incomplete status](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-8/run-metadata.json)
+- [Recorded resolutions of the six validation leads](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit/run-3-needs-validation-resolutions.md)
+- [Full historical audit tree](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/security/cloudflare-audit)
+- [Historical PR review transcripts and verdicts](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/kimi-reviews)
 
 ## Keeping this small
 

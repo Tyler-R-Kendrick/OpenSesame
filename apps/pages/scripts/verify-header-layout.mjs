@@ -19,7 +19,7 @@ import { phoneContext } from "./lib/mobile-contract.mjs";
 import { privateTempDir } from "./lib/private-files.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
-const origin = "https://tyler-r-kendrick.github.io";
+const origin = "https://opensesame-labs.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const out =
   process.env.PAGES_VERIFY_OUT ?? privateTempDir("opensesame-header-layout-");

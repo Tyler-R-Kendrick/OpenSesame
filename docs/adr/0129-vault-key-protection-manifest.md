@@ -44,7 +44,7 @@ with the root bytes also acting as the content key on some paths.
    via `OPENSESAME_SOPS_BIN`, which the static deployment cannot reach. The
    partial engine that replaced that wording still had no way to open a SOPS
    document. A 2026-09-21 amendment here (evidence in
-   [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-sops-browser/)) called that engine "complete and
+   [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-21-sops-browser/)) called that engine "complete and
    machine-checked"; it was ahead of the code, and ADR 0130 replaces both this
    clause and that amendment with an implemented, oracle-verified engine and a
    reachable document workflow. Two divergences that amendment recorded no
@@ -78,4 +78,4 @@ with the root bytes also acting as the content key on some paths.
 
 - C01–C13 product contracts in the implementation workstream
 - ADR 0037 (git sealed store), ADR 0090 / 0128 (Pages without Host)
-- Evidence: [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-20-vault-key-protection/)
+- Evidence: [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-20-vault-key-protection/)

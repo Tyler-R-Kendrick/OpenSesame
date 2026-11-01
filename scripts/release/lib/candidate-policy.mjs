@@ -9,7 +9,7 @@ export const ROOT = resolve(
 );
 export const POLICY = Object.freeze({
   schema_version: 1,
-  repository: "Tyler-R-Kendrick/OpenSesame",
+  repository: "OpenSesame-Labs/OpenSesame",
   branch: "main",
   enabled: true,
   retention_days: 35,

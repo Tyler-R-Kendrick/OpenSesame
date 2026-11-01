@@ -201,7 +201,7 @@ count (`b13e1f6a`). One difference was a regression, not a design change:
 forms sat 20px further in on each side than the front door (at 320px the
 theme key covered the wordmark's last letter). That was fixed in
 `apps/pages/src/screens/unlock.css` before re-seeding; evidence in
-[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-27-unlock-phone-gutter/). The spec had also drifted:
+[historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-09-27-unlock-phone-gutter/). The spec had also drifted:
 `pages-*` could capture the blank frame of a service-worker reload, and it
 mocked Host and Identity APIs Pages no longer calls.
 

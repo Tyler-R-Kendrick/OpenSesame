@@ -1,6 +1,6 @@
 # OpenSesame
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Tyler-R-Kendrick/OpenSesame/badge)](https://scorecard.dev/viewer/?uri=github.com/Tyler-R-Kendrick/OpenSesame)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/OpenSesame-Labs/OpenSesame/badge)](https://scorecard.dev/viewer/?uri=github.com/OpenSesame-Labs/OpenSesame)
 [![Security Insights](https://img.shields.io/badge/OpenSSF-Security_Insights-blue)](security-insights.yml)
 
 **An authorization fabric for the agentic era.** Agents get scoped,
@@ -8,7 +8,7 @@ revocable authority to act — never the secrets behind it. People keep their
 own credentials on their own devices. Websites get "Sign in with OpenSesame"
 without running a backend.
 
-[Live app](https://tyler-r-kendrick.github.io/OpenSesame/) ·
+[Live app](https://opensesame-labs.github.io/OpenSesame/) ·
 [Documentation](docs/README.md) ·
 [Getting started](docs/getting-started/README.md) ·
 [Architecture](docs/architecture/README.md) ·
@@ -22,12 +22,12 @@ without running a backend.
 
 ## Project information
 
-- **Homepage:** [tyler-r-kendrick.github.io/OpenSesame](https://tyler-r-kendrick.github.io/OpenSesame/)
+- **Homepage:** [opensesame-labs.github.io/OpenSesame](https://opensesame-labs.github.io/OpenSesame/)
 - **Install / getting started:** [docs/getting-started](docs/getting-started/README.md)
 - **Configuration:** [docs/getting-started](docs/getting-started/README.md) — environment variables follow [`.env.schema`](.env.schema)
 - **How to contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Report a bug:** [GitHub Issues](https://github.com/Tyler-R-Kendrick/OpenSesame/issues)
-- **Report a vulnerability:** [SECURITY.md](SECURITY.md) · [open a private advisory](https://github.com/Tyler-R-Kendrick/OpenSesame/security/advisories/new)
+- **Report a bug:** [GitHub Issues](https://github.com/OpenSesame-Labs/OpenSesame/issues)
+- **Report a vulnerability:** [SECURITY.md](SECURITY.md) · [open a private advisory](https://github.com/OpenSesame-Labs/OpenSesame/security/advisories/new)
 - **Changelog:** [CHANGELOG.md](docs/CHANGELOG.md)
 - **License:** MIT — [LICENSE](LICENSE)
 

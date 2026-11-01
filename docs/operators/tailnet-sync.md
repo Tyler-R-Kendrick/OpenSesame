@@ -17,7 +17,7 @@ on):
 ```bash
 export OPENSESAME_OPERATOR_TOKEN="$(openssl rand -hex 32)"   # keep it; the CLI needs it
 # The Pages origin(s) that will sync, exactly:
-export OPENSESAME_CORS_ORIGINS="https://tyler-r-kendrick.github.io"
+export OPENSESAME_CORS_ORIGINS="https://opensesame-labs.github.io"
 # Optional: where slots live (default: $XDG_STATE_HOME/opensesame/vault-drive,
 # else ~/.local/state/opensesame/vault-drive, or %LOCALAPPDATA% on Windows).
 export OPENSESAME_VAULT_DRIVE_DIR="$HOME/.local/state/opensesame/vault-drive"

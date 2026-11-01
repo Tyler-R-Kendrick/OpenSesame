@@ -6,7 +6,7 @@ import {
 } from "./always-on.mjs";
 import { expect } from "./patient-expect.mjs";
 
-const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
+const BASE = "https://opensesame-labs.github.io/OpenSesame";
 
 /** Every load locks the vault, and these suites load more than once. */
 export async function unlockVault(page, password = "Cedar-lantern-47-river!") {

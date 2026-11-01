@@ -146,4 +146,4 @@ Each row is a way this could be wrong, and what the code answers.
   `FEATURE_BINDING_CATEGORIES` entry and an `Integration` row — the test fails
   if the last two disagree; the catalog row is what the first of them rests on.
 - A user-visible change: the evidence gallery for this decision is under
-  [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-11-features-and-integrations/).
+  [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/tree/fd554446241e32962e82763ddb772f9420096279/docs/evidence/2026-10-11-features-and-integrations/).

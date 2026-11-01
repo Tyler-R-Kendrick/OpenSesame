@@ -120,7 +120,7 @@ async fn cors_answers_only_the_bound_origin_exactly() {
     assert!(methods.contains("PUT") && !methods.contains('*'));
     for other in [
         OTHER,
-        "https://tyler-r-kendrick.github.io.attacker.example",
+        "https://opensesame-labs.github.io.attacker.example",
         "null",
     ] {
         let (status, _, headers) = call(&f.app, preflight(other, true)).await;

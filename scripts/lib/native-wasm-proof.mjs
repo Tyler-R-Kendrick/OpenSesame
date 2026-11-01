@@ -7,6 +7,27 @@ import { lstat, open, readlink } from "node:fs/promises";
 import { join } from "node:path";
 
 export const nativeCIAdmissionBytes = 27n * 1024n ** 3n;
+
+/** Canonical GitHub repository for native PWA CI admission. */
+export const nativeCIRepository = "OpenSesame-Labs/OpenSesame";
+
+function assertNativeCITriggerIdentity(env) {
+  assert.equal(env.GITHUB_REPOSITORY, nativeCIRepository, "Wrong repository");
+  // User-owned repositories report the same login as ACTOR and OWNER.
+  // Organization repositories report the org as OWNER and a member as ACTOR.
+  if (
+    env.GITHUB_ACTOR?.toLowerCase() ===
+    env.GITHUB_REPOSITORY_OWNER?.toLowerCase()
+  ) {
+    return;
+  }
+  assert.equal(
+    env.GITHUB_REPOSITORY_OWNER,
+    "OpenSesame-Labs",
+    "Only the canonical organization repository may run this build",
+  );
+}
+
 export function assertNativeCIAdmission(platform, arch, available, memory) {
   assert.equal(platform, "linux", "Pinned native compiler requires Linux");
   assert.equal(arch, "x64", "Pinned native compiler requires AMD64");
@@ -50,16 +71,7 @@ export function assertNativeCIRequest(env) {
       env.GITHUB_WORKFLOW_SHA,
       "Controller event SHA differs",
     );
-    assert.equal(
-      env.GITHUB_ACTOR,
-      env.GITHUB_REPOSITORY_OWNER,
-      "Only the repository owner may run this build",
-    );
-    assert.equal(
-      env.GITHUB_REPOSITORY,
-      `${env.GITHUB_REPOSITORY_OWNER}/OpenSesame`,
-      "Wrong repository",
-    );
+    assertNativeCITriggerIdentity(env);
     return env.EXPECTED_HEAD;
   }
   assert.equal(
@@ -67,19 +79,10 @@ export function assertNativeCIRequest(env) {
     env.GITHUB_SHA,
     "Dispatch SHA must equal the event branch head",
   );
-  assert.equal(
-    env.GITHUB_ACTOR,
-    env.GITHUB_REPOSITORY_OWNER,
-    "Only the repository owner may run this build",
-  );
+  assertNativeCITriggerIdentity(env);
   assert(
     env.GITHUB_REF?.startsWith("refs/heads/"),
     "An owned repository branch is required",
-  );
-  assert.equal(
-    env.GITHUB_REPOSITORY,
-    `${env.GITHUB_REPOSITORY_OWNER}/OpenSesame`,
-    "Wrong repository",
   );
   assert(
     ["push", "workflow_dispatch"].includes(env.GITHUB_EVENT_NAME),

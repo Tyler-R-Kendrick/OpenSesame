@@ -83,7 +83,7 @@ describe("the authored spec", () => {
   });
 
   it("names the audited origin and keeps every source https", () => {
-    expect(auditedOrigin()).toBe("https://tyler-r-kendrick.github.io");
+    expect(auditedOrigin()).toBe("https://opensesame-labs.github.io");
     for (const row of spec().dispositions)
       for (const link of row.sources)
         expect(link.url, `${row.provider_id} source`).toMatch(/^https:\/\//);

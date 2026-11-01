@@ -16,7 +16,7 @@ const command = guard[1]
   .map((line) => line.replace(/^ {10}/, ""))
   .join("\n");
 
-const repository = "Tyler-R-Kendrick/OpenSesame";
+const repository = "OpenSesame-Labs/OpenSesame";
 const controller = "a".repeat(40);
 const called = {
   workflow_repository: repository,

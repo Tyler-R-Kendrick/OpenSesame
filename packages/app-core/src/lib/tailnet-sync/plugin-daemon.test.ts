@@ -18,7 +18,7 @@ import {
 } from "./plugin-pairing.js";
 
 const CAPABILITY = "agents.surrogate-credentials";
-const PAGES = "https://tyler-r-kendrick.github.io";
+const PAGES = "https://opensesame-labs.github.io";
 const TOKEN = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE";
 const CODE = "UGx1Z2luLXBhaXJpbmctY29kZS1ub3QtcmVhbC0wMSE";
 const PAIRED: PluginDaemonPairing = {

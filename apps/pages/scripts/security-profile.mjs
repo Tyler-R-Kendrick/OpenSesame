@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 export function securityProfile(env) {
   const profile = env.PAGES_DEPLOYMENT_PROFILE ?? "shared_origin_demo";
   const raw =
-    env.PAGES_CANONICAL_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+    env.PAGES_CANONICAL_ORIGIN ?? "https://opensesame-labs.github.io";
   if (
     ![
       "shared_origin_demo",
@@ -33,7 +33,7 @@ export function securityProfile(env) {
   if (
     profile === "dedicated_origin" &&
     (local ||
-      raw === "https://tyler-r-kendrick.github.io" ||
+      raw === "https://opensesame-labs.github.io" ||
       url.protocol !== "https:" ||
       !headerSecurity)
   )

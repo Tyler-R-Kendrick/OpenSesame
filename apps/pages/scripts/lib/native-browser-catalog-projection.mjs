@@ -37,7 +37,7 @@ const projection = buildSync({
         const plan = connectPlan(provider?.id ?? providerId);
         if (!plan || plan.refused) return [];
         const availability = {
-          callbackUrl: 'https://tyler-r-kendrick.github.io/OpenSesame/auth/native-connector.html',
+          callbackUrl: 'https://opensesame-labs.github.io/OpenSesame/auth/native-connector.html',
           apiKey: {available: true},
           oauth: {available: true, registeredAvailable: true, profile: nativeBrowserOAuthProfile(providerId) ?? undefined},
           mcp: {available: true, actor: 'user'},
@@ -48,7 +48,7 @@ const projection = buildSync({
           ...availability, oauth: {...availability.oauth, available: false},
         }).methods.filter(method => method.id === 'oauth')] : methods;
       }
-      const releaseOrigin=bindNativeBrowserPolicyOrigin(()=> 'https://tyler-r-kendrick.github.io');
+      const releaseOrigin=bindNativeBrowserPolicyOrigin(()=> 'https://opensesame-labs.github.io');
       export const auditedAdobeAdmission=nativeBrowserMcpPolicy('adobe');
       releaseOrigin();
       import {curatedCatalogProviders} from './apps/pages/src/sections/connections/catalog-selection.ts';

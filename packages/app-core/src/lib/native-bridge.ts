@@ -138,7 +138,7 @@ export type BridgeOAuthAdvice = {
 };
 
 const BRIDGE_README =
-  "https://github.com/Tyler-R-Kendrick/OpenSesame/tree/main/apps/browser-extension-bridge";
+  "https://github.com/OpenSesame-Labs/OpenSesame/tree/main/apps/browser-extension-bridge";
 export const BRIDGE_README_URL = BRIDGE_README;
 
 /**

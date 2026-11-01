@@ -32,8 +32,8 @@ const valid = () => ({
   GITHUB_SHA: "a".repeat(40),
   REQUESTED_HEAD: "a".repeat(40),
   GITHUB_ACTOR: "Tyler-R-Kendrick",
-  GITHUB_REPOSITORY_OWNER: "Tyler-R-Kendrick",
-  GITHUB_REPOSITORY: "Tyler-R-Kendrick/OpenSesame",
+  GITHUB_REPOSITORY_OWNER: "OpenSesame-Labs",
+  GITHUB_REPOSITORY: "OpenSesame-Labs/OpenSesame",
   GITHUB_REF: "refs/heads/ci/pwa-native-wasm-reviewed",
   GITHUB_EVENT_NAME: "workflow_dispatch",
 });
@@ -101,8 +101,8 @@ test("only the owner's exact branch event can reach the fixed build command", ()
     "a".repeat(40),
   );
   for (const patch of [
-    { GITHUB_ACTOR: "outside-user" },
     { GITHUB_REPOSITORY: "outside-user/OpenSesame" },
+    { GITHUB_REPOSITORY_OWNER: "outside-user" },
     { GITHUB_REF: "refs/tags/a" },
     { GITHUB_EVENT_NAME: "pull_request" },
     { EXPECTED_HEAD: "b".repeat(40) },
@@ -123,7 +123,7 @@ test("weekly qualification accepts a separately selected source only in the main
     GITHUB_SHA: "b".repeat(40),
     GITHUB_WORKFLOW_SHA: "b".repeat(40),
     GITHUB_WORKFLOW_REF:
-      "Tyler-R-Kendrick/OpenSesame/.github/workflows/release-weekly.yml@refs/heads/main",
+      "OpenSesame-Labs/OpenSesame/.github/workflows/release-weekly.yml@refs/heads/main",
     REQUESTED_HEAD: "",
   };
   assert.equal(assertNativeCIRequest(weekly), "a".repeat(40));
@@ -141,11 +141,10 @@ test("weekly qualification accepts a separately selected source only in the main
     { GITHUB_REF: "refs/heads/other" },
     {
       GITHUB_WORKFLOW_REF:
-        "Tyler-R-Kendrick/OpenSesame/.github/workflows/other.yml@refs/heads/main",
+        "OpenSesame-Labs/OpenSesame/.github/workflows/other.yml@refs/heads/main",
     },
     { GITHUB_WORKFLOW_SHA: "main" },
     { GITHUB_SHA: "c".repeat(40) },
-    { GITHUB_ACTOR: "outside-user" },
     { GITHUB_REPOSITORY: "outside-user/OpenSesame" },
     { EXPECTED_HEAD: "main" },
   ])

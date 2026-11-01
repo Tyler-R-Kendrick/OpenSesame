@@ -88,7 +88,7 @@ export function createSetupSeams(): SetupSeams {
     completeSetup.mockResolvedValue(undefined);
     Object.assign(waysInDependencies, {
       discover,
-      redirectUri: () => "https://tyler-r-kendrick.github.io/OpenSesame/",
+      redirectUri: () => "https://opensesame-labs.github.io/OpenSesame/",
     });
     Object.assign(setupScreenDependencies, {
       completeSetup,

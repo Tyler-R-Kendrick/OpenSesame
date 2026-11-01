@@ -157,7 +157,7 @@ jobs:
       TAG: ${{ needs.resolve.outputs.tag }}
       VITE_BASE: /OpenSesame/
       PAGES_DEPLOYMENT_PROFILE: shared_origin_demo
-      PAGES_CANONICAL_ORIGIN: https://tyler-r-kendrick.github.io
+      PAGES_CANONICAL_ORIGIN: https://opensesame-labs.github.io
       PAGES_HEADER_SECURITY: '0'
     steps:
     - name: Check out trusted pipeline helpers

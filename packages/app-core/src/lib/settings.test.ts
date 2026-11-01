@@ -116,7 +116,7 @@ describe("runtime endpoint defaults", () => {
             history: { providerId: "github" },
           },
         },
-        "tyler-r-kendrick.github.io",
+        "opensesame-labs.github.io",
       ),
     ).toBe(false);
     expect(
@@ -131,7 +131,7 @@ describe("runtime endpoint defaults", () => {
             history: { providerId: "github" },
           },
         },
-        "tyler-r-kendrick.github.io",
+        "opensesame-labs.github.io",
       ),
     ).toBe(true);
   });

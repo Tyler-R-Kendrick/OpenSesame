@@ -36,7 +36,7 @@ layer 4 and says nothing about layer 2; "the chunk is not in `dist/`" is layer
 
 ## 2. Which gate proves which contract
 
-[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/contract-test-matrix.json) is the
+[historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/contract-test-matrix.json) is the
 historical machine-readable map from contract IDs to tests and the runs that
 produced those results. It is not a current-state approval. This section is the
 maintained human summary; record contracts without landed tests here as
@@ -222,7 +222,7 @@ the parsers take the composition package's suites, including the property test.
 ## 4. What these gates do not tell you
 
 Each of these is a real limit, not a backlog item. The full ledger is
-[historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/limitations.md).
+[historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/limitations.md).
 
 **No same-realm sandbox.** Every check here is about *admission*: whether the
 import happens. Once a module is evaluated it is same-origin code with the run
@@ -270,8 +270,8 @@ test is recorded as absence of evidence, never as a green row. (The matrix's
 
 - [ADR 0130](../adr/0130-operator-controlled-capability-composition.md) — the decision
 - [`docs/operators/capability-composition.md`](../operators/capability-composition.md) — the operator guide
-- [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/baseline.md) — what was measured before the change
-- [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/limitations.md) — the P-TRUTH ledger
-- [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/contract-test-matrix.json) — contract → test
-- [historical evidence](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/assignment-ledger.json) — ownership and landed surface
+- [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/baseline.md) — what was measured before the change
+- [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/limitations.md) — the P-TRUTH ledger
+- [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/contract-test-matrix.json) — contract → test
+- [historical evidence](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/capability-composition/assignment-ledger.json) — ownership and landed surface
 - [`docs/validation/code-quality-gates.md`](code-quality-gates.md) — the structural gates every file here also passes

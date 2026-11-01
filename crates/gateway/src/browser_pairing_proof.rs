@@ -20,7 +20,7 @@ pub fn pairable_origins() -> Result<Vec<String>, String> {
     );
     if origins
         .iter()
-        .any(|origin| !is_exact_origin(origin) || origin == "https://tyler-r-kendrick.github.io")
+        .any(|origin| !is_exact_origin(origin) || origin == "https://opensesame-labs.github.io")
     {
         return Err(
             "OPENSESAME_BROWSER_PAIRABLE_ORIGINS requires dedicated HTTPS or loopback origins"

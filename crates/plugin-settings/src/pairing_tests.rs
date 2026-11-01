@@ -7,7 +7,7 @@ use crate::pairing_code::{
     format_pairing_code, is_pairable_origin, is_secret_shaped, PAIRING_CODE_PREFIX,
 };
 
-const PAGES: &str = "https://tyler-r-kendrick.github.io";
+const PAGES: &str = "https://opensesame-labs.github.io";
 const OTHER: &str = "https://attacker.example";
 const NOW: u64 = 1_790_000_000;
 
@@ -49,8 +49,8 @@ fn only_an_origin_exactly_as_a_browser_sends_it_is_pairable() {
         assert!(is_pairable_origin(good), "{good}");
     }
     for bad in [
-        "https://tyler-r-kendrick.github.io/",
-        "https://tyler-r-kendrick.github.io/OpenSesame",
+        "https://opensesame-labs.github.io/",
+        "https://opensesame-labs.github.io/OpenSesame",
         "https://example.com:443",
         "HTTPS://example.com",
         "https://user@example.com",
@@ -92,7 +92,7 @@ fn a_bearer_is_refused_from_any_other_origin() {
         OTHER,
         "http://localhost:5180",
         "",
-        "https://tyler-r-kendrick.github.io/",
+        "https://opensesame-labs.github.io/",
     ] {
         assert!(!pairings.authorizes(&issued.token, origin), "{origin}");
     }

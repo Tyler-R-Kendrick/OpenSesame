@@ -11,7 +11,7 @@ import {
   readInvocationArrival,
 } from "./invocation-link.js";
 
-const ORIGIN = "https://tyler-r-kendrick.github.io";
+const ORIGIN = "https://opensesame-labs.github.io";
 const BASE = "/OpenSesame";
 
 function at(path: string): string {

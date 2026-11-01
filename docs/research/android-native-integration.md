@@ -39,7 +39,7 @@ sources.
 ## 1. What OpenSesame already has
 
 **The installed PWA.** `apps/pages` is the installable GitHub Pages PWA
-served at `https://tyler-r-kendrick.github.io/OpenSesame/`.
+served at `https://opensesame-labs.github.io/OpenSesame/`.
 
 - Manifest: inline in `apps/pages/vite.config.ts:237-258`. It has `name`,
   `short_name`, `description`, `display: standalone`, `start_url`/`scope`
@@ -343,9 +343,9 @@ and a route.
   `use_as_origin`), `/.well-known/webauthn` and `/.well-known/web-identity`
   must all be served from the origin root.
 - `github.io` is on the Public Suffix List, so the root of
-  `tyler-r-kendrick.github.io` belongs to the user-site repository
-  `tyler-r-kendrick/tyler-r-kendrick.github.io`, not to this project site.
-- `https://tyler-r-kendrick.github.io/.well-known/assetlinks.json` returned
+  `opensesame-labs.github.io` belongs to the user-site repository
+  `tyler-r-kendrick/opensesame-labs.github.io`, not to this project site.
+- `https://opensesame-labs.github.io/.well-known/assetlinks.json` returned
   404 when checked on 2026-09-22, and again on 2026-10-08.
 - Jekyll drops dot-directories unless `.nojekyll` is present.
 
@@ -366,7 +366,7 @@ Two ways out:
   bakes the shared-origin exposure into every native trust statement.
 - **(B) Move Pages to a custom domain (recommended).** It gives a dedicated
   origin and a root OpenSesame controls. It has a migration cost:
-  - Existing PRF passkeys are bound to `rpId = tyler-r-kendrick.github.io`.
+  - Existing PRF passkeys are bound to `rpId = opensesame-labs.github.io`.
     They stay usable from the new origin through Related Origin Requests,
     but that file is served at the *old* root, so (A) is needed once anyway,
     as a bridge.

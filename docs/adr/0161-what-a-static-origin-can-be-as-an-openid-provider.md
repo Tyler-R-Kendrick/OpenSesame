@@ -79,7 +79,7 @@ except the one row marked *not tested*.
 |---|---|
 | What does the deploy workflow publish? | `deploy-pages.yml` builds `apps/pages` and uploads `apps/pages/dist` with `actions/upload-pages-artifact` pinned at `fc324d35…` (v5.0.0), then `actions/deploy-pages`. The path is `/OpenSesame/`; `404.html` is a copy of `index.html`. |
 | What does that upload step do with dot-entries? | Its `action.yml` at the pinned SHA archives with `tar … --exclude=.git --exclude=.github --exclude='.[^/]*' .` unless `include-hidden-files: true`, an input this workflow does not set. Run locally (GNU tar 1.35) over a directory holding `.well-known/x.json`, `identity/siop/.well-known/openid-configuration`, `.nojekyll`, `siop/metadata.json` and `index.html`: the three dot-entries are **dropped at every depth** and the two ordinary files kept. With `include-hidden-files: true` all five are kept. |
-| What does the live site answer? | `curl` against `tyler-r-kendrick.github.io`: `/OpenSesame/os-runtime-config.json` and `/OpenSesame/security-profile.json` are `200 application/json; charset=utf-8` with `access-control-allow-origin: *` and `cache-control: max-age=600`. `/.well-known/openid-configuration` (host root), `/OpenSesame/.well-known/openid-configuration` and `/OpenSesame/identity/siop/.well-known/openid-configuration` are all `404`. |
+| What does the live site answer? | `curl` against `opensesame-labs.github.io`: `/OpenSesame/os-runtime-config.json` and `/OpenSesame/security-profile.json` are `200 application/json; charset=utf-8` with `access-control-allow-origin: *` and `cache-control: max-age=600`. `/.well-known/openid-configuration` (host root), `/OpenSesame/.well-known/openid-configuration` and `/OpenSesame/identity/siop/.well-known/openid-configuration` are all `404`. |
 | Is the issuer URL itself a `200`? | No: `/OpenSesame/identity/siop` is **`404`** (`text/html`, the SPA fallback `404.html`), as every deep link on GitHub Pages is. A browser renders the app; a server that GETs the issuer URL sees a 404. A relying party must not treat "the issuer answers 200" as a health check. |
 | Does a static answer carry CORS? | Yes: `access-control-allow-origin: *` on every answer above, 404s included. A browser relying party can read a static document cross-origin. |
 | Would Pages serve a `.well-known` directory if one were uploaded? | **Not tested.** Nothing was deployed from here. It is moot for the host root (a project page does not own it) and the default upload step would drop the directory first. |
@@ -207,8 +207,8 @@ A build publishes `siop-metadata.json` at the base path. Its shape is
 
 ```json
 {
-  "issuer": "https://tyler-r-kendrick.github.io/OpenSesame/identity/siop",
-  "authorization_endpoint": "https://tyler-r-kendrick.github.io/OpenSesame/identity/siop",
+  "issuer": "https://opensesame-labs.github.io/OpenSesame/identity/siop",
+  "authorization_endpoint": "https://opensesame-labs.github.io/OpenSesame/identity/siop",
   "response_types_supported": ["id_token"],
   "scopes_supported": ["openid"],
   "subject_types_supported": ["pairwise"],
@@ -298,7 +298,7 @@ one. A fork sets `PAGES_CANONICAL_ORIGIN` (and its base) in its own deploy;
 until it does, its build publishes no metadata.
 
 **The WebAuthn RP ID is the host.** The passkey that gates consent is scoped
-to the origin's effective domain, `tyler-r-kendrick.github.io`, which every
+to the origin's effective domain, `opensesame-labs.github.io`, which every
 Pages project of that account shares; a custom domain or fork has a different
 RP ID and cannot use passkeys registered at another. A passkey sync provider
 does not carry a credential across RP IDs. On the shared origin, paths do not

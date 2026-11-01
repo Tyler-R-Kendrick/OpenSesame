@@ -27,7 +27,7 @@ use crate::plugins::plugins_pair::{is_daemon_url, DEFAULT_DAEMON_URL};
 mod devices;
 pub use devices::DeviceCmd;
 
-const DEFAULT_PAGES_URL: &str = "https://tyler-r-kendrick.github.io/OpenSesame/";
+const DEFAULT_PAGES_URL: &str = "https://opensesame-labs.github.io/OpenSesame/";
 
 #[derive(Subcommand, Debug)]
 pub enum TailnetCmd {

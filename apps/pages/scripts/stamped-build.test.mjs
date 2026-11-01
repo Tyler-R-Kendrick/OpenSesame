@@ -10,7 +10,7 @@ const DEFAULT = `${JSON.stringify(
   {
     version: 1,
     profile: "shared_origin_demo",
-    canonicalOrigin: "https://tyler-r-kendrick.github.io",
+    canonicalOrigin: "https://opensesame-labs.github.io",
     headerSecurity: false,
   },
   null,

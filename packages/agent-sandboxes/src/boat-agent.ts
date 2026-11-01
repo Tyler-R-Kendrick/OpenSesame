@@ -57,7 +57,7 @@ export function resolveBoatAgentCommand(
 
 /** Public repository the default bootstrap installs the agent from. */
 export const BOAT_AGENT_REPO_URL =
-  "https://github.com/Tyler-R-Kendrick/OpenSesame.git";
+  "https://github.com/OpenSesame-Labs/OpenSesame.git";
 
 const COMMIT_SHA = /^[0-9a-f]{40}$/u;
 

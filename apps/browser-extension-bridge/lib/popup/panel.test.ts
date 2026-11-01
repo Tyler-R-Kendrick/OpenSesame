@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderPanel } from "./panel.js";
 
-const APP = "https://tyler-r-kendrick.github.io";
+const APP = "https://opensesame-labs.github.io";
 const actions = () => ({
   toggleSite: vi.fn(),
   allow: vi.fn(),

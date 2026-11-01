@@ -10,7 +10,7 @@ layer ([ADR 0086](../adr/0086-wallet-native-interaction-layer.md), with
 This binds the findings (`Fnn`) and their threats (`Tnn`) to the tests that
 actually enforce them, with the exit each test suite produced **in this
 session** at dirty checkout `4358f7fe`. The machine-readable companion is
-[`wallet-interaction-evidence.json`](https://github.com/Tyler-R-Kendrick/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet/interaction-evidence.json).
+[`wallet-interaction-evidence.json`](https://github.com/OpenSesame-Labs/OpenSesame/blob/fd554446241e32962e82763ddb772f9420096279/docs/evidence/wallet/interaction-evidence.json).
 
 > Status (2026-10-08): this is a record of the 2026-09-15 session at dirty
 > checkout `4358f7fe`; none of the results below were re-run for this note. The

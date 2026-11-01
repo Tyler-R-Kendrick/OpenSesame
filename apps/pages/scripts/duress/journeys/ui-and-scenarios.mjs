@@ -64,7 +64,7 @@ export async function walkUiSettings({ browser, check, record, snap }) {
   }
 
   const ORIGIN =
-    process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+    process.env.PAGES_ORIGIN ?? "https://opensesame-labs.github.io";
   const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
   const OUT = path.join(here, "..", ".ui-artifacts");
   fs.mkdirSync(OUT, { recursive: true });

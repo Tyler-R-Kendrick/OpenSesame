@@ -20,7 +20,7 @@ function site() {
   writeFileSync(join(directory, ".nojekyll"), "");
   return directory;
 }
-const origin = "https://tyler-r-kendrick.github.io/OpenSesame/";
+const origin = "https://opensesame-labs.github.io/OpenSesame/";
 const source = "a".repeat(40);
 
 test("live verification checks nested application bytes and ignores only the hosting control file", async () => {

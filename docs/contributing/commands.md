@@ -193,7 +193,7 @@ sign-in, setup, settings defaults or anything on the boot path:**
 VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 PLAYWRIGHT_CHROMIUM=<chromium-binary> \
   pnpm --filter @opensesame/pages verify:static
-# Drives dist/ under https://tyler-r-kendrick.github.io/OpenSesame/ in
+# Drives dist/ under https://opensesame-labs.github.io/OpenSesame/ in
 # headless Chromium: first screen is the front door's three roads + the guest
 # Skip (no setup wall, no sign-in), guest walks every section, Google via a
 # mocked shoo.dev lands unlocked once setup is skipped, deep links resolve. Fails on any page error, console error, loopback request,
