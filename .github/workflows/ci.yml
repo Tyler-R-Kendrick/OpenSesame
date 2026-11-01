@@ -113,6 +113,25 @@ jobs:
           cache: pnpm
       - name: Install the frozen dependency graph
         run: pnpm install --frozen-lockfile
+      - name: Resolve the Turborepo comparison ref
+        id: turbo_base
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ needs.changes.outputs.base_sha }}
+        run: node scripts/lib/ci-turbo-base.mjs
+      - name: Prepare the local Turborepo cache key
+        id: turbo_local_meta
+        env:
+          RUNNER_OS: ${{ runner.os }}
+        run: node scripts/lib/ci-turbo-local-cache.mjs
+      - name: Cache the local Turborepo task cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo
+          key: ${{ steps.turbo_local_meta.outputs.turbo_local_cache_key }}
+          restore-keys: |
+            ${{ steps.turbo_local_meta.outputs.turbo_local_restore_prefix }}
       - name: Cache the pinned native PWA distribution
         if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/pages')
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -131,6 +150,7 @@ jobs:
         env:
           BASE_SHA: ${{ needs.changes.outputs.base_sha }}
           HEAD_SHA: ${{ needs.changes.outputs.head_sha }}
+          TURBO_COMPARISON_REF: ${{ steps.turbo_base.outputs.turbo_comparison_ref }}
           VITE_BASE: /OpenSesame/
         run: node scripts/lib/ci-affected-builds.mjs run-ts
 

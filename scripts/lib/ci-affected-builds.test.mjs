@@ -45,6 +45,14 @@ test("builds changed packages and transitive consumers, leaving unrelated work o
     "--filter=service",
     "--filter=shared",
   ]);
+  const scoped = buildCommand("packages", plan, {
+    turboComparisonRef: "origin/main",
+  });
+  assert.deepEqual(scoped.args.slice(-3), [
+    "--filter=app...[origin/main]",
+    "--filter=service...[origin/main]",
+    "--filter=shared...[origin/main]",
+  ]);
 });
 
 test("the real package and Cargo graphs include downstream deployables", () => {
@@ -185,6 +193,24 @@ test("shared compiler, dependency and embedded-spec inputs compile the whole gra
     command: "pnpm",
     args: ["exec", "turbo", "run", "build", "--concurrency=4"],
   });
+  assert.deepEqual(
+    buildCommand(
+      "packages",
+      { scope: "all", packages: [] },
+      { turboComparisonRef: "origin/main" },
+    ),
+    {
+      command: "pnpm",
+      args: [
+        "exec",
+        "turbo",
+        "run",
+        "build",
+        "--concurrency=4",
+        "--filter=...[origin/main]",
+      ],
+    },
+  );
 });
 
 test("workspace builds do not hide a separate no-emit typecheck", () => {

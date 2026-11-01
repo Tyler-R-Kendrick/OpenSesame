@@ -35,3 +35,13 @@ read-only remote cache. CI keeps the name the helper returns.
 `src/__snapshots__/*.approved.md`, and Turbo does not add those files back
 when a later glob includes `__snapshots__`. Vitest snapshots and those
 approval files stay in the test cache key. `build` outputs stay `dist/**`.
+
+When `TURBO_TOKEN` is unset, CI also restores a runner-local `.turbo`
+directory through `actions/cache`. The key is derived from the runner OS and
+`pnpm-lock.yaml` via [`ci-turbo-local-cache.mjs`](../../scripts/lib/ci-turbo-local-cache.mjs).
+
+TypeScript build jobs resolve a comparison ref with
+[`ci-turbo-base.mjs`](../../scripts/lib/ci-turbo-base.mjs): `merge_group` uses
+`merge_group.base_sha`, pull requests use `origin/$GITHUB_BASE_REF`, and other
+events use `origin/main`. Affected package builds pass that ref to Turborepo as
+`--filter=<package>...[ref]` (or `--filter=...[ref]` for a full-graph build).
