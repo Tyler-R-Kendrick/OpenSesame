@@ -34,7 +34,7 @@ function fixture(t) {
     writeFileSync(target, `#!/bin/sh\n${body}\n`);
     chmodSync(target, 0o755);
   }
-  for (const tool of ["node", "pnpm"]) {
+  for (const tool of ["node", "npm"]) {
     executable(
       tool,
       `test -z "\${NODE_OPTIONS:-}" || exit 98
@@ -89,20 +89,20 @@ test("ordinary pushes run static checks and typechecking without test suites", (
     "node scripts/dev/sync-agent-skills.mjs --check",
     "node scripts/quality/lint-changed.mjs",
     "node apps/pages/scripts/build-static-auth.mjs --check",
-    "pnpm lint:anti-slop",
-    "pnpm quality:gate",
-    "pnpm quality:log-hygiene",
-    "pnpm quality:packages",
-    "pnpm quality:app-core",
-    "pnpm typecheck",
+    "npm run lint:anti-slop",
+    "npm run quality:gate",
+    "npm run quality:log-hygiene",
+    "npm run quality:packages",
+    "npm run quality:app-core",
+    "npm run typecheck",
   ]) {
     assert.ok(result.commands.includes(`${command}\n`), command);
   }
   assert.doesNotMatch(
     result.commands,
-    /pnpm (?:test\b|verify\b|quality\n|lint\n)/,
+    /npm run (?:test\b|verify\b|quality\n|lint\n)/,
   );
-  assert.doesNotMatch(result.commands, /pnpm audit:clippy/);
+  assert.doesNotMatch(result.commands, /npm run audit:clippy/);
 });
 
 test("Rust lint catches committed and working-tree changes before push", (t) => {
@@ -111,7 +111,7 @@ test("Rust lint catches committed and working-tree changes before push", (t) => 
       [variable]: "crates/domain/src/lib.rs\n",
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.commands, /pnpm audit:clippy\n/);
+    assert.match(result.commands, /npm run audit:clippy\n/);
   }
 });
 
@@ -124,14 +124,16 @@ test("toolchain and Cargo configuration changes receive commit-time Rust lint", 
   ]) {
     const result = fixture(t).run("pre-commit", { HOOK_STAGED_PATHS: path });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.commands, /pnpm audit:clippy\n/, path);
+    assert.match(result.commands, /npm run audit:clippy\n/, path);
   }
 });
 
 test("a failed static check or unreadable diff stops the push", (t) => {
-  const checks = fixture(t).run("pre-push", { HOOK_FAIL: "pnpm quality:gate" });
+  const checks = fixture(t).run("pre-push", {
+    HOOK_FAIL: "npm run quality:gate",
+  });
   assert.equal(checks.status, 17);
-  assert.doesNotMatch(checks.commands, /pnpm typecheck/);
+  assert.doesNotMatch(checks.commands, /npm run typecheck/);
   assert.doesNotMatch(checks.stdout, /pre-push: OK/);
 
   const diff = fixture(t).run("pre-push", { HOOK_DIFF_FAIL: "1" });
@@ -142,12 +144,12 @@ test("a failed static check or unreadable diff stops the push", (t) => {
 test("full verification stays an explicit local opt-in", (t) => {
   const result = fixture(t).run("pre-push", { OPENSESAME_PREPUSH: "full" });
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.commands, /pnpm verify\n/);
+  assert.match(result.commands, /npm run verify\n/);
   assert.match(
     result.commands,
     /node scripts\/security\/exposure-matrix-gate\.mjs --push-refs\n/,
   );
-  assert.doesNotMatch(result.commands, /pnpm typecheck/);
+  assert.doesNotMatch(result.commands, /npm run typecheck/);
 });
 
 test("off skips optional checks but still enforces exposure policy; unknown modes fail", (t) => {
