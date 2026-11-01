@@ -149,10 +149,11 @@ addresses, tags, authorized, external, ephemeral, key_expiry_disabled,
 expires, created, last_seen, connected, blocks_incoming, ssh_enabled,
 multiple_connections, advertised_routes, enabled_routes, tailnet_lock_error}`,
 with `id` the stable `nodeId`. Keys never carry `key` except in the one
-response that created it. `spec/conformance/tailnet-admin-protocol.json`
+response that created it. `spec/conformance/tailnet-admin-protocol.json.hbs`
 records each route as a literal exchange — the page's request, the upstream
-call the daemon must make, Tailscale's answer, and the daemon's — and both
-the daemon and the Pages client replay it, so neither side can drift alone.
+call the daemon must make, Tailscale's answer, and the daemon's — and is
+rendered at test time so secret-shaped fields are never committed. Both the
+daemon and the Pages client replay it, so neither side can drift alone.
 
 ### 5. Every change is on the record
 

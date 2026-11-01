@@ -69,9 +69,11 @@ fn strings_are_bounded_and_printable() {
 
 #[test]
 fn keys_never_carry_their_secret_except_when_created() {
+    let control_id = crate::synthetic::auth_control_id();
+    let secret = crate::synthetic::auth_key_for_control_id(&control_id);
     let raw = json!({
-        "id": "k123456CNTRL",
-        "key": "tskey-auth-k123456CNTRL-abcdef",
+        "id": control_id,
+        "key": secret,
         "keyType": "auth",
         "description": "lab",
         "created": "2026-10-01T00:00:00Z",
@@ -84,10 +86,10 @@ fn keys_never_carry_their_secret_except_when_created() {
     assert!(view.reusable && view.preauthorized && !view.ephemeral);
     assert!(!serde_json::to_string(&view).unwrap().contains("tskey-"));
     let created = created_key(&raw).unwrap();
-    assert_eq!(created["key"], "tskey-auth-k123456CNTRL-abcdef");
+    assert_eq!(created["key"], secret);
     assert_eq!(created["tags"], json!(["tag:ci"]));
     let mut not_auth = raw.clone();
-    not_auth["key"] = json!("tskey-api-xyz");
+    not_auth["key"] = json!(crate::synthetic::api_token_plain());
     assert_eq!(created_key(&not_auth), None);
     let mut client = raw;
     client["keyType"] = json!("client");

@@ -1,6 +1,7 @@
 /**
  * The pairing code `opensesame daemon tailnet pair` prints (ADR 0169 §3,
- * `spec/conformance/tailnet-admin-protocol.json`), and where the bearer it
+ * `spec/conformance/tailnet-admin-protocol.json.hbs`, rendered at test
+ * time), and where the bearer it
  * is traded for is kept.
  *
  * The code carries where the daemon is, a one-time secret, the one origin

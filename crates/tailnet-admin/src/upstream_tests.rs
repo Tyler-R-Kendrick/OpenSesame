@@ -118,7 +118,7 @@ async fn oauth_cache_is_isolated_between_directories_and_credential_rotation() {
         kind: CredentialKind::Oauth,
         client_id: "sameClient".into(),
     };
-    let secret = SecretString::from("tskey-client-first-0123456789abcdef".to_owned());
+    let secret = crate::synthetic::client_secret();
     let first_config = first
         .connect("customer.example", credential.clone(), &secret, 1)
         .unwrap();
@@ -154,7 +154,7 @@ async fn oauth_cache_is_isolated_between_directories_and_credential_rotation() {
             .expose_secret(),
         "access-3"
     );
-    let replacement = SecretString::from("tskey-client-second-0123456789abcdef".to_owned());
+    let replacement = crate::synthetic::client_secret();
     let current = first
         .connect("customer.example", credential, &replacement, 2)
         .unwrap();

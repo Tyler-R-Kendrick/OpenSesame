@@ -116,8 +116,9 @@ mod tests {
 
     #[test]
     fn a_message_carrying_a_key_is_never_repeated() {
+        let sample = format!("key {} is invalid", crate::synthetic::auth_key());
         assert_eq!(
-            safe_message("key tskey-auth-abc123 is invalid"),
+            safe_message(&sample),
             "Tailscale refused the request."
         );
         assert_eq!(safe_message("  tags invalid\n"), "tags invalid");

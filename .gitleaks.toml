@@ -129,9 +129,6 @@ regexes = ['''(?s)\Apw\-quartz\-88e2\z''', '''(?s)\Apw\-trashed\-31f0\z''', '''(
 description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/live-netns-run.mjs"
 regexes = ['''(?s)\Acorrect\-horse\-battery\-staple\-2026\z''']
 [[allowlists]]
-description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/tailscale-stub.mjs"
-regexes = ['''(?s)\Atskey\-api\-kVERIFY1CNTRL\-0123456789abcdef\z''']
-[[allowlists]]
 description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/tutorial-seed.mjs"
 regexes = ['''(?s)\Acorrect\-horse\-battery\-staple\-9\z''']
 [[allowlists]]

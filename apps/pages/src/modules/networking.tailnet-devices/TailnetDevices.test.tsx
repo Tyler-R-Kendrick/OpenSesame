@@ -19,6 +19,7 @@ import {
   pending,
   router,
   rowOf,
+  TEST_MINT_AUTH_KEY,
   wireDevice,
 } from "./fake-daemon.test-support.js";
 
@@ -159,11 +160,11 @@ describe("Tailnet devices", () => {
       sheet.getByRole("button", { name: "Mint an auth key" }),
     );
     expect(
-      await sheet.findByDisplayValue("tskey-auth-kNEW9CNTRL-Secret0Value"),
+      await sheet.findByDisplayValue(TEST_MINT_AUTH_KEY),
     ).toBeTruthy();
     expect(
       sheet.getByDisplayValue(
-        "tailscale up --auth-key=tskey-auth-kNEW9CNTRL-Secret0Value",
+        `tailscale up --auth-key=${TEST_MINT_AUTH_KEY}`,
       ),
     ).toBeTruthy();
     expect(daemon.calls).toContainEqual({

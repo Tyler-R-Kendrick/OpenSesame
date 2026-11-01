@@ -58,8 +58,6 @@ import {
   mintAndJoin,
   removeAndRevoke,
 } from "./lib/tailnet-devices-steps.mjs";
-import { API_TOKEN } from "./lib/tailscale-stub.mjs";
-
 const out =
   process.env.TAILNET_DEVICES_OUT ??
   fs.mkdtempSync(path.join(os.tmpdir(), "tailnet-devices-"));
@@ -131,7 +129,7 @@ try {
     .split("\n");
   if (!rest.every(isLogRestEnvelope))
     throw new Error("TD-AUDIT: the audit trail rests in the clear");
-  if (kept.includes(minted) || kept.includes(API_TOKEN) || /tskey-/.test(kept))
+  if (kept.includes(minted) || kept.includes(stack.apiToken) || /tskey-/.test(kept))
     throw new Error("TD-AUDIT: a key or credential is in the daemon's state");
   const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
   if (stored.includes("tskey-")) throw new Error("TD-AUDIT: key in storage");

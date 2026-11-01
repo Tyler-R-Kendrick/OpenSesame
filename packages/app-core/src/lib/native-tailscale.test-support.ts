@@ -1,11 +1,11 @@
 import { vi } from "vitest";
 import {
-  fakeTailscaleApiKey,
-  fakeTailscaleAuthKey,
-  fakeTailscaleClientId,
-  fakeTailscaleClientKey,
-  fakeTailscaleLeakMessage,
-} from "./fake-tailscale-key.js";
+  syntheticTailscaleApiKey,
+  syntheticTailscaleAuthKey,
+  syntheticTailscaleClientId,
+  syntheticTailscaleClientKey,
+  syntheticTailscaleLeakMessage,
+} from "./synthetic-tailscale-key.js";
 
 export type NativeTailscaleFixtures = {
   apiToken: string;
@@ -38,15 +38,15 @@ export type NativeTailscaleFixtures = {
   };
 };
 
-/** Fresh fake Tailscale credentials and route stubs for one test. */
+/** Fresh synthetic Tailscale credentials and route stubs for one test. */
 export function createNativeTailscaleFixtures(): NativeTailscaleFixtures {
-  const apiToken = fakeTailscaleApiKey();
-  const accessToken = fakeTailscaleApiKey();
-  const clientId = fakeTailscaleClientId();
-  const clientSecret = fakeTailscaleClientKey();
-  const authKey = fakeTailscaleAuthKey();
-  const replacementClientSecret = fakeTailscaleClientKey();
-  const leakMessage = fakeTailscaleLeakMessage(apiToken);
+  const apiToken = syntheticTailscaleApiKey();
+  const accessToken = syntheticTailscaleApiKey();
+  const clientId = syntheticTailscaleClientId();
+  const clientSecret = syntheticTailscaleClientKey();
+  const authKey = syntheticTailscaleAuthKey();
+  const replacementClientSecret = syntheticTailscaleClientKey();
+  const leakMessage = syntheticTailscaleLeakMessage(apiToken);
   return {
     apiToken,
     accessToken,

@@ -601,8 +601,8 @@
           },
           "status": 200,
           "response": {
-            "id": "kNEW9CNTRL",
-            "key": "tskey-auth-kNEW9CNTRL-Example0Secret1Value",
+            "id": "{{mintAuthKeyId}}",
+            "key": "{{mintAuthKey}}",
             "keyType": "auth",
             "description": "sams phone",
             "created": "2026-10-05T09:01:00Z",
@@ -622,7 +622,7 @@
       "response": {
         "status": 201,
         "body": {
-          "id": "kNEW9CNTRL",
+          "id": "{{mintAuthKeyId}}",
           "description": "sams phone",
           "created": "2026-10-05T09:01:00Z",
           "expires": "2026-10-06T09:01:00Z",
@@ -632,12 +632,12 @@
           "ephemeral": false,
           "preauthorized": true,
           "tags": [],
-          "key": "tskey-auth-kNEW9CNTRL-Example0Secret1Value"
+          "key": "{{mintAuthKey}}"
         }
       },
       "audit": {
         "action": "key.create",
-        "target": "kNEW9CNTRL"
+        "target": "{{mintAuthKeyId}}"
       }
     },
     {

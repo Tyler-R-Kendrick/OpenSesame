@@ -3,8 +3,8 @@
 //! `opensesame-tailnet:v1:` + base64url of
 //! `{"url","code","origin","role","label"}`: where the daemon is, a one-time
 //! secret, the one origin that may trade it, the role the bearer will hold,
-//! and what the operator called it. `spec/conformance/tailnet-admin-protocol.json`
-//! pins the wire form for Pages.
+//! and what the operator called it. `spec/conformance/tailnet-admin-protocol.json.hbs`,
+//! rendered at test time, pins the wire form for Pages.
 
 use base64::Engine as _;
 use rand_core::{OsRng, RngCore as _};
