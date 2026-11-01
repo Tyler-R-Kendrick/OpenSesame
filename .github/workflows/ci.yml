@@ -14,6 +14,13 @@ permissions:
   contents: read
   actions: read
 
+# Optional Turborepo remote cache. Fork pull requests are read-only.
+# An unset TURBO_TOKEN does not authenticate a write. Do not print these.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_REMOTE_CACHE_READ_ONLY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
   # Main scope includes failed, cancelled and coalesced pushes since the last
@@ -112,6 +119,14 @@ jobs:
         with:
           path: .cache/pwa-tailscale-native-http/distributions
           key: pwa-native-distribution-${{ hashFiles('tools/pwa-tailscale-native-http/source.json', 'apps/pages/src/lib/capabilities/tailscale-artifacts.json') }}
+      - name: Apply the Turborepo remote cache mode
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+        run: node scripts/lib/ci-turbo-cache.mjs
       - name: Build affected packages and their prerequisites
         env:
           BASE_SHA: ${{ needs.changes.outputs.base_sha }}

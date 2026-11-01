@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "envMode": "strict",
   "globalPassThroughEnv": [
     "HTTP_PROXY",
     "HTTPS_PROXY",
@@ -28,11 +29,13 @@
       "persistent": true
     },
     "typecheck": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md", "!**/__snapshots__/**"]
     },
     "test": {
       "dependsOn": ["^build"],
-      "env": ["VITEST_MAX_WORKERS"]
+      "env": ["VITEST_MAX_WORKERS"],
+      "inputs": ["$TURBO_DEFAULT$", "!README.md"]
     },
     "test:integration": {
       "dependsOn": ["^build"],
