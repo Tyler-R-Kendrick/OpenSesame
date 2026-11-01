@@ -3,6 +3,7 @@
  * another through the drive, is kept there for next time, and a file sealed
  * while the drive was out of reach goes up with the next sync pass.
  */
+import { asBufferSource, ownBytes } from "@opensesame/os-domain";
 import {
   type ObjectStore,
   type VaultItem,
@@ -45,13 +46,14 @@ async function fakeDrive(
   }
   const key = decodeURIComponent(url.slice(base.length + 1));
   if (method === "PUT") {
-    if (!held.has(key) && init.body instanceof Uint8Array) {
-      held.set(key, init.body.slice());
+    const body = init.body;
+    if (!held.has(key) && body instanceof Uint8Array) {
+      held.set(key, ownBytes(body));
     }
     return new Response(null, { status: 204 });
   }
   const bytes = held.get(key);
-  return bytes ? new Response(bytes) : new Response(null, { status: 404 });
+  return bytes ? new Response(asBufferSource(bytes)) : new Response(null, { status: 404 });
 }
 
 const FILE = new TextEncoder().encode(

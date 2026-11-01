@@ -7,6 +7,7 @@
 
 import { shamirCombine, shamirSplit } from "../../sops/shamir.js";
 import { b64, fromB64, timingSafeEqual, wipe } from "./bytes.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export type ShareEnvelope = Readonly<{
   index: number;
@@ -37,7 +38,7 @@ async function macShare(
 ): Promise<string> {
   const ck = await crypto.subtle.importKey(
     "raw",
-    key,
+    asBufferSource(key),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],

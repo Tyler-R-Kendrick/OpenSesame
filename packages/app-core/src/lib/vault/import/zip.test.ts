@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource, overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { ZipError, readZipText } from "./zip.js";
 
@@ -15,7 +15,7 @@ function crc32(bytes: Uint8Array): number {
 }
 
 async function deflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([overlapCast(bytes)])
+  const stream = new Blob([asBufferSource(bytes)])
     .stream()
     .pipeThrough(new CompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());

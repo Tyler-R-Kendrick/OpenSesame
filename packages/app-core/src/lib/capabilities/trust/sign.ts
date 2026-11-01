@@ -23,6 +23,7 @@ import {
   policyPublicJwk,
   rotationSignedBytes,
 } from "./trust-keys.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export type PolicySigningKey = Readonly<{
   kid: string;
@@ -73,7 +74,7 @@ export async function generatePolicySigningKey(): Promise<PolicySigningKey> {
 }
 
 async function signBytes(key: CryptoKey, bytes: Uint8Array): Promise<string> {
-  const signature = await crypto.subtle.sign(ECDSA_SHA256, key, bytes);
+  const signature = await crypto.subtle.sign(ECDSA_SHA256, key, asBufferSource(bytes));
   return encodeBase64Url(new Uint8Array(signature));
 }
 

@@ -1,5 +1,5 @@
 import type { ESTree } from "@oxlint/plugins";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 
 import { createSingleFileProgram } from "./typescript-program.ts";
 

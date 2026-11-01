@@ -1,4 +1,5 @@
 /** Genuine code+PRF AES slots; only cleanup methods and hostile argument accessors inject faults. */
+import { ownBytes } from "@opensesame/os-domain";
 import { expect, it, vi } from "vitest";
 import { disposeOriginalCommandData } from "../../vault/original-command-retirement-data.js";
 import { b64 } from "../crypto/slot-bytes.js";
@@ -21,8 +22,8 @@ type Fixture = {
   key: Uint8Array;
   action: Uint8Array;
   payload: Uint8Array;
-  prf: Uint8Array;
-  evaluationSalt: Uint8Array;
+  prf: Uint8Array<ArrayBuffer>;
+  evaluationSalt: Uint8Array<ArrayBuffer>;
   draft: EnrollmentDraft | undefined;
   observed: Uint8Array[];
   expectedFailure: ErrorOptions | undefined;
@@ -81,8 +82,12 @@ async function owned(work: (f: Fixture) => Promise<void>) {
   };
   let failure: ErrorOptions | undefined;
   try {
-    crypto.getRandomValues(f.prf);
-    crypto.getRandomValues(f.evaluationSalt);
+    const prf = ownBytes(f.prf);
+    crypto.getRandomValues(prf);
+    f.prf.set(prf);
+    const evaluationSalt = ownBytes(f.evaluationSalt);
+    crypto.getRandomValues(evaluationSalt);
+    f.evaluationSalt.set(evaluationSalt);
     f.draft = await stageTriggerInDraft({
       ...request(f),
       draft: beginEnrollmentDraft(baseState()),

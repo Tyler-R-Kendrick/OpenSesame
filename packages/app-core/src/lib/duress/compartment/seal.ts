@@ -9,6 +9,7 @@ import {
   isJsonObject,
   overlapCast,
 } from "../json-boundary.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 const te = new TextEncoder();
 const IV_BYTES = 12;
@@ -47,7 +48,7 @@ export async function importCompartmentKey(
   if (raw.length !== 32) {
     throw new Error("unsupported_factor: compartment key length");
   }
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, [
+  return crypto.subtle.importKey("raw", asBufferSource(raw), "AES-GCM", false, [
     "encrypt",
     "decrypt",
   ]);
@@ -63,7 +64,7 @@ export async function sealCompartmentJson(
   const pt = te.encode(JSON.stringify(value));
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv, additionalData: aad(compartmentRef, keyEpoch) },
+      { name: "AES-GCM", iv, additionalData: asBufferSource(aad(compartmentRef, keyEpoch)) },
       key,
       pt,
     ),
@@ -91,11 +92,11 @@ export async function openCompartmentJson<T>(
       await crypto.subtle.decrypt(
         {
           name: "AES-GCM",
-          iv: fromB64(blob.ivB64),
-          additionalData: aad(expect.compartmentRef, expect.keyEpoch),
+          iv: asBufferSource(fromB64(blob.ivB64)),
+          additionalData: asBufferSource(aad(expect.compartmentRef, expect.keyEpoch)),
         },
         key,
-        fromB64(blob.ctB64),
+        asBufferSource(fromB64(blob.ctB64)),
       ),
     );
     const wire = JSON.parse(new TextDecoder().decode(pt));

@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { ownBytes } from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
 import { gcmOpen, gcmSeal } from "@opensesame/vault-core/gcm.js";
 import { PROTON_ITEM_MAX_BYTES } from "./proton-pass-wire.js";
@@ -92,12 +92,13 @@ export async function importProtonKey(
   current(owner);
   if (raw.length !== 32) throw new ProtonCryptoError("configuration");
   const temporary = raw.slice();
+  const owned = ownBytes(temporary);
   try {
     let key: CryptoKey;
     try {
       key = await crypto.subtle.importKey(
         "raw",
-        overlapCast(temporary),
+        owned,
         "AES-GCM",
         false,
         ["encrypt", "decrypt"],
@@ -110,6 +111,7 @@ export async function importProtonKey(
     return key;
   } finally {
     temporary.fill(0);
+    owned.fill(0);
   }
 }
 

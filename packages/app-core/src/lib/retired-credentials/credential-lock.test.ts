@@ -22,8 +22,8 @@ function lockPort() {
   const port: LockManagerLike = {
     request: async <T>(
       name: string,
-      options: LockOptions | LockGrantedCallback,
-      work?: LockGrantedCallback,
+      options: LockOptions | LockGrantedCallback<T>,
+      work?: LockGrantedCallback<T>,
     ): Promise<T> => {
       const parsed = z
         .object({ mode: z.literal("exclusive"), ifAvailable: z.literal(true) })

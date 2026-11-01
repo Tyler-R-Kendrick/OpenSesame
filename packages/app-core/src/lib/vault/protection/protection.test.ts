@@ -14,9 +14,10 @@ import {
   sealAuthenticatedManifest,
   sealRootCapsule,
 } from "./index.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 async function aesKeyFromRaw(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, [
+  return crypto.subtle.importKey("raw", asBufferSource(raw), "AES-GCM", false, [
     "encrypt",
     "decrypt",
   ]);

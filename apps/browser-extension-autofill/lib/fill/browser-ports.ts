@@ -11,6 +11,7 @@
  * - The pairing token and a person's per-origin choice of entry live in
  *   memory-backed `storage.session`; neither bearer nor value reaches disk.
  */
+import { ownBytes } from "@opensesame/os-domain";
 import { browser } from "wxt/browser";
 import { type SitePorts, createSiteRegistry } from "../sites/sites";
 import {
@@ -72,7 +73,12 @@ export function browserFillPorts(): FillPorts {
   const session = browser.storage.session
     ? keyValue(browser.storage.session)
     : memoryStore();
-  const random = (bytes: Uint8Array) => crypto.getRandomValues(bytes);
+  const random = (bytes: Uint8Array): Uint8Array => {
+    const owned = ownBytes(bytes);
+    crypto.getRandomValues(owned);
+    bytes.set(owned);
+    return bytes;
+  };
   const token = sessionPairingToken(
     session,
     () => browser.storage.local.remove(TOKEN_KEY),

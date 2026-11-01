@@ -1,4 +1,5 @@
 /** Native AES ground truth; held crypto/slot deliveries are explicit doubles, never authentication. */
+import { ownBytes } from "@opensesame/os-domain";
 import { importVaultKey } from "@opensesame/vault-core";
 import { vi } from "vitest";
 import {
@@ -27,7 +28,7 @@ export function gate() {
   return { promise, release };
 }
 export type Fixture = {
-  raw: Uint8Array;
+  raw: Uint8Array<ArrayBuffer>;
   key: CryptoKey | undefined;
   seal: CanaryIndexedSealData | undefined;
   closing: Observed<void> | undefined;
@@ -159,7 +160,9 @@ export async function owned(work: (f: Fixture) => Promise<void>) {
   };
   let failure: ErrorOptions | undefined;
   try {
-    crypto.getRandomValues(f.raw);
+    const raw = ownBytes(f.raw);
+    crypto.getRandomValues(raw);
+    f.raw.set(raw);
     f.key = await importVaultKey(f.raw);
     await work(f);
   } catch (cause) {

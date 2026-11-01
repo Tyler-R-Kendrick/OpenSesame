@@ -1,4 +1,4 @@
-import type { BoundaryValue } from "@opensesame/os-domain";
+import { type BoundaryValue, ownBytes } from "@opensesame/os-domain";
 import { bitwardenNativeNetworkPolicy } from "./bitwarden-native-network-policy.js";
 import {
   NativeFetchCancel,
@@ -106,7 +106,7 @@ async function execute(
     let bytes = new Uint8Array();
     if (!response.ok || response.status === 204 || maximum === 0)
       cancelBody(response);
-    else bytes = await body(response, maximum, signal, check);
+    else bytes = ownBytes(await body(response, maximum, signal, check));
     check();
     const contentType = response.headers.get("content-type");
     return {

@@ -21,6 +21,7 @@ import {
   unwrapVaultKeyWithPrf,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
+import { ownBytes } from "@opensesame/os-domain";
 
 /** What a wrong passkey says, and what a held device repeats for a right one. */
 const PASSKEY_MISS = "That passkey did not unlock the vault.";
@@ -44,7 +45,7 @@ export function wrapVaultKeyWithCeremony(
     ceremony.prfOutput,
     ceremony.prfSalt,
     ceremony.credential.rawId,
-    ceremony.userId,
+    ownBytes(ceremony.userId).buffer,
   );
 }
 

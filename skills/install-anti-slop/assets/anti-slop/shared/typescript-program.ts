@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 
 // One linted file is one Program whose only root is that file, exactly as
 // before. What is shared across the files a process lints is the parse of

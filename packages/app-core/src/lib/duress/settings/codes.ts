@@ -2,6 +2,7 @@
  * Safe code replacement / disarm — never returns or echoes enrolled codes.
  */
 
+import { asBufferSource } from "@opensesame/os-domain";
 import { type JsonObject, overlapCast } from "../json-boundary.js";
 
 export type CodeSlotStatus = Readonly<{
@@ -59,7 +60,7 @@ async function deriveCodeDigest(
     ["deriveBits"],
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: overlapCast(salt), iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: asBufferSource(salt), iterations, hash: "SHA-256" },
     material,
     256,
   );

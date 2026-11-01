@@ -35,6 +35,7 @@ import {
 } from "@opensesame/app-core/lib/vfs.js";
 import {
   type BoundaryValue,
+  asBufferSource,
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
@@ -66,7 +67,11 @@ async function nameOf(key: string): Promise<string> {
       "that ceremony cannot be kept on this device",
     );
   }
-  return toHex(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)));
+  return toHex(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", asBufferSource(bytes)),
+    ),
+  );
 }
 
 type Document = Readonly<{ key: string; value: Json }>;

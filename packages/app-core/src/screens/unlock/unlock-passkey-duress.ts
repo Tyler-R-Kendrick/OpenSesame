@@ -42,6 +42,7 @@ import {
   credentialsCarryingArmedPrf,
   evidenceCarriesArmedPrf,
 } from "./unlock-prf-trigger.js";
+import { ownBytes } from "@opensesame/os-domain";
 
 export type PasskeyUnlockResult =
   | "vault_opened"
@@ -183,7 +184,7 @@ async function spendHeld(
     select.prfOutput.byteOffset,
     select.prfOutput.byteOffset + select.prfOutput.byteLength,
   );
-  await store.unlockWithHeldPrf(held);
+  await store.unlockWithHeldPrf(ownBytes(new Uint8Array(held)).buffer);
   select.prfOutput.fill(0);
 }
 

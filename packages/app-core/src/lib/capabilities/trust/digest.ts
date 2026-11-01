@@ -6,7 +6,7 @@
  * envelope signed by an operator tool that canonicalizes the same way
  * verifies here byte for byte.
  */
-import { type JsonValue, isString } from "@opensesame/os-domain";
+import { type JsonValue, isString, asBufferSource } from "@opensesame/os-domain";
 import { b64urlToBytes, bytesToB64url } from "@opensesame/sdk-browser";
 import { canonicalizeToBytes } from "../../vault/protection/canonicalize.js";
 
@@ -23,7 +23,7 @@ export function bytesToHex(bytes: Uint8Array): string {
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    asBufferSource(bytes),
   );
   return bytesToHex(new Uint8Array(digest));
 }

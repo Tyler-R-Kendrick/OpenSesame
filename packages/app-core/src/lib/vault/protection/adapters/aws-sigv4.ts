@@ -1,3 +1,4 @@
+import { asBufferSource } from "@opensesame/os-domain";
 /**
  * Minimal AWS SigV4 signer for KMS JSON-1.1 over HTTPS (browser + Node).
  * Only signs POST bodies we construct — never logs credentials or plaintext.
@@ -8,7 +9,7 @@ function toHex(bytes: Uint8Array): string {
 }
 
 async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const digest = await crypto.subtle.digest("SHA-256", asBufferSource(bytes));
   return toHex(new Uint8Array(digest));
 }
 
@@ -23,7 +24,7 @@ async function hmac(
   const raw = key instanceof Uint8Array ? key : new Uint8Array(key);
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
-    raw,
+    asBufferSource(raw),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],

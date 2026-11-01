@@ -19,6 +19,7 @@ import {
   shareTargetCacheName,
   shareTargetEntryUrl,
 } from "./share-target.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 function scopeUrl(): URL {
   return new URL(import.meta.env.BASE_URL, window.location.origin);
@@ -84,7 +85,7 @@ async function readFile(
   const name = /\.(?:txt|md)$/iu.test(meta.file.name)
     ? ".opensesame-share.txt"
     : meta.file.name;
-  return new File([bytes], name, {
+  return new File([asBufferSource(bytes)], name, {
     type: meta.file.type,
     lastModified: meta.createdAt,
   });

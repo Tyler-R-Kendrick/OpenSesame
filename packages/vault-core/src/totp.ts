@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 /** RFC 6238 TOTP over WebCrypto HMAC. Accepts a bare base32 seed or an otpauth:// URI. */
 
 export type TotpConfig = {
@@ -162,7 +162,7 @@ async function hmacOtpCode(
 
   const key = await crypto.subtle.importKey(
     "raw",
-    overlapCast(config.secret),
+    asBufferSource(config.secret),
     { name: "HMAC", hash: config.algorithm },
     false,
     ["sign"],

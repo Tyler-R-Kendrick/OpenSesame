@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource, overlapCast } from "@opensesame/os-domain";
 import {
   MAX_PBKDF2_ITERATIONS,
   PBKDF2_ITERATIONS,
@@ -158,7 +158,7 @@ describe("openJson", () => {
     const { vaultKey } = await createVault(PASSWORD);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const ct = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: overlapCast(iv) },
+      { name: "AES-GCM", iv: asBufferSource(iv) },
       vaultKey,
       new TextEncoder().encode("this is not json"),
     );

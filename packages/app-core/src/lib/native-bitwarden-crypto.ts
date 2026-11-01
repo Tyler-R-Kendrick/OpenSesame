@@ -7,6 +7,7 @@
  * Pure functions of bytes: no network, no storage, nothing logged.
  */
 import { argon2id } from "hash-wasm";
+import { ownBytes } from "@opensesame/os-domain";
 
 const encoder = new TextEncoder();
 
@@ -22,10 +23,6 @@ export class BitwardenCryptoError extends Error {
 const fail = (): never => {
   throw new BitwardenCryptoError();
 };
-
-/** A fresh ArrayBuffer-backed copy: Web Crypto takes no view over a shared buffer. */
-const own = (bytes: Uint8Array): Uint8Array<ArrayBuffer> =>
-  new Uint8Array(bytes);
 
 export function base64Bytes(value: string): Uint8Array {
   if (!/^[A-Za-z0-9+/_-]*={0,2}$/.test(value)) return fail();
@@ -45,7 +42,7 @@ export function bytesBase64(bytes: Uint8Array): string {
 async function hmacKey(key: Uint8Array, usage: "sign" | "verify") {
   return crypto.subtle.importKey(
     "raw",
-    own(key),
+    ownBytes(key),
     { name: "HMAC", hash: "SHA-256" },
     false,
     [usage],
@@ -57,7 +54,7 @@ export async function hmacSha256(
   data: Uint8Array,
 ): Promise<Uint8Array> {
   return new Uint8Array(
-    await crypto.subtle.sign("HMAC", await hmacKey(key, "sign"), own(data)),
+    await crypto.subtle.sign("HMAC", await hmacKey(key, "sign"), ownBytes(data)),
   );
 }
 
@@ -75,7 +72,7 @@ export async function hkdfExpand(
     input.set(previous, 0);
     input.set(info, previous.length);
     input[input.length - 1] = block;
-    previous = await hmacSha256(prk, input);
+    previous = ownBytes(await hmacSha256(prk, input));
     out.set(previous, (block - 1) * 32);
   }
   return out.slice(0, length);
@@ -155,7 +152,7 @@ export async function masterKey(
   if (checked.kind === "pbkdf2") {
     const base = await crypto.subtle.importKey(
       "raw",
-      own(secret),
+      ownBytes(secret),
       "PBKDF2",
       false,
       ["deriveBits"],
@@ -165,7 +162,7 @@ export async function masterKey(
         {
           name: "PBKDF2",
           hash: "SHA-256",
-          salt: own(salt),
+          salt: ownBytes(salt),
           iterations: checked.iterations,
         },
         base,
@@ -175,7 +172,7 @@ export async function masterKey(
   }
   // Argon2id's salt is the SHA-256 of the email.
   const hashedSalt = new Uint8Array(
-    await crypto.subtle.digest("SHA-256", own(salt)),
+    await crypto.subtle.digest("SHA-256", ownBytes(salt)),
   );
   return argon2id({
     password: secret,
@@ -195,7 +192,7 @@ export async function loginHash(
 ): Promise<string> {
   const base = await crypto.subtle.importKey(
     "raw",
-    own(master),
+    ownBytes(master),
     "PBKDF2",
     false,
     ["deriveBits"],
@@ -206,7 +203,7 @@ export async function loginHash(
         {
           name: "PBKDF2",
           hash: "SHA-256",
-          salt: own(encoder.encode(password)),
+          salt: ownBytes(encoder.encode(password)),
           iterations: 1,
         },
         base,
@@ -245,23 +242,23 @@ export async function decryptBytes(
   const authentic = await crypto.subtle.verify(
     "HMAC",
     await hmacKey(key.mac, "verify"),
-    own(mac),
-    own(signed),
+    ownBytes(mac),
+    ownBytes(signed),
   );
   if (!authentic) return fail();
   try {
     const aes = await crypto.subtle.importKey(
       "raw",
-      own(key.enc),
+      ownBytes(key.enc),
       "AES-CBC",
       false,
       ["decrypt"],
     );
     return new Uint8Array(
       await crypto.subtle.decrypt(
-        { name: "AES-CBC", iv: own(iv) },
+        { name: "AES-CBC", iv: ownBytes(iv) },
         aes,
-        own(data),
+        ownBytes(data),
       ),
     );
   } catch {
@@ -290,16 +287,16 @@ export async function encryptBytes(
 ): Promise<string> {
   const aes = await crypto.subtle.importKey(
     "raw",
-    own(key.enc),
+    ownBytes(key.enc),
     "AES-CBC",
     false,
     ["encrypt"],
   );
   const body = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-CBC", iv: own(iv) },
+      { name: "AES-CBC", iv: ownBytes(iv) },
       aes,
-      own(data),
+      ownBytes(data),
     ),
   );
   const signed = new Uint8Array(iv.length + body.length);

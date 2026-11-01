@@ -5,6 +5,7 @@
 
 import { bytesToB64, utf8 } from "./bytes.js";
 import type { AlertDeliveryStatus } from "./status.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export type AlertEvidenceAuthority =
   | "local_outbox"
@@ -34,7 +35,7 @@ const DISCLAIMER = "no_emergency_response_guarantee" as const;
 async function importHmacKey(raw: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",
-    raw,
+    asBufferSource(raw),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],
@@ -84,7 +85,7 @@ export async function mintStatusEvidence(input: {
     await crypto.subtle.sign(
       "HMAC",
       key,
-      bindingBytes({ ...input, recordedAt } satisfies BindingBytesInput),
+      asBufferSource(bindingBytes({ ...input, recordedAt } satisfies BindingBytesInput)),
     ),
   );
   return {
@@ -110,8 +111,8 @@ export async function verifyStatusEvidence(
   return crypto.subtle.verify(
     "HMAC",
     key,
-    b64ToBytes(evidence.macB64),
-    bindingBytes(evidence),
+    asBufferSource(b64ToBytes(evidence.macB64)),
+    asBufferSource(bindingBytes(evidence)),
   );
 }
 

@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 import { PushError, pushSeams } from "./push-seams.js";
 
 /**
@@ -122,7 +122,7 @@ export async function subscribeNew(
     return await Promise.race([
       worker.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: overlapCast(key),
+        applicationServerKey: asBufferSource(key),
       }),
       timeout,
     ]);

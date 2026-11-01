@@ -1,5 +1,5 @@
 /** An adversarial link holder can authenticate outer envelopes; the code must still protect payloads. */
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { type JsonObject, overlapCast, asBufferSource } from "@opensesame/os-domain";
 import { b64urlToBytes, bytesToB64url } from "@opensesame/vault-core";
 
 const encoder = new TextEncoder();
@@ -15,7 +15,7 @@ export async function rewritePortableEnvelope(
     throw new Error("fixture packet is incomplete");
   const material = await crypto.subtle.importKey(
     "raw",
-    b64urlToBytes(secret),
+    asBufferSource(b64urlToBytes(secret)),
     "HKDF",
     false,
     ["deriveKey"],
@@ -35,9 +35,9 @@ export async function rewritePortableEnvelope(
   const aad = (iv: string) =>
     encoder.encode(JSON.stringify([prefix, claimId, digest, iv]));
   const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: b64urlToBytes(nonce), additionalData: aad(nonce) },
+    { name: "AES-GCM", iv: asBufferSource(b64urlToBytes(nonce)), additionalData: aad(nonce) },
     key,
-    b64urlToBytes(ciphertext),
+    asBufferSource(b64urlToBytes(ciphertext)),
   );
   const root: JsonObject = overlapCast(
     JSON.parse(new TextDecoder().decode(plaintext)),

@@ -1,3 +1,4 @@
+import { asBufferSource } from "@opensesame/os-domain";
 /**
  * Peer receipt signing/verification (PEER-B). Receipts acknowledge a peer
  * envelope; a receipt counts only with a valid paired-key signature.
@@ -47,7 +48,7 @@ export async function signPeerReceipt(
     await crypto.subtle.sign(
       { name: "ECDSA", hash: "SHA-256" },
       privateKey,
-      receiptSigningInput(full),
+      asBufferSource(receiptSigningInput(full)),
     ),
   );
   return { ...full, signatureB64: b64(sig) };
@@ -65,8 +66,8 @@ export async function verifyPeerReceipt(
     return await crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
       publicKey,
-      fromB64(receipt.signatureB64),
-      receiptSigningInput(receipt),
+      asBufferSource(fromB64(receipt.signatureB64)),
+      asBufferSource(receiptSigningInput(receipt)),
     );
   } catch {
     return false;

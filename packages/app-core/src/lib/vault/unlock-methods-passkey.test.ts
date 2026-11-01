@@ -1,4 +1,4 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { type BoundaryValue, ownBytes } from "@opensesame/os-domain";
 import { randomBytes } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -18,7 +18,7 @@ describe("passkey ceremonies", () => {
 
     constructor(
       private readonly extensionResults: BoundaryValue,
-      rawId: ArrayBuffer = randomBytes(16).buffer,
+      rawId: ArrayBuffer = ownBytes(randomBytes(16)).buffer,
     ) {
       this.rawId = rawId;
     }
@@ -29,7 +29,7 @@ describe("passkey ceremonies", () => {
   }
 
   /** Matches credentialIdB64 "YQ==" used by the enrolled-record fixtures. */
-  const enrolledRawId: ArrayBuffer = overlapCast(Uint8Array.of(0x61).buffer);
+  const enrolledRawId: ArrayBuffer = ownBytes(Uint8Array.of(0x61)).buffer;
 
   type CredentialOverrides = {
     create?: (options: CredentialCreationOptions) => Promise<Credential | null>;
@@ -56,7 +56,7 @@ describe("passkey ceremonies", () => {
   });
 
   it("creates a credential and returns its PRF output", async () => {
-    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
+    const prfOutput: ArrayBuffer = ownBytes(randomBytes(32)).buffer;
     stubCredentials({
       create: async (options) => {
         const { publicKey } = options;
@@ -112,7 +112,7 @@ describe("passkey ceremonies", () => {
   });
 
   it("gets a PRF output for an enrolled record", async () => {
-    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
+    const prfOutput: ArrayBuffer = ownBytes(randomBytes(32)).buffer;
     let seenRpId: string | undefined;
     stubCredentials({
       get: async (options) => {

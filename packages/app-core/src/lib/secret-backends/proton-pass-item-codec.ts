@@ -190,7 +190,7 @@ export function createProtonItem(input: SecretBackendItemInput): Uint8Array {
   let metadata = set(new Uint8Array(), 1, input.name);
   metadata = set(metadata, 2, input.notes);
   metadata = set(metadata, 3, crypto.randomUUID());
-  let model = new Uint8Array();
+  let model: Uint8Array = new Uint8Array();
   if (kind === "login") {
     model = set(model, 2, input.secret);
     model = set(model, 6, input.username ?? "");

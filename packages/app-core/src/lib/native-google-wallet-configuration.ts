@@ -4,6 +4,7 @@ import {
   googleWalletPublicFailure,
 } from "@opensesame/wallet/google-wallet-policy";
 import { base64ToBytes } from "./native-base64.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export function validateGoogleWalletPublic(
   parameters: Record<string, string>,
@@ -27,7 +28,7 @@ export async function validateGoogleWalletKey(raw: string): Promise<void> {
     if (!parts) throw new Error("Invalid private key envelope");
     await crypto.subtle.importKey(
       POLICY.key.format,
-      base64ToBytes(parts.body),
+      asBufferSource(base64ToBytes(parts.body)),
       { name: POLICY.key.algorithm, hash: POLICY.key.hash },
       false,
       [POLICY.key.usage],

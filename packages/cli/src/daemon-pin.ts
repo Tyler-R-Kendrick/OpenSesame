@@ -3,6 +3,7 @@ import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integr
 import { ephemeralTerminalCorrelationId } from "@opensesame/app-core/lib/cli-app-integration/terminal-session.js";
 import {
   type BoundaryValue,
+  asBufferSource,
   isJsonObject,
   readString,
 } from "@opensesame/os-domain";
@@ -122,7 +123,7 @@ async function verifyDaemonAttestSignature(
   if (!spki || !sig) return false;
   const key = await crypto.subtle.importKey(
     "spki",
-    spki,
+    asBufferSource(spki),
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     ["verify"],
@@ -135,7 +136,7 @@ async function verifyDaemonAttestSignature(
   return crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    sig,
+    asBufferSource(sig),
     message,
   );
 }

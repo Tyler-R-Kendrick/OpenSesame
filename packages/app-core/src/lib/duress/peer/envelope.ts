@@ -5,6 +5,7 @@ import type { JsonObject } from "../json-boundary.js";
  * SSRF, oversized, unbound headers (INV-15, INV-26, INV-29).
  */
 
+import { asBufferSource } from "@opensesame/os-domain";
 import { PEER_BOUNDS } from "./bounds.js";
 import { assertSafePeerOrigin } from "./origin.js";
 export { assertSafePeerOrigin };
@@ -87,7 +88,11 @@ export async function encryptPeerPayload(
   }
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plaintext),
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      asBufferSource(plaintext),
+    ),
   );
   const packed = new Uint8Array(iv.length + ct.length);
   packed.set(iv, 0);
@@ -106,7 +111,11 @@ export async function decryptPeerPayload(
   const iv = packed.slice(0, 12);
   const ct = packed.slice(12);
   return new Uint8Array(
-    await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct),
+    await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: asBufferSource(iv) },
+      key,
+      asBufferSource(ct),
+    ),
   );
 }
 
@@ -190,7 +199,7 @@ export async function signPeerEnvelope(
     await crypto.subtle.sign(
       { name: "ECDSA", hash: "SHA-256" },
       privateKey,
-      body,
+      asBufferSource(body),
     ),
   );
   return { ...full, signatureB64: b64(sig) };
@@ -321,8 +330,8 @@ export async function verifyPeerEnvelope(
     ok = await crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
       publicKey,
-      fromB64(env.signatureB64),
-      body,
+      asBufferSource(fromB64(env.signatureB64)),
+      asBufferSource(body),
     );
   } catch {
     seenNonces.delete(env.nonce);

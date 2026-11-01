@@ -120,7 +120,7 @@ function fixture(model: BitwardenCborMap): JsonObject {
     unknownTop: { future: [1, 2] },
   };
 }
-function open(text: string, item = ITEM) {
+function open(text: string, item: Uint8Array = ITEM) {
   const container = JSON.parse(text);
   const encoded = unwrap(container.wrapped_cek, item);
   const cek = bitwardenCborMap(

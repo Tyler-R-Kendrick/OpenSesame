@@ -40,6 +40,7 @@ import {
   classifyThrown,
 } from "./probe-failure.js";
 import { loadSettings } from "./settings.js";
+import type { OriginalRemoteCodeHandle } from "./vault/captured-remote-code-data.js";
 import type { OriginalCommandDrainRecorder } from "./vault/original-command-retirement-data.js";
 import { captureOriginalIdentitySessionCodeData } from "./vault/original-identity-session-code-data.js";
 export { HostSessionError, IdentityError };
@@ -638,7 +639,7 @@ export function identitySessionEpoch(): number {
 export function captureOriginalIdentityCodeData(
   original: () => void,
   drainFailed?: OriginalCommandDrainRecorder,
-) {
+): OriginalRemoteCodeHandle {
   return captureOriginalIdentitySessionCodeData(
     original,
     () => session,

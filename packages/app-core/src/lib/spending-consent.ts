@@ -15,6 +15,7 @@ import {
   type DigestBoundPaymentProof,
   verifyDigestBoundApproval,
 } from "@opensesame/wallet-consent/verify";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export type LocalPaymentApprovalIntent = PaymentApprovalIntent;
 
@@ -75,7 +76,7 @@ export async function buildLocalPaymentApprovalDigest(
   const payload = concatBytes(
     paymentApprovalDigestValues(intent).map((value) => fieldBytes(value)),
   );
-  const digest = await crypto.subtle.digest("SHA-256", payload);
+  const digest = await crypto.subtle.digest("SHA-256", asBufferSource(payload));
   return toHex(digest);
 }
 

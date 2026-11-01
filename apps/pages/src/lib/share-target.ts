@@ -11,6 +11,7 @@
 
 import {
   type JsonValue,
+  asBufferSource,
   isJsonObject,
   isNumber,
   isString,
@@ -124,14 +125,18 @@ export async function sealShareTarget(
   if (!raw) throw new Error("invalid share key");
   const key = await crypto.subtle.importKey(
     "raw",
-    raw,
+    asBufferSource(raw),
     { name: "AES-GCM" },
     false,
     ["encrypt"],
   );
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const cipher = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain),
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      asBufferSource(plain),
+    ),
   );
   const out = new Uint8Array(iv.length + cipher.length);
   out.set(iv);
@@ -147,16 +152,16 @@ export async function openShareTarget(
   if (!raw || sealed.length <= 12) throw new Error("invalid share entry");
   const key = await crypto.subtle.importKey(
     "raw",
-    raw,
+    asBufferSource(raw),
     { name: "AES-GCM" },
     false,
     ["decrypt"],
   );
   return new Uint8Array(
     await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: sealed.subarray(0, 12) },
+      { name: "AES-GCM", iv: asBufferSource(sealed.subarray(0, 12)) },
       key,
-      sealed.subarray(12),
+      asBufferSource(sealed.subarray(12)),
     ),
   );
 }

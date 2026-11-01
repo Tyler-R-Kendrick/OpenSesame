@@ -29,7 +29,7 @@ import type { SecretBackendItemInput } from "./types.js";
 const USER = Buffer.from(Array.from({ length: 64 }, (_, i) => i + 9));
 const ITEM = Buffer.from(Array.from({ length: 64 }, (_, i) => 200 - i));
 const ID = "e561cf34-c322-48a4-a274-7577766b028a";
-function seal(text: string | Buffer, key = ITEM): string {
+function seal(text: string | Buffer, key: Uint8Array = ITEM): string {
   const iv = randomBytes(16);
   const cipher = createCipheriv("aes-256-cbc", key.subarray(0, 32), iv);
   const ciphertext = Buffer.concat([cipher.update(text), cipher.final()]);
@@ -39,7 +39,7 @@ function seal(text: string | Buffer, key = ITEM): string {
     .digest();
   return `2.${iv.toString("base64")}|${ciphertext.toString("base64")}|${tag.toString("base64")}`;
 }
-function open(value: BoundaryValue, key = ITEM): Buffer {
+function open(value: BoundaryValue, key: Uint8Array = ITEM): Buffer {
   const parts = nativeText(value)
     .slice(2)
     .split("|")

@@ -1,3 +1,5 @@
+import { ownBytes } from "@opensesame/os-domain";
+
 /** Install only inside the disposable SDK Worker, before instantiating Go. */
 export type WorkerDecision = (url: string, method: string) => Promise<boolean>;
 /** Chromium exposes an empty stream for HEAD; Go netcheck never reads that stream. */
@@ -100,7 +102,23 @@ class ApprovedSocket extends EventTarget {
   send(value: string | ArrayBufferLike | Blob | ArrayBufferView): void {
     if (!this.socket || this.closed)
       throw new Error("Tailscale socket is not open.");
-    this.socket.send(value);
+    if (typeof value === "string") {
+      this.socket.send(value);
+      return;
+    }
+    if (value instanceof Blob) {
+      this.socket.send(value);
+      return;
+    }
+    if (value instanceof ArrayBuffer || value instanceof SharedArrayBuffer) {
+      this.socket.send(ownBytes(new Uint8Array(value)));
+      return;
+    }
+    this.socket.send(
+      ownBytes(
+        new Uint8Array(value.buffer, value.byteOffset, value.byteLength),
+      ),
+    );
   }
   close(code?: number, reason?: string): void {
     this.closed = true;

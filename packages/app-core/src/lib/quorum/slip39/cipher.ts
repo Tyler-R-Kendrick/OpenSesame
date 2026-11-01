@@ -9,6 +9,7 @@
  */
 
 import { Slip39Error } from "./errors.js";
+import { asBufferSource, ownBytes } from "@opensesame/os-domain";
 
 const ROUNDS = 4;
 /** Iterations per round: 2500 << e, so 10 000 << e across the four rounds. */
@@ -61,7 +62,7 @@ async function round(
 ): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
-    concat(Uint8Array.of(index), passphrase),
+    asBufferSource(concat(Uint8Array.of(index), passphrase)),
     "PBKDF2",
     false,
     ["deriveBits"],
@@ -70,7 +71,7 @@ async function round(
     {
       name: "PBKDF2",
       hash: "SHA-256",
-      salt: concat(salt, r),
+      salt: asBufferSource(concat(salt, r)),
       iterations: ROUND_ITERATIONS * 2 ** exponent,
     },
     key,
@@ -106,7 +107,7 @@ async function feistel(
   let right = input.slice(half);
   for (const i of order) {
     const f = await round(i, passphrase, params.iterationExponent, salt, right);
-    [left, right] = [right, xor(left, f)];
+    [left, right] = [right, ownBytes(xor(left, f))];
   }
   return concat(right, left);
 }

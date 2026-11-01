@@ -12,7 +12,12 @@
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { hmac } from "@noble/hashes/hmac.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { overlapCast } from "@opensesame/os-domain";
+import {
+  asBufferSource,
+  bytesFromBufferSource,
+  overlapCast,
+  ownBytes,
+} from "@opensesame/os-domain";
 import { concat, randomBytes, toB64url, utf8Bytes } from "./bytes.js";
 import type { Container } from "./ceremony.js";
 
@@ -49,16 +54,14 @@ export type VirtualOptions = {
 };
 
 function bufferOf(source: BufferSource): Uint8Array {
-  return source instanceof ArrayBuffer
-    ? new Uint8Array(source)
-    : new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
+  return bytesFromBufferSource(source);
 }
 
 function derInt(value: Uint8Array): Uint8Array {
   let start = 0;
   while (start < value.length - 1 && value[start] === 0) start += 1;
   let int = value.slice(start);
-  if ((int[0] ?? 0) & 0x80) int = concat(Uint8Array.of(0), int);
+  if ((int[0] ?? 0) & 0x80) int = ownBytes(concat(Uint8Array.of(0), int));
   return concat(Uint8Array.of(0x02, int.length), int);
 }
 
@@ -163,17 +166,21 @@ export class VirtualAuthenticator {
         this.options.prfAtCreate && first
           ? {
               enabled: true,
-              results: { first: this.evaluate(stored, bufferOf(first)).buffer },
+              results: {
+                first: ownBytes(this.evaluate(stored, bufferOf(first))).buffer,
+              },
             }
           : { enabled: true };
     }
     return {
       type: "public-key",
       id: toB64url(stored.id),
-      rawId: stored.id.buffer.slice(0),
+      rawId: ownBytes(stored.id).buffer,
       response: {
-        clientDataJSON: this.clientData("webauthn.create", pk.challenge).buffer,
-        getPublicKey: () => stored.publicKeySpki.buffer.slice(0),
+        clientDataJSON: ownBytes(
+          this.clientData("webauthn.create", pk.challenge),
+        ).buffer,
+        getPublicKey: () => ownBytes(stored.publicKeySpki).buffer,
         getPublicKeyAlgorithm: () => alg,
       },
       getClientExtensionResults: () => results,
@@ -201,7 +208,7 @@ export class VirtualAuthenticator {
       await crypto.subtle.sign(
         { name: "ECDSA", hash: "SHA-256" },
         stored.es256.privateKey,
-        message,
+        asBufferSource(message),
       ),
     );
     return p1363ToDer(raw);
@@ -233,17 +240,19 @@ export class VirtualAuthenticator {
     if (first && (this.options.prf ?? true)) {
       results.prf = {
         enabled: true,
-        results: { first: this.evaluate(stored, bufferOf(first)).buffer },
+        results: {
+          first: ownBytes(this.evaluate(stored, bufferOf(first))).buffer,
+        },
       };
     }
     return {
       type: "public-key",
       id: toB64url(stored.id),
-      rawId: stored.id.buffer.slice(0),
+      rawId: ownBytes(stored.id).buffer,
       response: {
-        clientDataJSON: clientData.buffer,
-        authenticatorData: authData.buffer,
-        signature: signature.buffer,
+        clientDataJSON: ownBytes(clientData).buffer,
+        authenticatorData: ownBytes(authData).buffer,
+        signature: ownBytes(signature).buffer,
         userHandle: null,
       },
       getClientExtensionResults: () => results,

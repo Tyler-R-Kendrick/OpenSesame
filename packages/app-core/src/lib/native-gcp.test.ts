@@ -19,6 +19,7 @@ import {
   routes,
   token,
 } from "./native-gcp.test-support.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 installNativeApiTests();
 installGcpKey();
@@ -64,7 +65,7 @@ it("signs a JWT with the key in this page, exchanges it at Google's own token ad
     await crypto.subtle.verify(
       "RSASSA-PKCS1-v1_5",
       gcpPublicKey(),
-      b64url(signature ?? ""),
+      asBufferSource(b64url(signature ?? "")),
       new TextEncoder().encode(`${header}.${claims}`),
     ),
   ).toBe(true);

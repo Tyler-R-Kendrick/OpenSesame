@@ -10,14 +10,15 @@ import { z } from "zod";
 import { base64ToBytes } from "../native-base64.js";
 import { EMAIL, gcpPublicKey } from "../native-gcp.test-support.js";
 import { tlsFetch } from "../native-s3-backup.test-support.js";
+import { ownBytes } from "@opensesame/os-domain";
 export const TOKEN = "ya29.owned-vertex-token-0123456789";
 function segment(value: string): Uint8Array<ArrayBuffer> {
-  return base64ToBytes(
+  return ownBytes(base64ToBytes(
     value
       .replaceAll("-", "+")
       .replaceAll("_", "/")
       .padEnd(Math.ceil(value.length / 4) * 4, "="),
-  );
+  ));
 }
 async function validAssertion(body: string): Promise<boolean> {
   const fields = new URLSearchParams(body);

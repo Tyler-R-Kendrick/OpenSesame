@@ -7,10 +7,19 @@
       "area": "hosted-drop",
       "flow": "hosted-secret-drop",
       "observer": "link-holder",
-      "artifacts": ["ciphertext", "guess-oracle"],
+      "artifacts": [
+        "ciphertext",
+        "guess-oracle"
+      ],
       "verification": "server",
-      "controls": ["mandatory-proof", "bearer-before-budget"],
-      "guarantees": ["single-use", "expiry"],
+      "controls": [
+        "mandatory-proof",
+        "bearer-before-budget"
+      ],
+      "guarantees": [
+        "single-use",
+        "expiry"
+      ],
       "enforcement": "authoritative",
       "entropyBits": 40,
       "minSecretBytes": 0,
@@ -60,9 +69,15 @@
       "area": "portable-drop",
       "flow": "portable-secret-drop",
       "observer": "link-holder",
-      "artifacts": ["ciphertext"],
+      "artifacts": [
+        "ciphertext"
+      ],
       "verification": "code-aead",
-      "controls": ["code-derived-aead", "bounded-kdf", "cryptographic-random"],
+      "controls": [
+        "code-derived-aead",
+        "bounded-kdf",
+        "cryptographic-random"
+      ],
       "guarantees": [],
       "enforcement": "advisory",
       "entropyBits": 80,
@@ -94,7 +109,9 @@
       "area": "portable-drop",
       "flow": "hosted-secret-drop",
       "observer": "link-holder",
-      "artifacts": ["payload-key"],
+      "artifacts": [
+        "payload-key"
+      ],
       "verification": "none",
       "controls": [],
       "guarantees": [],
@@ -137,7 +154,9 @@
       "area": "portable-drop",
       "flow": "portable-secret-drop",
       "observer": "link-holder",
-      "artifacts": ["payload-key"],
+      "artifacts": [
+        "payload-key"
+      ],
       "verification": "none",
       "controls": [],
       "guarantees": [],
@@ -181,9 +200,13 @@
       "area": "account-totp",
       "flow": "account-totp",
       "observer": "authenticated",
-      "artifacts": ["guess-oracle"],
+      "artifacts": [
+        "guess-oracle"
+      ],
       "verification": "server",
-      "controls": ["mandatory-proof"],
+      "controls": [
+        "mandatory-proof"
+      ],
       "guarantees": [],
       "enforcement": "authoritative",
       "entropyBits": 0,
@@ -223,9 +246,15 @@
       "area": "est-enrollment",
       "flow": "est-password",
       "observer": "public",
-      "artifacts": ["public-certificate", "guess-oracle"],
+      "artifacts": [
+        "public-certificate",
+        "guess-oracle"
+      ],
       "verification": "server",
-      "controls": ["mandatory-proof", "trusted-budget-source"],
+      "controls": [
+        "mandatory-proof",
+        "trusted-budget-source"
+      ],
       "guarantees": [],
       "enforcement": "authoritative",
       "entropyBits": 0,
@@ -271,9 +300,13 @@
       "area": "est-enrollment",
       "flow": "est-policy",
       "observer": "authenticated",
-      "artifacts": ["authority-api"],
+      "artifacts": [
+        "authority-api"
+      ],
       "verification": "signature",
-      "controls": ["preserve-policy-on-omission"],
+      "controls": [
+        "preserve-policy-on-omission"
+      ],
       "guarantees": [],
       "enforcement": "none",
       "entropyBits": 0,
@@ -283,7 +316,9 @@
         "crates/gateway/src/routes/est_server.rs",
         "crates/gateway/src/routes/est_config_policy.rs"
       ],
-      "regressions": ["crates/gateway/src/routes/est_server_tests_budget.rs"],
+      "regressions": [
+        "crates/gateway/src/routes/est_server_tests_budget.rs"
+      ],
       "review": "Reviewed with the incident remediation; update only with source-path review and executed behavior regressions."
     },
     {
@@ -292,9 +327,15 @@
       "area": "est-enrollment",
       "flow": "est-client-certificate",
       "observer": "network-peer",
-      "artifacts": ["public-certificate", "certificate-binding"],
+      "artifacts": [
+        "public-certificate",
+        "certificate-binding"
+      ],
       "verification": "signature",
-      "controls": ["originating-client-proof", "exact-bootstrap-trust"],
+      "controls": [
+        "originating-client-proof",
+        "exact-bootstrap-trust"
+      ],
       "guarantees": [],
       "enforcement": "authoritative",
       "entropyBits": 0,
@@ -324,7 +365,9 @@
       "area": "host-admission",
       "flow": "host-listeners",
       "observer": "network-peer",
-      "artifacts": ["authority-api"],
+      "artifacts": [
+        "authority-api"
+      ],
       "verification": "none",
       "controls": [
         "all-listeners-classified",
@@ -366,16 +409,24 @@
       "area": "host-admission",
       "flow": "certificate-binding",
       "observer": "authenticated",
-      "artifacts": ["certificate-binding"],
+      "artifacts": [
+        "certificate-binding"
+      ],
       "verification": "signature",
-      "controls": ["originating-client-proof"],
+      "controls": [
+        "originating-client-proof"
+      ],
       "guarantees": [],
       "enforcement": "none",
       "entropyBits": 0,
       "minSecretBytes": 0,
       "budget": null,
-      "implementation": ["crates/gateway/src/transport/proof.rs"],
-      "regressions": ["crates/gateway/src/transport/proof_tests.rs"],
+      "implementation": [
+        "crates/gateway/src/transport/proof.rs"
+      ],
+      "regressions": [
+        "crates/gateway/src/transport/proof_tests.rs"
+      ],
       "review": "Reviewed with the incident remediation; update only with source-path review and executed behavior regressions."
     },
     {
@@ -384,7 +435,9 @@
       "area": "bitwarden",
       "flow": "bitwarden-account",
       "observer": "public",
-      "artifacts": ["guess-oracle"],
+      "artifacts": [
+        "guess-oracle"
+      ],
       "verification": "server",
       "controls": [
         "mandatory-proof",
@@ -477,7 +530,10 @@
       "area": "bitwarden",
       "flow": "bitwarden-send",
       "observer": "link-holder",
-      "artifacts": ["ciphertext", "guess-oracle"],
+      "artifacts": [
+        "ciphertext",
+        "guess-oracle"
+      ],
       "verification": "server",
       "controls": [
         "mandatory-proof",
@@ -526,7 +582,9 @@
       "area": "bitwarden",
       "flow": "bitwarden-api-key",
       "observer": "public",
-      "artifacts": ["guess-oracle"],
+      "artifacts": [
+        "guess-oracle"
+      ],
       "verification": "server",
       "controls": [
         "mandatory-proof",
@@ -568,7 +626,9 @@
       "area": "bitwarden",
       "flow": "bitwarden-device-code",
       "observer": "public",
-      "artifacts": ["guess-oracle"],
+      "artifacts": [
+        "guess-oracle"
+      ],
       "verification": "server",
       "controls": [
         "mandatory-proof",
@@ -611,7 +671,12 @@
       "area": "bitwarden",
       "flow": "bitwarden-import",
       "observer": "device-owner",
-      "artifacts": ["ciphertext", "code-verifier", "raw-secret", "otp-seed"],
+      "artifacts": [
+        "ciphertext",
+        "code-verifier",
+        "raw-secret",
+        "otp-seed"
+      ],
       "verification": "none",
       "controls": [
         "confined-import-paths",
@@ -667,9 +732,13 @@
       "area": "signing-keys",
       "flow": "public-signing-keys",
       "observer": "public",
-      "artifacts": ["public-key"],
+      "artifacts": [
+        "public-key"
+      ],
       "verification": "none",
-      "controls": ["public-parameter-allowlist"],
+      "controls": [
+        "public-parameter-allowlist"
+      ],
       "guarantees": [],
       "enforcement": "none",
       "entropyBits": 0,
@@ -723,7 +792,12 @@
       "area": "local-vault-activation",
       "flow": "local-vault-activation",
       "observer": "device-owner",
-      "artifacts": ["ciphertext", "payload-key", "raw-secret", "private-key"],
+      "artifacts": [
+        "ciphertext",
+        "payload-key",
+        "raw-secret",
+        "private-key"
+      ],
       "verification": "client-only",
       "controls": [
         "original-owner-lifetime",
@@ -936,7 +1010,11 @@
       "area": "native-provider-custody",
       "flow": "native-provider-custody",
       "observer": "device-owner",
-      "artifacts": ["ciphertext", "payload-key", "raw-secret"],
+      "artifacts": [
+        "ciphertext",
+        "payload-key",
+        "raw-secret"
+      ],
       "verification": "client-only",
       "controls": [
         "original-provider-transport",
@@ -1102,20 +1180,20 @@
     "crates/storage/migrations/0059_est_source_budgets.sql": "2fde289c1feda48c8d7b985a3a53b9c1a0f198055843b77abad9a66117f6b1d1",
     "crates/storage/src/est_source_budgets.rs": "92940a0711ebac9211ad9a1d27aa59d59ac33c29ba34315a5375e5b69861c64a",
     "crates/storage/tests/certmgr_pact.rs": "817d04fa0df8724da9648c39a9c89c6845e5ee2b2051ffab9b708231b3e2a57f",
-    "packages/app-core/package.json": "e835a9d27810f19ced1b3d1245cfa2820819a89d1bf2c27b0595cd654a5f99b3",
+    "packages/app-core/package.json": "c347d6d62b2599d79625c06e41cecddcae587fcae292be35532b01a8b8e19a83",
     "packages/app-core/src/lib/claims/arrival.ts": "5e98e9483bb3845e279f9624d7e63edb77998f37e1a7d8124389f013940ac175",
     "packages/app-core/src/lib/claims/link.ts": "16ab157511ad9f0c81c935b8ea64610cb8af7b7c2a3951cb3b7228649cbf099a",
     "packages/app-core/src/lib/claims/stash.ts": "2dcafe94f4993f490aff735aa23111b744fc8604e65ed65cf9376843e42e891a",
     "packages/app-core/src/lib/claims/route-model.ts": "7bcbf504fccd0de25bbfd3bb387a1b251cf65b6c7f64823bc2a71ff9ea589164",
-    "packages/ceremony-kit/package.json": "2e28d7c725b78bd50861486f85a264ffa92b0b42bbb607a32cb6f7093e334dc5",
+    "packages/ceremony-kit/package.json": "81771c44cc93733956a781cb3d4845d3b917094c7062ec3b9f7abc88c10b5f99",
     "packages/ceremony-kit/src/index.ts": "f544df29b44567e8cacb9a14a6e09b362f4a5ced3e51dff2b5d5bbb192f3ed70",
     "packages/ceremony-kit/src/links.ts": "1d7f3090c1e4cccd65b66af3825b9c2e97f58d88c1e1bb47c9f4407d1891240c",
     "packages/ceremony-kit/src/claim-link.ts": "0c007c523e3bb579da51e3199a86c4d9b108c7c825b2cf28c4cac2974500c957",
     "packages/ceremony-kit/src/claim-stash.ts": "9abf79a3655ab08f276f0ecaf9a72e8e2a80b024ee70b3afc44e7ba158fefaa2",
-    "packages/vault-core/package.json": "b83436b865728cb1e536cd50cc9aa2ad6ab052e336f9745c54fcf8d4b3bce28e",
+    "packages/vault-core/package.json": "0bcbf92f5c611700bd2f36342dc1ee17b813ad136cfd2fad2db3c31d294d1cc2",
     "packages/vault-core/src/index.ts": "8e5dfccb27eea5d678c95c391441446530243db336572a0173e301580da8bb8e",
-    "packages/vault-core/src/drop-format.ts": "4f5d9f3b27b05b188574d27fe973ec9bb30d58c14fbc3d1f94a367c865bf1c35",
-    "packages/vault-core/src/crypto.ts": "fd925da4bc1ae5be47e1d60307dcb8fe07cc38a4b570612dabda7067a94cb80b",
+    "packages/vault-core/src/drop-format.ts": "7b0ca446e18d398b2789d12809efa118f62deeb8bc91b4981d944da40098aced",
+    "packages/vault-core/src/crypto.ts": "d83ecddab9a65a681c5f1efb1aae79c7b1483338a394985ecedc7c0e8695ee10",
     "packages/vault-core/src/bytes.ts": "885766a4a1ff7bdaccf1380d9d59f0770844a8061b05f2a91d6554479470d415",
     "packages/app-core/src/lib/claims/drop-open.ts": "8703d8ee2e77507fd130edd14dd186249afdeb80c8b18d4598aa1da0095f2a3e",
     "apps/pages/src/modules/identity.ceremonies/ClaimRoute.tsx": "e66aad6aa58290e63d03486b7bfe5635fed212eef9b090e61189896de4581acd",
@@ -1129,9 +1207,9 @@
     "packages/app-core/src/lib/vault/drop-present.test.ts": "22a20f243516c6f7785cbbc3fc004df0d0c3255dda4ccfcd984d2ff605904df6",
     "apps/pages/src/modules/identity.ceremonies/ClaimRoute.test.tsx": "6fbe86d0f3636d94faa9c03404057f4ef2fa5ea664d74d26bf3fc751c6e9d1f7",
     "apps/pages/src/modules/identity.ceremonies/ClaimRoute.portable-drop.test.tsx": "e96f0b0325c2c35554c9201849145117762e276b4c6ce5364f96525127a312bd",
-    "packages/control-plane/package.json": "f22a0f4ac6e5219050836e03b1be01287ebc6f0faf10a6c10dd68add4ea881e1",
-    "packages/os-domain/package.json": "0d80d8f92ca54f6761db9a7858a0a1d529febd0a21b70b5eb756669e832bfd3c",
-    "packages/os-domain/src/index.ts": "67eb845f031abc05f80ad1a384bf4c290fa4c5093e9d080a2b1d63c49a34de32",
+    "packages/control-plane/package.json": "101b2e01a2c4ab78dab487765f51862741dfdb6d2157b45cbb67b540ef72329f",
+    "packages/os-domain/package.json": "2e32938146c7d3bb4e42c5b6fc91696788343140f02e5615a1e9c3e9c90454fc",
+    "packages/os-domain/src/index.ts": "8cd85c3947582ea2d0058a021b32eb9d8253941ffc74b80cc3b3ec2d4de5944b",
     "packages/os-domain/src/json.ts": "9432ceaeef200eda5288af141f42a47e968b0293fecf5685861a6aca11163369",
     "packages/os-domain/src/crypto/claim-token.ts": "7190c9d29dac792635423799b869b0501e3e6ba593af6e72a827eb594cfc7648",
     "packages/os-domain/src/__tests__/claim-token.test.ts": "cba82056c52253c1a0e9f5b9952bb052b8510d945f1bc5d7b125b5957d4f6c61",
@@ -1194,7 +1272,7 @@
     "crates/bitwarden-server/src/wire/org.rs": "8788088bdbec42542b4109bd4f3815f160283c40dedf22923861b9dcbf78ed88",
     "crates/bitwarden-server/src/wire/send.rs": "8c011421747dd98f98ebe9dd95a49ec982e91859afed7e0f1196f19d98928225",
     "packages/app-core/src/lib/vault/drop.test.ts": "636d01a222bc7ebd3c9494e9e78394609a8eb7f863fa027ec8d9ffe391c926ad",
-    "apps/pages/src/modules/identity.ceremonies/DropClaimScreen.tsx": "f29fb8f6e83871422c96e9913fa853bcf85fb2de7fe4c84294ff328de6167564",
+    "apps/pages/src/modules/identity.ceremonies/DropClaimScreen.tsx": "81623037f1150fbface9ca086ca890b63182388968abd35d7131d93e861f7c81",
     "apps/pages/src/sections/access/SentDropsPanel.test.tsx": "a02d7062071941ac22ca173c8fa5a3d40e4868a3407c4cf198e4e42ba9bee361",
     "apps/pages/src/sections/access/SentDropsPanel.tsx": "5039ac2a42dddd838e4cedaf8a8db7028575ebe337c3531412c5ce64d90d4b30",
     "apps/pages/src/sections/vault/DropTtl.tsx": "41c6851511d332a09400de6748de60a04dc980bab3808c98b6456388f09d1892",
@@ -1282,11 +1360,11 @@
     "packages/app-core/src/lib/vault/outbound-drops.test.ts": "e2d4ac74846a6dc8d9eccc199409ec5591170ad4a965232eff94be331df7c60c",
     "packages/app-core/src/lib/vault/outbound-drops.ts": "17aea819908cb0f65c344cb8db9f94980faaed6b4920c19834b5bde4ab380367",
     "packages/app-core/src/lib/vault/portable-drop-attempts.ts": "78f8cb6533f3af9ec4309182174e8f97c4000503ad913dee4ecaa00c47ba0c0b",
-    "packages/app-core/src/lib/vault/portable-drop-code.ts": "2931a804d6169d1f3a431ef0694f5e37051f41b8e590d3abed6cfc1efc720393",
-    "packages/app-core/src/lib/vault/portable-drop-crypto.ts": "54c19816b913cfa872d1eb8a5d868a438a54286e4e5697253bae26c28f81da23",
+    "packages/app-core/src/lib/vault/portable-drop-code.ts": "6b7e27465680d3f17b93cc696a8e1530df7e4052610cefe0bbe6d352be43b95e",
+    "packages/app-core/src/lib/vault/portable-drop-crypto.ts": "96f29f849844a136e826ed46b832e49dc83140ab0458227831051cbab5a08491",
     "packages/app-core/src/lib/vault/portable-drop-limits.ts": "21344eef88acc40276a9c83e5ec7c16f27edf01c939fb4a92d01eb449836509f",
     "packages/app-core/src/lib/vault/portable-drop.security.test.ts": "59029f572c08ed35bb0cbcc8b4a62c82fb8d3f19a5d4f02f443943a61ba8a68e",
-    "packages/app-core/src/lib/vault/portable-drop.test-support.ts": "fe461108dcfcc1c68c615fb741f9559dab4d65990c0e8696c50b2123e9b8e4ec",
+    "packages/app-core/src/lib/vault/portable-drop.test-support.ts": "f9bb25091a6481885f9371c492e2a037b9b93fb08667f35cd6bf562c329b353c",
     "packages/app-core/src/lib/vault/portable-drop.test.ts": "463084f04218096517d2ded203cff5c2b0583f5aa1431038aa64550dc7352364",
     "packages/app-core/src/lib/vault/portable-drop.ts": "b67eb74ebcf65fe42e38257d81c519c3dcf3c946df1e67b3b87dfc6ff7048e6f",
     "packages/claims/src/engine.ts": "9b672ee26bd2de96e5a3f0982aca47acf07813a0e4fcd0728c8367e50d9cf65e",
@@ -1340,9 +1418,9 @@
     "packages/app-core/src/lib/local-directory-bootstrap.ts": "7c38cd2f9b698f722c616c02725898bf460832f388ca4715afd49bfdfa201c98",
     "packages/app-core/src/lib/local-directory-memberships.ts": "95bf5d929913f4d955b6e4666ae77e62939d79185f85139c4bbc3b88c4f6cb92",
     "packages/app-core/src/lib/local-directory-types.ts": "df9f95ab2e9095178a797ba27d1467c207c7a6c805a370969936a0d74a948a7d",
-    "packages/app-core/src/lib/local-passkeys.ts": "82774f5a5b14dc35f8ff4173e9630d292b816026c661d00bc93518b243b95cef",
+    "packages/app-core/src/lib/local-passkeys.ts": "e32c6743323a986d554266efcc9d5737be983db0b8bac81ce5c376c5cc5f4015",
     "packages/app-core/src/lib/local-passkey-authentication.ts": "33196493163e419ccedb8a0159a78bdcb65148a44e97cac7504fa651abbfc676",
-    "packages/app-core/src/lib/local-passkey-ceremony.ts": "69e112ef2319aae6609283586e8ec907d0ba60dde47aad4cb9cece75cb91e2bd",
+    "packages/app-core/src/lib/local-passkey-ceremony.ts": "019d0fc4a61d04b7e9420ecb38c216f283031bae9f78d3f1c023ccaa79367a13",
     "packages/app-core/src/lib/local-passkey-prf.ts": "aca375e44f694846384e8883017c550089abebe20f8212d533842c92cf986af9",
     "packages/app-core/src/lib/local-passkey-prf-bytes.ts": "6b35f9b3f1f9c8a1ac4d3cfa14e5185c438b932dc26b38c0fbeb0c1f4823cb0d",
     "packages/app-core/src/lib/local-sessions.ts": "5a94f9593b9052d5c85dd130869c350311773b460991d526e397de66567353b7",
@@ -1376,7 +1454,7 @@
     "packages/app-core/src/lib/vault/store-device-key.ts": "6d0bec771458539ac4de90065673ba06e4fc2f8fd2e8841cc6e7c99715535ad0",
     "packages/app-core/src/lib/vault/store-preferences.ts": "7afdac9984bd8d434b18f0940dd89daf79a5fae33ecb117210c9384c4a4e6702",
     "packages/app-core/src/lib/vault/store-preferences-api.ts": "093390fd763a2e91bc53cdb58467c848bee119ab68828e608f737481b6584543",
-    "packages/app-core/src/lib/vault/passkey-unlock-session.ts": "faa94459af745123396caa4dfe04848340592f7864cae7aedbf0d4dcb07a9e57",
+    "packages/app-core/src/lib/vault/passkey-unlock-session.ts": "f5e62d99a1788cff6399d7657a36ec942ce823275c7c4b7b3ec01a1ff04de340",
     "packages/app-core/src/lib/vault/protector-unlock-session.ts": "5e08495e2341fd1d3f089f6b8a8a9a00de97e948ce6d080a4a8cb94f59a54b1f",
     "packages/app-core/src/lib/vault/primary-unwrap.ts": "284d54c9109e8be2350e7210fc6be123b5ccd12e06c99069e84ac391ba4d9af0",
     "packages/app-core/src/lib/vault/second-step-guard.ts": "242167518fedb368ad3ee4886d8be0e2a7e5d4dc5f1ec853d6b0416f1eb695d3",
@@ -1384,7 +1462,7 @@
     "packages/app-core/src/lib/vault/remote-code.ts": "1fe175f6a6a3d27a54e6001563553b2b9517bab6390ca4100fa7294db3ec7a86",
     "packages/app-core/src/lib/vault/unlock-attempts.ts": "f2a53997c09a8ba5a77b0c6401536a7fd500d50519857d959251a890667b153c",
     "packages/app-core/src/lib/vault/unlock-methods.ts": "5764a0c3308ca99890ccaf62cd976c693be8397ff9e6e9ee940f2b2fff50618a",
-    "packages/app-core/src/lib/vault/unlock-factor-crypto.ts": "69906bc8c41165b7001c801038a5f03dbdcc72b6c404f3c68af843fd56110dc6",
+    "packages/app-core/src/lib/vault/unlock-factor-crypto.ts": "4eec72a20ee2436d7d4bad88c603d2ac96d3351d4dfe4ad7b8dc3b852b4c1499",
     "packages/app-core/src/lib/vault/tomb-migration.ts": "2fd1c79690d1278085da875eedf8b6da50892eb54beb709da16d700d33d7b1c2",
     "packages/app-core/src/lib/vault/seal-rebind.ts": "840d26923ae8dcfbc62010fc3bc6193263563021b2a153c991d82707f7de625f",
     "packages/app-core/src/lib/vault/prefs-io.ts": "a00e232ae3fbbc593514620a1e23aca30f8c432ed9761eeb503ca0b9d45da1fa",
@@ -1395,16 +1473,16 @@
     "packages/app-core/src/lib/vault/protection/browser-service.ts": "5f7e46ab47f9c9df1dabaac48fc59a9794d1984ee4fb2047381c4d50cf90a119",
     "packages/app-core/src/lib/vault/protection/browser-operation-check.ts": "d0fded6d609800be9d0d62f64712899cf78ad1d37312dbd0651f713a7487893a",
     "packages/app-core/src/lib/vault/protection/browser-operation-data.ts": "33bfedc6af280fabc8ca21625d924b6e4c00206472279661f138782a202b3f47",
-    "packages/app-core/src/lib/vault/protection/manifest-auth.ts": "c23423dc37c5f9805a9dd8b87aca61fcb07b3b1b05183f7bdcae372615448eb0",
+    "packages/app-core/src/lib/vault/protection/manifest-auth.ts": "81583efe5c614cdb57f8dbf5bcdd9e494db630cb688ab46eaf0be9a99edc88e8",
     "packages/app-core/src/lib/vault/protection/unlock-protector-open.ts": "7c527366a1e70d3d12cf486bc26b7ee824f1716d438077bb1f571241d01796b5",
-    "packages/auth-upstream/package.json": "5a33e06eb25a2e7360a8d0908a56dce66208550d769025c16d9be3c09f64dead",
+    "packages/auth-upstream/package.json": "7235b67dbcbb1e17be98870b7232eaaf18c9979a362fb804857f27836d6b4fba",
     "packages/auth-upstream/src/browser.ts": "5bbe484966f7fe1165d5ec912d56dc49140c1e3131249677739b96e372c00e5b",
-    "packages/auth-upstream/src/passkey-verification.ts": "46bed23f66401f114c8752fe5f85dcb6d04a761c0fac695b3cb9f3f31158a5a0",
+    "packages/auth-upstream/src/passkey-verification.ts": "c0b7c069ee75e656a7611a2bbb9a4f7386e629e82e0cf7b0cbd197850bbbb330",
     "packages/auth-upstream/src/simplewebauthn.ts": "ef3fb9f044846928e552e15fc84c50f57ef183c8eaff6e05a09ea3db42d75070",
-    "packages/sdk-browser/package.json": "459a9eb8a6f4526ac0728a550a28a2015d04268836ffae08ff0954cec93fe129",
+    "packages/sdk-browser/package.json": "7247e3e75f3b60e5bed9f6077cfe4f285c112d7cbdc80619357eb49ed34e1af0",
     "packages/sdk-browser/src/index.ts": "c41cc32a581feda800848c01a678ce43d43e59aba982db6eb86a0b0d582eb9be",
-    "packages/sdk-browser/src/webauthn.ts": "e3eaf69f5bb40e59dacd2c07d11185c6b0304203eb4a4fc17d9e292f151012f9",
-    "packages/vault-core/src/factor-configuration.ts": "24476b27dd190b4828cd92f58fa69a349f3c30ef1437fbbc3d4ce78b5f136914",
+    "packages/sdk-browser/src/webauthn.ts": "cf8aeead9e3a71c8e9e7468c8d258ee525c9ac565b24c925dcfea77d203acc55",
+    "packages/vault-core/src/factor-configuration.ts": "57b37defc4291a2d473d259055920c09ce2fdc8b770871ac1769005f1f40771e",
     "packages/app-core/src/lib/vault/store-unlock-activation.test.ts": "75aed697ae318f75f035f6709ba9408a610854674f6a576d9c38be0945ff44a8",
     "packages/app-core/src/lib/vault/store-unlock-remote-expiry.test.ts": "9dae6843f5dad342a445d486624a28d0b59d7fb90f6f8474bb8ae1b1d6e856a9",
     "packages/app-core/src/lib/vault/store-unlock-cache-lifetime.test.ts": "44917511b91ca2a8d4048ecae96abcdf81a49585bb02ff903efc17c77bdb5d4e",
@@ -1445,7 +1523,7 @@
     "packages/app-core/src/lib/deadman/authentication.ts": "d02e6af34c5754cf1c97b6d63402bdd8e2bf5077656383a4a9b80073698c8138",
     "packages/app-core/src/lib/deadman/fence.ts": "bd47e18ca018f2dd08ea45ee856981982b6865dba2c08e96d2e1c7bc228eb281",
     "packages/app-core/src/lib/deadman/keys.ts": "afe9fec87e4217f8999764b505931c628b6b073acd9092b2595e352cc3f52461",
-    "packages/app-core/src/lib/deadman/crypto.ts": "ae59d8b43e7e644c8918af0eb037bb40e609d1933c595d086488e4ea68f3d557",
+    "packages/app-core/src/lib/deadman/crypto.ts": "a47a0dbc4f776bc148a267faf6727289b2da8d779af9f2585aa3c9b54d7f7e1f",
     "packages/app-core/src/lib/deadman/arm.ts": "f4adb5fc71dd9cdffb16e293208373e8dea0b4dc21fdc72a5bd4344ee961dbbf",
     "packages/app-core/src/lib/vault/store-unlock-deadman-lifetime.test.ts": "c3a7089ea88e8908b89ef9e6fad626db28453fb7d738c3bd831324a84e10348e",
     "packages/app-core/src/lib/vault/store-unlock-registration-lifetime.test.ts": "a6080a69cda0b355c81368a452ec4713724e044ddccb00b6dbf98da9b7e3c3ce",
@@ -1472,7 +1550,7 @@
     "packages/app-core/src/lib/native-key-http.ts": "91a9fea83aabec7f978dc1d2fae81bf17d2b6023af5df7e8ef40279317f6a520",
     "packages/app-core/src/lib/native-key-input.ts": "aaddff9ae52e7bd71cc93ca608ee59c65e1e6145bd847d53065edbf2b7311288",
     "packages/app-core/src/lib/native-key-types.ts": "efacb40bb38acd73b8f117f38089f2df2da595b0d77ff05c38bb837dc39b76b3",
-    "packages/app-core/src/lib/native-bitwarden-crypto.ts": "5fcde154cd6eeb5a325264dc74f63cfe7f79b2d9eb581c42a1fa83d39e93ab43",
+    "packages/app-core/src/lib/native-bitwarden-crypto.ts": "d36505d61806884ff8b12396dd6fc1d2d62deeffab7fce01fa69d7eb6a4d87d7",
     "packages/app-core/src/lib/native-bitwarden-sm.ts": "508dc48abdf0e2d5d763ba53b7c4827da65e30032d8f51e1b5543c4201c3718c",
     "packages/app-core/src/lib/native-bitwarden-vault.ts": "910c01d76c0d8a9c93aa773ffd4803a654349341bef08a47680c8f2e84fafef5",
     "packages/app-core/src/lib/native-bitwarden-vault-api.ts": "b59cdf1eab29989acd6714b36dd9b8b99d8cfbd1662c1b9c49c2b22b09a2ee09",
@@ -1527,7 +1605,7 @@
     "packages/app-core/src/lib/native-sts.test.ts": "466299f8132f644c0c9504ebf5b989c17c0f3d65eff4eca199163e38d71dff2d",
     "packages/app-core/src/lib/native-azure-ac.test.ts": "d757ef2e5002138bf170cfe0d56d9e06a212fb84d2bf0a668693e0393269be49",
     "packages/app-core/src/lib/native-azure-secrets.test.ts": "7fe02e878529208f3205268a5b35136d2638bb6195ffbd95ff4c37d82b520a97",
-    "packages/app-core/src/lib/native-gcp.test.ts": "651de633688aeb48250cbbde4bd4e182df65618ca9382777d3ed79b27204aac7",
+    "packages/app-core/src/lib/native-gcp.test.ts": "5cf5e095ec996d142d6be7150f972883721b8299ec8127151bdca7850514d820",
     "packages/app-core/src/lib/native-acme.test.ts": "c2ee756b2cc57909d1ad35ca58488368c35ca1df8a6bc41c6260368cefaba152",
     "packages/app-core/src/lib/native-infisical.test.ts": "936c1d02cafb224ba150c4afe30b5a51986113deb59b7841925033d294ba15e8",
     "packages/app-core/src/lib/native-snowflake.test.ts": "72d84308f47da16d2b87466ab8ed3de492cf4be3796261f6c06edbc9383fa85e",
@@ -1599,13 +1677,13 @@
     "packages/app-core/src/lib/secret-fs/memory.ts": "406126662eb90d055bce8aee9516f7639d13390d8afe7438cd627cf696ae7519",
     "packages/app-core/src/lib/secret-fs/filesystem.ts": "43060b1563c23164a8bbb3dc7897c30505311311cb79ccbaa49ecd92920dded3",
     "packages/app-core/src/lib/secret-fs/filesystem-guard.ts": "665dc7997ac86c7797d0c23706d6b934ebc1863a74241d95ba71aaa1fa9b89a4",
-    "packages/app-core/src/lib/secret-fs/s3.ts": "632988db43f6c668835e41f5a53b7ad1d660f20a24ca6fb95b498c10f293be65",
+    "packages/app-core/src/lib/secret-fs/s3.ts": "914d9711b931d69d1980a8e7dbfbfe464f68ef62c331c37ebf7bd46c773604c0",
     "packages/app-core/src/lib/secret-fs/s3-config.ts": "a5b2038c7bc7ac66c0a1e0870c914b7450d0a0e8142ff59ca83380dcc8837825",
     "packages/app-core/src/lib/secret-fs/s3-listing.ts": "ad34c0d39423c59be78d141b1d73b6798b2753fa776928da8865803d5df34f8a",
-    "packages/app-core/src/lib/secret-fs/s3-response.ts": "00275b76bae2a3d697d7e1b0d9637a7c676a8b3e6f098d36e102e873e21d28af",
+    "packages/app-core/src/lib/secret-fs/s3-response.ts": "0c08355b51e7f1a016f9af8c875f34169c0df066f812b60a4e993d1a4be4781c",
     "packages/app-core/src/lib/secret-fs/s3-response.test-support.ts": "8a65e7b923cabda1d7833ab1adcd71789cb34b534fbc13cae7a15778548d732a",
     "packages/app-core/src/lib/secret-fs/s3-sigv4.ts": "316f4842c40feb9638e7da3f8df641765bd10109edc032a5954db042cd39aaff",
-    "packages/app-core/src/lib/secret-fs/s3.test-support.ts": "a768515f715c96984d9bbe3a6b48da72063aaa7d799668afba8d7dd37352ef5d",
+    "packages/app-core/src/lib/secret-fs/s3.test-support.ts": "4a7418d14a22d1e560c504e9edb1025a9d2b0dea98dcc3f0f454c3ba3df83220",
     "packages/app-core/src/lib/secret-fs/s3-write.ts": "36356d594dddec7ecfd1aa62a603569a5875f6faec7d079bc4ccdf08d06b508d",
     "packages/app-core/src/lib/secret-fs/resilient.ts": "435b14dfd60dd9584834e330470cf9d05e984dfe9f41365c0b2daa4f559b9eee",
     "packages/app-core/src/lib/secret-fs/vfs-files.ts": "dd61d15925ecaafb2f8ce3215450e5d068b083ba2e1c465c919766bfded41fb2",

@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import type { AddressInfo, Socket } from "node:net";
 import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource, overlapCast } from "@opensesame/os-domain";
 import { afterEach, expect, it, vi } from "vitest";
 import type { SecretBackendFetch } from "./types.js";
 import { createGzipWasmAssetFetch } from "./wasm-gzip-asset.js";
@@ -32,7 +32,7 @@ function asset(url = "https://app.example/subpath/bws.wasm.gz", bytes = wire) {
   };
 }
 function reply(url: string, bytes: Uint8Array = wire) {
-  const response = new Response(bytes);
+  const response = new Response(asBufferSource(bytes));
   Object.defineProperty(response, "url", { value: url });
   return response;
 }

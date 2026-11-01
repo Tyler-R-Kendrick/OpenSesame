@@ -2,6 +2,7 @@
  * The candidate password, generated where it will be held (ADR 0076 §1): in the
  * owner's browser, from the platform's CSPRNG, and never anywhere else.
  */
+import { ownBytes } from "@opensesame/os-domain";
 
 const LOWER = "abcdefghijkmnopqrstuvwxyz";
 const UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -26,7 +27,12 @@ export type RandomBytes = (bytes: Uint8Array) => Uint8Array;
 
 /** A password with at least one of each class, shuffled, of `length` characters. */
 export function generatePassword(
-  random: RandomBytes = (bytes) => crypto.getRandomValues(bytes),
+  random: RandomBytes = (bytes: Uint8Array): Uint8Array => {
+    const owned = ownBytes(bytes);
+    crypto.getRandomValues(owned);
+    bytes.set(owned);
+    return bytes;
+  },
   length = CANDIDATE_LENGTH,
 ): string {
   if (length < CLASSES.length) throw new Error("password_too_short");

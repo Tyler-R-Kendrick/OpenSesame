@@ -3,6 +3,7 @@
  * Never opens or requires the protected vault root (INV-04, INV-18).
  */
 
+import { asBufferSource } from "@opensesame/os-domain";
 import {
   type JsonObject,
   isJsonObject,
@@ -68,7 +69,7 @@ export async function importAlertSealingKey(
   }
   const encryptKey = await crypto.subtle.importKey(
     "raw",
-    raw.slice(0, 32),
+    asBufferSource(raw.slice(0, 32)),
     { name: "AES-GCM" },
     false,
     ["encrypt", "decrypt"],
@@ -81,7 +82,7 @@ export async function importAlertSealingKey(
       : await deriveMacRaw(raw.slice(0, 32));
   const macKey = await crypto.subtle.importKey(
     "raw",
-    macRaw,
+    asBufferSource(macRaw),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],
@@ -90,16 +91,20 @@ export async function importAlertSealingKey(
 }
 
 async function deriveMacRaw(seed: Uint8Array): Promise<Uint8Array> {
-  const base = await crypto.subtle.importKey("raw", seed, "HKDF", false, [
-    "deriveBits",
-  ]);
+  const base = await crypto.subtle.importKey(
+    "raw",
+    asBufferSource(seed),
+    "HKDF",
+    false,
+    ["deriveBits"],
+  );
   return new Uint8Array(
     await crypto.subtle.deriveBits(
       {
         name: "HKDF",
         hash: "SHA-256",
-        salt: utf8(ALERT_PURPOSE),
-        info: utf8("mac"),
+        salt: asBufferSource(utf8(ALERT_PURPOSE)),
+        info: asBufferSource(utf8("mac")),
       },
       base,
       256,
@@ -179,9 +184,13 @@ async function encryptAlertBody(
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv, additionalData: utf8(ALERT_PURPOSE) },
+      {
+        name: "AES-GCM",
+        iv,
+        additionalData: asBufferSource(utf8(ALERT_PURPOSE)),
+      },
       encryptKey,
-      body,
+      asBufferSource(body),
     ),
   );
   const packed = new Uint8Array(iv.length + ct.length);
@@ -258,7 +267,11 @@ export async function sealAlertPackage(input: {
     nonce,
   };
   const mac = new Uint8Array(
-    await crypto.subtle.sign("HMAC", macKey, evidenceInput(unsigned)),
+    await crypto.subtle.sign(
+      "HMAC",
+      macKey,
+      asBufferSource(evidenceInput(unsigned)),
+    ),
   );
   return { ...unsigned, evidenceMacB64: bytesToB64(mac) };
 }
@@ -272,8 +285,8 @@ export async function verifyAlertEvidence(
   return crypto.subtle.verify(
     "HMAC",
     macKey,
-    b64ToBytes(evidenceMacB64),
-    evidenceInput(rest),
+    asBufferSource(b64ToBytes(evidenceMacB64)),
+    asBufferSource(evidenceInput(rest)),
   );
 }
 
@@ -288,9 +301,13 @@ export async function decodeCiphertext(
   const ct = packed.slice(12);
   const plain = new Uint8Array(
     await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv, additionalData: utf8(ALERT_PURPOSE) },
+      {
+        name: "AES-GCM",
+        iv: asBufferSource(iv),
+        additionalData: asBufferSource(utf8(ALERT_PURPOSE)),
+      },
       encryptKey,
-      ct,
+      asBufferSource(ct),
     ),
   );
   const wire = JSON.parse(new TextDecoder().decode(plain));

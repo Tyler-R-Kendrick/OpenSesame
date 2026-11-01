@@ -92,7 +92,7 @@ export class MiniNats {
       ...this.info,
     };
     send(socket, `INFO ${JSON.stringify(info)}\r\n`);
-    let buffer = Buffer.alloc(0);
+    let buffer: Buffer = Buffer.alloc(0);
     socket.on("close", () => this.#onClose());
     socket.on("message", (data) => {
       buffer = Buffer.concat([buffer, bytesOf(data)]);

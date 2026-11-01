@@ -2,7 +2,7 @@
  * High-entropy independent root recovery key (distinct from app OTP recovery codes).
  */
 
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 import {
   type ProtectionContext,
   ROOT_KEY_BYTES,
@@ -21,7 +21,7 @@ const RECOVERY_INFO = new TextEncoder().encode(
 async function kekFromRecoverySecret(secret: Uint8Array): Promise<CryptoKey> {
   const base = await crypto.subtle.importKey(
     "raw",
-    overlapCast(secret),
+    asBufferSource(secret),
     "HKDF",
     false,
     ["deriveKey"],
@@ -60,7 +60,7 @@ export async function enrollRecoveryKey(input: {
   const secret = crypto.getRandomValues(new Uint8Array(32));
   const fingerprint = await crypto.subtle.digest(
     "SHA-256",
-    overlapCast(secret),
+    asBufferSource(secret),
   );
   const kek = await kekFromRecoverySecret(secret);
   const protectorId = newProtectorId("recovery-key");

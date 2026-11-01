@@ -7,7 +7,7 @@ import {
   assertSafeMetadataUrl,
   resolveSafeMetadataAddresses,
 } from "@opensesame/oauth-provider/metadata/safe-fetcher";
-import { isString } from "@opensesame/os-domain";
+import { asBufferSource, isString } from "@opensesame/os-domain";
 
 /**
  * The one outbound fetch for URLs a tenant, a visitor, or a document they
@@ -93,10 +93,13 @@ function responseFrom(message: http.IncomingMessage, body: Buffer): Response {
       // A header the fetch API cannot represent is dropped, not fatal.
     }
   }
-  return new Response(NULL_BODY_STATUSES.has(status) ? null : body, {
-    status,
-    headers,
-  });
+  return new Response(
+    NULL_BODY_STATUSES.has(status) ? null : asBufferSource(body),
+    {
+      status,
+      headers,
+    },
+  );
 }
 
 /** One GET/POST to an already-verified address. Never follows a redirect. */

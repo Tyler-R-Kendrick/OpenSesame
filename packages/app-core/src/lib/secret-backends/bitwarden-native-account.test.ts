@@ -27,7 +27,7 @@ const LIMITS = {
 const LEGACY = { kdf: 0, kdfIterations: 5000, salt: null };
 const PARAMETERS = { kdfType: 0, iterations: 5000 };
 const MATERIAL = Buffer.from(Array.from({ length: 64 }, (_, i) => i + 1));
-function envelope(raw = MATERIAL, salt = EMAIL): string {
+function envelope(raw: Uint8Array = MATERIAL, salt = EMAIL): string {
   const master = pbkdf2Sync(PASSWORD, salt, 5000, 32, "sha256");
   const enc = createHmac("sha256", master)
     .update(Buffer.from("enc\x01"))

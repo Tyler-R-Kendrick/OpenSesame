@@ -15,7 +15,7 @@ import {
   isNumber,
   isString,
   overlapCast,
-} from "@opensesame/os-domain";
+ asBufferSource } from "@opensesame/os-domain";
 import { b64urlToBytes, bytesToB64url } from "@opensesame/vault-core";
 import {
   CODE_KDF,
@@ -149,7 +149,7 @@ function bearerDigest(secretText: string): Promise<string> {
 async function transportKey(bearer: PortableBearer): Promise<CryptoKey> {
   const material = await crypto.subtle.importKey(
     "raw",
-    bearer.secret,
+    asBufferSource(bearer.secret),
     "HKDF",
     false,
     ["deriveKey"],
@@ -209,7 +209,7 @@ export async function sealPortableDropPacket(input: {
     {
       name: "AES-GCM",
       iv: nonce,
-      additionalData: associatedData(bearer.claimId, tokenDigest, nonceText),
+      additionalData: asBufferSource(associatedData(bearer.claimId, tokenDigest, nonceText)),
     },
     key,
     encoder.encode(JSON.stringify(envelope)),
@@ -309,11 +309,11 @@ export async function decodePortableDropPacket(
     const opened = await crypto.subtle.decrypt(
       {
         name: "AES-GCM",
-        iv: nonce,
-        additionalData: associatedData(claimId, tokenDigest, nonceText),
+        iv: asBufferSource(nonce),
+        additionalData: asBufferSource(associatedData(claimId, tokenDigest, nonceText)),
       },
       key,
-      ciphertext,
+      asBufferSource(ciphertext),
     );
     plaintext = decoder.decode(opened);
   } catch {

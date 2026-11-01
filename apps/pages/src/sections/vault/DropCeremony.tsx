@@ -53,6 +53,7 @@ import {
   DropCardUsername,
 } from "./drop-card-fields.js";
 import { formatExpiry } from "./expiry.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 function useNow(): number {
   const [now, setNow] = useState(() => Date.now());
@@ -228,7 +229,7 @@ function downloadKeptFile(copy: {
 }): void {
   const bytes = b64ToBytes(copy.dataB64);
   // SAFETY: Blob accepts a typed array view; bytes is a fresh local buffer.
-  const blob = new Blob([bytes], { type: copy.contentType });
+  const blob = new Blob([asBufferSource(bytes)], { type: copy.contentType });
   void saveBlob(blob, copy.name, "File").catch(() => undefined);
 }
 

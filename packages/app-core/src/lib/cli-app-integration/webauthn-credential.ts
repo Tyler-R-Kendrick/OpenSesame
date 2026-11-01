@@ -24,6 +24,7 @@ import {
   signCountOf,
   spkiToCose,
 } from "./webauthn-cbor.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export {
   coseP256ToSpki,
@@ -289,7 +290,7 @@ export async function createCliAppPasskeyCredential(
   try {
     created = await credentials.create({
       publicKey: {
-        challenge,
+        challenge: asBufferSource(challenge),
         rp: { name: "OpenSesame", id: rpId },
         user: { id: userId, name: "cli-approval", displayName: "CLI approval" },
         pubKeyCredParams: [{ type: "public-key", alg: -7 }],
@@ -321,10 +322,10 @@ export async function createCliAppPasskeyCredential(
   try {
     asserted = await credentials.get({
       publicKey: {
-        challenge,
+        challenge: asBufferSource(challenge),
         timeout: 60_000,
         userVerification: "required",
-        allowCredentials: [{ type: "public-key", id: rawId }],
+        allowCredentials: [{ type: "public-key", id: asBufferSource(rawId) }],
       },
     });
   } catch (error) {
@@ -362,10 +363,10 @@ export async function assertStoredCliAppPasskey(
   try {
     asserted = await credentials.get({
       publicKey: {
-        challenge,
+        challenge: asBufferSource(challenge),
         timeout: 60_000,
         userVerification: "required",
-        allowCredentials: [{ type: "public-key", id: credentialId }],
+        allowCredentials: [{ type: "public-key", id: asBufferSource(credentialId) }],
       },
     });
   } catch (error) {

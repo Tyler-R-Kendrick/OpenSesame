@@ -14,7 +14,11 @@
 
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import type { BoundaryValue } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  asBufferSource,
+  ownBytes,
+} from "@opensesame/os-domain";
 import { z } from "zod";
 import {
   bytesEqual,
@@ -115,7 +119,7 @@ async function verifyEs256(
 ): Promise<boolean> {
   const key = await crypto.subtle.importKey(
     "spki",
-    spki,
+    asBufferSource(spki),
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     ["verify"],
@@ -123,8 +127,8 @@ async function verifyEs256(
   return crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
     key,
-    derToP1363(signature),
-    message,
+    asBufferSource(derToP1363(signature)),
+    asBufferSource(message),
   );
 }
 
@@ -213,7 +217,7 @@ function checkAuthenticatorData(
       "the policy requires a PIN or biometric",
     );
   }
-  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const view = new DataView(ownBytes(data).buffer);
   const counter = view.getUint32(33, false);
   // A counter that stays at zero is how synced passkeys report; one that
   // moves must keep moving, or the credential may have been cloned.

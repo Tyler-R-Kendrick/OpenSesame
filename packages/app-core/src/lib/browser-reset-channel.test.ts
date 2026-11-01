@@ -7,7 +7,7 @@
  * without Web Locks — at a generous ceiling.
  */
 
-import { overlapCast } from "@opensesame/os-domain";
+import { overlapCast, ownBytes } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import type { LockManagerLike } from "../ports.js";
@@ -47,7 +47,12 @@ describe("browser-reset-channel", () => {
 
   it("makes a tab id without randomUUID, and still tells its own message apart", async () => {
     vi.stubGlobal("crypto", {
-      getRandomValues: (bytes: Uint8Array) => realCrypto.getRandomValues(bytes),
+      getRandomValues: (bytes: Uint8Array): Uint8Array => {
+        const owned = ownBytes(bytes);
+        realCrypto.getRandomValues(owned);
+        bytes.set(owned);
+        return bytes;
+      },
     });
     vi.resetModules();
     const { configureHost: install } = await import("../host.js");
@@ -78,7 +83,12 @@ describe("browser-reset-channel", () => {
       randomUUID: () => {
         throw new DOMException("insecure", "SecurityError");
       },
-      getRandomValues: (bytes: Uint8Array) => realCrypto.getRandomValues(bytes),
+      getRandomValues: (bytes: Uint8Array): Uint8Array => {
+        const owned = ownBytes(bytes);
+        realCrypto.getRandomValues(owned);
+        bytes.set(owned);
+        return bytes;
+      },
     });
     vi.resetModules();
     const { configureHost: install } = await import("../host.js");

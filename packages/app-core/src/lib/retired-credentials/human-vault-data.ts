@@ -2,7 +2,7 @@
 import {
   type BoundaryValue,
   isJsonObject,
-  overlapCast,
+  asBufferSource,
 } from "@opensesame/os-domain";
 import {
   type AuthenticatedLegacyGates,
@@ -80,7 +80,7 @@ function exactId(text: string): void {
 
 async function digest(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text);
-  const hashed = await crypto.subtle.digest("SHA-256", overlapCast(bytes));
+  const hashed = await crypto.subtle.digest("SHA-256", asBufferSource(bytes));
   return bytesToB64(new Uint8Array(hashed));
 }
 

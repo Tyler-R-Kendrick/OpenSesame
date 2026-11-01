@@ -5,6 +5,7 @@ import {
   sign,
   webcrypto,
 } from "node:crypto";
+import { asBufferSource } from "@opensesame/os-domain";
 import { X509CertificateGenerator } from "@peculiar/x509";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { readSamlIdpMetadata } from "./metadata.js";
@@ -90,7 +91,7 @@ it("extracts an actual X509 RSA key through mature browser XMLDSIG code and veri
   expect(Object.isFrozen(parsed.signingSpki)).toBe(true);
   const publicKey = await crypto.subtle.importKey(
     "spki",
-    Buffer.from(parsed.signingSpki[0], "base64"),
+    asBufferSource(Buffer.from(parsed.signingSpki[0], "base64")),
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["verify"],
@@ -102,8 +103,8 @@ it("extracts an actual X509 RSA key through mature browser XMLDSIG code and veri
     await crypto.subtle.verify(
       "RSASSA-PKCS1-v1_5",
       publicKey,
-      sign("sha256", message, signingKey),
-      message,
+      asBufferSource(sign("sha256", message, signingKey)),
+      asBufferSource(message),
     ),
   ).toBe(true);
 });

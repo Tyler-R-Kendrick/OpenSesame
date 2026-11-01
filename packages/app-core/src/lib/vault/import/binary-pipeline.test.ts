@@ -15,6 +15,7 @@ import type {
   ParseResult,
 } from "./types.js";
 import { draftAccount, passwordRequired } from "./types.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 /**
  * The binary path through the import pipeline.
@@ -80,7 +81,7 @@ function withAdapter<T>(
 
 describe("readImportFile binary routing", () => {
   function binaryFile(name: string, bytes: Uint8Array): File {
-    const file = new File([bytes], name);
+    const file = new File([asBufferSource(bytes)], name);
     Object.defineProperty(file, "arrayBuffer", {
       value: () =>
         Promise.resolve(

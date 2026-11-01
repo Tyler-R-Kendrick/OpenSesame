@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import {
+  asBufferSource,
   isJsonObject,
   isString,
   overlapCast,
@@ -131,7 +132,7 @@ export async function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrat
                 const sig = await crypto.subtle.sign(
                   { name: "ECDSA", hash: "SHA-256" },
                   pin.privateKey,
-                  message,
+                  asBufferSource(message),
                 );
                 signatureB64 = b64urlEncode(new Uint8Array(sig));
               }

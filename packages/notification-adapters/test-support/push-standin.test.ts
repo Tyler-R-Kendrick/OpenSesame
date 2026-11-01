@@ -1,4 +1,8 @@
-import { type JsonObject, readJsonObject } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  asBufferSource,
+  readJsonObject,
+} from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -184,9 +188,11 @@ describe("stand-in push service", () => {
           "content-encoding": "aes128gcm",
           ttl: "60",
         },
-        body: encryptWebPushPayload(
-          { endpoint: sub.endpoint, keys: sub.keys },
-          Buffer.from(JSON.stringify(payload)),
+        body: asBufferSource(
+          encryptWebPushPayload(
+            { endpoint: sub.endpoint, keys: sub.keys },
+            Buffer.from(JSON.stringify(payload)),
+          ),
         ),
       });
     const response = await post({

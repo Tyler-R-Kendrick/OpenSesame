@@ -11,6 +11,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Redacted } from "effect";
 import { signS3 } from "./s3-sigv4.js";
+import { asBufferSource } from "@opensesame/os-domain";
 
 export const ACCESS_KEY = "AKIATESTONLY";
 // Synthetic SigV4 key for the injected in-memory bucket only.
@@ -138,7 +139,7 @@ function object(
   if (request.method !== "GET") return reply(405);
   return found === undefined
     ? reply(404, "<Error><Code>NoSuchKey</Code></Error>")
-    : new Response(found.bytes, { status: 200, headers: { etag: found.etag } });
+    : new Response(asBufferSource(found.bytes), { status: 200, headers: { etag: found.etag } });
 }
 
 export function fakeBucket(pageSize = 2): FakeBucket {

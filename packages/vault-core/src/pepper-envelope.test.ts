@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { asBufferSource } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import type { PepperSeal } from "./account.js";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
@@ -22,7 +22,7 @@ async function keyOf(seal: PepperSeal): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: overlapCast(b64ToBytes(seal.kdf.saltB64)),
+      salt: asBufferSource(b64ToBytes(seal.kdf.saltB64)),
       iterations: seal.kdf.iterations,
       hash: "SHA-256",
     },

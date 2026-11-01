@@ -1,4 +1,4 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { type BoundaryValue, ownBytes } from "@opensesame/os-domain";
 import type { CredentialItem } from "@opensesame/vault-core";
 import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core/bytes.js";
 /** OpenSesame's encrypted object contract v1; names and values remain inside AEAD. */
@@ -75,16 +75,18 @@ function decodeBase64(value: string, size?: number): Uint8Array {
 }
 export async function remoteEncryptionKey(encoded: string): Promise<CryptoKey> {
   const bytes = decodeBase64(encoded, 32);
+  const owned = ownBytes(bytes);
   try {
     return await crypto.subtle.importKey(
       "raw",
-      overlapCast(bytes),
+      owned,
       "AES-GCM",
       false,
       ["encrypt", "decrypt"],
     );
   } finally {
     bytes.fill(0);
+    owned.fill(0);
   }
 }
 function aad(identity: EncryptedRemoteIdentity, revision: number): Uint8Array {

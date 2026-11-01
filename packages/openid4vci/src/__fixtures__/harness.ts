@@ -27,6 +27,7 @@ import { createHash } from "node:crypto";
 import {
   type JsonObject,
   type JsonValue,
+  asBufferSource,
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
@@ -52,7 +53,7 @@ export async function generateTestKeyPair(
 export async function importHmacKey(secret: Uint8Array): Promise<CryptoKey> {
   return await crypto.subtle.importKey(
     "raw",
-    secret,
+    asBufferSource(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],

@@ -6,7 +6,7 @@ export function toB64(bytes: Uint8Array): string {
   return btoa(text);
 }
 
-export function fromB64(value: string): Uint8Array {
+export function fromB64(value: string): Uint8Array<ArrayBuffer> {
   const text = atob(value);
   const bytes = new Uint8Array(text.length);
   for (let index = 0; index < text.length; index += 1) {
@@ -28,7 +28,7 @@ export async function sha256Hex(text: string): Promise<string> {
 }
 
 /** URL-safe base64, as a JWK carries its members. */
-export function fromB64Url(value: string): Uint8Array {
+export function fromB64Url(value: string): Uint8Array<ArrayBuffer> {
   const standard = value.replaceAll("-", "+").replaceAll("_", "/");
   return fromB64(standard + "=".repeat((4 - (standard.length % 4)) % 4));
 }
