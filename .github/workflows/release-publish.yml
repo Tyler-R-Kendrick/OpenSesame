@@ -75,10 +75,10 @@ jobs:
           .github/workflows
           scripts/release
           scripts/lib
-    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+    - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       with:
-        node-version: 22
-        package-manager-cache: false
+        cache: true
+        install_args: node@24
     - name: Require existing owner-approved release environment protection
       run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate original build and every prerequisite receipt
@@ -113,10 +113,10 @@ jobs:
           .github/workflows
           scripts/release
           scripts/lib
-    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+    - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       with:
-        node-version: 22
-        package-manager-cache: false
+        cache: true
+        install_args: node@24
     - name: Require existing owner-approved release environment protection
       run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate original build and every prerequisite receipt
@@ -168,10 +168,10 @@ jobs:
           .github/workflows
           scripts/release
           scripts/lib
-    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+    - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       with:
-        node-version: 22
-        package-manager-cache: false
+        cache: true
+        install_args: node@24
     - name: Require existing owner-approved release environment protection
       run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate original build and every prerequisite receipt
@@ -250,10 +250,10 @@ jobs:
           .github/workflows
           scripts/release
           scripts/lib
-    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+    - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       with:
-        node-version: 22
-        package-manager-cache: false
+        cache: true
+        install_args: node@24
     - name: Require existing owner-approved release environment protection
       run: node .ci-control/scripts/release/release-environment.mjs
     - name: Revalidate original build and every prerequisite receipt

@@ -17,7 +17,7 @@ describe("delivery authorization qualification", () => {
     for (const name of ["full-suite.yml", "ci-prerelease-checks.yml"]) {
       const workflow = read(name);
       expect(workflow).toContain(
-        "pnpm --filter @opensesame/cua-password-reset test:e2e",
+        "npm run test:e2e -w @opensesame/cua-password-reset",
       );
       expect(workflow).toContain(
         "AGENT_BROWSER_CHROME: /usr/bin/google-chrome",
@@ -29,7 +29,7 @@ describe("delivery authorization qualification", () => {
     for (const name of ["full-suite.yml", "ci-prerelease-checks.yml"]) {
       const workflow = read(name);
       expect(workflow).toContain(
-        "pnpm --fail-if-no-match --filter @opensesame/agent-sandboxes test:e2e",
+        "npm run test:e2e -w @opensesame/agent-sandboxes",
       );
       expect(workflow).toContain(
         "AGENT_BROWSER_CHROME: /usr/bin/google-chrome",

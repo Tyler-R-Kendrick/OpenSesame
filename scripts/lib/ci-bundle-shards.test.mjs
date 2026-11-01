@@ -33,7 +33,7 @@ function steps() {
 /** Every gate the shards between them have to run, each exactly once. */
 const GATES = [
   "bundle-budget-gate.mjs",
-  "build:profile \\\n            --profile capability-profiles/enterprise-selected.json",
+  "build:profile -w @opensesame/pages -- \\\n            --profile capability-profiles/enterprise-selected.json",
   "verify:webmcp",
   "verify:self-hosted-connectors",
   "verify:native-connectors",
@@ -264,7 +264,7 @@ it("runs the unchanged whole secret backend profile and driver in an independent
     step.text.includes("verify:secret-backends"),
   );
   expect(secret.text).toContain(
-    "pnpm --filter @opensesame/pages build:secret-backends-verify\n          pnpm --filter @opensesame/pages verify:secret-backends",
+    "npm run build:secret-backends-verify -w @opensesame/pages\n          npm run verify:secret-backends -w @opensesame/pages",
   );
   expect(secret.text).toContain("PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome");
   expect(secret.text).toContain("VITE_BASE: /OpenSesame/");
@@ -336,9 +336,9 @@ it("gives only the GitHub App walk a fresh command-local evidence directory", ()
       .split("\n")
       .map((line) => line.trim()),
   ).toEqual([
-    "pnpm --filter @opensesame/pages build:secret-backends-verify",
-    "pnpm --filter @opensesame/pages verify:secret-backends",
-    "PAGES_VERIFY_OUT=${{ runner.temp }}/github-app-browser GITHUB_APP_VERIFY_PHASE=after pnpm --filter @opensesame/pages verify:github-app-browser",
+    "npm run build:secret-backends-verify -w @opensesame/pages",
+    "npm run verify:secret-backends -w @opensesame/pages",
+    "PAGES_VERIFY_OUT=${{ runner.temp }}/github-app-browser GITHUB_APP_VERIFY_PHASE=after npm run verify:github-app-browser -w @opensesame/pages",
   ]);
 });
 

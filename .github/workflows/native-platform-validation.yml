@@ -46,10 +46,10 @@ jobs:
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 24
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.88.0
@@ -150,10 +150,10 @@ jobs:
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 24
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.88.0
@@ -270,10 +270,10 @@ jobs:
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 24
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.88.0
@@ -312,17 +312,14 @@ jobs:
           cargo +1.88.0 build --locked --release --package opensesame-cli --bin opensesame --message-format=json-render-diagnostics 2> >(tee "$NATIVE_AUDIT_DIR/release-build.stderr.log" >&2) | tee "$NATIVE_AUDIT_DIR/release-build.jsonl"
       - name: Validate real release startup and fixed package provenance
         run: node scripts/audit/native-release-companion-artifact.mjs
-      - name: Enable pinned product package manager
-        if: ${{ hashFiles('packages/app-core/src/node/native-companion-installation.ts') != '' }}
-        run: corepack enable
       - name: Install the original frozen product dependency graph
         if: ${{ hashFiles('packages/app-core/src/node/native-companion-installation.ts') != '' }}
-        run: corepack pnpm install --frozen-lockfile
+        run: npm ci
       - name: Execute actual packed Node bridge and unchanged original gates
         run: |
           set -euo pipefail
           if test -f packages/app-core/src/node/native-companion-installation.ts; then
-            corepack pnpm exec node scripts/audit/native-packaged-node-original-bridge.mjs
+            npm exec -- node scripts/audit/native-packaged-node-original-bridge.mjs
           else
             node scripts/audit/native-packaged-node-original-bridge.mjs
           fi

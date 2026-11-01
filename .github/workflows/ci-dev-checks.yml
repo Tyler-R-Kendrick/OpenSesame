@@ -61,10 +61,10 @@ jobs:
             scripts/release
             scripts/lib
             .github/workflows
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node@24
       - name: Verify the exact immutable candidate
         env:
           GH_TOKEN: ${{ github.token }}
@@ -106,10 +106,10 @@ jobs:
             scripts/release
             scripts/lib
             .github/workflows
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Materialize the verified candidate
         id: candidate
         env:
@@ -121,11 +121,9 @@ jobs:
         env:
           KIT_ARCHIVE: ${{ matrix.target == 'x86_64-unknown-linux-gnu' && steps.candidate.outputs.native_x86_archive || steps.candidate.outputs.native_arm_archive }}
         run: bash .ci-control/scripts/release/smoke-kit.sh "$KIT_ARCHIVE"
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
       - name: Install the candidate source's browser test dependencies
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Extract the production Pages payload without rebuilding
         id: pages
         if: matrix.target == 'x86_64-unknown-linux-gnu'
@@ -143,15 +141,15 @@ jobs:
         # These drivers consume dist; none compiles or restamps a distribution.
         # Service-worker drivers use their actual local HTTP worker harnesses.
         run: |
-          pnpm --filter @opensesame/pages verify:static
-          pnpm --filter @opensesame/pages verify:local-iam
-          pnpm --filter @opensesame/pages verify:auth
-          pnpm --filter @opensesame/pages verify:trusted-unlock
-          pnpm --filter @opensesame/pages verify:encrypted-search
-          pnpm --filter @opensesame/pages verify:portable-drop
-          pnpm --filter @opensesame/pages verify:sw-dirty-edit
-          pnpm --filter @opensesame/pages verify:push-worker
-          pnpm verify:customer-vault-browser
+          npm run verify:static -w @opensesame/pages
+          npm run verify:local-iam -w @opensesame/pages
+          npm run verify:auth -w @opensesame/pages
+          npm run verify:trusted-unlock -w @opensesame/pages
+          npm run verify:encrypted-search -w @opensesame/pages
+          npm run verify:portable-drop -w @opensesame/pages
+          npm run verify:sw-dirty-edit -w @opensesame/pages
+          npm run verify:push-worker -w @opensesame/pages
+          npm run verify:customer-vault-browser
       - name: Require unchanged production files after the browser journeys
         if: ${{ always() && steps.pages.outcome == 'success' }}
         run: |
@@ -173,10 +171,10 @@ jobs:
             scripts/release
             scripts/lib
             .github/workflows
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node@24
       - name: Require every qualification job to succeed
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
@@ -198,10 +196,10 @@ jobs:
             scripts/release
             scripts/lib
             .github/workflows
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node@24
       - name: Record successful candidate qualification
         env:
           GH_TOKEN: ${{ github.token }}

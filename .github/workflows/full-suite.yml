@@ -41,13 +41,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          node-version: 22
-          package-manager-cache: false
+          cache: true
+          install_args: node
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
       - name: Cache the pinned native PWA distribution
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -61,7 +60,7 @@ jobs:
           node --input-type=module -e
           'import { loadTailscaleAssets } from "./apps/pages/scripts/tailscale-wasm-assets.mjs"; await loadTailscaleAssets();'
       - name: Typecheck and test every package
-        run: pnpm exec turbo run typecheck test --concurrency=1
+        run: npm exec -- turbo run typecheck test --concurrency=1
       - name: CUA password-reset browser e2e
         # Explicit delivery coverage: these real-browser tests are excluded
         # from the package's unit-test script.
@@ -69,22 +68,22 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           AGENT_BROWSER_CHROME: /usr/bin/google-chrome
         run: >-
-          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(pnpm exec which agent-browser)")"
-          pnpm --filter @opensesame/cua-password-reset test:e2e
+          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(npm exec -- which agent-browser)")"
+          npm run test:e2e -w @opensesame/cua-password-reset
       - name: Agent sandbox providers browser e2e
         # Exercise the local, relay, virtual-network and CDP lanes.
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           AGENT_BROWSER_CHROME: /usr/bin/google-chrome
         run: >-
-          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(pnpm exec which agent-browser)")"
-          pnpm --fail-if-no-match --filter @opensesame/agent-sandboxes test:e2e
+          AGENT_BROWSER="$(cd packages/cua-password-reset && realpath "$(npm exec -- which agent-browser)")"
+          npm run test:e2e -w @opensesame/agent-sandboxes
       - name: Repository contract on a real Postgres
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
           OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
-        run: pnpm --filter @opensesame/database test:postgres
+        run: npm run test:postgres -w @opensesame/database
       - name: Worker delivery on a real Postgres
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
-        run: pnpm --filter @opensesame/identity-worker test:postgres
+        run: npm run test:postgres -w @opensesame/identity-worker
