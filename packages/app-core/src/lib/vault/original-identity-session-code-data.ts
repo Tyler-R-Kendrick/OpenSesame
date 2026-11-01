@@ -1,6 +1,9 @@
 import type { IdentitySession } from "../identity-session-types.js";
 import { loadSettings } from "../settings.js";
-import { captureRemoteIdentityCodeData } from "./captured-remote-code-data.js";
+import {
+  captureRemoteIdentityCodeData,
+  type OriginalRemoteCodeHandle,
+} from "./captured-remote-code-data.js";
 import type { OriginalCommandDrainRecorder } from "./original-command-retirement-data.js";
 /** Original bearer transport DATA only; the private Store must prove primary/all configured factors. */
 export function captureOriginalIdentitySessionCodeData(
@@ -8,7 +11,7 @@ export function captureOriginalIdentitySessionCodeData(
   readSession: () => IdentitySession | null,
   readEpoch: () => number,
   drainFailed?: OriginalCommandDrainRecorder,
-) {
+): OriginalRemoteCodeHandle {
   const active = readSession();
   const epoch = readEpoch();
   const base = loadSettings().identityApi.replace(/\/+$/u, "");

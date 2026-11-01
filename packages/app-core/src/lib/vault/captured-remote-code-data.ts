@@ -11,6 +11,14 @@ import {
 } from "./original-command-retirement-data.js";
 import type { SentCode } from "./remote-code.js";
 
+/** Public surface for original remote MFA code transport; hides private fields from declaration emit. */
+export interface OriginalRemoteCodeHandle {
+  check(): void;
+  send(channel: CodeChannel, to: string): Promise<Readonly<SentCode>>;
+  verify(code: string): Promise<void>;
+  close(): Promise<void>;
+}
+
 const actualHost = host;
 function acknowledgementSchema() {
   return z.object({
@@ -111,7 +119,7 @@ async function readAcceptedCodeResponse(
   check();
   return { ok: response.ok, status: response.status, text };
 }
-class OriginalRemoteCodeData {
+class OriginalRemoteCodeData implements OriginalRemoteCodeHandle {
   readonly #acknowledged = acknowledgementSchema();
   readonly #sent = this.#acknowledged.extend({
     challengeId: z.string().min(1).max(512),
@@ -314,7 +322,7 @@ export function captureRemoteIdentityCodeData(
   issuerOrigin: string,
   original: () => void,
   drainFailed?: OriginalCommandDrainRecorder,
-) {
+): OriginalRemoteCodeHandle {
   const owner = actualHost();
   const actualFetch = globalThis.fetch;
   const url = new URL(base);
