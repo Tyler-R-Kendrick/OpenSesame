@@ -11,8 +11,10 @@ core_target="${CARGO_TARGET_DIR:-$repo_root/target}"
 cd "$repo_root"
 
 generate_bindings() {
-  local bindgen_cargo_home="${OPENSESAME_BINDGEN_CARGO_HOME:-$repo_root/target/authenticator-bindgen-cargo-home}"
-  local bindgen_target="${OPENSESAME_BINDGEN_TARGET_DIR:-$repo_root/target/authenticator-bindgen}"
+  # Keep the ambient CARGO_HOME (mise registry and installed bins). Replacing
+  # it with a repo-local home dropped cargo-ndk. A private home stays opt-in.
+  local bindgen_cargo_home="${OPENSESAME_BINDGEN_CARGO_HOME:-${CARGO_HOME:-$repo_root/target/authenticator-bindgen-cargo-home}}"
+  local bindgen_target="${OPENSESAME_BINDGEN_TARGET_DIR:-${CARGO_TARGET_DIR:-$repo_root/target}/authenticator-bindgen}"
   CARGO_HOME="$bindgen_cargo_home" CARGO_TARGET_DIR="$bindgen_target" \
     cargo +1.88.0 build -p "$core_package" --features ffi
   local host_library="$bindgen_target/debug/lib${library_name}"
@@ -37,7 +39,7 @@ case "${1:-}" in
     ;;
   android)
     command -v cargo-ndk >/dev/null || {
-      echo "cargo-ndk is required: cargo install cargo-ndk --locked" >&2
+      echo "cargo-ndk is required: mise install cargo:cargo-ndk" >&2
       exit 1
     }
     generate_bindings

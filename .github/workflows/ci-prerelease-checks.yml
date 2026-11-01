@@ -919,12 +919,12 @@ jobs:
         with:
           cache: true
           install_args: node
-      # live-turn and ntfy are built from pinned source (go.sum); the Go that
-      # builds them is the one live-turn's go.mod names.
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      # live-turn and ntfy are built from pinned source (go.sum). mise installs
+      # the Go version live-turn's go.mod names (mise.toml tools.go).
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          go-version-file: scripts/test/live-turn/go.mod
-          cache: false
+          cache: true
+          install_args: go
       - name: Install
         run: npm ci
       - name: Require the matching SDK and preinstalled browsers
@@ -1085,22 +1085,24 @@ jobs:
       - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
           cache: true
-          install_args: rust
+          install_args: rust java cargo:cargo-ndk
       - name: Install Android Rust targets
         run: rustup target add --toolchain 1.88.0 aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
       - name: Install pinned Android build tools
         run: |
-          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "ndk;28.0.13004108"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.13004108" >> "$GITHUB_ENV"
+          set -euo pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;${ANDROID_SDK_PLATFORM}" \
+            "build-tools;${ANDROID_BUILD_TOOLS}" \
+            "build-tools;${ANDROID_BUILD_TOOLS_LATEST}" \
+            "ndk;${ANDROID_NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
           curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.13-bin.zip -o "$RUNNER_TEMP/gradle.zip"
           echo "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78  $RUNNER_TEMP/gradle.zip" | sha256sum --check
           unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/gradle-8.13/bin" >> "$GITHUB_PATH"
       - name: Build packaged Android Rust libraries
-        run: |
-          cargo install cargo-ndk --version 4.1.2 --locked
-          apps/android/scripts/build-core.sh android
+        run: apps/android/scripts/build-core.sh android
       - name: Test real JVM crypto and FFI, then assemble the app
         run: bash scripts/test/mobile-android.sh
       - name: Verify all four native architectures in the APK

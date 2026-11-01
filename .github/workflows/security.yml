@@ -64,10 +64,10 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          go-version-file: scripts/test/live-turn/go.mod
-          cache-dependency-path: scripts/test/live-turn/go.sum
+          cache: true
+          install_args: go
       - name: Verify upstream source and scan all imported packages
         run: bash scripts/test/live-turn/audit-crypto.sh
 
