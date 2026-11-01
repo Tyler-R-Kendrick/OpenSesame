@@ -253,3 +253,31 @@ test("a changed lock and failed install invalidate the earlier success marker", 
   assert.equal(f.install().status, 0);
   assert.equal(f.calls().length, 3);
 });
+
+test("cloud bootstrap installs mise from a pinned checksum tarball", () => {
+  const dockerfile = readFileSync(join(root, ".cursor/Dockerfile"), "utf8");
+  const installScript = readFileSync(join(root, ".cursor/install.sh"), "utf8");
+  assert.match(dockerfile, /ARG MISE_VERSION=\d+\.\d+\.\d+/);
+  assert.doesNotMatch(dockerfile, /MISE_VERSION=latest/);
+  assert.match(dockerfile, /ARG MISE_SHA256_LINUX_X64=[a-f0-9]{64}/);
+  assert.match(dockerfile, /ARG MISE_SHA256_LINUX_ARM64=[a-f0-9]{64}/);
+  assert.match(dockerfile, /sha256sum -c --strict/);
+  assert.match(
+    dockerfile,
+    /archive="mise-v\$\{MISE_VERSION\}-\$\{mise_target\}\.tar\.gz"/,
+  );
+  assert.match(
+    dockerfile,
+    /https:\/\/github\.com\/jdx\/mise\/releases\/download\/v\$\{MISE_VERSION\}\/\$\{archive\}/,
+  );
+  assert.match(dockerfile, /\.tar\.gz/);
+  assert.match(dockerfile, /MISE_DATA_DIR=\/opt\/mise/);
+  assert.match(dockerfile, /mise install --locked/);
+  assert.match(installScript, /mise install --locked/);
+  assert.match(installScript, /mise run deps/);
+  for (const text of [dockerfile, installScript]) {
+    assert.doesNotMatch(text, /mise\.run/);
+    assert.doesNotMatch(text, /curl[^\n]*\|\s*(?:ba)?sh/);
+    assert.doesNotMatch(text, /\bcorepack\b/);
+  }
+});
