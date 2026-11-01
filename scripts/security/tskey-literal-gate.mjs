@@ -13,7 +13,11 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SKIP_SEGMENTS = new Set(["node_modules", "target", "dist", ".git"]);
-const SKIP_BASENAMES = new Set(["pnpm-lock.yaml", "Cargo.lock"]);
+const SKIP_BASENAMES = new Set([
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "Cargo.lock",
+]);
 const SKIP_SUFFIXES = [
   "packages/app-core/src/lib/synthetic-tailscale-key.ts",
   "packages/app-core/src/lib/synthetic-tailscale-key.test.ts",

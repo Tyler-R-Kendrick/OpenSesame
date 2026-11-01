@@ -12,9 +12,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@opensesame/browser-at-rest": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/sdk-browser": "workspace:*",
+    "@opensesame/browser-at-rest": "*",
+    "@opensesame/os-domain": "*",
+    "@opensesame/sdk-browser": "*",
     "jose": "6.2.13"
   },
   "devDependencies": {

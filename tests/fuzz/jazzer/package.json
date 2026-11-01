@@ -12,17 +12,17 @@
   },
   "dependencies": {
     "@env-spec/parser": "0.6.2",
-    "@opensesame/audit": "workspace:*",
-    "@opensesame/auth-upstream": "workspace:*",
-    "@opensesame/capability-composition": "workspace:*",
-    "@opensesame/contracts": "workspace:*",
-    "@opensesame/oauth-provider": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/support-agent": "workspace:*"
+    "@opensesame/audit": "*",
+    "@opensesame/auth-upstream": "*",
+    "@opensesame/capability-composition": "*",
+    "@opensesame/contracts": "*",
+    "@opensesame/oauth-provider": "*",
+    "@opensesame/os-domain": "*",
+    "@opensesame/support-agent": "*"
   },
   "devDependencies": {
     "@jazzer.js/core": "4.0.0",
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "tsx": "4.23.15",
     "typescript": "7.0.2",

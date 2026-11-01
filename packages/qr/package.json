@@ -15,12 +15,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/ceremony-kit": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/ceremony-kit": "*",
+    "@opensesame/os-domain": "*",
     "uqr": "0.1.3"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "typescript": "7.0.2",
     "vitest": "4.1.12"

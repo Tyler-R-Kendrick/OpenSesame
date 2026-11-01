@@ -171,6 +171,7 @@ test("docs, CI plumbing and lint-only configuration do not start builds", () => 
 test("shared compiler, dependency and embedded-spec inputs compile the whole graph", () => {
   for (const path of [
     "package.json",
+    "package-lock.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "turbo.json",

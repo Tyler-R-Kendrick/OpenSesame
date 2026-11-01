@@ -12,10 +12,10 @@
     "typecheck": "wxt prepare && tsc --noEmit -p .wxt/tsconfig.json"
   },
   "dependencies": {
-    "@opensesame/api-client": "workspace:*",
-    "@opensesame/browser-at-rest": "workspace:*",
-    "@opensesame/client-core": "workspace:*",
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/api-client": "*",
+    "@opensesame/browser-at-rest": "*",
+    "@opensesame/client-core": "*",
+    "@opensesame/os-domain": "*"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

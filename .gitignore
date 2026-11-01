@@ -32,6 +32,7 @@ test-results/
 .output/
 .wxt/
 package-lock.json
+!/package-lock.json
 !.cursor/tools/package-lock.json
 __pycache__/
 # deepsec workspace secrets/local state (config+INFO stay tracked under .deepsec/.gitignore rules)

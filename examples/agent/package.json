@@ -13,14 +13,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/agent-protocols": "workspace:*",
-    "@opensesame/contracts": "workspace:*",
-    "@opensesame/log-scrub": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/sdk-cli": "workspace:*"
+    "@opensesame/agent-protocols": "*",
+    "@opensesame/contracts": "*",
+    "@opensesame/log-scrub": "*",
+    "@opensesame/os-domain": "*",
+    "@opensesame/sdk-cli": "*"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "tsx": "4.23.15",
     "typescript": "7.0.2",

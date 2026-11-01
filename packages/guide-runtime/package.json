@@ -15,7 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/guide-lang": "workspace:*"
+    "@opensesame/guide-lang": "*"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

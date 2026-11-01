@@ -16,8 +16,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@opensesame/cua-password-reset": "workspace:*",
-    "@opensesame/observability": "workspace:*",
+    "@opensesame/cua-password-reset": "*",
+    "@opensesame/observability": "*",
     "linkedom": "0.18.14",
     "tsx": "4.23.15",
     "ws": "8.22.0",
@@ -29,8 +29,8 @@
     "@types/ws": "8.18.2",
     "typescript": "7.0.2",
     "vitest": "4.1.12",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/vault-core": "workspace:*"
+    "@opensesame/os-domain": "*",
+    "@opensesame/vault-core": "*"
   },
   "license": "MIT",
   "repository": {

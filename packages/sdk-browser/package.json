@@ -17,12 +17,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@opensesame/browser-at-rest": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/browser-at-rest": "*",
+    "@opensesame/os-domain": "*",
     "jose": "6.2.13"
   },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "typescript": "7.0.2",
     "vitest": "4.1.12"

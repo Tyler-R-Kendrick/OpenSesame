@@ -19,7 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/oauth-provider": "workspace:*"
+    "@opensesame/oauth-provider": "*"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

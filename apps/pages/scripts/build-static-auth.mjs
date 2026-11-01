@@ -113,6 +113,7 @@ if (check) {
     "packages/sdk-browser",
     "packages/browser-at-rest",
     "packages/os-domain",
+    "package-lock.json",
     "pnpm-lock.yaml",
     "package.json",
     "apps/pages/scripts/build-static-auth.mjs",

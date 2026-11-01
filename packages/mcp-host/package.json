@@ -17,18 +17,18 @@
     "test:integration": "vitest run src/pact.test.ts src/tools.test.ts"
   },
   "dependencies": {
-    "@opensesame/agent-client": "workspace:*",
-    "@opensesame/api-client": "workspace:*",
+    "@opensesame/agent-client": "*",
+    "@opensesame/api-client": "*",
     "@modelcontextprotocol/sdk": "1.32.0",
-    "@opensesame/observability": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/telemetry": "workspace:*",
+    "@opensesame/observability": "*",
+    "@opensesame/os-domain": "*",
+    "@opensesame/telemetry": "*",
     "posthog-node": "5.57.2",
     "zod": "4.6.6"
   },
   "devDependencies": {
-    "@opensesame/capability-registry": "workspace:*",
-    "@opensesame/testing": "workspace:*",
+    "@opensesame/capability-registry": "*",
+    "@opensesame/testing": "*",
     "@types/node": "22.15.29",
     "tsx": "4.23.15",
     "typescript": "7.0.2",

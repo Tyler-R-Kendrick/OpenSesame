@@ -173,6 +173,13 @@ describe("Pages graph and required check names", () => {
       mtls: true,
       push: true,
     });
+    expect(areas(["package-lock.json"])).toEqual({
+      typescript: true,
+      bundle: true,
+      rust: false,
+      mtls: true,
+      push: true,
+    });
     expect(areas(["crates/sealed-store/Cargo.toml"]).mtls).toBe(false);
     expect(areas(["crates/gateway/Cargo.toml"]).mtls).toBe(true);
   });

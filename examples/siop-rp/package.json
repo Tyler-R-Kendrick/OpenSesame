@@ -12,9 +12,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/browser-at-rest": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/siop-v2": "workspace:*",
+    "@opensesame/browser-at-rest": "*",
+    "@opensesame/os-domain": "*",
+    "@opensesame/siop-v2": "*",
     "express": "5.3.0"
   },
   "devDependencies": {
