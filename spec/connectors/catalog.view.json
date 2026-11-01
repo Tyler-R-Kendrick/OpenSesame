@@ -2486,7 +2486,23 @@
       "catalog_revision": "2026-10-31.3",
       "category": "cua_runtime",
       "configured": false,
-      "connection_configuration_fields": [],
+      "connection_configuration_fields": [
+        {
+          "name": "account_email",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "account_login",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "identity_assertion",
+          "required": true,
+          "secret": true
+        }
+      ],
       "display_name": "Boat",
       "docs_url": "https://docs.boat.dev/agent-auth",
       "egress": {

@@ -1515,6 +1515,11 @@
       "auth": {
         "kind": "configuration"
       },
+      "connection_configuration_fields": [
+        { "name": "account_email", "secret": false, "required": true },
+        { "name": "account_login", "secret": false, "required": false },
+        { "name": "identity_assertion", "secret": true, "required": true }
+      ],
       "scopes": [],
       "egress": {
         "scheme": "https",
