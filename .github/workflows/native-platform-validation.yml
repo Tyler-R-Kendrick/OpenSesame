@@ -50,10 +50,10 @@ jobs:
         with:
           cache: true
           install_args: node
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
-          components: rustfmt, clippy
+          cache: true
+          install_args: rust
       - name: Pin source and create isolated logs and build directory
         run: |
           set -euo pipefail
@@ -154,10 +154,10 @@ jobs:
         with:
           cache: true
           install_args: node
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
-          components: rustfmt, clippy
+          cache: true
+          install_args: rust
       - name: Install Linux keychain build and test dependencies
         if: runner.os == 'Linux'
         run: |
@@ -225,7 +225,6 @@ jobs:
         if: ${{ failure() && matrix.platform == 'Windows' && (steps.startup.outcome == 'failure' || steps.journeys.outcome == 'failure') }}
         run: |
           set -euo pipefail
-          rustup component add llvm-tools-preview --toolchain 1.88.0
           node scripts/audit/native-windows-stack.mjs
       - name: Recheck the original source after success or failure
         if: always()
@@ -274,9 +273,10 @@ jobs:
         with:
           cache: true
           install_args: node
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
+          cache: true
+          install_args: rust
       - name: Install Linux keychain build and test dependencies
         if: runner.os == 'Linux'
         run: |

@@ -560,12 +560,13 @@ jobs:
           VITE_BASE: /OpenSesame/
           EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
-      # Rust 1.88, same action and toolchain as the Rust tests job. Only this
+      # Rust 1.88 from mise.toml, same install as the Rust tests job. Only this
       # shard builds the CLI the live relay walk spawns.
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         if: matrix.shard == 'journeys-1'
         with:
-          toolchain: 1.88.0
+          cache: true
+          install_args: rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
@@ -1020,10 +1021,11 @@ jobs:
       - name: Install Linux keychain build and test dependencies
         if: runner.os == 'Linux' && steps.affected.outputs.scope != 'none'
         run: bash scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         if: steps.affected.outputs.scope != 'none'
         with:
-          toolchain: 1.88.0
+          cache: true
+          install_args: rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true
@@ -1080,10 +1082,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          cache: true
+          install_args: rust
+      - name: Install Android Rust targets
+        run: rustup target add --toolchain 1.88.0 aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
       - name: Install pinned Android build tools
         run: |
           echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
@@ -1123,10 +1127,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.source_sha }}
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
-          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+          cache: true
+          install_args: rust
+      - name: Install iOS Rust targets
+        run: rustup target add --toolchain 1.88.0 aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
       - name: Test Swift envelopes and compile all iOS package targets
         run: bash scripts/test/mobile-apple.sh ios
       - name: Preserve iOS simulator XCTest results
@@ -1157,9 +1163,10 @@ jobs:
         with:
           cache: true
           install_args: node
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
         with:
-          toolchain: 1.88.0
+          cache: true
+          install_args: rust
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           lookup-only: true

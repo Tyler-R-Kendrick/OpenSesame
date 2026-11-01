@@ -232,7 +232,14 @@ test("mise.toml matches the Rust, Node, Go, Java, and cargo-ndk pins", () => {
   );
   assert.deepEqual(
     sorted(stringList(rust.components, "rust.components")),
-    sorted(stringList(declared.components, "components")),
+    sorted([
+      ...stringList(declared.components, "components"),
+      "llvm-tools-preview",
+    ]),
+  );
+  assert.match(
+    readText("mise.lock"),
+    /\[tools\.rust\.options\]\ncomponents = "clippy,llvm-tools-preview,rustfmt"\ntargets = "wasm32-unknown-unknown"\n/u,
   );
   assert.deepEqual(
     sorted(stringList(rust.targets, "rust.targets")),

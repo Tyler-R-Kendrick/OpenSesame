@@ -237,13 +237,15 @@ jobs:
         ref: ${{ needs.resolve.outputs.source_sha }}
         persist-credentials: false
         path: src
-    - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-      with:
-        toolchain: 1.88.0
     - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
       with:
         cache: true
         install_args: node
+        working_directory: src
+    - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+      with:
+        cache: true
+        install_args: rust
         working_directory: src
     - name: Prepare Linux keychain dependencies without changing system packages
       run: bash ../.ci-control/scripts/ci/prepare-dbus.sh "$RUNNER_TEMP/opensesame-dbus"
