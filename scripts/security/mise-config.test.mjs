@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import {
+  asBoolean,
+  asString,
+  asTable,
+  kind,
+  parseToml,
+  stringList,
+} from "./mise-toml.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const lockPlatforms = [
@@ -15,202 +23,6 @@ const lockPlatforms = [
 
 function readText(relativePath) {
   return readFileSync(join(root, relativePath), "utf8");
-}
-
-function kind(value) {
-  return Object.prototype.toString.call(value);
-}
-
-function asString(value, label) {
-  assert.equal(kind(value), "[object String]", label);
-  return value;
-}
-
-function asBoolean(value, label) {
-  assert.equal(kind(value), "[object Boolean]", label);
-  return value;
-}
-
-function asTable(value, label) {
-  assert.equal(kind(value), "[object Object]", label);
-  return value;
-}
-
-function stringList(value, label) {
-  if (Array.isArray(value)) {
-    return value.map((entry) => asString(entry, label));
-  }
-  return asString(value, label)
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
-function balanced(text) {
-  let quoted = false;
-  let braces = 0;
-  let brackets = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index];
-    if (character === "\\" && quoted) {
-      index += 1;
-      continue;
-    }
-    if (character === '"') quoted = !quoted;
-    else if (!quoted && character === "{") braces += 1;
-    else if (!quoted && character === "}") braces -= 1;
-    else if (!quoted && character === "[") brackets += 1;
-    else if (!quoted && character === "]") brackets -= 1;
-  }
-  return !quoted && braces === 0 && brackets === 0;
-}
-
-function stripComment(line) {
-  let quoted = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const character = line[index];
-    if (character === "\\" && quoted) {
-      index += 1;
-      continue;
-    }
-    if (character === '"') quoted = !quoted;
-    else if (character === "#" && !quoted) return line.slice(0, index);
-  }
-  return line;
-}
-
-function logicalLines(text) {
-  const lines = [];
-  let buffer = "";
-  for (const physical of text.split("\n")) {
-    const piece = stripComment(physical).trim();
-    if (buffer === "" && piece === "") continue;
-    buffer = buffer === "" ? piece : `${buffer} ${piece}`;
-    if (balanced(buffer)) {
-      if (buffer !== "") lines.push(buffer);
-      buffer = "";
-    }
-  }
-  assert.equal(buffer, "", "unterminated mise.toml value");
-  return lines;
-}
-
-function splitTop(text, separator) {
-  const parts = [];
-  let quoted = false;
-  let braces = 0;
-  let brackets = 0;
-  let start = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index];
-    if (character === "\\" && quoted) {
-      index += 1;
-      continue;
-    }
-    if (character === '"') quoted = !quoted;
-    else if (!quoted && character === "{") braces += 1;
-    else if (!quoted && character === "}") braces -= 1;
-    else if (!quoted && character === "[") brackets += 1;
-    else if (!quoted && character === "]") brackets -= 1;
-    else if (
-      !quoted &&
-      braces === 0 &&
-      brackets === 0 &&
-      character === separator
-    ) {
-      parts.push(text.slice(start, index));
-      start = index + 1;
-    }
-  }
-  parts.push(text.slice(start));
-  return parts;
-}
-
-function parseString(text, label) {
-  assert.equal(text[0], '"', label);
-  let value = "";
-  for (let index = 1; index < text.length; index += 1) {
-    const character = text[index];
-    if (character === "\\") {
-      const escaped = text[index + 1];
-      assert.ok(escaped === '"' || escaped === "\\", label);
-      value += escaped;
-      index += 1;
-      continue;
-    }
-    if (character === '"') {
-      assert.equal(text.slice(index + 1).trim(), "", label);
-      return value;
-    }
-    value += character;
-  }
-  assert.fail(`unterminated string in ${label}`);
-}
-
-function parseValue(text, label) {
-  if (text === "true" || text === "false") return text === "true";
-  if (text.startsWith('"')) return parseString(text, label);
-  if (text.startsWith("[")) {
-    assert.equal(text.at(-1), "]", label);
-    const body = text.slice(1, -1).trim();
-    if (body === "") return [];
-    return splitTop(body, ",").map((part) =>
-      parseValue(part.trim(), `${label} array`),
-    );
-  }
-  if (text.startsWith("{")) {
-    assert.equal(text.at(-1), "}", label);
-    const body = text.slice(1, -1).trim();
-    const table = {};
-    if (body === "") return table;
-    for (const part of splitTop(body, ",")) {
-      const entry = part.trim();
-      if (entry === "") continue;
-      assign(table, entry, label);
-    }
-    return table;
-  }
-  assert.fail(`unsupported TOML value in ${label}: ${text}`);
-}
-
-function unquoteKey(key, label) {
-  const trimmed = key.trim();
-  if (trimmed.startsWith('"')) return parseString(trimmed, label);
-  assert.match(trimmed, /^[A-Za-z0-9_-]+$/u, label);
-  return trimmed;
-}
-
-function assign(table, entry, label) {
-  const parts = splitTop(entry, "=");
-  assert.ok(parts.length >= 2, `${label}: ${entry}`);
-  const key = unquoteKey(parts[0], label);
-  table[key] = parseValue(parts.slice(1).join("=").trim(), key);
-}
-
-function tableAt(rootTable, header) {
-  let cursor = rootTable;
-  for (const part of header.split(".")) {
-    const key = unquoteKey(part, header);
-    if (!Object.hasOwn(cursor, key)) cursor[key] = {};
-    cursor = asTable(cursor[key], key);
-  }
-  return cursor;
-}
-
-// Rejects syntax this gate does not understand so an edit cannot skip a pin.
-function parseToml(text) {
-  const rootTable = {};
-  let current = rootTable;
-  for (const line of logicalLines(text)) {
-    if (line.startsWith("[")) {
-      const header = line.match(/^\[([^\]]+)\]$/u);
-      assert.ok(header, `unsupported table header: ${line}`);
-      current = tableAt(rootTable, header[1]);
-      continue;
-    }
-    assign(current, line, "mise.toml");
-  }
-  return rootTable;
 }
 
 function sorted(values) {
@@ -253,9 +65,9 @@ test("mise.toml matches the Rust, Node, Go, Java, and cargo-ndk pins", () => {
   assert.ok(goDirective, "go.mod go directive");
   assert.equal(asString(tools.go, "go"), goDirective[1]);
 
-  const javaHome = [
-    ...ci.matchAll(/JAVA_HOME_(\d+)_X64/gu),
-  ].map((match) => match[1]);
+  const javaHome = [...ci.matchAll(/JAVA_HOME_(\d+)_X64/gu)].map(
+    (match) => match[1],
+  );
   assert.deepEqual([...new Set(javaHome)], ["17"]);
   assert.match(asString(tools.java, "java"), /^temurin-17(?:\.|$)/u);
 
@@ -263,7 +75,15 @@ test("mise.toml matches the Rust, Node, Go, Java, and cargo-ndk pins", () => {
     /cargo install cargo-ndk --version (\S+) --locked/u,
   );
   assert.ok(cargoNdk, "ci-prerelease-checks cargo-ndk pin");
-  assert.equal(asString(tools["cargo:cargo-ndk"], "cargo-ndk"), cargoNdk[1]);
+  const cargoNdkTool = tools["cargo:cargo-ndk"];
+  const cargoNdkVersion =
+    kind(cargoNdkTool) === "[object Object]"
+      ? asString(
+          asTable(cargoNdkTool, "cargo-ndk").version,
+          "cargo-ndk.version",
+        )
+      : asString(cargoNdkTool, "cargo-ndk");
+  assert.equal(cargoNdkVersion, cargoNdk[1]);
 
   assert.equal(
     asString(asTable(mise.env, "env").CARGO_TARGET_DIR, "CARGO_TARGET_DIR"),
