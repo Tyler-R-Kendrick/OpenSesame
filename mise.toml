@@ -1,0 +1,35 @@
+# pnpm stays in package.json packageManager until the npm workspaces migration.
+# Temurin 17 matches ci-prerelease-checks (JAVA_HOME_17_X64). 17.0.20+101 is
+# the newest Temurin 17 build mise's catalog publishes for every locked
+# platform; 17.0.21+9 has no windows-x64 metadata.
+#
+# cargo: installs run outside this directory, so rust-toolchain.toml does not
+# apply and rustup uses its default toolchain (1.83 in the cloud image).
+# RUSTUP_TOOLCHAIN plus shims ahead of /usr/local/cargo keep Rust 1.88 active
+# for every cargo: backend install.
+
+[tools]
+node = "24"
+rust = { version = "1.88.0", components = ["rustfmt", "clippy"], targets = ["wasm32-unknown-unknown"] }
+go = "1.26.10"
+java = "temurin-17.0.20+101"
+"cargo:cargo-ndk" = { version = "4.1.2", depends = ["rust"], install_env = { RUSTUP_TOOLCHAIN = "1.88.0" } }
+
+[env]
+CARGO_TARGET_DIR = "{{env.HOME}}/.cache/packages/cargo-target"
+RUSTUP_TOOLCHAIN = "1.88.0"
+
+# Prepend. mise puts this ahead of inherited PATH, including /usr/local/cargo/bin.
+[env._]
+path = ["${MISE_SHIMS_DIR:-${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims}"]
+
+[settings]
+lockfile = true
+
+[tasks.setup]
+description = "Install workspace dependencies"
+run = "bash scripts/dev/install-dependencies.sh"
+
+[tasks.deps]
+description = "Install workspace dependencies"
+run = "bash scripts/dev/install-dependencies.sh"
